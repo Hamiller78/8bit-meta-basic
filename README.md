@@ -39,6 +39,16 @@ npm run dev -- examples/warning.mbas --target spectrum --output program.bas
 npm run dev -- examples/warning.mbas --target spectrum -o program.bas
 ```
 
+Control generated label comments:
+
+```text
+npm run dev -- examples/warning.mbas --target spectrum --comments 0
+npm run dev -- examples/warning.mbas --target spectrum --comments 1
+npm run dev -- examples/warning.mbas --target spectrum --comments 2
+```
+
+`--comments 0` emits no label comment lines, `--comments 1` emits comment lines for labels written in Meta-BASIC source, and `--comments 2` also emits generated internal labels. The default is `2`.
+
 ## Supported Syntax
 
 The milestone language supports:

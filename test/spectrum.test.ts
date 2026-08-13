@@ -46,6 +46,59 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("can omit generated label comment lines while keeping source label comment lines", () => {
+    const source = [
+      "start:",
+      'print "WARNING"',
+      "if confirmed then",
+      'print "ATTACK CONFIRMED"',
+      "else",
+      'print "AWAITING SECOND SOURCE"',
+      "end if",
+      "goto start"
+    ].join("\n");
+
+    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", comments: 1 })).toBe(
+      [
+        "10 REM start:",
+        '20 PRINT "WARNING"',
+        "30 IF confirmed THEN GO TO 50",
+        "40 GO TO 70",
+        '50 PRINT "ATTACK CONFIRMED"',
+        "60 GO TO 80",
+        '70 PRINT "AWAITING SECOND SOURCE"',
+        "80 GO TO 10",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("can omit all label comment lines", () => {
+    const source = [
+      "start:",
+      'print "WARNING"',
+      "if confirmed then",
+      'print "ATTACK CONFIRMED"',
+      "else",
+      'print "AWAITING SECOND SOURCE"',
+      "end if",
+      "goto start"
+    ].join("\n");
+
+    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", comments: 0 })).toBe(
+      [
+        '10 PRINT "WARNING"',
+        "20 IF confirmed THEN GO TO 40",
+        "30 GO TO 60",
+        '40 PRINT "ATTACK CONFIRMED"',
+        "50 GO TO 70",
+        '60 PRINT "AWAITING SECOND SOURCE"',
+        "70 GO TO 10",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders IF without ELSE", () => {
     expect(compileSource('if ready then\nprint "READY"\nend if\n', { filename: "if.mbas", target: "spectrum" })).toBe(
       ["10 IF ready THEN GO TO 30", "20 GO TO 50", "30 REM __mb_1:", '40 PRINT "READY"', "50 REM __mb_2:", ""].join("\n")
@@ -100,6 +153,10 @@ describe("Spectrum compiler", () => {
       const stdoutRun = await runCli(sourcePath, "--target", "spectrum");
       expect(stdoutRun.stdout).toBe(['10 REM start:', '20 PRINT "OK"', "30 GO TO 10", ""].join("\n"));
       expect(stdoutRun.stderr).toBe("");
+
+      const compactRun = await runCli(sourcePath, "--target", "spectrum", "--comments", "0");
+      expect(compactRun.stdout).toBe(['10 PRINT "OK"', "20 GO TO 10", ""].join("\n"));
+      expect(compactRun.stderr).toBe("");
 
       const fileRun = await runCli(sourcePath, "--target", "spectrum", "-o", outputPath);
       expect(fileRun.stdout).toBe("");
