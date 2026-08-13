@@ -1,0 +1,10 @@
+start:
+    print "WARNING"
+
+    if confirmed then
+        print "ATTACK CONFIRMED"
+    else
+        print "AWAITING SECOND SOURCE"
+    end if
+
+    goto start
