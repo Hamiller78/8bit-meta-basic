@@ -16,7 +16,7 @@ const printPattern = /^print\s+("[^"]*")\s*$/i;
 const gotoPattern = /^goto\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/i;
 const ifPattern = /^if\s+(.+)\s+then\s*$/i;
 const elsePattern = /^else\s*$/i;
-const endIfPattern = /^end\s+if\s*$/i;
+const endIfPattern = /^end\s*if\s*$/i;
 
 export function parseSource(source: string, filename: string): Program {
   const root: Statement[] = [];
@@ -34,10 +34,16 @@ export function parseSource(source: string, filename: string): Program {
     if (elsePattern.test(text)) {
       const frame = stack.at(-1);
       if (!frame) {
-        throw new DiagnosticError(location, "Unexpected ELSE without matching IF.");
+        throw new DiagnosticError(
+          location,
+          "Unexpected ELSE without matching IF.",
+        );
       }
       if (frame.inElse) {
-        throw new DiagnosticError(location, "Unexpected duplicate ELSE in IF block.");
+        throw new DiagnosticError(
+          location,
+          "Unexpected duplicate ELSE in IF block.",
+        );
       }
       frame.inElse = true;
       continue;
@@ -46,7 +52,10 @@ export function parseSource(source: string, filename: string): Program {
     if (endIfPattern.test(text)) {
       const frame = stack.pop();
       if (!frame) {
-        throw new DiagnosticError(location, "Unexpected END IF without matching IF.");
+        throw new DiagnosticError(
+          location,
+          "Unexpected END IF without matching IF.",
+        );
       }
 
       frame.parent.push({
@@ -54,7 +63,7 @@ export function parseSource(source: string, filename: string): Program {
         condition: frame.condition,
         thenBranch: frame.thenBranch,
         elseBranch: frame.elseBranch,
-        location: frame.ifLocation
+        location: frame.ifLocation,
       });
       continue;
     }
@@ -91,17 +100,23 @@ export function parseSource(source: string, filename: string): Program {
         parent: target,
         thenBranch: [],
         elseBranch: [],
-        inElse: false
+        inElse: false,
       });
       continue;
     }
 
-    throw new DiagnosticError(location, `Unsupported or invalid syntax: ${text}`);
+    throw new DiagnosticError(
+      location,
+      `Unsupported or invalid syntax: ${text}`,
+    );
   }
 
   const openFrame = stack.at(-1);
   if (openFrame) {
-    throw new DiagnosticError(openFrame.ifLocation, "Missing END IF for IF block.");
+    throw new DiagnosticError(
+      openFrame.ifLocation,
+      "Missing END IF for IF block.",
+    );
   }
 
   return { statements: root };

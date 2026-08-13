@@ -51,6 +51,19 @@ describe("parser", () => {
     ]);
   });
 
+  it("accepts ENDIF as an END IF spelling", () => {
+    const program = parseSource('if confirmed then\nprint "YES"\nendif\n', "endif.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "if",
+        condition: "confirmed",
+        thenBranch: [{ kind: "print", literal: '"YES"' }],
+        elseBranch: []
+      }
+    ]);
+  });
+
   it("reports a missing END IF with the IF source line", () => {
     expect(() => parseSource("if confirmed then\n", "broken.mbas")).toThrow("broken.mbas:1: Missing END IF");
   });
