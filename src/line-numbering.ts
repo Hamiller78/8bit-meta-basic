@@ -1,7 +1,7 @@
 import type { Instruction, LoweredProgram } from "./lowering.js";
 import { normalizeLabel } from "./lowering.js";
 
-export type CommentLevel = 0 | 1 | 2;
+export type ReadabilityLevel = 0 | 1 | 2;
 
 export interface NumberedLine {
   readonly number: number;
@@ -14,10 +14,10 @@ export interface NumberedProgram {
   readonly labelLines: ReadonlyMap<string, number>;
 }
 
-export function assignLineNumbers(program: LoweredProgram, commentLevel: CommentLevel): NumberedProgram {
+export function assignLineNumbers(program: LoweredProgram, readability: ReadabilityLevel): NumberedProgram {
   const emittedInstructions = program.instructions
     .map((instruction, instructionIndex) => ({ instruction, instructionIndex }))
-    .filter(({ instruction }) => shouldEmitInstruction(instruction, commentLevel));
+    .filter(({ instruction }) => shouldEmitInstruction(instruction, readability));
 
   const lines = emittedInstructions.map(({ instruction, instructionIndex }, lineIndex) => ({
     number: 10 + lineIndex * 10,
@@ -42,16 +42,16 @@ export function resolveLabel(labelLines: ReadonlyMap<string, number>, label: str
   return line;
 }
 
-function shouldEmitInstruction(instruction: Instruction, commentLevel: CommentLevel): boolean {
+function shouldEmitInstruction(instruction: Instruction, readability: ReadabilityLevel): boolean {
   if (instruction.kind !== "label") {
     return true;
   }
 
-  if (commentLevel === 2) {
+  if (readability === 2) {
     return true;
   }
 
-  return commentLevel === 1 && !instruction.internal;
+  return readability === 1 && !instruction.internal;
 }
 
 function resolveLabelLine(lines: readonly NumberedLine[], labelIndex: number): number {

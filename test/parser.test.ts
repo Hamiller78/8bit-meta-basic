@@ -120,6 +120,29 @@ describe("parser", () => {
     );
   });
 
+  it("parses PRINT AT as positioned output in the AST", () => {
+    const program = parseSource('print at warningRow, 5 + x; "WARNING"; x\n', "print-at.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "print",
+        at: {
+          row: { kind: "identifier", name: "warningRow" },
+          column: { kind: "binary", operator: "+" }
+        },
+        items: [{ kind: "string", value: "WARNING" }, { kind: "identifier", name: "x" }],
+        trailingSemicolon: false
+      }
+    ]);
+  });
+
+  it("reports malformed PRINT AT coordinates and separator", () => {
+    expect(() => parseSource('print at ,5; "NO"\n', "row.mbas")).toThrow("row.mbas:1: PRINT AT requires a row expression");
+    expect(() => parseSource('print at 1 5; "NO"\n', "comma.mbas")).toThrow("comma.mbas:1: Expected comma between PRINT AT row and column");
+    expect(() => parseSource('print at 1,; "NO"\n', "column.mbas")).toThrow("column.mbas:1: PRINT AT requires a column expression");
+    expect(() => parseSource('print at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT AT column");
+  });
+
   it("reports a missing END IF with the IF source line", () => {
     expect(() => parseSource("if confirmed then\n", "broken.mbas")).toThrow("broken.mbas:1: Missing END IF");
   });

@@ -3,14 +3,19 @@ import { keywords, tokenize } from "../src/lexer.js";
 
 describe("lexer", () => {
   it("records token locations for representative tokens", () => {
-    const tokens = tokenize('print "HI"; value\n', "tokens.mbas");
+    const tokens = tokenize('print at 10,5; "HI"; value\n', "tokens.mbas");
 
     expect(tokens).toMatchObject([
       { kind: "keyword", text: "PRINT", location: { filename: "tokens.mbas", line: 1, column: 1 } },
-      { kind: "string", value: "HI", location: { filename: "tokens.mbas", line: 1, column: 7 } },
-      { kind: "punctuation", text: ";", location: { filename: "tokens.mbas", line: 1, column: 11 } },
-      { kind: "identifier", text: "value", location: { filename: "tokens.mbas", line: 1, column: 13 } },
-      { kind: "newline", location: { filename: "tokens.mbas", line: 1, column: 18 } },
+      { kind: "keyword", text: "AT", location: { filename: "tokens.mbas", line: 1, column: 7 } },
+      { kind: "number", value: 10, location: { filename: "tokens.mbas", line: 1, column: 10 } },
+      { kind: "punctuation", text: ",", location: { filename: "tokens.mbas", line: 1, column: 12 } },
+      { kind: "number", value: 5, location: { filename: "tokens.mbas", line: 1, column: 13 } },
+      { kind: "punctuation", text: ";", location: { filename: "tokens.mbas", line: 1, column: 14 } },
+      { kind: "string", value: "HI", location: { filename: "tokens.mbas", line: 1, column: 16 } },
+      { kind: "punctuation", text: ";", location: { filename: "tokens.mbas", line: 1, column: 20 } },
+      { kind: "identifier", text: "value", location: { filename: "tokens.mbas", line: 1, column: 22 } },
+      { kind: "newline", location: { filename: "tokens.mbas", line: 1, column: 27 } },
       { kind: "eof", location: { filename: "tokens.mbas", line: 2, column: 1 } }
     ]);
   });
@@ -25,6 +30,7 @@ describe("lexer", () => {
   it("recognizes keywords case-insensitively through the centralized keyword set", () => {
     expect(keywords.has("PRINT")).toBe(true);
     expect(keywords.has("AND")).toBe(true);
+    expect(keywords.has("AT")).toBe(true);
     expect(keywords.has("LET")).toBe(false);
     expect(tokenize("pRiNt true and false\n", "case.mbas").filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual([
       "PRINT",

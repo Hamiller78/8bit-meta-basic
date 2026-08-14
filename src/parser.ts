@@ -52,6 +52,7 @@ class Parser {
   parsePrint(location: SourceLocation): Statement {
     const items: Expression[] = [];
     let trailingSemicolon = false;
+    const at = this.matchKeyword("AT") ? this.parsePrintAt() : undefined;
 
     if (this.isLineEnd()) {
       throw new DiagnosticError(this.current().location, "PRINT requires at least one expression.");
@@ -73,7 +74,7 @@ class Parser {
     }
 
     this.expectLineEnd();
-    return { kind: "print", items, trailingSemicolon, location };
+    return at ? { kind: "print", items, trailingSemicolon, at, location } : { kind: "print", items, trailingSemicolon, location };
   }
 
   parseAssignment(location: SourceLocation, name: string): Statement {
@@ -81,6 +82,22 @@ class Parser {
     const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "let", name, expression, location };
+  }
+
+  private parsePrintAt(): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
+    const location = this.current().location;
+    this.expectKeyword("AT", "Expected AT after PRINT.");
+    if (this.matchPunctuation(",")) {
+      throw new DiagnosticError(this.current().location, "PRINT AT requires a row expression before the comma.");
+    }
+    const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "Expected comma between PRINT AT row and column.");
+    if (this.matchPunctuation(";")) {
+      throw new DiagnosticError(this.current().location, "PRINT AT requires a column expression after the comma.");
+    }
+    const column = this.parseExpression(() => this.matchPunctuation(";") || this.isLineEnd());
+    this.expectPunctuation(";", "Expected semicolon after PRINT AT column.");
+    return { row, column, location };
   }
 
   parseGoto(location: SourceLocation): Statement {
@@ -312,7 +329,7 @@ class Parser {
     this.advance();
   }
 
-  private expectPunctuation(text: "(" | ")" | ":" | ";" | "=", message: string): void {
+  private expectPunctuation(text: "(" | ")" | ":" | "," | ";" | "=", message: string): void {
     if (!this.matchPunctuation(text)) {
       throw new DiagnosticError(this.current().location, message);
     }
@@ -343,12 +360,12 @@ class Parser {
     return token.kind === "keyword" && token.text === text;
   }
 
-  private matchPunctuation(text: "(" | ")" | ":" | ";" | "="): boolean {
+  private matchPunctuation(text: "(" | ")" | ":" | "," | ";" | "="): boolean {
     const token = this.current();
     return token.kind === "punctuation" && token.text === text;
   }
 
-  private nextIsPunctuation(text: "(" | ")" | ":" | ";" | "="): boolean {
+  private nextIsPunctuation(text: "(" | ")" | ":" | "," | ";" | "="): boolean {
     const token = this.tokens[this.index + 1];
     return token?.kind === "punctuation" && token.text === text;
   }

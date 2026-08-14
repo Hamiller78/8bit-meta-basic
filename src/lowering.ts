@@ -14,7 +14,16 @@ export interface LabelDefinition {
   readonly internal: boolean;
 }
 
-export type Instruction = LabelInstruction | PrintInstruction | LetInstruction | GotoInstruction | IfGotoInstruction;
+export type Instruction =
+  | LabelInstruction
+  | RemInstruction
+  | PrintInstruction
+  | LetInstruction
+  | GotoInstruction
+  | IfGotoInstruction
+  | PositionInstruction
+  | PokeInstruction
+  | SysInstruction;
 
 export interface LabelInstruction {
   readonly kind: "label";
@@ -23,10 +32,20 @@ export interface LabelInstruction {
   readonly location: SourceLocation;
 }
 
+export interface RemInstruction {
+  readonly kind: "rem";
+  readonly text: string;
+  readonly location: SourceLocation;
+}
+
 export interface PrintInstruction {
   readonly kind: "print";
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
+  readonly at?: {
+    readonly row: Expression;
+    readonly column: Expression;
+  };
   readonly location: SourceLocation;
 }
 
@@ -47,6 +66,26 @@ export interface IfGotoInstruction {
   readonly kind: "if-goto";
   readonly condition: Expression;
   readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface PositionInstruction {
+  readonly kind: "position";
+  readonly row: Expression;
+  readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface PokeInstruction {
+  readonly kind: "poke";
+  readonly address: number;
+  readonly value: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface SysInstruction {
+  readonly kind: "sys";
+  readonly address: number;
   readonly location: SourceLocation;
 }
 
@@ -80,6 +119,7 @@ function lowerStatements(
           kind: "print",
           items: statement.items,
           trailingSemicolon: statement.trailingSemicolon,
+          ...(statement.at ? { at: { row: statement.at.row, column: statement.at.column } } : {}),
           location: statement.location
         });
         break;

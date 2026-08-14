@@ -50,7 +50,16 @@ function analyzeStatements(
       case "print":
         analyzed.push({
           ...statement,
-          items: statement.items.map((item) => foldExpression(item, constants, inConstantExpression))
+          items: statement.items.map((item) => foldExpression(item, constants, inConstantExpression)),
+          ...(statement.at
+            ? {
+                at: {
+                  ...statement.at,
+                  row: foldExpression(statement.at.row, constants, inConstantExpression),
+                  column: foldExpression(statement.at.column, constants, inConstantExpression)
+                }
+              }
+            : {})
         });
         break;
       case "if":

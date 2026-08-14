@@ -1,8 +1,14 @@
 # Meta-BASIC Agent Instructions
 
+These instructions describe the current project state and replace any earlier AGENTS.md guidance.
+
 ## Project purpose
 
-Meta-BASIC is a small, modern source language that transpiles into readable BASIC for classic home computers. Its first targets are the ZX Spectrum and Atari 8-bit family. Commodore BASIC V2 and other dialects may follow.
+Meta-BASIC is a small, modern source language that transpiles into readable BASIC for classic home computers. The current implemented targets are:
+
+- ZX Spectrum BASIC
+- Atari 800XL Atari BASIC
+- Commodore 64 BASIC V2
 
 The project should preserve the character of each target machine. It is not intended to hide every hardware difference behind one universal API. Shared language features should cover program structure and genuinely portable operations; machine-specific capabilities may later be exposed through explicit target namespaces or libraries.
 
@@ -12,14 +18,14 @@ Generated BASIC is a development artifact, not merely an opaque intermediate fil
 
 - Keep the compiler core independent of VS Code. A future extension will call the same library and CLI.
 - Prefer a small functional core: parse source into immutable data, transform it, then render a target dialect.
-- Maintain an explicit pipeline: source text, tokens, syntax tree, semantic analysis, lowering, line numbering, and target rendering.
+- Maintain the explicit pipeline: source text, tokens, syntax tree, semantic analysis, shared lowering, target lowering, line numbering, and target rendering.
 - Keep filesystem access, argument handling, and process exit behavior in a thin CLI shell.
 - Use explicit TypeScript types and discriminated unions for syntax-tree nodes.
-- Keep target-independent syntax and semantics out of Spectrum-specific rendering code.
+- Keep target-independent syntax and semantics out of target-specific rendering code.
 - Add tests for observable language behavior before broadening the syntax.
 - Produce actionable diagnostics containing the source filename and line number. Add columns when useful.
 - Reject unsupported or ambiguous syntax. Do not silently emit questionable BASIC.
-- Preserve existing repository content and conventions. Do not replace files created by the user unless required for this milestone.
+- Preserve existing repository content and conventions. Do not replace files created by the user unless required.
 - Do not commit, push, publish packages, create releases, or change repository settings unless the user explicitly asks.
 
 ## Runtime and tooling
@@ -31,47 +37,31 @@ Generated BASIC is a development artifact, not merely an opaque intermediate fil
 - Use `tsx` for direct development execution.
 - Use Vitest for automated tests.
 - Compile distributable JavaScript with `tsc` and run it with Node.
-- Avoid new production dependencies for this milestone. A handwritten tokenizer and parser are sufficient for the deliberately small grammar.
+- Avoid new production dependencies unless there is a clear need. The current tokenizer and parser are handwritten.
 
 If the repository already contains compatible tooling, adapt to it rather than replacing it.
 
-## Completed milestone: first vertical slice
+## Current implemented language
 
-The first milestone established a command-line transpiler that reads one Meta-BASIC file and emits readable numbered ZX Spectrum BASIC. It supports labels, `PRINT` string literals, `GOTO`, multiline `IF/ELSE`, nested conditions, comments, deterministic line numbering, diagnostics, and CLI output.
-
-Preserve that behavior and its tests while implementing the second milestone.
-
-## Current milestone: tokens and expressions
-
-Evolve the prototype from line-oriented regular-expression matching into a small source-to-source compiler with:
-
-1. A tokenizer with source locations.
-2. Centralized keyword recognition.
-3. Parser dispatch based on tokens rather than a growing chain of statement regexes.
-4. A typed expression syntax tree with operator precedence.
-5. Compile-time constants.
-6. Numeric assignments.
-7. Expression rendering for ZX Spectrum BASIC.
-
-This milestone deliberately improves the architecture before procedures, local variables, multiple files, or additional targets make the current approach expensive to replace.
-
-### Required source syntax
-
-The following example must compile:
+The implemented Meta-BASIC syntax supports:
 
 ```basic
 const screenRows = 24
 const warningRow = screenRows - 2
 const initialCountdown = 5 * 12
 
+sensorCount = 1
+alertLevel = 2
+confirmed = 1
+
 start:
     print "WARNING"
     print "SECONDS: "; initialCountdown
 
-    let urgency = sensorCount * 2 + alertLevel
+    urgency = sensorCount * 2 + alertLevel
 
     if confirmed and urgency >= 4 then
-        print "ATTACK CONFIRMED"
+        print at 10, 5; "ATTACK CONFIRMED"
     else
         print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
@@ -79,29 +69,33 @@ start:
     goto start
 ```
 
-Continue to support:
+Supported constructs:
 
 - Blank lines
+- Comments beginning with an apostrophe; comments continue to the end of the source line
 - Labels written as `name:`
 - `goto label`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
-- Comments beginning with an apostrophe; a comment continues to the end of the source line
-
-Add:
-
+- Optional `else` blocks
 - Constants written as `const name = expression`
-- Numeric assignments written as `let name = expression`
-- `PRINT` containing one or more expressions separated by semicolons
-- Expressions in `IF`, `CONST`, `LET`, and `PRINT`
+- Numeric assignments written canonically as `name = expression`
+- `print` containing one or more expressions separated by semicolons
+- `print at row, column;` followed by one or more expressions separated by semicolons
+- Expressions in `IF`, `CONST`, assignments, and `PRINT`
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical and preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, but must begin with a letter or underscore. String variables and `$` suffixes remain out of scope; string literals are supported for output.
+Important source-language rule:
 
-### Tokenizer
+- `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
+- Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Replace statement recognition based on independent whole-line regular expressions with a tokenizer. A small regular expression may still be used internally for scanning a token category, but parsing decisions must operate on tokens.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, but must begin with a letter or underscore. String variables and `$` suffixes are out of scope; string literals are supported for output.
 
-At minimum, tokenize:
+## Tokenizer and parser
+
+The parser must make syntactic decisions from tokens, not independent whole-line statement regular expressions.
+
+The tokenizer currently handles:
 
 - Identifiers
 - Keywords
@@ -110,29 +104,22 @@ At minimum, tokenize:
 - Operators
 - Parentheses
 - Colon
+- Comma
 - Semicolon
 - Newline
 - End of file
 
-Every token must retain its filename, line, and column. Comments may be discarded by the tokenizer, but newlines must remain available to the parser because statements are line-oriented.
+Every token retains filename, line, and column. Comments are discarded by the tokenizer, but newlines remain available to the parser because statements are line-oriented.
 
-Define keywords in one centralized, case-insensitive set. Do not add one lexer branch or regular expression for every keyword. The initial keyword set includes:
+Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-```text
-AND CONST ELSE END FALSE GOTO IF LET NOT OR PRINT THEN TRUE
-```
+## Expression grammar
 
-The parser may use a `Map` or equivalent dispatch table from leading statement keyword to its parser. Block delimiters such as `ELSE` and `END IF` remain the responsibility of the enclosing block parser.
+Expressions are represented as discriminated-union AST nodes. Do not retain expressions as unvalidated text.
 
-Keywords inside string literals or comments must never be interpreted as syntax.
+Supported expression forms:
 
-### Expression grammar
-
-Build expressions as discriminated-union AST nodes. Do not retain expressions as unvalidated text.
-
-Support:
-
-- Numeric literals, including a decimal fraction
+- Numeric literals, including decimal fractions
 - String literals
 - Identifiers
 - Parenthesized expressions
@@ -143,7 +130,7 @@ Support:
 - Logical `AND`, `OR`
 - Boolean literals `TRUE` and `FALSE`
 
-Use this precedence from highest to lowest:
+Precedence from highest to lowest:
 
 1. Parentheses and primary expressions
 2. Unary `-`, `NOT`
@@ -153,103 +140,195 @@ Use this precedence from highest to lowest:
 6. `AND`
 7. `OR`
 
-All binary operators are left-associative. Comparison chaining such as `a < b < c` is not supported and must produce a diagnostic suggesting `a < b AND b < c`.
+Binary operators are left-associative. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
 
-A handwritten Pratt parser or precedence-based recursive-descent parser is appropriate. Do not introduce a parser-generator dependency.
+## Constants and semantic analysis
 
-### Constants
+`CONST` declarations are compile-time only and emit no BASIC line.
 
-`CONST` declarations are compile-time only and emit no BASIC line:
-
-```basic
-const screenRows = 24
-const warningRow = screenRows - 2
-```
-
-Requirements:
+Implemented requirements:
 
 - A constant expression may reference an earlier constant.
 - Constant references are case-insensitive.
-- Reject duplicate constant names, including names differing only by case.
-- Reject references to unknown constants while evaluating a constant declaration.
-- Reject circular references if forward constant references are deliberately supported. Supporting forward references is optional for this milestone.
-- Evaluate arithmetic, comparison, logical, unary, parenthesized, numeric, string, and boolean constant expressions where meaningful.
-- Report invalid combinations such as subtracting strings.
-- `TRUE` lowers to numeric `1`; `FALSE` lowers to numeric `0` for Spectrum output.
-- Substitute constants into runtime expressions and fold subexpressions made entirely from constants.
+- Duplicate constant names are rejected, including names differing only by case.
+- Unknown constants in constant declarations are rejected.
+- Arithmetic, comparison, logical, unary, parenthesized, numeric, string, and boolean constant expressions are evaluated where meaningful.
+- Invalid combinations such as subtracting strings are rejected.
+- Constants are substituted into runtime expressions and constant subexpressions are folded.
 - Division by zero in a constant expression is a compile-time diagnostic.
+- `TRUE` and `FALSE` lower to numeric representations while preserving Meta-BASIC logical semantics.
 
-String concatenation with `+` may be supported if it is straightforward and tested. No other implicit string/number conversions are required.
+Forward constant references are not required. If added later, circular references must be diagnosed.
 
-### Assignments
+## Assignments
 
-Support numeric assignment:
+Meta-BASIC source assignment is:
 
 ```basic
-let urgency = sensorCount * 2 + alertLevel
+urgency = sensorCount * 2 + alertLevel
 ```
 
-Render it as Spectrum BASIC `LET`. Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
+Assignments produce the same target-independent assignment node regardless of backend. Render assignments as:
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables for this milestone.
+- Spectrum: `LET name=expression`
+- Atari 800XL: `name=expression`
+- C64: `NAME=expression` in readable mode, or compact generated names in low-readability mode
 
-### PRINT expressions
+Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Support semicolon-separated `PRINT` items:
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables for now.
+
+## PRINT and positioned output
+
+Semicolon-separated `PRINT` items are supported:
 
 ```basic
 print "SECONDS: "; countdown
-```
-
-The generated Spectrum statement must preserve the semicolon-separated form. A trailing semicolon remains significant and suppresses the newline:
-
-```basic
 print "WAIT";
 ```
 
-Commas, apostrophe print separators, `PRINT AT`, colour controls, and streams remain out of scope.
+A trailing semicolon remains significant and suppresses the newline.
 
-An `ELSE` block remains optional. Every opened `IF` must have a matching `END IF`.
+Portable positioned output is supported:
 
-### Spectrum output semantics
+```basic
+print at 10, 5; "WARNING"
+print at warningRow, 0; "SECONDS: "; countdown
+```
+
+Rules:
+
+- Coordinates are written in portable order `row, column` and are zero-based.
+- A semicolon after the column expression is required.
+- The row and column are full numeric expressions.
+- Positioned output is represented explicitly in the target-independent AST.
+- Target lowering may expand one positioned print into multiple BASIC statements.
+- Constant coordinates are range-checked per target.
+- Dynamic coordinates are not range-checked yet.
+
+Out of scope for `PRINT`: comma separators, apostrophe print separators, colour controls, streams, `INK`, `PAPER`, `COLOR`, `SETCOLOR`, and portable colour abstractions.
+
+## Shared output semantics
 
 - Generate line numbers beginning at 10 in increments of 10.
-- Render keywords in uppercase.
-- Render a source label as a readable `REM` line and resolve jumps to that line number.
+- Render target keywords in uppercase.
 - Reject duplicate labels.
 - Reject references to undefined labels.
-- Lower multiline `IF/ELSE` into Spectrum-compatible `IF ... THEN GO TO`, unconditional `GO TO`, and generated internal labels.
+- Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
 - Generated internal labels must never collide with user labels.
-- Do not depend on a native Spectrum `ELSE` construct.
-- Keep one BASIC statement per generated line for this milestone.
+- Do not depend on a native target `ELSE` construct.
+- Keep one BASIC statement per generated line.
 - Prefer deterministic output: identical input and options must produce byte-for-byte identical BASIC.
-- Render expressions from the AST with only the parentheses needed to preserve meaning. Extra harmless parentheses are acceptable initially if output remains readable and deterministic.
-- Use Spectrum spellings for supported operators: `NOT`, `AND`, `OR`, `=`, and `<>`.
+- Render expressions from the AST.
 - Emit numeric constants using a deterministic culture-independent format with `.` as decimal separator.
 
-The exact lowering strategy is an implementation decision, but the visible behavior must be covered by golden-output tests.
+## Readability option
 
-### CLI
+The CLI supports:
 
-Support this development command:
+```text
+--readability 0
+--readability 1
+--readability 2
+```
+
+Default is `2`.
+
+Meaning:
+
+- `0`: compact output. Do not emit label `REM` lines. Targets may use compact runtime variable names.
+- `1`: emit `REM` lines for labels written in Meta-BASIC source. For C64 output, use compact generated variable names and emit `REM Vn=ORIGINALNAME` comments at the first explicit assignment for each variable.
+- `2`: emit `REM` lines for source labels and generated internal labels, and use readable variable names where the target can do so safely.
+
+`--comments 0|1|2` is still accepted as a compatibility alias for the old label-comment option, but new documentation and tests should prefer `--readability`.
+
+## Target semantics
+
+### Spectrum
+
+- Target ZX Spectrum BASIC.
+- Use `GO TO`.
+- Render assignments as `LET NAME=expression`.
+- Render identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Preserve string literal contents exactly.
+- Render positioned output directly as `PRINT AT row,column;...`.
+- Constant coordinates must satisfy row `0..21` and column `0..31`.
+
+### Atari 800XL
+
+- Target Atari BASIC as built into a typical Atari 800XL.
+- Do not target Turbo-BASIC XL, BASIC XL, or another extended dialect.
+- Use `GOTO`.
+- Render assignments without `LET`.
+- Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
+- Lower positioned output into:
+
+```basic
+POSITION column,row
+PRINT ...
+```
+
+- Constant coordinates must satisfy row `0..23` and column `0..39` for `GRAPHICS 0` text mode.
+- Do not emit `GRAPHICS 0` automatically.
+
+### Commodore 64
+
+- Target the C64 built-in Commodore BASIC V2.
+- Do not target BASIC extension cartridges or injected runtime libraries.
+- Use `GOTO`.
+- Render assignments without `LET`.
+- Render identifiers and `REM` label text in uppercase for readable C64 listings. Preserve string literal contents exactly.
+- Lower positioned output into:
+
+```basic
+POKE 214,row
+POKE 211,column
+SYS 58732
+PRINT ...
+```
+
+- Constant coordinates must satisfy row `0..24` and column `0..39`.
+- Commodore BASIC V2 distinguishes variable names by only their first two significant characters. The C64 backend must use deterministic target-lowering name mapping so distinct Meta-BASIC variables never silently alias.
+- At readability `2`, preserve readable uppercase names where safely possible.
+- At readability `1`, allocate compact generated variable names deterministically and comment the first explicit assignment for each variable with its source name.
+- At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
+- Avoid generated names that conflict with BASIC keywords. Constants are substituted and require no runtime variable name.
+
+## Logical semantics across targets
+
+Meta-BASIC logical operators mean logical truth over numeric values, with zero false and nonzero true. Target backends must preserve that meaning even where a target BASIC implements `NOT`, `AND`, or `OR` as bitwise integer operations or represents true differently. Keep required normalization in target lowering or expression rendering, not in the parser.
+
+## CLI
+
+Supported development commands:
 
 ```text
 npm run dev -- examples/warning.mbas --target spectrum
+npm run dev -- examples/warning.mbas --target atari800xl
+npm run dev -- examples/warning.mbas --target c64
 ```
 
-Default to writing generated BASIC to standard output. Also support:
+Compiled commands after `npm run build`:
+
+```text
+npm start -- examples/warning.mbas --target spectrum
+npm start -- examples/warning.mbas --target atari800xl
+npm start -- examples/warning.mbas --target c64
+```
+
+Default output is standard output. Also support:
 
 ```text
 --output path/to/program.bas
+-o path/to/program.bas
 ```
 
-Accept `-o` as its short form. Return a nonzero exit code for invalid arguments, file errors, syntax errors, or generation errors. Write diagnostics to standard error.
+Valid targets are only `spectrum`, `atari800xl`, and `c64`. Do not accept a target and silently substitute another. Keep target selection typed and centralized.
 
-Only `spectrum` is a valid target in this milestone. Do not accept a target and silently substitute another.
+Invalid arguments, file errors, syntax errors, semantic errors, and generation errors must return a nonzero exit code and write diagnostics to standard error.
 
-### Suggested structure
+## Project structure
 
-Use this structure unless existing repository conventions suggest a better equivalent:
+Current structure:
 
 ```text
 src/
@@ -257,84 +336,82 @@ src/
   diagnostics.ts
   lexer.ts
   parser.ts
+  semantic.ts
   lowering.ts
   line-numbering.ts
   compiler.ts
   cli.ts
+  symbols.ts
   targets/
+    target.ts
+    index.ts
     spectrum.ts
+    atari800xl.ts
+    c64.ts
 test/
+  lexer.test.ts
   parser.test.ts
   spectrum.test.ts
+  atari800xl.test.ts
+  c64.test.ts
 examples/
   warning.mbas
 ```
 
-Keep target-independent parsing and lowering separate from Spectrum rendering. It must be possible to add an Atari backend later without putting target checks throughout the parser.
+Keep target-independent parsing and semantic analysis separate from all target rendering. Shared control-flow lowering may produce a neutral lowered representation, while target-specific lowering may expand operations such as positioned printing and normalize target quirks.
 
-This is a suggested separation, not a requirement to create empty or one-function files. Prefer cohesive modules over ceremonial architecture.
+## Testing expectations
 
-### Required tests
+Preserve existing tests when changing behavior, updating goldens only when the behavioral change is intentional.
 
-Preserve all first-milestone tests and add, at minimum:
+Coverage currently includes:
 
-- Token locations for representative tokens
+- Token locations
 - Keywords inside strings and comments
 - Case-insensitive centralized keyword recognition
-- Every supported primary, unary, binary, comparison, and logical expression form
-- Operator precedence and left associativity
-- Parentheses overriding precedence
-- Rejection of comparison chaining
+- Expression forms, precedence, associativity, and parentheses
+- Comparison chaining diagnostics
 - Missing operand and unmatched-parenthesis diagnostics
-- Constant declaration and substitution
-- Constants referencing earlier constants
-- Duplicate and unknown constant diagnostics
-- Assignment to a constant diagnostic
-- Constant folding and division-by-zero diagnostic
+- Constant declaration, substitution, folding, and diagnostics
+- Assignment to constant diagnostics
 - `TRUE` and `FALSE` lowering
-- Numeric `LET` output
-- `PRINT` with multiple items and with a trailing semicolon
-- Exact output for the updated warning example
-- Existing CLI behavior after the parser replacement
+- Numeric assignment output
+- Multi-item `PRINT` and trailing semicolons
+- Rejection of source `LET`
+- `PRINT AT` parsing and malformed coordinate diagnostics
+- Spectrum `PRINT AT`
+- Atari `POSITION` expansion
+- C64 `POKE`/`SYS` expansion
+- Coordinate range diagnostics for all targets
+- Deterministic C64 variable-name mapping, including two-character collisions
+- Uppercase output casing for Spectrum, Atari, and C64
+- Logical truth normalization
+- Exact warning example output for all targets
+- CLI target selection, output files, compact readability, and invalid target rejection
 
-Prefer focused unit tests plus a small number of CLI integration tests. Test precedence boundaries and representative combinations; do not attempt an exhaustive Cartesian product of every operator and operand form.
+## Documentation expectations
 
-### Package scripts
+README.md should accurately describe:
 
-Provide equivalent scripts for:
-
-```text
-npm run dev -- <arguments>
-npm run build
-npm test
-npm run test:watch
-npm start -- <arguments>
-```
-
-`npm start` must execute the compiled JavaScript, not `tsx`.
-
-### Documentation
-
-Add or update the README with:
-
-- The project’s purpose
-- Its experimental status
+- Project purpose and experimental status
 - Node.js 24 LTS prerequisite
-- Installation and build commands
-- The supported milestone syntax
+- Installation, test, build, dev, and start commands
+- Supported syntax
 - One source-to-Spectrum example
-- An explicit limitations section
+- The same positioned-output example rendered for Spectrum, Atari 800XL, and C64
+- Readability options
+- That target output is readable BASIC text
+- That packaging into TAP, ATR, PRG, or tokenized BASIC is not implemented
+- Explicit limitations
 
 Do not claim support for machines or constructs that are only planned.
 
-## Explicitly out of scope for this milestone
+## Explicitly out of scope unless requested
 
-Do not implement any of the following unless the user expands the task:
-
-- Atari, Commodore, CPC, or other backends
+- CPC or other additional backends
 - Variable declarations, local variables, procedures, or functions
 - Multiple source files, imports, or linking
-- A type system beyond the limited constant-expression checks described above
+- A type system beyond current limited compile-time checks
 - String variables
 - Arrays
 - Functions or function calls in expressions
@@ -342,6 +419,9 @@ Do not implement any of the following unless the user expands the task:
 - Optimization or minification
 - BASIC tokenization or TAP generation
 - Calling `bas2tap`
+- Calling `petcat`, creating ATR images, or invoking Atari packaging utilities
+- Unicode, PETSCII, ATASCII, or Spectrum character-set conversion and validation
+- `INK`, `PAPER`, `COLOR`, `SETCOLOR`, or other colour-control abstractions
 - Assembly routines, PRG packaging, or native runtime libraries
 - Source maps
 - A VS Code extension, syntax highlighting, or language server
@@ -350,20 +430,13 @@ Do not implement any of the following unless the user expands the task:
 
 Record attractive future ideas in a short roadmap section rather than implementing them.
 
-## Definition of done
+## Definition of done for changes
 
-The milestone is complete when all of the following hold:
+For ordinary implementation changes, finish with:
 
-- `npm install` succeeds on Node.js 24 LTS.
-- `npm test` passes.
-- `npm run build` completes without TypeScript errors.
-- `npm run dev -- examples/warning.mbas --target spectrum` prints valid, readable numbered Spectrum BASIC.
-- `npm start -- examples/warning.mbas --target spectrum` produces the same output after building.
-- Diagnostics for malformed source identify the filename and source line.
-- The README accurately describes the implemented behavior and limitations.
-- The parser makes syntactic decisions from tokens rather than whole-line statement regexes.
-- Expressions are represented as typed AST nodes and rendered from that tree.
-- Constants are evaluated at compile time and emit no BASIC statements.
-- The final report lists changed files, verification commands, and any remaining limitations.
+- `npm test`
+- `npm run build`
 
-Once these conditions hold, stop. Do not proceed into the next milestone automatically.
+When behavior affects CLI output or target rendering, also verify relevant `npm run dev -- ...` and `npm start -- ...` commands for the affected target or targets.
+
+The final report should list changed files, verification commands, and any remaining limitations or known warnings.

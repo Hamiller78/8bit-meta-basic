@@ -27,6 +27,13 @@ export interface PrintStatement {
   readonly kind: "print";
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
+  readonly at?: PrintAtPosition;
+  readonly location: SourceLocation;
+}
+
+export interface PrintAtPosition {
+  readonly row: Expression;
+  readonly column: Expression;
   readonly location: SourceLocation;
 }
 

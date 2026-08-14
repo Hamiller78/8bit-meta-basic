@@ -3,6 +3,7 @@ import type { SourceLocation } from "./ast.js";
 
 export const keywords = new Set([
   "AND",
+  "AT",
   "CONST",
   "ELSE",
   "END",
@@ -62,7 +63,7 @@ export interface OperatorToken extends BaseToken {
 
 export interface PunctuationToken extends BaseToken {
   readonly kind: "punctuation";
-  readonly text: "(" | ")" | ":" | ";" | "=";
+  readonly text: "(" | ")" | ":" | "," | ";" | "=";
 }
 
 export interface NewlineToken extends BaseToken {
@@ -144,7 +145,7 @@ export function tokenize(source: string, filename: string): Token[] {
       continue;
     }
 
-    if (char === "(" || char === ")" || char === ":" || char === ";" || char === "=") {
+    if (char === "(" || char === ")" || char === ":" || char === "," || char === ";" || char === "=") {
       tokens.push({ kind: "punctuation", text: char, location: location() });
       advance(char);
       continue;

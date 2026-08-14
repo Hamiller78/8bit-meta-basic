@@ -1,0 +1,186 @@
+import type { Expression } from "../ast.js";
+import { resolveLabel } from "../line-numbering.js";
+import type { ReadabilityLevel } from "../line-numbering.js";
+import type { Instruction, LoweredProgram } from "../lowering.js";
+import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+
+export const c64Target: TargetBackend = {
+  id: "c64",
+  gotoSpelling: "GOTO",
+  lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
+    const expanded = expandPositionedPrints(program, "C64", 24, 39, (instruction) => [
+      { kind: "poke", address: 214, value: instruction.at!.row, location: instruction.location },
+      { kind: "poke", address: 211, value: instruction.at!.column, location: instruction.location },
+      { kind: "sys", address: 58732, location: instruction.location },
+      { ...instruction, at: undefined }
+    ]);
+
+    return readability === 1 ? addCompactVariableComments(expanded) : expanded;
+  },
+  renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
+    const variableMap = buildVariableMap(currentProgramInstructions, readability);
+
+    switch (instruction.kind) {
+      case "label":
+        return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
+      case "rem":
+        return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
+      case "print":
+        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
+      case "let":
+        return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, { variableMap })}`;
+      case "goto":
+        return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-goto":
+        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+      case "position":
+        throw new Error("Internal error: unexpected position instruction for C64.");
+      case "poke":
+        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, { variableMap })}`;
+      case "sys":
+        return `${lineNumber} SYS ${instruction.address}`;
+    }
+  }
+};
+
+let currentProgramInstructions: readonly Instruction[] = [];
+
+export function setC64RenderProgram(instructions: readonly Instruction[]): void {
+  currentProgramInstructions = instructions;
+}
+
+function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  for (const instruction of instructions) {
+    if (instruction.kind === "let" && !seen.has(instruction.name.toLowerCase())) {
+      seen.add(instruction.name.toLowerCase());
+      names.push(instruction.name);
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectIdentifiers(expression, names, seen);
+    }
+  }
+
+  const groups = new Map<string, string[]>();
+  for (const name of names) {
+    const key = significantName(name);
+    groups.set(key, [...(groups.get(key) ?? []), name]);
+  }
+
+  const map = new Map<string, string>();
+  const allocated = new Set<string>();
+
+  if (readability === 2) {
+    for (const name of names) {
+      const key = significantName(name);
+      const group = groups.get(key) ?? [];
+      if (group.length === 1 && !reservedNames.has(key)) {
+        map.set(name.toLowerCase(), name.toUpperCase());
+        allocated.add(key);
+      }
+    }
+  }
+
+  let next = 0;
+  for (const name of names) {
+    const lower = name.toLowerCase();
+    if (map.has(lower)) {
+      continue;
+    }
+
+    while (true) {
+      const candidate = `V${next.toString(36).toUpperCase()}`;
+      next += 1;
+      const key = significantName(candidate);
+      if (!allocated.has(key) && !reservedNames.has(key)) {
+        map.set(lower, candidate);
+        allocated.add(key);
+        break;
+      }
+    }
+  }
+
+  return map;
+}
+
+function renderVariableName(name: string, variableMap: ReadonlyMap<string, string>): string {
+  return variableMap.get(name.toLowerCase()) ?? name.toUpperCase();
+}
+
+function instructionExpressions(instruction: Instruction): readonly Expression[] {
+  switch (instruction.kind) {
+    case "print":
+      return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
+    case "let":
+      return [instruction.expression];
+    case "if-goto":
+      return [instruction.condition];
+    case "position":
+      return [instruction.row, instruction.column];
+    case "poke":
+      return [instruction.value];
+    case "label":
+    case "rem":
+    case "goto":
+    case "sys":
+      return [];
+  }
+}
+
+function collectIdentifiers(expression: Expression, names: string[], seen: Set<string>): void {
+  switch (expression.kind) {
+    case "identifier":
+      if (!seen.has(expression.name.toLowerCase())) {
+        seen.add(expression.name.toLowerCase());
+        names.push(expression.name);
+      }
+      break;
+    case "parenthesized":
+      collectIdentifiers(expression.expression, names, seen);
+      break;
+    case "unary":
+      collectIdentifiers(expression.operand, names, seen);
+      break;
+    case "binary":
+      collectIdentifiers(expression.left, names, seen);
+      collectIdentifiers(expression.right, names, seen);
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+      break;
+  }
+}
+
+function significantName(name: string): string {
+  return name.toUpperCase().slice(0, 2).padEnd(2, "_");
+}
+
+const reservedNames = new Set(["TO", "IF", "GO", "ON", "OR", "AN", "NO", "PR", "PO", "SY", "RE", "ST", "TH"]);
+
+function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
+  const variableMap = buildVariableMap(program.instructions, 0);
+  const instructions: Instruction[] = [];
+  const commented = new Set<string>();
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "let") {
+      const key = instruction.name.toLowerCase();
+      if (!commented.has(key)) {
+        const compactName = renderVariableName(instruction.name, variableMap);
+        instructions.push({
+          kind: "rem",
+          text: `${compactName}=${instruction.name.toUpperCase()}`,
+          location: instruction.location
+        });
+        commented.add(key);
+      }
+    }
+
+    instructions.push(instruction);
+  }
+
+  return rebuildLabels(program, instructions);
+}

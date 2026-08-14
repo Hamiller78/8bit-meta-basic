@@ -22,16 +22,16 @@ describe("Spectrum compiler", () => {
     ].join("\n");
 
     const expected = [
-      "10 REM start:",
+      "10 REM START:",
       '20 PRINT "WARNING"',
-      "30 IF confirmed THEN GO TO 50",
+      "30 IF CONFIRMED THEN GO TO 50",
       "40 GO TO 80",
-      "50 REM __mb_1:",
+      "50 REM __MB_1:",
       '60 PRINT "ATTACK CONFIRMED"',
       "70 GO TO 100",
-      "80 REM __mb_3:",
+      "80 REM __MB_3:",
       '90 PRINT "AWAITING SECOND SOURCE"',
-      "100 REM __mb_2:",
+      "100 REM __MB_2:",
       "110 GO TO 10",
       ""
     ].join("\n");
@@ -42,7 +42,7 @@ describe("Spectrum compiler", () => {
 
   it("resolves forward labels", () => {
     expect(compileSource('goto done\nprint "NO"\ndone:\nprint "YES"\n', { filename: "forward.mbas", target: "spectrum" })).toBe(
-      ['10 GO TO 30', '20 PRINT "NO"', "30 REM done:", '40 PRINT "YES"', ""].join("\n")
+      ['10 GO TO 30', '20 PRINT "NO"', "30 REM DONE:", '40 PRINT "YES"', ""].join("\n")
     );
   });
 
@@ -58,11 +58,11 @@ describe("Spectrum compiler", () => {
       "goto start"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", comments: 1 })).toBe(
+    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", readability: 1 })).toBe(
       [
-        "10 REM start:",
+        "10 REM START:",
         '20 PRINT "WARNING"',
-        "30 IF confirmed THEN GO TO 50",
+        "30 IF CONFIRMED THEN GO TO 50",
         "40 GO TO 70",
         '50 PRINT "ATTACK CONFIRMED"',
         "60 GO TO 80",
@@ -85,10 +85,10 @@ describe("Spectrum compiler", () => {
       "goto start"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", comments: 0 })).toBe(
+    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", readability: 0 })).toBe(
       [
         '10 PRINT "WARNING"',
-        "20 IF confirmed THEN GO TO 40",
+        "20 IF CONFIRMED THEN GO TO 40",
         "30 GO TO 60",
         '40 PRINT "ATTACK CONFIRMED"',
         "50 GO TO 70",
@@ -101,7 +101,7 @@ describe("Spectrum compiler", () => {
 
   it("renders IF without ELSE", () => {
     expect(compileSource('if ready then\nprint "READY"\nend if\n', { filename: "if.mbas", target: "spectrum" })).toBe(
-      ["10 IF ready THEN GO TO 30", "20 GO TO 50", "30 REM __mb_1:", '40 PRINT "READY"', "50 REM __mb_2:", ""].join("\n")
+      ["10 IF READY THEN GO TO 30", "20 GO TO 50", "30 REM __MB_1:", '40 PRINT "READY"', "50 REM __MB_2:", ""].join("\n")
     );
   });
 
@@ -120,14 +120,14 @@ describe("Spectrum compiler", () => {
       )
     ).toBe(
       [
-        "10 LET decimal=1.5",
-        "20 LET grouped=(a + b) * 2",
-        "30 LET unary=-a + 3",
-        "40 IF NOT confirmed OR a <> b AND c <= 10 THEN GO TO 60",
+        "10 LET DECIMAL=1.5",
+        "20 LET GROUPED=(A + B) * 2",
+        "30 LET UNARY=-A + 3",
+        "40 IF ((NOT (CONFIRMED <> 0)) <> 0) OR ((((A <> B) <> 0) AND ((C <= 10) <> 0)) <> 0) THEN GO TO 60",
         "50 GO TO 80",
-        "60 REM __mb_1:",
+        "60 REM __MB_1:",
         '70 PRINT "YES";',
-        "80 REM __mb_2:",
+        "80 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -154,9 +154,9 @@ describe("Spectrum compiler", () => {
         '20 PRINT "ROW: ";23',
         "30 IF 0 THEN GO TO 50",
         "40 GO TO 70",
-        "50 REM __mb_1:",
+        "50 REM __MB_1:",
         '60 PRINT "NEVER"',
-        "70 REM __mb_2:",
+        "70 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -168,7 +168,22 @@ describe("Spectrum compiler", () => {
         filename: "let-print.mbas",
         target: "spectrum"
       })
-    ).toBe(["10 LET urgency=sensorCount * 2 + alertLevel", '20 PRINT "SECONDS: ";urgency;', ""].join("\n"));
+    ).toBe(["10 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL", '20 PRINT "SECONDS: ";URGENCY;', ""].join("\n"));
+  });
+
+  it("renders positioned output with Spectrum PRINT AT", () => {
+    expect(compileSource('print at 10, 5; "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
+      ['10 PRINT AT 10,5;"WARNING";', ""].join("\n")
+    );
+  });
+
+  it("reports Spectrum constant coordinate ranges", () => {
+    expect(() => compileSource('print at 22, 0; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT AT row coordinate 22 is outside the supported range 0..21"
+    );
+    expect(() => compileSource('print at 0, 32; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT AT column coordinate 32 is outside the supported range 0..31"
+    );
   });
 
   it("reports constant and assignment diagnostics", () => {
@@ -197,18 +212,18 @@ describe("Spectrum compiler", () => {
 
     expect(output).toBe(
       [
-        "10 IF outer THEN GO TO 30",
+        "10 IF OUTER THEN GO TO 30",
         "20 GO TO 120",
-        "30 REM __mb_1:",
-        "40 IF inner THEN GO TO 60",
+        "30 REM __MB_1:",
+        "40 IF INNER THEN GO TO 60",
         "50 GO TO 90",
-        "60 REM __mb_3:",
+        "60 REM __MB_3:",
         '70 PRINT "BOTH"',
         "80 GO TO 110",
-        "90 REM __mb_5:",
+        "90 REM __MB_5:",
         '100 PRINT "OUTER"',
-        "110 REM __mb_4:",
-        "120 REM __mb_2:",
+        "110 REM __MB_4:",
+        "120 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -220,6 +235,10 @@ describe("Spectrum compiler", () => {
       "const warningRow = screenRows - 2",
       "const initialCountdown = 5 * 12",
       "",
+      "sensorCount = 1",
+      "alertLevel = 2",
+      "confirmed = 1",
+      "",
       "start:",
       '    print "WARNING"',
       '    print "SECONDS: "; initialCountdown',
@@ -227,7 +246,7 @@ describe("Spectrum compiler", () => {
       "    urgency = sensorCount * 2 + alertLevel",
       "",
       "    if confirmed and urgency >= 4 then",
-      '        print "ATTACK CONFIRMED"',
+      '        print at 10, 5; "ATTACK CONFIRMED"',
       "    else",
       '        print "AWAITING SECOND SOURCE AT ROW "; warningRow',
       "    end if",
@@ -237,19 +256,22 @@ describe("Spectrum compiler", () => {
 
     expect(compileSource(source, { filename: "warning.mbas", target: "spectrum" })).toBe(
       [
-        "10 REM start:",
-        '20 PRINT "WARNING"',
-        '30 PRINT "SECONDS: ";60',
-        "40 LET urgency=sensorCount * 2 + alertLevel",
-        "50 IF confirmed AND urgency >= 4 THEN GO TO 70",
-        "60 GO TO 100",
-        "70 REM __mb_1:",
-        '80 PRINT "ATTACK CONFIRMED"',
-        "90 GO TO 120",
-        "100 REM __mb_3:",
-        '110 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
-        "120 REM __mb_2:",
-        "130 GO TO 10",
+        "10 LET SENSORCOUNT=1",
+        "20 LET ALERTLEVEL=2",
+        "30 LET CONFIRMED=1",
+        "40 REM START:",
+        '50 PRINT "WARNING"',
+        '60 PRINT "SECONDS: ";60',
+        "70 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
+        "80 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 100",
+        "90 GO TO 130",
+        "100 REM __MB_1:",
+        '110 PRINT AT 10,5;"ATTACK CONFIRMED"',
+        "120 GO TO 150",
+        "130 REM __MB_3:",
+        '140 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
+        "150 REM __MB_2:",
+        "160 GO TO 40",
         ""
       ].join("\n")
     );
@@ -276,10 +298,10 @@ describe("Spectrum compiler", () => {
       await writeFile(sourcePath, 'start:\nprint "OK"\ngoto start\n', "utf8");
 
       const stdoutRun = await runCli(sourcePath, "--target", "spectrum");
-      expect(stdoutRun.stdout).toBe(['10 REM start:', '20 PRINT "OK"', "30 GO TO 10", ""].join("\n"));
+      expect(stdoutRun.stdout).toBe(['10 REM START:', '20 PRINT "OK"', "30 GO TO 10", ""].join("\n"));
       expect(stdoutRun.stderr).toBe("");
 
-      const compactRun = await runCli(sourcePath, "--target", "spectrum", "--comments", "0");
+      const compactRun = await runCli(sourcePath, "--target", "spectrum", "--readability", "0");
       expect(compactRun.stdout).toBe(['10 PRINT "OK"', "20 GO TO 10", ""].join("\n"));
       expect(compactRun.stderr).toBe("");
 
@@ -293,6 +315,10 @@ describe("Spectrum compiler", () => {
       await expect(runCli(invalidPath, "--target", "spectrum")).rejects.toMatchObject({
         code: 1
       });
+
+      await expect(runCli(sourcePath, "--target", "atari800xl")).resolves.toMatchObject({ stderr: "" });
+      await expect(runCli(sourcePath, "--target", "c64")).resolves.toMatchObject({ stderr: "" });
+      await expect(runCli(sourcePath, "--target", "unknown")).rejects.toMatchObject({ code: 1 });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

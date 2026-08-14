@@ -4,11 +4,14 @@ import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
 import { expandPositionedPrints, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
-export const spectrumTarget: TargetBackend = {
-  id: "spectrum",
-  gotoSpelling: "GO TO",
+export const atari800xlTarget: TargetBackend = {
+  id: "atari800xl",
+  gotoSpelling: "GOTO",
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    return expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    return expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
+      { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
+      { ...instruction, at: undefined }
+    ]);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
@@ -19,26 +22,25 @@ export const spectrumTarget: TargetBackend = {
       case "rem":
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
       case "print":
-        return instruction.at
-          ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, { variableMap })},${renderExpression(instruction.at.column, { variableMap })};${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`
-          : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
+        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
-        return `${lineNumber} LET ${instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} ${instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
       case "goto":
-        return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
+        return `${lineNumber} POSITION ${renderExpression(instruction.column, { variableMap })},${renderExpression(instruction.row, { variableMap })}`;
       case "poke":
       case "sys":
-        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
     }
   }
 };
 
 let currentProgramInstructions: readonly Instruction[] = [];
 
-export function setSpectrumRenderProgram(instructions: readonly Instruction[]): void {
+export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
 }
 
