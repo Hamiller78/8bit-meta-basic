@@ -1,12 +1,12 @@
 # 8bit-meta-basic
 
-Meta-BASIC is an experimental source language that transpiles a small, structured BASIC-like syntax into readable BASIC for classic home computers. This first milestone targets ZX Spectrum BASIC only.
+Meta-BASIC is an experimental source language that transpiles a small, structured BASIC-like syntax into readable BASIC for classic home computers. The current implementation targets ZX Spectrum BASIC only.
 
 The generated BASIC is intended to be a useful development artifact: numbered, readable, and suitable for inspection or loading into a Spectrum emulator.
 
 ## Status
 
-This project is an early vertical slice. It proves the path from one `.mbas` file to Spectrum BASIC, but it is not a complete language yet.
+This project is an early compiler prototype. It now has a tokenizer, a typed syntax tree, a semantic pass for compile-time constants, structured-control lowering, deterministic line numbering, and ZX Spectrum BASIC rendering.
 
 ## Prerequisite
 
@@ -56,7 +56,9 @@ The milestone language supports:
 - Blank lines
 - Comments beginning with an apostrophe
 - Labels such as `start:`
-- `print "literal"`
+- Compile-time constants such as `const warningRow = screenRows - 2`
+- Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
+- `print` with one or more semicolon-separated expressions
 - `goto label`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
@@ -65,20 +67,29 @@ The milestone language supports:
 
 Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore.
 
-For now, an `if` condition is preserved as trimmed Spectrum BASIC expression text. Meta-BASIC does not parse or type-check expressions yet.
+Expressions support numeric literals, string literals, identifiers, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
+
+Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants. Runtime variables are numeric for this milestone.
 
 ## Example
 
 Source:
 
 ```basic
+const screenRows = 24
+const warningRow = screenRows - 2
+const initialCountdown = 5 * 12
+
 start:
     print "WARNING"
+    print "SECONDS: "; initialCountdown
 
-    if confirmed then
+    urgency = sensorCount * 2 + alertLevel
+
+    if confirmed and urgency >= 4 then
         print "ATTACK CONFIRMED"
     else
-        print "AWAITING SECOND SOURCE"
+        print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
 
     goto start
@@ -89,29 +100,32 @@ Spectrum BASIC output:
 ```basic
 10 REM start:
 20 PRINT "WARNING"
-30 IF confirmed THEN GO TO 50
-40 GO TO 80
-50 REM __mb_1:
-60 PRINT "ATTACK CONFIRMED"
-70 GO TO 100
-80 REM __mb_3:
-90 PRINT "AWAITING SECOND SOURCE"
-100 REM __mb_2:
-110 GO TO 10
+30 PRINT "SECONDS: ";60
+40 LET urgency=sensorCount * 2 + alertLevel
+50 IF confirmed AND urgency >= 4 THEN GO TO 70
+60 GO TO 100
+70 REM __mb_1:
+80 PRINT "ATTACK CONFIRMED"
+90 GO TO 120
+100 REM __mb_3:
+110 PRINT "AWAITING SECOND SOURCE AT ROW ";22
+120 REM __mb_2:
+130 GO TO 10
 ```
 
 ## Diagnostics
 
 Invalid input returns a nonzero exit code and writes diagnostics to standard error. Diagnostics include the source filename and line number.
 
-Examples include duplicate labels, undefined labels, missing `END IF`, unexpected `ELSE`, unsupported syntax, invalid CLI options, and file errors.
+Examples include duplicate labels, undefined labels, duplicate constants, unknown constants in constant expressions, assignment to a constant, division by zero while folding constants, missing operands, unmatched parentheses, missing `END IF`, unexpected `ELSE`, unsupported syntax, invalid CLI options, and file errors.
 
 ## Limitations
 
 - Only the `spectrum` target is implemented.
 - Only one source file is accepted.
-- There are no variables, declarations, procedures, functions, constants, imports, or linking.
-- Expressions are not parsed beyond preserving `if` condition text.
+- There are no variable declarations, local variables, procedures, functions, imports, or linking.
+- There is no type system beyond limited compile-time checks for constants and known string assignments.
+- String variables, arrays, function calls, exponentiation, `PRINT AT`, commas, apostrophe print separators, colour controls, and streams are not implemented.
 - Output is plain text BASIC, not tokenized Spectrum data or TAP.
 - There is no optimization, minification, source map support, editor integration, or language server.
 

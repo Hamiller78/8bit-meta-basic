@@ -1,5 +1,6 @@
-import type { Program, SourceLocation, Statement } from "./ast.js";
+import type { Expression, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { normalizeName } from "./symbols.js";
 
 export interface LoweredProgram {
   readonly instructions: readonly Instruction[];
@@ -13,7 +14,7 @@ export interface LabelDefinition {
   readonly internal: boolean;
 }
 
-export type Instruction = LabelInstruction | PrintInstruction | GotoInstruction | IfGotoInstruction;
+export type Instruction = LabelInstruction | PrintInstruction | LetInstruction | GotoInstruction | IfGotoInstruction;
 
 export interface LabelInstruction {
   readonly kind: "label";
@@ -24,7 +25,15 @@ export interface LabelInstruction {
 
 export interface PrintInstruction {
   readonly kind: "print";
-  readonly literal: string;
+  readonly items: readonly Expression[];
+  readonly trailingSemicolon: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface LetInstruction {
+  readonly kind: "let";
+  readonly name: string;
+  readonly expression: Expression;
   readonly location: SourceLocation;
 }
 
@@ -36,7 +45,7 @@ export interface GotoInstruction {
 
 export interface IfGotoInstruction {
   readonly kind: "if-goto";
-  readonly condition: string;
+  readonly condition: Expression;
   readonly label: string;
   readonly location: SourceLocation;
 }
@@ -61,11 +70,21 @@ function lowerStatements(
 ): void {
   for (const statement of statements) {
     switch (statement.kind) {
+      case "const":
+        break;
       case "label":
         instructions.push({ kind: "label", name: statement.name, internal: false, location: statement.location });
         break;
       case "print":
-        instructions.push({ kind: "print", literal: statement.literal, location: statement.location });
+        instructions.push({
+          kind: "print",
+          items: statement.items,
+          trailingSemicolon: statement.trailingSemicolon,
+          location: statement.location
+        });
+        break;
+      case "let":
+        instructions.push({ kind: "let", name: statement.name, expression: statement.expression, location: statement.location });
         break;
       case "goto":
         instructions.push({ kind: "goto", label: statement.label, location: statement.location });
@@ -168,5 +187,5 @@ function internalLabelGenerator(userLabels: ReadonlySet<string>): () => string {
 }
 
 export function normalizeLabel(label: string): string {
-  return label.toLowerCase();
+  return normalizeName(label);
 }

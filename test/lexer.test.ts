@@ -1,0 +1,36 @@
+import { describe, expect, it } from "vitest";
+import { keywords, tokenize } from "../src/lexer.js";
+
+describe("lexer", () => {
+  it("records token locations for representative tokens", () => {
+    const tokens = tokenize('print "HI"; value\n', "tokens.mbas");
+
+    expect(tokens).toMatchObject([
+      { kind: "keyword", text: "PRINT", location: { filename: "tokens.mbas", line: 1, column: 1 } },
+      { kind: "string", value: "HI", location: { filename: "tokens.mbas", line: 1, column: 7 } },
+      { kind: "punctuation", text: ";", location: { filename: "tokens.mbas", line: 1, column: 11 } },
+      { kind: "identifier", text: "value", location: { filename: "tokens.mbas", line: 1, column: 13 } },
+      { kind: "newline", location: { filename: "tokens.mbas", line: 1, column: 18 } },
+      { kind: "eof", location: { filename: "tokens.mbas", line: 2, column: 1 } }
+    ]);
+  });
+
+  it("does not interpret keywords inside strings or comments", () => {
+    const tokens = tokenize('print "IF THEN ELSE" \' goto ignored\nx = 1\n', "keywords.mbas");
+
+    expect(tokens.filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual(["PRINT"]);
+    expect(tokens).toContainEqual(expect.objectContaining({ kind: "string", value: "IF THEN ELSE" }));
+  });
+
+  it("recognizes keywords case-insensitively through the centralized keyword set", () => {
+    expect(keywords.has("PRINT")).toBe(true);
+    expect(keywords.has("AND")).toBe(true);
+    expect(keywords.has("LET")).toBe(false);
+    expect(tokenize("pRiNt true and false\n", "case.mbas").filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual([
+      "PRINT",
+      "TRUE",
+      "AND",
+      "FALSE"
+    ]);
+  });
+});

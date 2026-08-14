@@ -1,10 +1,17 @@
+const screenRows = 24
+const warningRow = screenRows - 2
+const initialCountdown = 5 * 12
+
 start:
     print "WARNING"
+    print "SECONDS: "; initialCountdown
 
-    if confirmed then
+    urgency = sensorCount * 2 + alertLevel
+
+    if confirmed and urgency >= 4 then
         print "ATTACK CONFIRMED"
     else
-        print "AWAITING SECOND SOURCE"
+        print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
 
     goto start

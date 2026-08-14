@@ -1,6 +1,7 @@
 import { assignLineNumbers, type CommentLevel } from "./line-numbering.js";
 import { lowerProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
+import { analyzeProgram } from "./semantic.js";
 import { renderSpectrum } from "./targets/spectrum.js";
 
 export type Target = "spectrum";
@@ -13,7 +14,8 @@ export interface CompileOptions {
 
 export function compileSource(source: string, options: CompileOptions): string {
   const ast = parseSource(source, options.filename);
-  const lowered = lowerProgram(ast);
+  const analyzed = analyzeProgram(ast);
+  const lowered = lowerProgram(analyzed);
   const numbered = assignLineNumbers(lowered, options.comments ?? 2);
 
   switch (options.target) {

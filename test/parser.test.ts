@@ -3,11 +3,16 @@ import { parseSource } from "../src/parser.js";
 
 describe("parser", () => {
   it("parses labels, PRINT, and backward GOTO", () => {
-    expect(parseSource('start:\nprint "HI"\ngoto start\n', "test.mbas")).toEqual({
+    expect(parseSource('start:\nprint "HI"\ngoto start\n', "test.mbas")).toMatchObject({
       statements: [
-        { kind: "label", name: "start", location: { filename: "test.mbas", line: 1 } },
-        { kind: "print", literal: '"HI"', location: { filename: "test.mbas", line: 2 } },
-        { kind: "goto", label: "start", location: { filename: "test.mbas", line: 3 } }
+        { kind: "label", name: "start", location: { filename: "test.mbas", line: 1, column: 1 } },
+        {
+          kind: "print",
+          items: [{ kind: "string", value: "HI", location: { filename: "test.mbas", line: 2, column: 7 } }],
+          trailingSemicolon: false,
+          location: { filename: "test.mbas", line: 2, column: 1 }
+        },
+        { kind: "goto", label: "start", location: { filename: "test.mbas", line: 3, column: 1 } }
       ]
     });
   });
@@ -29,25 +34,25 @@ describe("parser", () => {
     expect(program.statements).toHaveLength(1);
     expect(program.statements[0]).toMatchObject({
       kind: "if",
-      condition: "outer",
+      condition: { kind: "identifier", name: "outer" },
       thenBranch: [
         {
           kind: "if",
-          condition: "inner",
-          thenBranch: [{ kind: "print", literal: '"A"' }],
+          condition: { kind: "identifier", name: "inner" },
+          thenBranch: [{ kind: "print", items: [{ kind: "string", value: "A" }] }],
           elseBranch: []
         }
       ],
-      elseBranch: [{ kind: "print", literal: '"B"' }]
+      elseBranch: [{ kind: "print", items: [{ kind: "string", value: "B" }] }]
     });
   });
 
   it("accepts case-insensitive keywords and preserves string literal contents", () => {
     const program = parseSource('PrInT "Warning: Don\'t Panic"\nGoTo Done\n', "case.mbas");
 
-    expect(program.statements).toEqual([
-      { kind: "print", literal: '"Warning: Don\'t Panic"', location: { filename: "case.mbas", line: 1 } },
-      { kind: "goto", label: "Done", location: { filename: "case.mbas", line: 2 } }
+    expect(program.statements).toMatchObject([
+      { kind: "print", items: [{ kind: "string", value: "Warning: Don't Panic" }] },
+      { kind: "goto", label: "Done" }
     ]);
   });
 
@@ -57,11 +62,62 @@ describe("parser", () => {
     expect(program.statements).toMatchObject([
       {
         kind: "if",
-        condition: "confirmed",
-        thenBranch: [{ kind: "print", literal: '"YES"' }],
+        condition: { kind: "identifier", name: "confirmed" },
+        thenBranch: [{ kind: "print", items: [{ kind: "string", value: "YES" }] }],
         elseBranch: []
       }
     ]);
+  });
+
+  it("parses const, assignment, print items, and expression precedence", () => {
+    const program = parseSource(
+      [
+        "const rows = 24",
+        "urgency = sensorCount * 2 + alertLevel",
+        'print "SECONDS: "; urgency;'
+      ].join("\n"),
+      "expr.mbas"
+    );
+
+    expect(program.statements).toMatchObject([
+      { kind: "const", name: "rows", expression: { kind: "number", value: 24 } },
+      {
+        kind: "let",
+        name: "urgency",
+        expression: {
+          kind: "binary",
+          operator: "+",
+          left: { kind: "binary", operator: "*", left: { kind: "identifier", name: "sensorCount" }, right: { kind: "number", value: 2 } },
+          right: { kind: "identifier", name: "alertLevel" }
+        }
+      },
+      {
+        kind: "print",
+        trailingSemicolon: true,
+        items: [{ kind: "string", value: "SECONDS: " }, { kind: "identifier", name: "urgency" }]
+      }
+    ]);
+  });
+
+  it("parses parentheses as expression grouping", () => {
+    const program = parseSource("total = (a + b) * 2\n", "group.mbas");
+    expect(program.statements).toMatchObject([
+      {
+        kind: "let",
+        expression: {
+          kind: "binary",
+          operator: "*",
+          left: { kind: "parenthesized", expression: { kind: "binary", operator: "+" } },
+          right: { kind: "number", value: 2 }
+        }
+      }
+    ]);
+  });
+
+  it("does not accept LET as assignment syntax", () => {
+    expect(() => parseSource("let urgency = 1\n", "legacy-let.mbas")).toThrow(
+      'legacy-let.mbas:1: Unsupported or invalid syntax near "let"'
+    );
   });
 
   it("reports a missing END IF with the IF source line", () => {
@@ -70,5 +126,16 @@ describe("parser", () => {
 
   it("reports an unexpected ELSE", () => {
     expect(() => parseSource("else\n", "broken.mbas")).toThrow("broken.mbas:1: Unexpected ELSE");
+  });
+
+  it("reports comparison chaining with a rewrite hint", () => {
+    expect(() => parseSource("if a < b < c then\nprint \"NO\"\nend if\n", "chain.mbas")).toThrow(
+      "Comparison chaining is not supported"
+    );
+  });
+
+  it("reports missing operands and unmatched parentheses", () => {
+    expect(() => parseSource("a = 1 +\n", "operand.mbas")).toThrow("operand.mbas:1: Missing expression operand");
+    expect(() => parseSource("a = (1 + 2\n", "paren.mbas")).toThrow("paren.mbas:1: Expected closing parenthesis");
   });
 });
