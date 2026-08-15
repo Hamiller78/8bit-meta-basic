@@ -369,7 +369,7 @@ Build profiles map to readability levels:
 - `balanced`: readability `1`
 - `release`: readability `0`
 
-The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap` and C64 `petcat -w2` entries with empty paths for local configuration. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `WARNING.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:WARNING.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 
 When passing options through `npm run`, `--` separates npm's own options from script options. Direct Node commands such as `node scripts/build-target.mjs spectrum --all-profiles` do not need it.
 
@@ -467,6 +467,7 @@ README.md should accurately describe:
 - The same positioned-output example rendered for Spectrum, Atari 800XL, and C64
 - Readability options
 - That target output is readable BASIC text
+- That Atari builds also emit `.lst` files with Atari `0x9B` line endings and ATR staging folders
 - That packaging into TAP, ATR, PRG, or tokenized BASIC is not implemented
 - Explicit limitations
 

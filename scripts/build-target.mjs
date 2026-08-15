@@ -44,6 +44,9 @@ export async function buildTarget(options) {
 
   const sourcePath = resolve(cwd, source);
   const basicPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".bas");
+  const artifacts = {
+    basic: basicPath
+  };
   await mkdir(dirname(basicPath), { recursive: true });
 
   await run(process.execPath, [
@@ -59,14 +62,69 @@ export async function buildTarget(options) {
 
   console.log(`created ${relativeToCwd(cwd, basicPath)}`);
 
+  if (target === "atari800xl") {
+    const listingPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".lst");
+    await writeAtariListing({ basicPath, listingPath });
+    artifacts.atariListing = listingPath;
+    console.log(`created ${relativeToCwd(cwd, listingPath)}`);
+
+    const diskDirectoryPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".atr-files");
+    await writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourcePath });
+    artifacts.atariDiskDirectory = diskDirectoryPath;
+    console.log(`created ${relativeToCwd(cwd, diskDirectoryPath)}`);
+  }
+
   if (runTools) {
-    await runConfiguredTools({ cwd, configPath, target, profile, sourcePath, inputPath: basicPath, outDir });
+    await runConfiguredTools({ cwd, configPath, target, profile, sourcePath, artifacts, outDir });
   }
 
   return basicPath;
 }
 
-async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath, inputPath, outDir }) {
+async function writeAtariListing({ basicPath, listingPath }) {
+  const text = await readFile(basicPath, "utf8");
+  await writeFile(listingPath, toAtariListingBytes(text));
+}
+
+async function writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourcePath }) {
+  await mkdir(diskDirectoryPath, { recursive: true });
+  const listing = await readFile(listingPath);
+  const listingName = toAtariDosFileName(basename(sourcePath, extname(sourcePath)), "LST");
+  await writeFile(resolve(diskDirectoryPath, listingName), listing);
+}
+
+export function toAtariDosFileName(name, extension) {
+  const baseName = toAtariDosNamePart(name, 8);
+  const extensionName = toAtariDosNamePart(extension, 3);
+  return extensionName ? `${baseName}.${extensionName}` : baseName;
+}
+
+function toAtariDosNamePart(value, maxLength) {
+  const normalized = value.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  return (normalized || "PROGRAM").slice(0, maxLength);
+}
+
+export function toAtariListingBytes(text) {
+  const normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+  const bytes = [];
+
+  for (const char of normalized) {
+    if (char === "\n") {
+      bytes.push(0x9b);
+      continue;
+    }
+
+    const code = char.codePointAt(0);
+    if (code === undefined || code > 0x7f) {
+      throw new Error("Atari LST output only supports ASCII text for now.");
+    }
+    bytes.push(code);
+  }
+
+  return Buffer.from(bytes);
+}
+
+async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath, artifacts, outDir }) {
   const config = await loadToolConfig(resolve(cwd, configPath));
   const tools = normalizeTools(config?.[target]);
 
@@ -84,6 +142,7 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
     const outputPath = outputPathFor(cwd, outDir, profile, target, sourcePath, tool.outputExtension ?? ".out");
     await mkdir(dirname(outputPath), { recursive: true });
 
+    const inputPath = selectToolInput({ tool, artifacts });
     const toolInputPath = await prepareToolInput({ tool, inputPath, outputPath });
     const replacements = {
       input: toolInputPath,
@@ -97,6 +156,15 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
     await run(toolPath, args, { cwd });
     console.log(`created ${relativeToCwd(cwd, outputPath)}`);
   }
+}
+
+function selectToolInput({ tool, artifacts }) {
+  const inputArtifact = tool.inputArtifact ?? "basic";
+  const inputPath = artifacts[inputArtifact];
+  if (!inputPath) {
+    throw new Error(`Unknown tool input artifact "${inputArtifact}".`);
+  }
+  return inputPath;
 }
 
 async function prepareToolInput({ tool, inputPath, outputPath }) {

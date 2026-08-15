@@ -10,7 +10,15 @@
     ]
   },
   "atari800xl": {
-    "tools": []
+    "tools": [
+      {
+        "name": "dir2atr",
+        "path": "",
+        "inputArtifact": "atariDiskDirectory",
+        "args": ["-S", "{output}", "{input}"],
+        "outputExtension": ".atr"
+      }
+    ]
   },
   "c64": {
     "tools": [

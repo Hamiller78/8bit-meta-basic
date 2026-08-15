@@ -53,6 +53,38 @@ These commands write `.bas` files under:
 build/<profile>/<target>/warning.bas
 ```
 
+Atari builds also create an import-friendly listing file:
+
+```text
+build/<profile>/atari800xl/warning.lst
+build/<profile>/atari800xl/warning.atr-files/WARNING.LST
+```
+
+The Atari `.lst` keeps the generated ASCII BASIC text and uses Atari's `0x9B` line ending, which is the form expected by listing import flows such as `ENTER "D:WARNING.LST"`. The `warning.atr-files` directory is a staging folder for ATR tools and uses an Atari DOS-compatible filename. Full ATASCII character-set conversion is still intentionally out of scope.
+
+Current Atari emulator workflow:
+
+```text
+D1: bootable Atari DOS 2.5 disk
+D2: generated warning.atr data disk
+```
+
+After a cold boot, return to BASIC from DOS with `B. RUN CARTRIDGE` if needed, then import and save the program:
+
+```basic
+NEW
+ENTER "D2:WARNING.LST"
+LIST
+SAVE "D2:WARNING.BAS"
+RUN
+```
+
+`WARNING.LST` is the text-listing bridge. `SAVE` writes `WARNING.BAS` as a tokenized Atari BASIC file, which can later be started with:
+
+```basic
+RUN "D2:WARNING.BAS"
+```
+
 Profiles map to readability levels:
 
 ```text
@@ -61,7 +93,7 @@ balanced -> readability 1
 release  -> readability 0
 ```
 
-Optional local conversion tools are configured by copying `scripts/tools.example.json` to `scripts/tools.local.json` and filling in local executable paths and arguments. The example config includes Spectrum `bas2tap` for `.tap` files and C64 `petcat -w2` for tokenized BASIC V2 `.prg` files. Tool arguments can use placeholders such as `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. The C64 `petcat` example uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. The build scripts always create `.bas`; conversion tools run only when configured locally.
+Optional local conversion tools are configured by copying `scripts/tools.example.json` to `scripts/tools.local.json` and filling in local executable paths and arguments. The example config includes Spectrum `bas2tap` for `.tap` files, AtariSIO `dir2atr` for `.atr` disk images, and C64 `petcat -w2` for tokenized BASIC V2 `.prg` files. Tool arguments can use placeholders such as `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. The Atari `dir2atr` example uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated `warning.atr-files` staging folder. The C64 `petcat` example uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. The build scripts always create `.bas`; conversion tools run only when configured locally.
 
 When passing options through `npm run`, the `--` separates npm's own options from script options. The direct Node form does not need that separator, for example `node scripts/build-target.mjs spectrum --all-profiles`.
 
@@ -114,7 +146,7 @@ Constants are evaluated at compile time, emit no BASIC lines, and may reference 
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
 
-Compiler output is readable BASIC text. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap` or C64 `.prg` when local conversion tools are configured.
+Compiler output is readable BASIC text. Atari builds additionally create a `.lst` text-listing variant with Atari line endings and a staging folder for ATR creation. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap`, Atari `.atr`, or C64 `.prg` when local conversion tools are configured.
 
 ## Example
 
@@ -272,7 +304,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
 - String variables, arrays, function calls, and exponentiation are not implemented.
 - Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
-- The compiler emits plain text BASIC. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
+- The compiler emits plain text BASIC. Atari `.lst` output currently only adapts line endings to Atari's `0x9B`; full ATASCII conversion is not implemented. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.
 
 ## Roadmap
