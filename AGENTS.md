@@ -46,8 +46,7 @@ If the repository already contains compatible tooling, adapt to it rather than r
 The implemented Meta-BASIC syntax supports:
 
 ```basic
-const screenRows = 24
-const warningRow = screenRows - 2
+const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
 
 sensorCount = 1
@@ -55,13 +54,15 @@ alertLevel = 2
 confirmed = 1
 
 start:
+    border_color BLUE
+    cls BLUE
     print "WARNING"
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel
 
     if confirmed and urgency >= 4 then
-        print at 10, 5; "ATTACK CONFIRMED"
+        print_at warningRow, 5; "ATTACK CONFIRMED"
     else
         print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
@@ -78,10 +79,14 @@ Supported constructs:
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
+- Target-provided environment constants `TEXT_ROWS` and `TEXT_COLUMNS`
+- Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
 - Numeric assignments written canonically as `name = expression`
 - `print` containing one or more expressions separated by semicolons
-- `print at row, column;` followed by one or more expressions separated by semicolons
+- `print_at row, column;` followed by one or more expressions separated by semicolons
+- `cls` and `cls colour`
+- `border_color colour`
 - Expressions in `IF`, `CONST`, assignments, and `PRINT`
 
 Important source-language rule:
@@ -146,6 +151,14 @@ Binary operators are left-associative. Comparison chaining such as `a < b < c` i
 
 `CONST` declarations are compile-time only and emit no BASIC line.
 
+Selected targets provide read-only, case-insensitive environment constants:
+
+| Target | `TEXT_ROWS` | `TEXT_COLUMNS` |
+| --- | ---: | ---: |
+| ZX Spectrum | 22 | 32 |
+| Atari 800XL | 24 | 40 |
+| Commodore 64 | 25 | 40 |
+
 Implemented requirements:
 
 - A constant expression may reference an earlier constant.
@@ -157,6 +170,7 @@ Implemented requirements:
 - Constants are substituted into runtime expressions and constant subexpressions are folded.
 - Division by zero in a constant expression is a compile-time diagnostic.
 - `TRUE` and `FALSE` lower to numeric representations while preserving Meta-BASIC logical semantics.
+- User code cannot redeclare or assign to environment constants.
 
 Forward constant references are not required. If added later, circular references must be diagnosed.
 
@@ -189,11 +203,11 @@ print "WAIT";
 
 A trailing semicolon remains significant and suppresses the newline.
 
-Portable positioned output is supported:
+Portable positioned output is supported with the canonical `PRINT_AT` source spelling:
 
 ```basic
-print at 10, 5; "WARNING"
-print at warningRow, 0; "SECONDS: "; countdown
+print_at 10, 5; "WARNING"
+print_at warningRow, 0; "SECONDS: "; countdown
 ```
 
 Rules:
@@ -206,7 +220,38 @@ Rules:
 - Constant coordinates are range-checked per target.
 - Dynamic coordinates are not range-checked yet.
 
-Out of scope for `PRINT`: comma separators, apostrophe print separators, colour controls, streams, `INK`, `PAPER`, `COLOR`, `SETCOLOR`, and portable colour abstractions.
+Out of scope for `PRINT`: comma separators, apostrophe print separators, streams, `INK`, `PAPER`, `COLOR`, and `SETCOLOR`.
+
+## CLS, border colour, and portable colours
+
+Supported portable colour constants are:
+
+```text
+BLACK BLUE RED MAGENTA GREEN CYAN YELLOW WHITE
+```
+
+These are semantic colours, not native target colour numbers. A colour argument must be known at compile time and resolve to a portable colour, so aliases such as `const alert_colour = RED` are supported.
+
+Supported clear-screen forms:
+
+```basic
+cls
+cls BLUE
+border_color BLUE
+```
+
+`CLS` clears the text screen. `CLS colour` selects the portable background colour and then clears the screen. The colour form does not change the foreground/text colour or border colour.
+
+`BORDER_COLOR colour` changes the target machine's border colour without changing the text/background colour.
+
+Target lowering:
+
+- Spectrum: `CLS`, or `PAPER targetColour` followed by `CLS`.
+- Atari 800XL: `PRINT CHR$(125);`, or `SETCOLOR 2,targetHue,targetLuminance` followed by `PRINT CHR$(125);`.
+- C64: `PRINT CHR$(147);`, or `POKE 53281,targetColour` followed by `PRINT CHR$(147);`.
+- Border colour lowers to Spectrum `BORDER targetColour`, Atari `SETCOLOR 4,targetHue,targetLuminance`, and C64 `POKE 53280,targetColour`.
+
+Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 
 ## Shared output semantics
 
@@ -378,8 +423,8 @@ Coverage currently includes:
 - Numeric assignment output
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
-- `PRINT AT` parsing and malformed coordinate diagnostics
-- Spectrum `PRINT AT`
+- `PRINT_AT` parsing and malformed coordinate diagnostics
+- Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
 - C64 `POKE`/`SYS` expansion
 - Coordinate range diagnostics for all targets
@@ -421,7 +466,7 @@ Do not claim support for machines or constructs that are only planned.
 - Calling `bas2tap`
 - Calling `petcat`, creating ATR images, or invoking Atari packaging utilities
 - Unicode, PETSCII, ATASCII, or Spectrum character-set conversion and validation
-- `INK`, `PAPER`, `COLOR`, `SETCOLOR`, or other colour-control abstractions
+- Source-level `INK`, `PAPER`, `COLOR`, `SETCOLOR`, or `TEXT_COLOR`
 - Assembly routines, PRG packaging, or native runtime libraries
 - Source maps
 - A VS Code extension, syntax highlighting, or language server

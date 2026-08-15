@@ -17,12 +17,17 @@ export interface LabelDefinition {
 export type Instruction =
   | LabelInstruction
   | RemInstruction
+  | ClsInstruction
+  | BorderColorInstruction
+  | PaperInstruction
   | PrintInstruction
   | LetInstruction
   | GotoInstruction
   | IfGotoInstruction
   | PositionInstruction
+  | SetColorInstruction
   | PokeInstruction
+  | PrintChrInstruction
   | SysInstruction;
 
 export interface LabelInstruction {
@@ -35,6 +40,24 @@ export interface LabelInstruction {
 export interface RemInstruction {
   readonly kind: "rem";
   readonly text: string;
+  readonly location: SourceLocation;
+}
+
+export interface ClsInstruction {
+  readonly kind: "cls";
+  readonly color?: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface BorderColorInstruction {
+  readonly kind: "border-color";
+  readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface PaperInstruction {
+  readonly kind: "paper";
+  readonly color: Extract<Expression, { kind: "color" }>;
   readonly location: SourceLocation;
 }
 
@@ -76,10 +99,25 @@ export interface PositionInstruction {
   readonly location: SourceLocation;
 }
 
+export interface SetColorInstruction {
+  readonly kind: "setcolor";
+  readonly register: number;
+  readonly hue: number;
+  readonly luminance: number;
+  readonly location: SourceLocation;
+}
+
 export interface PokeInstruction {
   readonly kind: "poke";
   readonly address: number;
   readonly value: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface PrintChrInstruction {
+  readonly kind: "print-chr";
+  readonly code: number;
+  readonly trailingSemicolon: boolean;
   readonly location: SourceLocation;
 }
 
@@ -110,6 +148,20 @@ function lowerStatements(
   for (const statement of statements) {
     switch (statement.kind) {
       case "const":
+        break;
+      case "cls":
+        instructions.push({
+          kind: "cls",
+          ...(statement.color ? { color: statement.color as Extract<Expression, { kind: "color" }> } : {}),
+          location: statement.location
+        });
+        break;
+      case "border-color":
+        instructions.push({
+          kind: "border-color",
+          color: statement.color as Extract<Expression, { kind: "color" }>,
+          location: statement.location
+        });
         break;
       case "label":
         instructions.push({ kind: "label", name: statement.name, internal: false, location: statement.location });

@@ -2,16 +2,44 @@ import type { Expression } from "../ast.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
-import { expandPositionedPrints, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
   gotoSpelling: "GOTO",
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    return expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
+    const expanded = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
+    const instructions: Instruction[] = [];
+    for (const instruction of expanded.instructions) {
+      if (instruction.kind === "cls") {
+        if (instruction.color) {
+          const color = atariColorCodes[instruction.color.color];
+          instructions.push({
+            kind: "setcolor",
+            register: 2,
+            hue: color.hue,
+            luminance: color.luminance,
+            location: instruction.location
+          });
+        }
+        instructions.push({ kind: "print-chr", code: 125, trailingSemicolon: true, location: instruction.location });
+      } else if (instruction.kind === "border-color") {
+        const color = atariColorCodes[instruction.color.color];
+        instructions.push({
+          kind: "setcolor",
+          register: 4,
+          hue: color.hue,
+          luminance: color.luminance,
+          location: instruction.location
+        });
+      } else {
+        instructions.push(instruction);
+      }
+    }
+    return rebuildLabels(expanded, instructions);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
@@ -21,6 +49,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
+      case "cls":
+      case "border-color":
+      case "paper":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
@@ -31,6 +63,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
         return `${lineNumber} POSITION ${renderExpression(instruction.column, { variableMap })},${renderExpression(instruction.row, { variableMap })}`;
+      case "setcolor":
+        return `${lineNumber} SETCOLOR ${instruction.register},${instruction.hue},${instruction.luminance}`;
+      case "print-chr":
+        return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "poke":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
@@ -71,6 +107,11 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "cls":
+    case "border-color":
+    case "paper":
+    case "setcolor":
+    case "print-chr":
     case "label":
     case "rem":
     case "goto":
@@ -97,6 +138,7 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>): v
     case "number":
     case "string":
     case "boolean":
+    case "color":
       break;
   }
 }

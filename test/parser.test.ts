@@ -120,8 +120,8 @@ describe("parser", () => {
     );
   });
 
-  it("parses PRINT AT as positioned output in the AST", () => {
-    const program = parseSource('print at warningRow, 5 + x; "WARNING"; x\n', "print-at.mbas");
+  it("parses PRINT_AT as positioned output in the AST", () => {
+    const program = parseSource('print_at warningRow, 5 + x; "WARNING"; x\n', "print-at.mbas");
 
     expect(program.statements).toMatchObject([
       {
@@ -136,11 +136,28 @@ describe("parser", () => {
     ]);
   });
 
-  it("reports malformed PRINT AT coordinates and separator", () => {
-    expect(() => parseSource('print at ,5; "NO"\n', "row.mbas")).toThrow("row.mbas:1: PRINT AT requires a row expression");
-    expect(() => parseSource('print at 1 5; "NO"\n', "comma.mbas")).toThrow("comma.mbas:1: Expected comma between PRINT AT row and column");
-    expect(() => parseSource('print at 1,; "NO"\n', "column.mbas")).toThrow("column.mbas:1: PRINT AT requires a column expression");
-    expect(() => parseSource('print at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT AT column");
+  it("reports malformed PRINT_AT coordinates and separator", () => {
+    expect(() => parseSource('print_at ,5; "NO"\n', "row.mbas")).toThrow("row.mbas:1: PRINT_AT requires a row expression");
+    expect(() => parseSource('print_at 1 5; "NO"\n', "comma.mbas")).toThrow("comma.mbas:1: Expected comma between PRINT_AT row and column");
+    expect(() => parseSource('print_at 1,; "NO"\n', "column.mbas")).toThrow("column.mbas:1: PRINT_AT requires a column expression");
+    expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT_AT column");
+  });
+
+  it("parses CLS with an optional colour expression and BORDER_COLOR", () => {
+    expect(parseSource("cls\ncls alert_colour\nborder_color BLUE\n", "screen.mbas").statements).toMatchObject([
+      { kind: "cls" },
+      { kind: "cls", color: { kind: "identifier", name: "alert_colour" } },
+      { kind: "border-color", color: { kind: "identifier", name: "BLUE" } }
+    ]);
+  });
+
+  it("reports missing BORDER_COLOR colour", () => {
+    expect(() => parseSource("border_color\n", "border.mbas")).toThrow("border.mbas:1: BORDER_COLOR requires a colour expression");
+  });
+
+  it("rejects PRINTAT and the former PRINT AT spelling", () => {
+    expect(() => parseSource('printat 1,2; "NO"\n', "printat.mbas")).toThrow('printat.mbas:1: Unsupported or invalid syntax near "printat"');
+    expect(() => parseSource('print at 1,2; "NO"\n', "print-at.mbas")).toThrow('print-at.mbas:1: Expected end of line, found "1"');
   });
 
   it("reports a missing END IF with the IF source line", () => {

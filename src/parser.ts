@@ -1,12 +1,15 @@
-import type { BinaryOperator, Expression, Program, SourceLocation, Statement, UnaryOperator } from "./ast.js";
+import type { BinaryOperator, Expression, PrintStatement, Program, SourceLocation, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { tokenize, type Token } from "./lexer.js";
 
 type StatementParser = (parser: Parser, location: SourceLocation) => Statement | "block-delimiter";
 
 const statementParsers = new Map<string, StatementParser>([
+  ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
+  ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
+  ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["IF", (parser, location) => parser.parseIf(location)]
 ]);
@@ -49,10 +52,9 @@ class Parser {
     return { kind: "const", name, expression, location };
   }
 
-  parsePrint(location: SourceLocation): Statement {
+  parsePrint(location: SourceLocation): PrintStatement {
     const items: Expression[] = [];
     let trailingSemicolon = false;
-    const at = this.matchKeyword("AT") ? this.parsePrintAt() : undefined;
 
     if (this.isLineEnd()) {
       throw new DiagnosticError(this.current().location, "PRINT requires at least one expression.");
@@ -74,7 +76,33 @@ class Parser {
     }
 
     this.expectLineEnd();
-    return at ? { kind: "print", items, trailingSemicolon, at, location } : { kind: "print", items, trailingSemicolon, location };
+    return { kind: "print", items, trailingSemicolon, location };
+  }
+
+  parseCls(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      this.expectLineEnd();
+      return { kind: "cls", location };
+    }
+
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "cls", color, location };
+  }
+
+  parseBorderColor(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "BORDER_COLOR requires a colour expression.");
+    }
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "border-color", color, location };
+  }
+
+  parsePrintAtStatement(location: SourceLocation): Statement {
+    const at = this.parsePrintAt("PRINT_AT");
+    const print = this.parsePrint(location);
+    return { ...print, at, location };
   }
 
   parseAssignment(location: SourceLocation, name: string): Statement {
@@ -84,19 +112,18 @@ class Parser {
     return { kind: "let", name, expression, location };
   }
 
-  private parsePrintAt(): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
+  private parsePrintAt(commandName: "PRINT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
     const location = this.current().location;
-    this.expectKeyword("AT", "Expected AT after PRINT.");
     if (this.matchPunctuation(",")) {
-      throw new DiagnosticError(this.current().location, "PRINT AT requires a row expression before the comma.");
+      throw new DiagnosticError(this.current().location, `${commandName} requires a row expression before the comma.`);
     }
     const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
-    this.expectPunctuation(",", "Expected comma between PRINT AT row and column.");
+    this.expectPunctuation(",", `Expected comma between ${commandName} row and column.`);
     if (this.matchPunctuation(";")) {
-      throw new DiagnosticError(this.current().location, "PRINT AT requires a column expression after the comma.");
+      throw new DiagnosticError(this.current().location, `${commandName} requires a column expression after the comma.`);
     }
     const column = this.parseExpression(() => this.matchPunctuation(";") || this.isLineEnd());
-    this.expectPunctuation(";", "Expected semicolon after PRINT AT column.");
+    this.expectPunctuation(";", `Expected semicolon after ${commandName} column.`);
     return { row, column, location };
   }
 

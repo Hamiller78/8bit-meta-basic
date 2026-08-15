@@ -2,7 +2,7 @@ import type { Expression } from "../ast.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
-import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -14,8 +14,8 @@ export const c64Target: TargetBackend = {
       { kind: "sys", address: 58732, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
-
-    return readability === 1 ? addCompactVariableComments(expanded) : expanded;
+    const withScreenControls = expandScreenControls(expanded);
+    return readability === 1 ? addCompactVariableComments(withScreenControls) : withScreenControls;
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
@@ -25,6 +25,11 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
+      case "cls":
+      case "border-color":
+      case "paper":
+      case "setcolor":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
@@ -37,6 +42,8 @@ export const c64Target: TargetBackend = {
         throw new Error("Internal error: unexpected position instruction for C64.");
       case "poke":
         return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, { variableMap })}`;
+      case "print-chr":
+        return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "sys":
         return `${lineNumber} SYS ${instruction.address}`;
     }
@@ -121,6 +128,11 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "cls":
+    case "border-color":
+    case "paper":
+    case "setcolor":
+    case "print-chr":
     case "label":
     case "rem":
     case "goto":
@@ -150,6 +162,7 @@ function collectIdentifiers(expression: Expression, names: string[], seen: Set<s
     case "number":
     case "string":
     case "boolean":
+    case "color":
       break;
   }
 }
@@ -180,6 +193,40 @@ function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
     }
 
     instructions.push(instruction);
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function expandScreenControls(program: LoweredProgram): LoweredProgram {
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "cls") {
+      if (instruction.color) {
+        instructions.push({
+          kind: "poke",
+          address: 53281,
+          value: { kind: "number", value: c64ColorCodes[instruction.color.color], raw: c64ColorCodes[instruction.color.color].toString(), location: instruction.location },
+          location: instruction.location
+        });
+      }
+      instructions.push({ kind: "print-chr", code: 147, trailingSemicolon: true, location: instruction.location });
+    } else if (instruction.kind === "border-color") {
+      instructions.push({
+        kind: "poke",
+        address: 53280,
+        value: {
+          kind: "number",
+          value: c64ColorCodes[instruction.color.color],
+          raw: c64ColorCodes[instruction.color.color].toString(),
+          location: instruction.location
+        },
+        location: instruction.location
+      });
+    } else {
+      instructions.push(instruction);
+    }
   }
 
   return rebuildLabels(program, instructions);

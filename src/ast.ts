@@ -8,7 +8,15 @@ export interface Program {
   readonly statements: readonly Statement[];
 }
 
-export type Statement = ConstStatement | LabelStatement | PrintStatement | LetStatement | GotoStatement | IfStatement;
+export type Statement =
+  | ConstStatement
+  | LabelStatement
+  | ClsStatement
+  | BorderColorStatement
+  | PrintStatement
+  | LetStatement
+  | GotoStatement
+  | IfStatement;
 
 export interface LabelStatement {
   readonly kind: "label";
@@ -28,6 +36,18 @@ export interface PrintStatement {
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
   readonly at?: PrintAtPosition;
+  readonly location: SourceLocation;
+}
+
+export interface ClsStatement {
+  readonly kind: "cls";
+  readonly color?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface BorderColorStatement {
+  readonly kind: "border-color";
+  readonly color: Expression;
   readonly location: SourceLocation;
 }
 
@@ -62,6 +82,7 @@ export type Expression =
   | NumberLiteralExpression
   | StringLiteralExpression
   | BooleanLiteralExpression
+  | ColorLiteralExpression
   | IdentifierExpression
   | ParenthesizedExpression
   | UnaryExpression
@@ -83,6 +104,12 @@ export interface StringLiteralExpression {
 export interface BooleanLiteralExpression {
   readonly kind: "boolean";
   readonly value: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface ColorLiteralExpression {
+  readonly kind: "color";
+  readonly color: "BLACK" | "BLUE" | "RED" | "MAGENTA" | "GREEN" | "CYAN" | "YELLOW" | "WHITE";
   readonly location: SourceLocation;
 }
 

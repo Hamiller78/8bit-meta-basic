@@ -2,13 +2,23 @@ import type { Expression } from "../ast.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
-import { expandPositionedPrints, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
   gotoSpelling: "GO TO",
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    return expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const instructions: Instruction[] = [];
+    for (const instruction of expanded.instructions) {
+      if (instruction.kind === "cls" && instruction.color) {
+        instructions.push({ kind: "paper", color: instruction.color, location: instruction.location });
+        instructions.push({ ...instruction, color: undefined });
+      } else {
+        instructions.push(instruction);
+      }
+    }
+    return rebuildLabels(expanded, instructions);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
@@ -18,6 +28,12 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
+      case "cls":
+        return `${lineNumber} CLS`;
+      case "border-color":
+        return `${lineNumber} BORDER ${spectrumColorCodes[instruction.color.color]}`;
+      case "paper":
+        return `${lineNumber} PAPER ${spectrumColorCodes[instruction.color.color]}`;
       case "print":
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, { variableMap })},${renderExpression(instruction.at.column, { variableMap })};${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`
@@ -29,7 +45,9 @@ export const spectrumTarget: TargetBackend = {
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
+      case "setcolor":
       case "poke":
+      case "print-chr":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
     }
@@ -69,6 +87,11 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "cls":
+    case "border-color":
+    case "paper":
+    case "setcolor":
+    case "print-chr":
     case "label":
     case "rem":
     case "goto":
@@ -95,6 +118,7 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>): v
     case "number":
     case "string":
     case "boolean":
+    case "color":
       break;
   }
 }

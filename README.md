@@ -64,10 +64,13 @@ The milestone language supports:
 - Blank lines
 - Comments beginning with an apostrophe
 - Labels such as `start:`
-- Compile-time constants such as `const warningRow = screenRows - 2`
+- Target-provided environment constants such as `TEXT_ROWS` and `TEXT_COLUMNS`
+- Compile-time constants such as `const warningRow = TEXT_ROWS - 2`
 - Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
 - `print` with one or more semicolon-separated expressions
-- Portable positioned output such as `print at 10, 5; "WARNING"`
+- Portable positioned output such as `print_at 10, 5; "WARNING"`
+- `cls` and `cls colour` with portable background colour constants
+- `border_color colour` with portable border colour constants
 - `goto label`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
@@ -78,7 +81,9 @@ Identifiers may contain ASCII letters, digits, and underscores, and must begin w
 
 Expressions support numeric literals, string literals, identifiers, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
 
-Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants. Runtime variables are numeric for this milestone.
+Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. Runtime variables are numeric for this milestone.
+
+The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
 
 Target output is readable BASIC text. Packaging into Spectrum TAP, Atari ATR, Commodore PRG, or tokenized BASIC files is not implemented yet.
 
@@ -87,8 +92,7 @@ Target output is readable BASIC text. Packaging into Spectrum TAP, Atari ATR, Co
 Source:
 
 ```basic
-const screenRows = 24
-const warningRow = screenRows - 2
+const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
 
 sensorCount = 1
@@ -96,13 +100,15 @@ alertLevel = 2
 confirmed = 1
 
 start:
+    border_color BLUE
+    cls BLUE
     print "WARNING"
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel
 
     if confirmed and urgency >= 4 then
-        print at 10, 5; "ATTACK CONFIRMED"
+        print_at warningRow, 5; "ATTACK CONFIRMED"
     else
         print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
@@ -117,18 +123,21 @@ Spectrum BASIC output:
 20 LET ALERTLEVEL=2
 30 LET CONFIRMED=1
 40 REM START:
-50 PRINT "WARNING"
-60 PRINT "SECONDS: ";60
-70 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL
-80 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 100
-90 GO TO 130
-100 REM __MB_1:
-110 PRINT AT 10,5;"ATTACK CONFIRMED"
-120 GO TO 150
-130 REM __MB_3:
-140 PRINT "AWAITING SECOND SOURCE AT ROW ";22
-150 REM __MB_2:
-160 GO TO 40
+50 BORDER 1
+60 PAPER 1
+70 CLS
+80 PRINT "WARNING"
+90 PRINT "SECONDS: ";60
+100 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL
+110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 130
+120 GO TO 160
+130 REM __MB_1:
+140 PRINT AT 20,5;"ATTACK CONFIRMED"
+150 GO TO 180
+160 REM __MB_3:
+170 PRINT "AWAITING SECOND SOURCE AT ROW ";20
+180 REM __MB_2:
+190 GO TO 40
 ```
 
 ## Positioned Output
@@ -136,7 +145,7 @@ Spectrum BASIC output:
 The same Meta-BASIC statement:
 
 ```basic
-print at 10, 5; "WARNING"
+print_at 10, 5; "WARNING"
 ```
 
 Spectrum BASIC:
@@ -161,6 +170,65 @@ Commodore 64 BASIC V2:
 40 PRINT "WARNING"
 ```
 
+## Clear Screen
+
+Plain `cls` clears the current text screen. The colour form selects a portable background colour and then clears:
+
+```basic
+cls BLUE
+```
+
+Spectrum BASIC:
+
+```basic
+10 PAPER 1
+20 CLS
+```
+
+Atari 800XL BASIC:
+
+```basic
+10 SETCOLOR 2,7,8
+20 PRINT CHR$(125);
+```
+
+Commodore 64 BASIC V2:
+
+```basic
+10 POKE 53281,6
+20 PRINT CHR$(147);
+```
+
+The colour form does not emit border-colour or text-colour changes. Atari colour values are deterministic `GRAPHICS 0` approximations and may vary in appearance across PAL, NTSC, emulator, and display settings.
+
+## Border Colour
+
+`border_color colour` changes the target machine's border colour without changing the text/background colour:
+
+```basic
+border_color BLUE
+```
+
+Spectrum BASIC:
+
+```basic
+10 BORDER 1
+```
+
+Atari 800XL BASIC:
+
+```basic
+10 SETCOLOR 4,7,8
+```
+
+Commodore 64 BASIC V2:
+
+```basic
+10 POKE 53280,6
+```
+
+Atari border colours use the same deterministic hue/luminance approximations as `cls colour`.
+
 ## Diagnostics
 
 Invalid input returns a nonzero exit code and writes diagnostics to standard error. Diagnostics include the source filename and line number.
@@ -174,7 +242,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - There are no variable declarations, local variables, procedures, functions, imports, or linking.
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
 - String variables, arrays, function calls, and exponentiation are not implemented.
-- Commas and apostrophe print separators in `PRINT`, colour controls, streams, and target character-set conversion are not implemented.
+- Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
 - Output is plain text BASIC, not tokenized BASIC, TAP, ATR, or PRG.
 - There is no optimization, minification, source map support, editor integration, or language server.
 
@@ -182,4 +250,5 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 
 - Add more source constructs after the first syntax remains well-tested.
 - Introduce target-specific libraries or namespaces for machine features.
+- Decide portable text-colour semantics before implementing `TEXT_COLOR`, especially for Atari `GRAPHICS 0`.
 - Add further BASIC dialect backends.

@@ -3,11 +3,10 @@ import { keywords, tokenize } from "../src/lexer.js";
 
 describe("lexer", () => {
   it("records token locations for representative tokens", () => {
-    const tokens = tokenize('print at 10,5; "HI"; value\n', "tokens.mbas");
+    const tokens = tokenize('print_at 10,5; "HI"; value\n', "tokens.mbas");
 
     expect(tokens).toMatchObject([
-      { kind: "keyword", text: "PRINT", location: { filename: "tokens.mbas", line: 1, column: 1 } },
-      { kind: "keyword", text: "AT", location: { filename: "tokens.mbas", line: 1, column: 7 } },
+      { kind: "keyword", text: "PRINT_AT", location: { filename: "tokens.mbas", line: 1, column: 1 } },
       { kind: "number", value: 10, location: { filename: "tokens.mbas", line: 1, column: 10 } },
       { kind: "punctuation", text: ",", location: { filename: "tokens.mbas", line: 1, column: 12 } },
       { kind: "number", value: 5, location: { filename: "tokens.mbas", line: 1, column: 13 } },
@@ -29,8 +28,10 @@ describe("lexer", () => {
 
   it("recognizes keywords case-insensitively through the centralized keyword set", () => {
     expect(keywords.has("PRINT")).toBe(true);
+    expect(keywords.has("BORDER_COLOR")).toBe(true);
+    expect(keywords.has("PRINT_AT")).toBe(true);
     expect(keywords.has("AND")).toBe(true);
-    expect(keywords.has("AT")).toBe(true);
+    expect(keywords.has("AT")).toBe(false);
     expect(keywords.has("LET")).toBe(false);
     expect(tokenize("pRiNt true and false\n", "case.mbas").filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual([
       "PRINT",

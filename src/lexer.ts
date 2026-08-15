@@ -3,7 +3,8 @@ import type { SourceLocation } from "./ast.js";
 
 export const keywords = new Set([
   "AND",
-  "AT",
+  "BORDER_COLOR",
+  "CLS",
   "CONST",
   "ELSE",
   "END",
@@ -14,6 +15,7 @@ export const keywords = new Set([
   "NOT",
   "OR",
   "PRINT",
+  "PRINT_AT",
   "THEN",
   "TRUE"
 ]);

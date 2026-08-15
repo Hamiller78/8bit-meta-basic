@@ -1,5 +1,4 @@
-const screenRows = 24
-const warningRow = screenRows - 2
+const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
 
 sensorCount = 1
@@ -7,13 +6,15 @@ alertLevel = 2
 confirmed = 1
 
 start:
+    border_color BLUE
+    cls BLUE
     print "WARNING"
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel
 
     if confirmed and urgency >= 4 then
-        print at 10, 5; "ATTACK CONFIRMED"
+        print_at warningRow, 5; "ATTACK CONFIRMED"
     else
         print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if

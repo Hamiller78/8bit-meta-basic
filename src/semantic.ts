@@ -1,16 +1,21 @@
 import type { BinaryOperator, Expression, Program, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { normalizeName } from "./symbols.js";
+import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
 
-type ConstantValue = number | string | boolean;
+type ConstantValue = number | string | boolean | ColorValue;
 
 interface ConstantDefinition {
   readonly name: string;
   readonly value: ConstantValue;
+  readonly environment: boolean;
 }
 
-export function analyzeProgram(program: Program): Program {
+export function analyzeProgram(program: Program, environment: TargetEnvironment): Program {
   const constants = new Map<string, ConstantDefinition>();
+  for (const [key, value] of environment.constants) {
+    constants.set(key, { name: key.toUpperCase(), value, environment: true });
+  }
 
   return {
     statements: analyzeStatements(program.statements, constants, false)
@@ -28,20 +33,40 @@ function analyzeStatements(
     switch (statement.kind) {
       case "const": {
         const key = normalizeName(statement.name);
-        if (constants.has(key)) {
+        const existing = constants.get(key);
+        if (existing?.environment) {
+          throw new DiagnosticError(statement.location, `Cannot redeclare environment constant "${statement.name}".`);
+        }
+        if (existing) {
           throw new DiagnosticError(statement.location, `Duplicate constant "${statement.name}".`);
         }
 
         const value = evaluateConstant(statement.expression, constants);
-        constants.set(key, { name: statement.name, value });
+        constants.set(key, { name: statement.name, value, environment: false });
+        break;
+      }
+      case "cls": {
+        if (!statement.color) {
+          analyzed.push(statement);
+          break;
+        }
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CLS") });
+        break;
+      }
+      case "border-color": {
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "BORDER_COLOR") });
         break;
       }
       case "let": {
-        if (constants.has(normalizeName(statement.name))) {
+        const existing = constants.get(normalizeName(statement.name));
+        if (existing?.environment) {
+          throw new DiagnosticError(statement.location, `Cannot assign to environment constant "${statement.name}".`);
+        }
+        if (existing) {
           throw new DiagnosticError(statement.location, `Cannot assign to constant "${statement.name}".`);
         }
         const expression = foldExpression(statement.expression, constants, inConstantExpression);
-        if (expression.kind === "string") {
+        if (expression.kind === "string" || expression.kind === "color") {
           throw new DiagnosticError(statement.location, "Assignments require a numeric expression.");
         }
         analyzed.push({ ...statement, expression });
@@ -50,7 +75,7 @@ function analyzeStatements(
       case "print":
         analyzed.push({
           ...statement,
-          items: statement.items.map((item) => foldExpression(item, constants, inConstantExpression)),
+          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression), "PRINT")),
           ...(statement.at
             ? {
                 at: {
@@ -80,6 +105,14 @@ function analyzeStatements(
   return analyzed;
 }
 
+function analyzeColorExpression(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>, command: string): Extract<Expression, { kind: "color" }> {
+  const color = foldExpression(expression, constants, true);
+  if (color.kind !== "color") {
+    throw new DiagnosticError(expression.location, `${command} colour must be a compile-time portable colour.`);
+  }
+  return color;
+}
+
 function evaluateConstant(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>): ConstantValue {
   const folded = foldExpression(expression, constants, true);
   return evaluateLiteralExpression(folded);
@@ -94,6 +127,7 @@ function foldExpression(
     case "number":
     case "string":
     case "boolean":
+    case "color":
       return expression;
     case "identifier": {
       const constant = constants.get(normalizeName(expression.name));
@@ -141,6 +175,8 @@ function evaluateLiteralExpression(expression: Expression): ConstantValue {
       return expression.value;
     case "boolean":
       return expression.value;
+    case "color":
+      return { kind: "color", color: expression.color };
     default:
       throw new DiagnosticError(expression.location, "Constant expression must be fully known at compile time.");
   }
@@ -154,6 +190,9 @@ function evaluateUnary(operator: UnaryOperator, value: ConstantValue, expression
       }
       return -value;
     case "NOT":
+      if (isColorValue(value)) {
+        throw new DiagnosticError(expression.location, "NOT does not support portable colours.");
+      }
       return !truthy(value);
   }
 }
@@ -178,8 +217,14 @@ function evaluateBinary(operator: BinaryOperator, left: ConstantValue, right: Co
       }
       return numericBinary(operator, left, right, expression, (a, b) => a / b);
     case "=":
+      if (isColorValue(left) || isColorValue(right)) {
+        throw new DiagnosticError(expression.location, "Operator = does not support portable colours.");
+      }
       return left === right;
     case "<>":
+      if (isColorValue(left) || isColorValue(right)) {
+        throw new DiagnosticError(expression.location, "Operator <> does not support portable colours.");
+      }
       return left !== right;
     case "<":
       return comparableBinary(operator, left, right, expression, (a, b) => a < b);
@@ -190,8 +235,14 @@ function evaluateBinary(operator: BinaryOperator, left: ConstantValue, right: Co
     case ">=":
       return comparableBinary(operator, left, right, expression, (a, b) => a >= b);
     case "AND":
+      if (isColorValue(left) || isColorValue(right)) {
+        throw new DiagnosticError(expression.location, "Operator AND does not support portable colours.");
+      }
       return truthy(left) && truthy(right);
     case "OR":
+      if (isColorValue(left) || isColorValue(right)) {
+        throw new DiagnosticError(expression.location, "Operator OR does not support portable colours.");
+      }
       return truthy(left) || truthy(right);
   }
 }
@@ -217,7 +268,12 @@ function comparableBinary(
   expression: Expression,
   evaluate: (left: number | string, right: number | string) => boolean
 ): boolean {
-  if ((typeof left !== "number" && typeof left !== "string") || typeof left !== typeof right) {
+  if (
+    isColorValue(left) ||
+    isColorValue(right) ||
+    (typeof left !== "number" && typeof left !== "string") ||
+    typeof left !== typeof right
+  ) {
     throw new DiagnosticError(expression.location, `Operator ${operator} requires comparable operands of the same type.`);
   }
 
@@ -231,11 +287,11 @@ function truthy(value: ConstantValue): boolean {
   if (typeof value === "string") {
     return value.length > 0;
   }
-  return value;
+  return value === true;
 }
 
 function isLiteralExpression(expression: Expression): boolean {
-  return expression.kind === "number" || expression.kind === "string" || expression.kind === "boolean";
+  return expression.kind === "number" || expression.kind === "string" || expression.kind === "boolean" || expression.kind === "color";
 }
 
 function literalFromValue(value: ConstantValue, location: Expression["location"]): Expression {
@@ -245,7 +301,21 @@ function literalFromValue(value: ConstantValue, location: Expression["location"]
   if (typeof value === "string") {
     return { kind: "string", value, location };
   }
+  if (isColorValue(value)) {
+    return { kind: "color", color: value.color, location };
+  }
   return { kind: "boolean", value, location };
+}
+
+function rejectColorExpression(expression: Expression, context: string): Expression {
+  if (expression.kind === "color") {
+    throw new DiagnosticError(expression.location, `Portable colour ${expression.color} can only be used where a colour is expected, not in ${context}.`);
+  }
+  return expression;
+}
+
+function isColorValue(value: ConstantValue): value is ColorValue {
+  return typeof value === "object" && value.kind === "color";
 }
 
 function formatNumber(value: number): string {

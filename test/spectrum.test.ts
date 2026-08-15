@@ -171,18 +171,88 @@ describe("Spectrum compiler", () => {
     ).toBe(["10 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL", '20 PRINT "SECONDS: ";URGENCY;', ""].join("\n"));
   });
 
-  it("renders positioned output with Spectrum PRINT AT", () => {
-    expect(compileSource('print at 10, 5; "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
+  it("renders positioned output with Spectrum PRINT AT from source PRINT_AT", () => {
+    expect(compileSource('print_at 10, 5; "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
       ['10 PRINT AT 10,5;"WARNING";', ""].join("\n")
     );
   });
 
   it("reports Spectrum constant coordinate ranges", () => {
-    expect(() => compileSource('print at 22, 0; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
-      "Spectrum PRINT AT row coordinate 22 is outside the supported range 0..21"
+    expect(() => compileSource('print_at 22, 0; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT_AT row coordinate 22 is outside the supported range 0..21"
     );
-    expect(() => compileSource('print at 0, 32; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
-      "Spectrum PRINT AT column coordinate 32 is outside the supported range 0..31"
+    expect(() => compileSource('print_at 0, 32; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT_AT column coordinate 32 is outside the supported range 0..31"
+    );
+  });
+
+  it("uses Spectrum environment constants and case-insensitive lookup", () => {
+    expect(
+      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {
+        filename: "env.mbas",
+        target: "spectrum"
+      })
+    ).toBe(['10 PRINT AT 20,31;"EDGE"', ""].join("\n"));
+  });
+
+  it("renders Spectrum CLS and every portable background colour without border or text-colour changes", () => {
+    const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
+    const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "spectrum" });
+
+    expect(output).toBe(
+      [
+        "10 CLS",
+        "20 PAPER 0",
+        "30 CLS",
+        "40 PAPER 1",
+        "50 CLS",
+        "60 PAPER 2",
+        "70 CLS",
+        "80 PAPER 3",
+        "90 CLS",
+        "100 PAPER 4",
+        "110 CLS",
+        "120 PAPER 5",
+        "130 CLS",
+        "140 PAPER 6",
+        "150 CLS",
+        "160 PAPER 7",
+        "170 CLS",
+        ""
+      ].join("\n")
+    );
+    expect(output).not.toContain("BORDER");
+    expect(output).not.toContain("INK");
+  });
+
+  it("renders Spectrum BORDER_COLOR for every portable colour", () => {
+    const source = portableColors.map((color) => `border_color ${color}`).join("\n");
+
+    expect(compileSource(`${source}\n`, { filename: "border.mbas", target: "spectrum" })).toBe(
+      ["10 BORDER 0", "20 BORDER 1", "30 BORDER 2", "40 BORDER 3", "50 BORDER 4", "60 BORDER 5", "70 BORDER 6", "80 BORDER 7", ""].join(
+        "\n"
+      )
+    );
+  });
+
+  it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {
+    expect(compileSource("const alert_colour = RED\ncls alert_colour\n", { filename: "alias.mbas", target: "spectrum" })).toBe(
+      ["10 PAPER 2", "20 CLS", ""].join("\n")
+    );
+    expect(() => compileSource("const TEXT_ROWS = 1\n", { filename: "redeclare.mbas", target: "spectrum" })).toThrow(
+      'redeclare.mbas:1: Cannot redeclare environment constant "TEXT_ROWS"'
+    );
+    expect(() => compileSource("text_columns = 1\n", { filename: "assign.mbas", target: "spectrum" })).toThrow(
+      'assign.mbas:1: Cannot assign to environment constant "text_columns"'
+    );
+    expect(() => compileSource("cls 1\n", { filename: "badcolor.mbas", target: "spectrum" })).toThrow(
+      "badcolor.mbas:1: CLS colour must be a compile-time portable colour"
+    );
+    expect(() => compileSource("cls runtimeColour\n", { filename: "runtimecolor.mbas", target: "spectrum" })).toThrow(
+      'runtimecolor.mbas:1: Unknown constant "runtimeColour"'
+    );
+    expect(() => compileSource("border_color 1\n", { filename: "badborder.mbas", target: "spectrum" })).toThrow(
+      "badborder.mbas:1: BORDER_COLOR colour must be a compile-time portable colour"
     );
   });
 
@@ -231,8 +301,7 @@ describe("Spectrum compiler", () => {
 
   it("renders exact output for the updated warning example", () => {
     const source = [
-      "const screenRows = 24",
-      "const warningRow = screenRows - 2",
+      "const warningRow = TEXT_ROWS - 2",
       "const initialCountdown = 5 * 12",
       "",
       "sensorCount = 1",
@@ -240,13 +309,15 @@ describe("Spectrum compiler", () => {
       "confirmed = 1",
       "",
       "start:",
+      "    border_color BLUE",
+      "    cls BLUE",
       '    print "WARNING"',
       '    print "SECONDS: "; initialCountdown',
       "",
       "    urgency = sensorCount * 2 + alertLevel",
       "",
       "    if confirmed and urgency >= 4 then",
-      '        print at 10, 5; "ATTACK CONFIRMED"',
+      '        print_at warningRow, 5; "ATTACK CONFIRMED"',
       "    else",
       '        print "AWAITING SECOND SOURCE AT ROW "; warningRow',
       "    end if",
@@ -260,18 +331,21 @@ describe("Spectrum compiler", () => {
         "20 LET ALERTLEVEL=2",
         "30 LET CONFIRMED=1",
         "40 REM START:",
-        '50 PRINT "WARNING"',
-        '60 PRINT "SECONDS: ";60',
-        "70 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "80 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 100",
-        "90 GO TO 130",
-        "100 REM __MB_1:",
-        '110 PRINT AT 10,5;"ATTACK CONFIRMED"',
-        "120 GO TO 150",
-        "130 REM __MB_3:",
-        '140 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
-        "150 REM __MB_2:",
-        "160 GO TO 40",
+        "50 BORDER 1",
+        "60 PAPER 1",
+        "70 CLS",
+        '80 PRINT "WARNING"',
+        '90 PRINT "SECONDS: ";60',
+        "100 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
+        "110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 130",
+        "120 GO TO 160",
+        "130 REM __MB_1:",
+        '140 PRINT AT 20,5;"ATTACK CONFIRMED"',
+        "150 GO TO 180",
+        "160 REM __MB_3:",
+        '170 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
+        "180 REM __MB_2:",
+        "190 GO TO 40",
         ""
       ].join("\n")
     );
@@ -330,3 +404,5 @@ function runCli(...args: string[]) {
     cwd: process.cwd()
   });
 }
+
+const portableColors = ["BLACK", "BLUE", "RED", "MAGENTA", "GREEN", "CYAN", "YELLOW", "WHITE"] as const;
