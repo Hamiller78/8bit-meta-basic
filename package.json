@@ -6,6 +6,15 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc",
+    "build:target": "node scripts/build-target.mjs",
+    "build:all-targets": "node scripts/build-all.mjs",
+    "build:all-profiles": "node scripts/build-all.mjs --all-profiles",
+    "build:spectrum": "node scripts/build-target.mjs spectrum",
+    "build:spectrum:all-profiles": "node scripts/build-target.mjs spectrum --all-profiles",
+    "build:atari": "node scripts/build-target.mjs atari800xl",
+    "build:atari:all-profiles": "node scripts/build-target.mjs atari800xl --all-profiles",
+    "build:c64": "node scripts/build-target.mjs c64",
+    "build:c64:all-profiles": "node scripts/build-target.mjs c64 --all-profiles",
     "test": "vitest run test",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"

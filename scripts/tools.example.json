@@ -1,0 +1,26 @@
+{
+  "spectrum": {
+    "tools": [
+      {
+        "name": "bas2tap",
+        "path": "",
+        "args": ["-a", "{input}", "{output}"],
+        "outputExtension": ".tap"
+      }
+    ]
+  },
+  "atari800xl": {
+    "tools": []
+  },
+  "c64": {
+    "tools": [
+      {
+        "name": "petcat",
+        "path": "",
+        "inputTransform": "lowercase",
+        "args": ["-w2", "-o", "{output}", "--", "{input}"],
+        "outputExtension": ".prg"
+      }
+    ]
+  }
+}

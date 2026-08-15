@@ -5,9 +5,10 @@ sensorCount = 1
 alertLevel = 2
 confirmed = 1
 
-start:
     border_color BLUE
     cls BLUE
+
+start:
     print "WARNING"
     print "SECONDS: "; initialCountdown
 

@@ -36,6 +36,35 @@ npm start -- examples/warning.mbas --target atari800xl
 npm start -- examples/warning.mbas --target c64
 ```
 
+Build target output files:
+
+```text
+npm run build:spectrum -- --profile debug
+npm run build:atari -- --profile balanced
+npm run build:c64 -- --profile release
+npm run build:all-targets -- --profile release
+npm run build:all-profiles
+npm run build:spectrum:all-profiles
+```
+
+These commands write `.bas` files under:
+
+```text
+build/<profile>/<target>/warning.bas
+```
+
+Profiles map to readability levels:
+
+```text
+debug    -> readability 2
+balanced -> readability 1
+release  -> readability 0
+```
+
+Optional local conversion tools are configured by copying `scripts/tools.example.json` to `scripts/tools.local.json` and filling in local executable paths and arguments. The example config includes Spectrum `bas2tap` for `.tap` files and C64 `petcat -w2` for tokenized BASIC V2 `.prg` files. Tool arguments can use placeholders such as `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. The C64 `petcat` example uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. The build scripts always create `.bas`; conversion tools run only when configured locally.
+
+When passing options through `npm run`, the `--` separates npm's own options from script options. The direct Node form does not need that separator, for example `node scripts/build-target.mjs spectrum --all-profiles`.
+
 Write output to a file:
 
 ```text
@@ -85,7 +114,7 @@ Constants are evaluated at compile time, emit no BASIC lines, and may reference 
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
 
-Target output is readable BASIC text. Packaging into Spectrum TAP, Atari ATR, Commodore PRG, or tokenized BASIC files is not implemented yet.
+Compiler output is readable BASIC text. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap` or C64 `.prg` when local conversion tools are configured.
 
 ## Example
 
@@ -243,7 +272,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
 - String variables, arrays, function calls, and exponentiation are not implemented.
 - Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
-- Output is plain text BASIC, not tokenized BASIC, TAP, ATR, or PRG.
+- The compiler emits plain text BASIC. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.
 
 ## Roadmap

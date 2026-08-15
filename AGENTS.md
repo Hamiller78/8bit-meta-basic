@@ -352,6 +352,27 @@ npm run dev -- examples/warning.mbas --target atari800xl
 npm run dev -- examples/warning.mbas --target c64
 ```
 
+Target build scripts:
+
+```text
+npm run build:spectrum -- --profile debug
+npm run build:atari -- --profile balanced
+npm run build:c64 -- --profile release
+npm run build:all-targets -- --profile release
+npm run build:all-profiles
+npm run build:spectrum:all-profiles
+```
+
+Build profiles map to readability levels:
+
+- `debug`: readability `2`
+- `balanced`: readability `1`
+- `release`: readability `0`
+
+The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap` and C64 `petcat -w2` entries with empty paths for local configuration. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+
+When passing options through `npm run`, `--` separates npm's own options from script options. Direct Node commands such as `node scripts/build-target.mjs spectrum --all-profiles` do not need it.
+
 Compiled commands after `npm run build`:
 
 ```text
