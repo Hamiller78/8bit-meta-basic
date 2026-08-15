@@ -7,6 +7,7 @@ import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpressio
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
   gotoSpelling: "GOTO",
+  maxLineLength: 120,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },

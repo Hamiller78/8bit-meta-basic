@@ -263,6 +263,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.
+- Reject generated BASIC lines that exceed the target's practical editable line length: Spectrum 640 characters, Atari 800XL 120 characters, and C64 80 characters.
 - Prefer deterministic output: identical input and options must produce byte-for-byte identical BASIC.
 - Render expressions from the AST.
 - Emit numeric constants using a deterministic culture-independent format with `.` as decimal separator.
@@ -452,6 +453,7 @@ Coverage currently includes:
 - Deterministic C64 variable-name mapping, including two-character collisions
 - Uppercase output casing for Spectrum, Atari, and C64
 - Logical truth normalization
+- Target generated-line length diagnostics
 - Exact warning example output for all targets
 - CLI target selection, output files, compact readability, and invalid target rejection
 

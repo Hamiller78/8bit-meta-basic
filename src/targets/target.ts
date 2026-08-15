@@ -10,8 +10,21 @@ export type GotoSpelling = "GO TO" | "GOTO";
 export interface TargetBackend {
   readonly id: TargetId;
   readonly gotoSpelling: GotoSpelling;
+  readonly maxLineLength: number;
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram;
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string;
+}
+
+export function renderCheckedLine(
+  target: TargetBackend,
+  lineNumber: number,
+  instruction: Instruction,
+  labelLines: ReadonlyMap<string, number>,
+  readability: ReadabilityLevel
+): string {
+  const rendered = target.renderLine(lineNumber, instruction, labelLines, readability);
+  validateGeneratedLineLength(target, rendered, instruction);
+  return rendered;
 }
 
 export interface ExpressionRenderOptions {
@@ -116,6 +129,29 @@ function validateConstantCoordinate(expression: Expression, axis: "row" | "colum
       expression.location,
       `${targetName} PRINT_AT ${axis} coordinate ${formatNumber(expression.value)} is outside the supported range 0..${max}.`
     );
+  }
+}
+
+function validateGeneratedLineLength(target: TargetBackend, rendered: string, instruction: Instruction): void {
+  const length = [...rendered].length;
+  if (length <= target.maxLineLength) {
+    return;
+  }
+
+  throw new DiagnosticError(
+    instruction.location,
+    `Generated ${targetDisplayName(target.id)} BASIC line is ${length} characters, exceeding the practical editable line limit of ${target.maxLineLength}.`
+  );
+}
+
+function targetDisplayName(target: TargetId): string {
+  switch (target) {
+    case "spectrum":
+      return "Spectrum";
+    case "atari800xl":
+      return "Atari 800XL";
+    case "c64":
+      return "C64";
   }
 }
 

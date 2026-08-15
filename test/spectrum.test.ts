@@ -186,6 +186,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("rejects generated lines longer than the Spectrum practical editable limit", () => {
+    expect(() => compileSource(`print "${"X".repeat(630)}"\n`, { filename: "long-line.mbas", target: "spectrum" })).toThrow(
+      "Generated Spectrum BASIC line is 641 characters, exceeding the practical editable line limit of 640."
+    );
+  });
+
   it("uses Spectrum environment constants and case-insensitive lookup", () => {
     expect(
       compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {

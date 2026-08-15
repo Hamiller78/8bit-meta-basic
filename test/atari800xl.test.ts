@@ -17,6 +17,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("rejects generated lines longer than the Atari practical editable limit", () => {
+    expect(() => compileSource(`print "${"X".repeat(110)}"\n`, { filename: "long-line.mbas", target: "atari800xl" })).toThrow(
+      "Generated Atari 800XL BASIC line is 121 characters, exceeding the practical editable line limit of 120."
+    );
+  });
+
   it("uses Atari environment constants and case-insensitive lookup", () => {
     expect(
       compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {

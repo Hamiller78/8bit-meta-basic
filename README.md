@@ -148,6 +148,8 @@ The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `C
 
 Compiler output is readable BASIC text. Atari builds additionally create a `.lst` text-listing variant with Atari line endings and a staging folder for ATR creation. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap`, Atari `.atr`, or C64 `.prg` when local conversion tools are configured.
 
+Generated lines are checked against practical editable limits for each target: 80 characters on C64, 120 on Atari 800XL, and 640 on Spectrum. If a generated line is too long, compilation fails with a diagnostic pointing back to the source line.
+
 ## Example
 
 Source:

@@ -17,6 +17,12 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("rejects generated lines longer than the C64 practical editable limit", () => {
+    expect(() => compileSource(`print "${"X".repeat(70)}"\n`, { filename: "long-line.mbas", target: "c64" })).toThrow(
+      "Generated C64 BASIC line is 81 characters, exceeding the practical editable line limit of 80."
+    );
+  });
+
   it("uses C64 environment constants and case-insensitive lookup", () => {
     expect(
       compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {

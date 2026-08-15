@@ -7,6 +7,7 @@ import { setC64RenderProgram } from "./targets/c64.js";
 import { setAtariRenderProgram } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { targetEnvironments } from "./targets/environment.js";
+import { renderCheckedLine } from "./targets/target.js";
 
 export type Target = TargetId;
 
@@ -34,6 +35,7 @@ export function compileSource(source: string, options: CompileOptions): string {
     setC64RenderProgram(targetLowered.instructions);
   }
   const numbered = assignLineNumbers(targetLowered, readability);
+  const lines = numbered.lines.map((line) => renderCheckedLine(target, line.number, line.instruction, numbered.labelLines, readability));
 
-  return `${numbered.lines.map((line) => target.renderLine(line.number, line.instruction, numbered.labelLines, readability)).join("\n")}\n`;
+  return `${lines.join("\n")}\n`;
 }
