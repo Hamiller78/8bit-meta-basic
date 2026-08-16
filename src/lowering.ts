@@ -24,6 +24,8 @@ export type Instruction =
   | PrintInstruction
   | LetInstruction
   | GotoInstruction
+  | GosubInstruction
+  | ReturnInstruction
   | IfGotoInstruction
   | PositionInstruction
   | SetColorInstruction
@@ -90,6 +92,17 @@ export interface LetInstruction {
 export interface GotoInstruction {
   readonly kind: "goto";
   readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface GosubInstruction {
+  readonly kind: "gosub";
+  readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface ReturnInstruction {
+  readonly kind: "return";
   readonly location: SourceLocation;
 }
 
@@ -203,6 +216,12 @@ function lowerStatements(
       case "goto":
         instructions.push({ kind: "goto", label: statement.label, location: statement.location });
         break;
+      case "gosub":
+        instructions.push({ kind: "gosub", label: statement.label, location: statement.location });
+        break;
+      case "return":
+        instructions.push({ kind: "return", location: statement.location });
+        break;
       case "if": {
         const thenLabel = nextInternalLabel();
         const endLabel = nextInternalLabel();
@@ -273,7 +292,7 @@ function buildLabelMap(instructions: readonly Instruction[]): ReadonlyMap<string
 
 function validateReferences(instructions: readonly Instruction[], labels: ReadonlyMap<string, LabelDefinition>): void {
   for (const instruction of instructions) {
-    if (instruction.kind !== "goto" && instruction.kind !== "if-goto") {
+    if (instruction.kind !== "goto" && instruction.kind !== "gosub" && instruction.kind !== "if-goto") {
       continue;
     }
 

@@ -11,7 +11,9 @@ const statementParsers = new Map<string, StatementParser>([
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
   ["TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
+  ["GOSUB", (parser, location) => parser.parseGosub(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
+  ["RETURN", (parser, location) => parser.parseReturn(location)],
   ["IF", (parser, location) => parser.parseIf(location)]
 ]);
 
@@ -141,6 +143,17 @@ class Parser {
     const label = this.expectIdentifier("Expected label name after GOTO.").text;
     this.expectLineEnd();
     return { kind: "goto", label, location };
+  }
+
+  parseGosub(location: SourceLocation): Statement {
+    const label = this.expectIdentifier("Expected label name after GOSUB.").text;
+    this.expectLineEnd();
+    return { kind: "gosub", label, location };
+  }
+
+  parseReturn(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    return { kind: "return", location };
   }
 
   parseIf(location: SourceLocation): Statement {

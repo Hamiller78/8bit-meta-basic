@@ -114,6 +114,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
+      case "gosub":
+        return `${lineNumber} GOSUB ${resolveLabel(labelLines, instruction.label)}`;
+      case "return":
+        return `${lineNumber} RETURN`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
@@ -384,6 +388,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "label":
     case "rem":
     case "goto":
+    case "gosub":
+    case "return":
     case "sys":
       return [];
   }

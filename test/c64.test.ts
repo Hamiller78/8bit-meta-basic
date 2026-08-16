@@ -32,6 +32,12 @@ describe("C64 compiler", () => {
     ).toBe(["10 POKE 214,23", "20 POKE 211,39", "30 SYS 58732", '40 PRINT "EDGE"', ""].join("\n"));
   });
 
+  it("renders GOSUB and RETURN", () => {
+    expect(compileSource('gosub drawHeader\nprint "DONE"\ndrawHeader:\nprint "HEADER"\nreturn\n', { filename: "sub.mbas", target: "c64" })).toBe(
+      ['10 GOSUB 30', '20 PRINT "DONE"', "30 REM DRAWHEADER:", '40 PRINT "HEADER"', "50 RETURN", ""].join("\n")
+    );
+  });
+
   it("renders C64 CLS and every portable background colour without border or text-colour changes", () => {
     const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
     const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "c64" });

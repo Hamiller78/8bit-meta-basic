@@ -49,6 +49,10 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
+      case "gosub":
+        return `${lineNumber} GO SUB ${resolveLabel(labelLines, instruction.label)}`;
+      case "return":
+        return `${lineNumber} RETURN`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
@@ -138,6 +142,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "label":
     case "rem":
     case "goto":
+    case "gosub":
+    case "return":
     case "sys":
       return [];
   }

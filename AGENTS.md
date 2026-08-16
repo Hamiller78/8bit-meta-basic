@@ -81,6 +81,8 @@ Supported constructs:
 - Comments beginning with an apostrophe; comments continue to the end of the source line
 - Labels written as `name:`
 - `goto label`
+- `gosub label`
+- `return`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
@@ -321,6 +323,7 @@ Meaning:
 
 - Target ZX Spectrum BASIC.
 - Use `GO TO`.
+- Use `GO SUB` and `RETURN`.
 - Render assignments as `LET NAME=expression`.
 - Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
@@ -331,6 +334,7 @@ Meaning:
 - Target Atari BASIC as built into a typical Atari 800XL.
 - Do not target Turbo-BASIC XL, BASIC XL, or another extended dialect.
 - Use `GOTO`.
+- Use `GOSUB` and `RETURN`.
 - Render assignments without `LET`.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
@@ -350,6 +354,7 @@ PRINT ...
 - Target the C64 built-in Commodore BASIC V2.
 - Do not target BASIC extension cartridges or injected runtime libraries.
 - Use `GOTO`.
+- Use `GOSUB` and `RETURN`.
 - Render assignments without `LET`.
 - Render identifiers and `REM` label text in uppercase for readable C64 listings. Preserve string literal contents exactly.
 - Lower positioned output into:
@@ -482,6 +487,7 @@ Coverage currently includes:
 - Numeric assignment output
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
+- `GOSUB`/`RETURN` parsing, label resolution, and target spelling
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function

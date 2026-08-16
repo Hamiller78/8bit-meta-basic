@@ -32,6 +32,12 @@ describe("Atari 800XL compiler", () => {
     ).toBe(["10 POSITION 39,22", '20 PRINT "EDGE"', ""].join("\n"));
   });
 
+  it("renders GOSUB and RETURN", () => {
+    expect(compileSource('gosub drawHeader\nprint "DONE"\ndrawHeader:\nprint "HEADER"\nreturn\n', { filename: "sub.mbas", target: "atari800xl" })).toBe(
+      ['10 GOSUB 30', '20 PRINT "DONE"', "30 REM DRAWHEADER:", '40 PRINT "HEADER"', "50 RETURN", ""].join("\n")
+    );
+  });
+
   it("renders Atari CLS and every portable background colour without text-colour changes", () => {
     const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
     const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "atari800xl" });

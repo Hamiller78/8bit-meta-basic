@@ -173,6 +173,8 @@ The milestone language supports:
 - `border_color colour` with portable border colour constants
 - `text_color colour` with portable foreground/text colour constants
 - `goto label`
+- `gosub label`
+- `return`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks

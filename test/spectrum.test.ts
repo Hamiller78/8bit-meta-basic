@@ -46,6 +46,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders GOSUB and RETURN with Spectrum spelling", () => {
+    expect(compileSource('gosub drawHeader\nprint "DONE"\ndrawHeader:\nprint "HEADER"\nreturn\n', { filename: "sub.mbas", target: "spectrum" })).toBe(
+      ['10 GO SUB 30', '20 PRINT "DONE"', "30 REM DRAWHEADER:", '40 PRINT "HEADER"', "50 RETURN", ""].join("\n")
+    );
+  });
+
   it("can omit generated label comment lines while keeping source label comment lines", () => {
     const source = [
       "start:",
@@ -351,6 +357,10 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource('const a = "x" - "y"\n', { filename: "types.mbas", target: "spectrum" })).toThrow(
       "types.mbas:1: Operator - requires numeric operands"
     );
+  });
+
+  it("reports undefined GOSUB labels", () => {
+    expect(() => compileSource("gosub missing\n", { filename: "undef-sub.mbas", target: "spectrum" })).toThrow('Undefined label "missing".');
   });
 
   it("renders nested IF statements", () => {

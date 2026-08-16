@@ -109,6 +109,8 @@ function analyzeStatements(
         break;
       case "label":
       case "goto":
+      case "gosub":
+      case "return":
         analyzed.push(statement);
         break;
     }

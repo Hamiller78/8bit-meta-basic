@@ -17,6 +17,17 @@ describe("parser", () => {
     });
   });
 
+  it("parses GOSUB and RETURN statements", () => {
+    expect(parseSource('gosub drawHeader\nprint "DONE"\ndrawHeader:\nreturn\n', "sub.mbas")).toMatchObject({
+      statements: [
+        { kind: "gosub", label: "drawHeader", location: { filename: "sub.mbas", line: 1, column: 1 } },
+        { kind: "print", items: [{ kind: "string", value: "DONE" }] },
+        { kind: "label", name: "drawHeader" },
+        { kind: "return", location: { filename: "sub.mbas", line: 4, column: 1 } }
+      ]
+    });
+  });
+
   it("parses nested IF statements and optional ELSE blocks", () => {
     const program = parseSource(
       [

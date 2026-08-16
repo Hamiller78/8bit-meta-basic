@@ -17,6 +17,8 @@ export type Statement =
   | PrintStatement
   | LetStatement
   | GotoStatement
+  | GosubStatement
+  | ReturnStatement
   | IfStatement;
 
 export interface LabelStatement {
@@ -74,6 +76,17 @@ export interface LetStatement {
 export interface GotoStatement {
   readonly kind: "goto";
   readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface GosubStatement {
+  readonly kind: "gosub";
+  readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface ReturnStatement {
+  readonly kind: "return";
   readonly location: SourceLocation;
 }
 
