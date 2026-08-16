@@ -28,6 +28,7 @@ export type Instruction =
   | SetColorInstruction
   | PokeInstruction
   | PrintChrInstruction
+  | DimStringInstruction
   | SysInstruction;
 
 export interface LabelInstruction {
@@ -118,6 +119,13 @@ export interface PrintChrInstruction {
   readonly kind: "print-chr";
   readonly code: number;
   readonly trailingSemicolon: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface DimStringInstruction {
+  readonly kind: "dim-string";
+  readonly name: string;
+  readonly length: number;
   readonly location: SourceLocation;
 }
 

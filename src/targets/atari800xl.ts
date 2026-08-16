@@ -36,6 +36,11 @@ export const atari800xlTarget: TargetBackend = {
           luminance: color.luminance,
           location: instruction.location
         });
+      } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
+        if (!instructions.some((existing) => existing.kind === "dim-string" && existing.name.toLowerCase() === instruction.name.toLowerCase())) {
+          instructions.push({ kind: "dim-string", name: instruction.name, length: 255, location: instruction.location });
+        }
+        instructions.push(instruction);
       } else {
         instructions.push(instruction);
       }
@@ -57,7 +62,9 @@ export const atari800xlTarget: TargetBackend = {
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
-        return `${lineNumber} ${instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+      case "dim-string":
+        return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
@@ -113,6 +120,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "paper":
     case "setcolor":
     case "print-chr":
+    case "dim-string":
     case "label":
     case "rem":
     case "goto":
@@ -135,6 +143,11 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>): v
     case "binary":
       collectIdentifiers(expression.left, map);
       collectIdentifiers(expression.right, map);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectIdentifiers(arg, map);
+      }
       break;
     case "number":
     case "string":

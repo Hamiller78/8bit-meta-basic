@@ -284,6 +284,9 @@ class Parser {
 
     if (token.kind === "identifier") {
       this.advance();
+      if (this.matchPunctuation("(")) {
+        return this.parseFunctionCall(token.text, token.location);
+      }
       return { kind: "identifier", name: token.text, location: token.location };
     }
 
@@ -323,6 +326,26 @@ class Parser {
     }
 
     return undefined;
+  }
+
+  private parseFunctionCall(name: string, location: SourceLocation): Expression {
+    this.expectPunctuation("(", "Expected opening parenthesis after function name.");
+    const args: Expression[] = [];
+
+    if (this.matchPunctuation(")")) {
+      this.advance();
+      return { kind: "function-call", name, args, location };
+    }
+
+    while (true) {
+      args.push(this.parseExpression(() => this.matchPunctuation(",") || this.matchPunctuation(")")));
+      if (this.matchPunctuation(",")) {
+        this.advance();
+        continue;
+      }
+      this.expectPunctuation(")", "Expected closing parenthesis after function arguments.");
+      return { kind: "function-call", name, args, location };
+    }
   }
 
   private expectEndIf(): void {

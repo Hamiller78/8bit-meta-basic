@@ -88,7 +88,7 @@ describe("C64 compiler", () => {
         filename: "aliases.mbas",
         target: "c64"
       })
-    ).toBe(["10 V0=1", "20 V1=V0 + 1", "30 PRINT V0;V1", ""].join("\n"));
+    ).toBe(["10 SE=1", "20 V0=SE + 1", "30 PRINT SE;V0", ""].join("\n"));
   });
 
   it("uses compact C64 variable names when readability is low", () => {
@@ -98,7 +98,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(["10 V0=V1 * 2 + V2", "20 PRINT V0;V1;V2", ""].join("\n"));
+    ).toBe(["10 UR=SE * 2 + AL", "20 PRINT UR;SE;AL", ""].join("\n"));
   });
 
   it("comments first explicit assignments when readability uses compact C64 names", () => {
@@ -108,7 +108,26 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 1
       })
-    ).toBe(["10 REM V0=SENSORCOUNT", "20 V0=1", "30 REM V1=ALERTLEVEL", "40 V1=2", "50 PRINT V0;V1", ""].join("\n"));
+    ).toBe(["10 REM SE=SENSORCOUNT", "20 SE=1", "30 REM AL=ALERTLEVEL", "40 AL=2", "50 PRINT SE;AL", ""].join("\n"));
+  });
+
+  it("renders string variable assignment and PRINT", () => {
+    expect(
+      compileSource('tickerText$ = "READY"\nprint tickerText$\n', {
+        filename: "strings.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 TI$="READY"', "20 PRINT TI$", ""].join("\n"));
+  });
+
+  it("folds compile-time STRING$ and SPACE$ using target constants", () => {
+    expect(
+      compileSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint borderLine$\nprint space$(3)\n', {
+        filename: "fill.mbas",
+        target: "c64"
+      })
+    ).toBe([`10 PRINT "${"*".repeat(38)}"`, '20 PRINT "   "', ""].join("\n"));
   });
 
   it("preserves logical truth behavior in representative expressions", () => {
@@ -123,25 +142,28 @@ describe("C64 compiler", () => {
         "10 SENSORCOUNT=1",
         "20 ALERTLEVEL=2",
         "30 CONFIRMED=1",
-        "40 REM START:",
+        '40 TICKERTEXT$="DEFENCE NETWORK ONLINE"',
         "50 POKE 53280,6",
         "60 POKE 53281,6",
         "70 PRINT CHR$(147);",
-        '80 PRINT "WARNING"',
-        '90 PRINT "SECONDS: ";60',
-        "100 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 130",
-        "120 GOTO 190",
-        "130 REM __MB_1:",
-        "140 POKE 214,23",
-        "150 POKE 211,5",
-        "160 SYS 58732",
-        '170 PRINT "ATTACK CONFIRMED"',
-        "180 GOTO 210",
-        "190 REM __MB_3:",
-        '200 PRINT "AWAITING SECOND SOURCE AT ROW ";23',
-        "210 REM __MB_2:",
-        "220 GOTO 40",
+        "80 REM START:",
+        '90 PRINT "****************************************"',
+        '100 PRINT "WARNING"',
+        "110 PRINT TICKERTEXT$",
+        '120 PRINT "SECONDS: ";60',
+        "130 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
+        "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 160",
+        "150 GOTO 220",
+        "160 REM __MB_1:",
+        "170 POKE 214,23",
+        "180 POKE 211,5",
+        "190 SYS 58732",
+        '200 PRINT "ATTACK CONFIRMED"',
+        "210 GOTO 240",
+        "220 REM __MB_3:",
+        '230 PRINT "AWAITING SECOND SOURCE AT ROW ";23',
+        "240 REM __MB_2:",
+        "250 GOTO 80",
         ""
       ].join("\n")
     );
@@ -152,15 +174,20 @@ function warningSource(): string {
   return [
     "const warningRow = TEXT_ROWS - 2",
     "const initialCountdown = 5 * 12",
+    'const borderLine$ = string$("*", TEXT_COLUMNS)',
     "",
     "sensorCount = 1",
     "alertLevel = 2",
     "confirmed = 1",
+    'tickerText$ = "DEFENCE NETWORK ONLINE"',
     "",
-    "start:",
     "    border_color BLUE",
     "    cls BLUE",
+    "",
+    "start:",
+    "    print borderLine$",
     '    print "WARNING"',
+    "    print tickerText$",
     '    print "SECONDS: "; initialCountdown',
     "",
     "    urgency = sensorCount * 2 + alertLevel",

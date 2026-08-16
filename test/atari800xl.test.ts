@@ -80,6 +80,21 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders string variable assignment with required DIM and PRINT", () => {
+    expect(compileSource('tickerText$ = "READY"\nprint tickerText$\n', { filename: "strings.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="READY"', "30 PRINT TICKERTEXT$", ""].join("\n")
+    );
+  });
+
+  it("folds compile-time STRING$ and SPACE$ using target constants", () => {
+    expect(
+      compileSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint borderLine$\nprint space$(3)\n', {
+        filename: "fill.mbas",
+        target: "atari800xl"
+      })
+    ).toBe([`10 PRINT "${"*".repeat(38)}"`, '20 PRINT "   "', ""].join("\n"));
+  });
+
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "atari800xl" })).toContain(
       "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"
@@ -94,23 +109,27 @@ describe("Atari 800XL compiler", () => {
         "10 SENSORCOUNT=1",
         "20 ALERTLEVEL=2",
         "30 CONFIRMED=1",
-        "40 REM START:",
-        "50 SETCOLOR 4,7,8",
-        "60 SETCOLOR 2,7,8",
-        "70 PRINT CHR$(125);",
-        '80 PRINT "WARNING"',
-        '90 PRINT "SECONDS: ";60',
-        "100 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 130",
-        "120 GOTO 170",
-        "130 REM __MB_1:",
-        "140 POSITION 5,22",
-        '150 PRINT "ATTACK CONFIRMED"',
-        "160 GOTO 190",
-        "170 REM __MB_3:",
-        '180 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
-        "190 REM __MB_2:",
-        "200 GOTO 40",
+        "40 DIM TICKERTEXT$(255)",
+        '50 TICKERTEXT$="DEFENCE NETWORK ONLINE"',
+        "60 SETCOLOR 4,7,8",
+        "70 SETCOLOR 2,7,8",
+        "80 PRINT CHR$(125);",
+        "90 REM START:",
+        '100 PRINT "****************************************"',
+        '110 PRINT "WARNING"',
+        "120 PRINT TICKERTEXT$",
+        '130 PRINT "SECONDS: ";60',
+        "140 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
+        "150 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 170",
+        "160 GOTO 210",
+        "170 REM __MB_1:",
+        "180 POSITION 5,22",
+        '190 PRINT "ATTACK CONFIRMED"',
+        "200 GOTO 230",
+        "210 REM __MB_3:",
+        '220 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
+        "230 REM __MB_2:",
+        "240 GOTO 90",
         ""
       ].join("\n")
     );
@@ -121,15 +140,20 @@ function warningSource(): string {
   return [
     "const warningRow = TEXT_ROWS - 2",
     "const initialCountdown = 5 * 12",
+    'const borderLine$ = string$("*", TEXT_COLUMNS)',
     "",
     "sensorCount = 1",
     "alertLevel = 2",
     "confirmed = 1",
+    'tickerText$ = "DEFENCE NETWORK ONLINE"',
     "",
-    "start:",
     "    border_color BLUE",
     "    cls BLUE",
+    "",
+    "start:",
+    "    print borderLine$",
     '    print "WARNING"',
+    "    print tickerText$",
     '    print "SECONDS: "; initialCountdown',
     "",
     "    urgency = sensorCount * 2 + alertLevel",

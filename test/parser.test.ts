@@ -99,6 +99,32 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses string variable assignment and PRINT items", () => {
+    const program = parseSource('tickerText$ = "READY"\nprint tickerText$\n', "strings.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "let", name: "tickerText$", expression: { kind: "string", value: "READY" } },
+      { kind: "print", items: [{ kind: "identifier", name: "tickerText$" }] }
+    ]);
+  });
+
+  it("parses function calls in expressions", () => {
+    const program = parseSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint space$(3)\n', "functions.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "const",
+        name: "borderLine$",
+        expression: {
+          kind: "function-call",
+          name: "string$",
+          args: [{ kind: "string", value: "*" }, { kind: "binary", operator: "-" }]
+        }
+      },
+      { kind: "print", items: [{ kind: "function-call", name: "space$", args: [{ kind: "number", value: 3 }] }] }
+    ]);
+  });
+
   it("parses parentheses as expression grouping", () => {
     const program = parseSource("total = (a + b) * 2\n", "group.mbas");
     expect(program.statements).toMatchObject([

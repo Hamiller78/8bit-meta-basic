@@ -40,7 +40,7 @@ export const spectrumTarget: TargetBackend = {
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, { variableMap })},${renderExpression(instruction.at.column, { variableMap })};${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
-        return `${lineNumber} LET ${instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
@@ -49,6 +49,7 @@ export const spectrumTarget: TargetBackend = {
       case "setcolor":
       case "poke":
       case "print-chr":
+      case "dim-string":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
     }
@@ -63,16 +64,23 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
+  const stringNames: string[] = [];
+  const seenStrings = new Set<string>();
 
   for (const instruction of instructions) {
     if (instruction.kind === "let") {
-      map.set(instruction.name.toLowerCase(), instruction.name.toUpperCase());
+      if (isStringVariableName(instruction.name)) {
+        collectStringName(instruction.name, stringNames, seenStrings);
+      } else {
+        map.set(instruction.name.toLowerCase(), instruction.name.toUpperCase());
+      }
     }
     for (const expression of instructionExpressions(instruction)) {
-      collectIdentifiers(expression, map);
+      collectIdentifiers(expression, map, stringNames, seenStrings);
     }
   }
 
+  allocateSpectrumStringNames(stringNames, map);
   return map;
 }
 
@@ -93,6 +101,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "paper":
     case "setcolor":
     case "print-chr":
+    case "dim-string":
     case "label":
     case "rem":
     case "goto":
@@ -101,20 +110,29 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
   }
 }
 
-function collectIdentifiers(expression: Expression, map: Map<string, string>): void {
+function collectIdentifiers(expression: Expression, map: Map<string, string>, stringNames: string[], seenStrings: Set<string>): void {
   switch (expression.kind) {
     case "identifier":
-      map.set(expression.name.toLowerCase(), expression.name.toUpperCase());
+      if (isStringVariableName(expression.name)) {
+        collectStringName(expression.name, stringNames, seenStrings);
+      } else {
+        map.set(expression.name.toLowerCase(), expression.name.toUpperCase());
+      }
       break;
     case "parenthesized":
-      collectIdentifiers(expression.expression, map);
+      collectIdentifiers(expression.expression, map, stringNames, seenStrings);
       break;
     case "unary":
-      collectIdentifiers(expression.operand, map);
+      collectIdentifiers(expression.operand, map, stringNames, seenStrings);
       break;
     case "binary":
-      collectIdentifiers(expression.left, map);
-      collectIdentifiers(expression.right, map);
+      collectIdentifiers(expression.left, map, stringNames, seenStrings);
+      collectIdentifiers(expression.right, map, stringNames, seenStrings);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectIdentifiers(arg, map, stringNames, seenStrings);
+      }
       break;
     case "number":
     case "string":
@@ -122,4 +140,49 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>): v
     case "color":
       break;
   }
+}
+
+function collectStringName(name: string, stringNames: string[], seenStrings: Set<string>): void {
+  const key = name.toLowerCase();
+  if (!seenStrings.has(key)) {
+    seenStrings.add(key);
+    stringNames.push(name);
+  }
+}
+
+function allocateSpectrumStringNames(names: readonly string[], map: Map<string, string>): void {
+  const used = new Set<string>();
+
+  for (const name of names) {
+    const upper = name.toUpperCase();
+    if (/^[A-Z]\$$/.test(upper) && !used.has(upper)) {
+      map.set(name.toLowerCase(), upper);
+      used.add(upper);
+    }
+  }
+
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (map.has(key)) {
+      continue;
+    }
+    const next = nextSpectrumStringName(used);
+    map.set(key, next);
+    used.add(next);
+  }
+}
+
+function nextSpectrumStringName(used: ReadonlySet<string>): string {
+  for (let index = 0; index < 26; index += 1) {
+    const candidate = `${String.fromCharCode("A".charCodeAt(0) + index)}$`;
+    if (!used.has(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error("Spectrum target only supports 26 string variables.");
+}
+
+function isStringVariableName(name: string): boolean {
+  return name.endsWith("$");
 }

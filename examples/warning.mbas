@@ -1,15 +1,19 @@
 const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
+const borderLine$ = string$("*", TEXT_COLUMNS)
 
 sensorCount = 1
 alertLevel = 2
 confirmed = 1
+tickerText$ = "DEFENCE NETWORK ONLINE"
 
     border_color BLUE
     cls BLUE
 
 start:
+    print borderLine$
     print "WARNING"
+    print tickerText$
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel

@@ -66,7 +66,14 @@ function analyzeStatements(
           throw new DiagnosticError(statement.location, `Cannot assign to constant "${statement.name}".`);
         }
         const expression = foldExpression(statement.expression, constants, inConstantExpression);
-        if (expression.kind === "string" || expression.kind === "color") {
+        if (expression.kind === "color") {
+          throw new DiagnosticError(statement.location, "Assignments require a numeric or string expression.");
+        }
+        if (isStringVariableName(statement.name)) {
+          if (expression.kind !== "string" && !isStringExpression(expression)) {
+            throw new DiagnosticError(statement.location, "String variable assignments require a string expression.");
+          }
+        } else if (expression.kind === "string" || isStringExpression(expression)) {
           throw new DiagnosticError(statement.location, "Assignments require a numeric expression.");
         }
         analyzed.push({ ...statement, expression });
@@ -139,6 +146,8 @@ function foldExpression(
       }
       return expression;
     }
+    case "function-call":
+      return foldCompileTimeFunction(expression, constants);
     case "parenthesized": {
       const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError);
       if (isLiteralExpression(folded)) {
@@ -167,6 +176,47 @@ function foldExpression(
   }
 }
 
+function foldCompileTimeFunction(expression: Extract<Expression, { kind: "function-call" }>, constants: ReadonlyMap<string, ConstantDefinition>): Expression {
+  const name = normalizeName(expression.name);
+  const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
+
+  if (name === "space$") {
+    if (args.length !== 1) {
+      throw new DiagnosticError(expression.location, "SPACE$ expects exactly one argument.");
+    }
+    const count = requireRepeatCount(args[0], expression, "SPACE$");
+    return { kind: "string", value: " ".repeat(count), location: expression.location };
+  }
+
+  if (name === "string$") {
+    if (args.length !== 2) {
+      throw new DiagnosticError(expression.location, "STRING$ expects exactly two arguments.");
+    }
+    const char = requireSingleCharacterString(args[0], expression, "STRING$");
+    const count = requireRepeatCount(args[1], expression, "STRING$");
+    return { kind: "string", value: char.repeat(count), location: expression.location };
+  }
+
+  throw new DiagnosticError(expression.location, `Unknown compile-time function "${expression.name}".`);
+}
+
+function requireSingleCharacterString(value: ConstantValue, expression: Expression, functionName: string): string {
+  if (typeof value !== "string" || [...value].length !== 1) {
+    throw new DiagnosticError(expression.location, `${functionName} first argument must be a string with exactly one character.`);
+  }
+  return value;
+}
+
+function requireRepeatCount(value: ConstantValue, expression: Expression, functionName: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new DiagnosticError(expression.location, `${functionName} count must be a non-negative integer.`);
+  }
+  if (value > 255) {
+    throw new DiagnosticError(expression.location, `${functionName} result length must not exceed 255 characters.`);
+  }
+  return value;
+}
+
 function evaluateLiteralExpression(expression: Expression): ConstantValue {
   switch (expression.kind) {
     case "number":
@@ -177,6 +227,7 @@ function evaluateLiteralExpression(expression: Expression): ConstantValue {
       return expression.value;
     case "color":
       return { kind: "color", color: expression.color };
+    case "function-call":
     default:
       throw new DiagnosticError(expression.location, "Constant expression must be fully known at compile time.");
   }
@@ -312,6 +363,30 @@ function rejectColorExpression(expression: Expression, context: string): Express
     throw new DiagnosticError(expression.location, `Portable colour ${expression.color} can only be used where a colour is expected, not in ${context}.`);
   }
   return expression;
+}
+
+function isStringExpression(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "string":
+      return true;
+    case "identifier":
+      return isStringVariableName(expression.name);
+    case "parenthesized":
+      return isStringExpression(expression.expression);
+    case "binary":
+      return expression.operator === "+" && isStringExpression(expression.left) && isStringExpression(expression.right);
+    case "function-call":
+      return true;
+    case "number":
+    case "boolean":
+    case "color":
+    case "unary":
+      return false;
+  }
+}
+
+function isStringVariableName(name: string): boolean {
+  return name.endsWith("$");
 }
 
 function isColorValue(value: ConstantValue): value is ColorValue {

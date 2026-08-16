@@ -48,15 +48,20 @@ The implemented Meta-BASIC syntax supports:
 ```basic
 const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
+const borderLine$ = string$("*", TEXT_COLUMNS)
 
 sensorCount = 1
 alertLevel = 2
 confirmed = 1
+tickerText$ = "DEFENCE NETWORK ONLINE"
 
-start:
     border_color BLUE
     cls BLUE
+
+start:
+    print borderLine$
     print "WARNING"
+    print tickerText$
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel
@@ -82,7 +87,9 @@ Supported constructs:
 - Target-provided environment constants `TEXT_ROWS` and `TEXT_COLUMNS`
 - Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
+- Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Numeric assignments written canonically as `name = expression`
+- String assignments written canonically as `name$ = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
 - `cls` and `cls colour`
@@ -94,7 +101,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, but must begin with a letter or underscore. String variables and `$` suffixes are out of scope; string literals are supported for output.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers; runtime string functions and slicing are not implemented yet.
 
 ## Tokenizer and parser
 
@@ -127,6 +134,7 @@ Supported expression forms:
 - Numeric literals, including decimal fractions
 - String literals
 - Identifiers
+- Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -165,7 +173,7 @@ Implemented requirements:
 - Constant references are case-insensitive.
 - Duplicate constant names are rejected, including names differing only by case.
 - Unknown constants in constant declarations are rejected.
-- Arithmetic, comparison, logical, unary, parenthesized, numeric, string, and boolean constant expressions are evaluated where meaningful.
+- Arithmetic, comparison, logical, unary, parenthesized, numeric, string, boolean, `STRING$`, and `SPACE$` constant expressions are evaluated where meaningful.
 - Invalid combinations such as subtracting strings are rejected.
 - Constants are substituted into runtime expressions and constant subexpressions are folded.
 - Division by zero in a constant expression is a compile-time diagnostic.
@@ -190,7 +198,13 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables for now.
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables. String variables currently support assignment and `PRINT` output only. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
+
+Target string-variable lowering:
+
+- Spectrum maps Meta-BASIC string variable names deterministically to single-letter string variables such as `A$`, `B$`, and `C$`.
+- Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable.
+- C64 preserves readable string names at readability `2` where safe, and uses deterministic compact string names at lower readability levels.
 
 ## PRINT and positioned output
 
@@ -295,7 +309,7 @@ Meaning:
 - Target ZX Spectrum BASIC.
 - Use `GO TO`.
 - Render assignments as `LET NAME=expression`.
-- Render identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Preserve string literal contents exactly.
+- Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
 - Constant coordinates must satisfy row `0..21` and column `0..31`.
 
@@ -306,6 +320,7 @@ Meaning:
 - Use `GOTO`.
 - Render assignments without `LET`.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
+- Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
 - Lower positioned output into:
 
 ```basic
@@ -337,6 +352,7 @@ PRINT ...
 - At readability `2`, preserve readable uppercase names where safely possible.
 - At readability `1`, allocate compact generated variable names deterministically and comment the first explicit assignment for each variable with its source name.
 - At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
+- Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
 - Avoid generated names that conflict with BASIC keywords. Constants are substituted and require no runtime variable name.
 
 ## Logical semantics across targets
@@ -440,11 +456,13 @@ Coverage currently includes:
 - Comparison chaining diagnostics
 - Missing operand and unmatched-parenthesis diagnostics
 - Constant declaration, substitution, folding, and diagnostics
+- Compile-time `STRING$` and `SPACE$` folding with target environment constants
 - Assignment to constant diagnostics
 - `TRUE` and `FALSE` lowering
 - Numeric assignment output
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
+- String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - `PRINT_AT` parsing and malformed coordinate diagnostics
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
@@ -481,9 +499,9 @@ Do not claim support for machines or constructs that are only planned.
 - Variable declarations, local variables, procedures, or functions
 - Multiple source files, imports, or linking
 - A type system beyond current limited compile-time checks
-- String variables
 - Arrays
-- Functions or function calls in expressions
+- Runtime string functions and slicing
+- General runtime functions or function calls in expressions
 - Exponentiation
 - Optimization or minification
 - BASIC tokenization or TAP generation

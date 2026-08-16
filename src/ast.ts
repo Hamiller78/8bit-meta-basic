@@ -84,6 +84,7 @@ export type Expression =
   | BooleanLiteralExpression
   | ColorLiteralExpression
   | IdentifierExpression
+  | FunctionCallExpression
   | ParenthesizedExpression
   | UnaryExpression
   | BinaryExpression;
@@ -116,6 +117,13 @@ export interface ColorLiteralExpression {
 export interface IdentifierExpression {
   readonly kind: "identifier";
   readonly name: string;
+  readonly location: SourceLocation;
+}
+
+export interface FunctionCallExpression {
+  readonly kind: "function-call";
+  readonly name: string;
+  readonly args: readonly Expression[];
   readonly location: SourceLocation;
 }
 

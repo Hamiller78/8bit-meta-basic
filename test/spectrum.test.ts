@@ -241,6 +241,30 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("maps long string variable names to Spectrum single-letter string variables", () => {
+    expect(compileSource('tickerText$ = "READY"\nprint tickerText$\n', { filename: "strings.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$="READY"', "20 PRINT A$", ""].join("\n")
+    );
+  });
+
+  it("folds compile-time STRING$ and SPACE$ using target constants", () => {
+    expect(
+      compileSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint borderLine$\nprint space$(3)\n', {
+        filename: "fill.mbas",
+        target: "spectrum"
+      })
+    ).toBe([`10 PRINT "${"*".repeat(30)}"`, '20 PRINT "   "', ""].join("\n"));
+  });
+
+  it("reports invalid compile-time string fill calls", () => {
+    expect(() => compileSource('print string$("ab", 1)\n', { filename: "fill.mbas", target: "spectrum" })).toThrow(
+      "STRING$ first argument must be a string with exactly one character"
+    );
+    expect(() => compileSource("print space$(256)\n", { filename: "fill.mbas", target: "spectrum" })).toThrow(
+      "SPACE$ result length must not exceed 255 characters"
+    );
+  });
+
   it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {
     expect(compileSource("const alert_colour = RED\ncls alert_colour\n", { filename: "alias.mbas", target: "spectrum" })).toBe(
       ["10 PAPER 2", "20 CLS", ""].join("\n")
@@ -309,15 +333,20 @@ describe("Spectrum compiler", () => {
     const source = [
       "const warningRow = TEXT_ROWS - 2",
       "const initialCountdown = 5 * 12",
+      'const borderLine$ = string$("*", TEXT_COLUMNS)',
       "",
       "sensorCount = 1",
       "alertLevel = 2",
       "confirmed = 1",
+      'tickerText$ = "DEFENCE NETWORK ONLINE"',
       "",
-      "start:",
       "    border_color BLUE",
       "    cls BLUE",
+      "",
+      "start:",
+      "    print borderLine$",
       '    print "WARNING"',
+      "    print tickerText$",
       '    print "SECONDS: "; initialCountdown',
       "",
       "    urgency = sensorCount * 2 + alertLevel",
@@ -336,22 +365,25 @@ describe("Spectrum compiler", () => {
         "10 LET SENSORCOUNT=1",
         "20 LET ALERTLEVEL=2",
         "30 LET CONFIRMED=1",
-        "40 REM START:",
+        '40 LET A$="DEFENCE NETWORK ONLINE"',
         "50 BORDER 1",
         "60 PAPER 1",
         "70 CLS",
-        '80 PRINT "WARNING"',
-        '90 PRINT "SECONDS: ";60',
-        "100 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 130",
-        "120 GO TO 160",
-        "130 REM __MB_1:",
-        '140 PRINT AT 20,5;"ATTACK CONFIRMED"',
-        "150 GO TO 180",
-        "160 REM __MB_3:",
-        '170 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
-        "180 REM __MB_2:",
-        "190 GO TO 40",
+        "80 REM START:",
+        '90 PRINT "********************************"',
+        '100 PRINT "WARNING"',
+        "110 PRINT A$",
+        '120 PRINT "SECONDS: ";60',
+        "130 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
+        "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 160",
+        "150 GO TO 190",
+        "160 REM __MB_1:",
+        '170 PRINT AT 20,5;"ATTACK CONFIRMED"',
+        "180 GO TO 210",
+        "190 REM __MB_3:",
+        '200 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
+        "210 REM __MB_2:",
+        "220 GO TO 80",
         ""
       ].join("\n")
     );

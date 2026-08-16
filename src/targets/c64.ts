@@ -35,6 +35,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, { variableMap })}`;
+      case "dim-string":
+        throw new Error("Internal error: unexpected dim-string instruction for C64.");
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
@@ -84,7 +86,7 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
     for (const name of names) {
       const key = significantName(name);
       const group = groups.get(key) ?? [];
-      if (group.length === 1 && !reservedNames.has(key)) {
+      if (group.length === 1 && !reservedNames.has(key.slice(0, 2))) {
         map.set(name.toLowerCase(), name.toUpperCase());
         allocated.add(key);
       }
@@ -98,16 +100,10 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       continue;
     }
 
-    while (true) {
-      const candidate = `V${next.toString(36).toUpperCase()}`;
-      next += 1;
-      const key = significantName(candidate);
-      if (!allocated.has(key) && !reservedNames.has(key)) {
-        map.set(lower, candidate);
-        allocated.add(key);
-        break;
-      }
-    }
+    const preferred = preferredVariableName(name);
+    const candidate = preferred && canAllocate(preferred, allocated) ? preferred : nextGeneratedVariableName(name, allocated, () => next++);
+    map.set(lower, candidate);
+    allocated.add(significantName(candidate));
   }
 
   return map;
@@ -134,6 +130,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "paper":
     case "setcolor":
     case "print-chr":
+    case "dim-string":
     case "label":
     case "rem":
     case "goto":
@@ -160,6 +157,11 @@ function collectIdentifiers(expression: Expression, names: string[], seen: Set<s
       collectIdentifiers(expression.left, names, seen);
       collectIdentifiers(expression.right, names, seen);
       break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectIdentifiers(arg, names, seen);
+      }
+      break;
     case "number":
     case "string":
     case "boolean":
@@ -169,10 +171,39 @@ function collectIdentifiers(expression: Expression, names: string[], seen: Set<s
 }
 
 function significantName(name: string): string {
-  return name.toUpperCase().slice(0, 2).padEnd(2, "_");
+  const suffix = isStringVariableName(name) ? "$" : "";
+  const base = name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "").slice(0, 2).padEnd(2, "_");
+  return `${base}${suffix}`;
 }
 
 const reservedNames = new Set(["TO", "IF", "GO", "ON", "OR", "AN", "NO", "PR", "PO", "SY", "RE", "ST", "TH"]);
+
+function preferredVariableName(name: string): string | undefined {
+  const clean = name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  if (clean.length === 0) {
+    return undefined;
+  }
+
+  return `${clean.slice(0, 2)}${isStringVariableName(name) ? "$" : ""}`;
+}
+
+function nextGeneratedVariableName(name: string, allocated: ReadonlySet<string>, next: () => number): string {
+  while (true) {
+    const candidate = `V${next().toString(36).toUpperCase()}${isStringVariableName(name) ? "$" : ""}`;
+    if (canAllocate(candidate, allocated)) {
+      return candidate;
+    }
+  }
+}
+
+function canAllocate(name: string, allocated: ReadonlySet<string>): boolean {
+  const key = significantName(name);
+  return !allocated.has(key) && !reservedNames.has(key.slice(0, 2));
+}
+
+function isStringVariableName(name: string): boolean {
+  return name.endsWith("$");
+}
 
 function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
   const variableMap = buildVariableMap(program.instructions, 0);

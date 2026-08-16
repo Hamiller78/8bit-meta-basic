@@ -179,6 +179,8 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
       throw new DiagnosticError(expression.location, `Portable colour ${expression.color} cannot be rendered as a numeric expression.`);
     case "identifier":
       return options.variableMap?.get(expression.name.toLowerCase()) ?? expression.name;
+    case "function-call":
+      throw new DiagnosticError(expression.location, `Function ${expression.name} must be resolved at compile time.`);
     case "parenthesized":
       return `(${renderExpression(expression.expression, options)})`;
     case "unary":
@@ -208,6 +210,7 @@ function expressionPrecedence(expression: Expression): number {
     case "boolean":
     case "color":
     case "identifier":
+    case "function-call":
     case "parenthesized":
       return 7;
     case "unary":

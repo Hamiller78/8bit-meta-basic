@@ -114,7 +114,7 @@ npm run dev -- examples/warning.mbas --target spectrum --readability 2
 
 `--readability 0` emits no label comment lines and lets targets choose compact runtime variable names. `--readability 1` emits comment lines for labels written in Meta-BASIC source. `--readability 2` also emits generated internal labels and uses readable variable names where the target can do so safely. The default is `2`.
 
-For C64 output, readability level `1` uses compact generated variable names and adds `REM Vn=ORIGINALNAME` comments at the first explicit assignment for each variable.
+For C64 output, readability level `1` uses compact variable names and adds `REM SHORTNAME=ORIGINALNAME` comments at the first explicit assignment for each variable.
 
 `--comments 0|1|2` is still accepted as a compatibility alias for the label-comment portion of this setting.
 
@@ -127,7 +127,9 @@ The milestone language supports:
 - Labels such as `start:`
 - Target-provided environment constants such as `TEXT_ROWS` and `TEXT_COLUMNS`
 - Compile-time constants such as `const warningRow = TEXT_ROWS - 2`
+- Compile-time string fill helpers such as `string$("*", TEXT_COLUMNS)` and `space$(TEXT_COLUMNS)`
 - Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
+- String variable assignments such as `tickerText$ = "READY"`
 - `print` with one or more semicolon-separated expressions
 - Portable positioned output such as `print_at 10, 5; "WARNING"`
 - `cls` and `cls colour` with portable background colour constants
@@ -138,11 +140,11 @@ The milestone language supports:
 - Optional `else` blocks
 - Case-insensitive keywords
 
-Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore.
+Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore. A trailing `$` marks a string variable.
 
-Expressions support numeric literals, string literals, identifiers, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
+Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
 
-Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. Runtime variables are numeric for this milestone.
+Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support is limited to assignment and output; runtime string functions and slicing are not implemented yet.
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
 
@@ -157,15 +159,20 @@ Source:
 ```basic
 const warningRow = TEXT_ROWS - 2
 const initialCountdown = 5 * 12
+const borderLine$ = string$("*", TEXT_COLUMNS)
 
 sensorCount = 1
 alertLevel = 2
 confirmed = 1
+tickerText$ = "DEFENCE NETWORK ONLINE"
 
-start:
     border_color BLUE
     cls BLUE
+
+start:
+    print borderLine$
     print "WARNING"
+    print tickerText$
     print "SECONDS: "; initialCountdown
 
     urgency = sensorCount * 2 + alertLevel
@@ -185,22 +192,25 @@ Spectrum BASIC output:
 10 LET SENSORCOUNT=1
 20 LET ALERTLEVEL=2
 30 LET CONFIRMED=1
-40 REM START:
+40 LET A$="DEFENCE NETWORK ONLINE"
 50 BORDER 1
 60 PAPER 1
 70 CLS
-80 PRINT "WARNING"
-90 PRINT "SECONDS: ";60
-100 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL
-110 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 130
-120 GO TO 160
-130 REM __MB_1:
-140 PRINT AT 20,5;"ATTACK CONFIRMED"
-150 GO TO 180
-160 REM __MB_3:
-170 PRINT "AWAITING SECOND SOURCE AT ROW ";20
-180 REM __MB_2:
-190 GO TO 40
+80 REM START:
+90 PRINT "********************************"
+100 PRINT "WARNING"
+110 PRINT A$
+120 PRINT "SECONDS: ";60
+130 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL
+140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 160
+150 GO TO 190
+160 REM __MB_1:
+170 PRINT AT 20,5;"ATTACK CONFIRMED"
+180 GO TO 210
+190 REM __MB_3:
+200 PRINT "AWAITING SECOND SOURCE AT ROW ";20
+210 REM __MB_2:
+220 GO TO 80
 ```
 
 ## Positioned Output
@@ -304,7 +314,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - Only one source file is accepted.
 - There are no variable declarations, local variables, procedures, functions, imports, or linking.
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
-- String variables, arrays, function calls, and exponentiation are not implemented.
+- Arrays, runtime string functions, string slicing, general function calls, and exponentiation are not implemented.
 - Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
 - The compiler emits plain text BASIC. Atari `.lst` output currently only adapts line endings to Atari's `0x9B`; full ATASCII conversion is not implemented. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.

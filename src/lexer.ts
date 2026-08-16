@@ -128,6 +128,10 @@ export function tokenize(source: string, filename: string): Token[] {
         text += source[index];
         advance(source[index]);
       }
+      if (source[index] === "$") {
+        text += "$";
+        advance("$");
+      }
       const upper = text.toUpperCase();
       tokens.push(keywords.has(upper) ? { kind: "keyword", text: upper, location: start } : { kind: "identifier", text, location: start });
       continue;
