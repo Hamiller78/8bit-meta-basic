@@ -24,15 +24,13 @@ describe("Spectrum compiler", () => {
     const expected = [
       "10 REM START:",
       '20 PRINT "WARNING"',
-      "30 IF CONFIRMED THEN GO TO 50",
-      "40 GO TO 80",
-      "50 REM __MB_1:",
-      '60 PRINT "ATTACK CONFIRMED"',
-      "70 GO TO 100",
-      "80 REM __MB_3:",
-      '90 PRINT "AWAITING SECOND SOURCE"',
-      "100 REM __MB_2:",
-      "110 GO TO 10",
+      "30 IF CONFIRMED THEN GO TO 60",
+      '40 PRINT "AWAITING SECOND SOURCE"',
+      "50 GO TO 80",
+      "60 REM __MB_1:",
+      '70 PRINT "ATTACK CONFIRMED"',
+      "80 REM __MB_2:",
+      "90 GO TO 10",
       ""
     ].join("\n");
 
@@ -68,12 +66,11 @@ describe("Spectrum compiler", () => {
       [
         "10 REM START:",
         '20 PRINT "WARNING"',
-        "30 IF CONFIRMED THEN GO TO 50",
-        "40 GO TO 70",
-        '50 PRINT "ATTACK CONFIRMED"',
-        "60 GO TO 80",
-        '70 PRINT "AWAITING SECOND SOURCE"',
-        "80 GO TO 10",
+        "30 IF CONFIRMED THEN GO TO 60",
+        '40 PRINT "AWAITING SECOND SOURCE"',
+        "50 GO TO 70",
+        '60 PRINT "ATTACK CONFIRMED"',
+        "70 GO TO 10",
         ""
       ].join("\n")
     );
@@ -94,12 +91,11 @@ describe("Spectrum compiler", () => {
     expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", readability: 0 })).toBe(
       [
         '10 PRINT "WARNING"',
-        "20 IF CONFIRMED THEN GO TO 40",
-        "30 GO TO 60",
-        '40 PRINT "ATTACK CONFIRMED"',
-        "50 GO TO 70",
-        '60 PRINT "AWAITING SECOND SOURCE"',
-        "70 GO TO 10",
+        "20 IF CONFIRMED THEN GO TO 50",
+        '30 PRINT "AWAITING SECOND SOURCE"',
+        "40 GO TO 60",
+        '50 PRINT "ATTACK CONFIRMED"',
+        "60 GO TO 10",
         ""
       ].join("\n")
     );
@@ -372,17 +368,15 @@ describe("Spectrum compiler", () => {
     expect(output).toBe(
       [
         "10 IF OUTER THEN GO TO 30",
-        "20 GO TO 120",
+        "20 GO TO 100",
         "30 REM __MB_1:",
-        "40 IF INNER THEN GO TO 60",
-        "50 GO TO 90",
-        "60 REM __MB_3:",
-        '70 PRINT "BOTH"',
-        "80 GO TO 110",
-        "90 REM __MB_5:",
-        '100 PRINT "OUTER"',
-        "110 REM __MB_4:",
-        "120 REM __MB_2:",
+        "40 IF INNER THEN GO TO 70",
+        '50 PRINT "OUTER"',
+        "60 GO TO 90",
+        "70 REM __MB_3:",
+        '80 PRINT "BOTH"',
+        "90 REM __MB_4:",
+        "100 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -434,15 +428,13 @@ describe("Spectrum compiler", () => {
         "110 PRINT A$",
         '120 PRINT "SECONDS: ";60',
         "130 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 160",
-        "150 GO TO 190",
-        "160 REM __MB_1:",
-        '170 PRINT AT 20,5;"ATTACK CONFIRMED"',
-        "180 GO TO 210",
-        "190 REM __MB_3:",
-        '200 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
-        "210 REM __MB_2:",
-        "220 GO TO 80",
+        "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 170",
+        '150 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
+        "160 GO TO 190",
+        "170 REM __MB_1:",
+        '180 PRINT AT 20,5;"ATTACK CONFIRMED"',
+        "190 REM __MB_2:",
+        "200 GO TO 80",
         ""
       ].join("\n")
     );

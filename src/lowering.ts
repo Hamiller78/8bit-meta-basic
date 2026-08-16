@@ -225,17 +225,18 @@ function lowerStatements(
       case "if": {
         const thenLabel = nextInternalLabel();
         const endLabel = nextInternalLabel();
-        const elseLabel = statement.elseBranch.length > 0 ? nextInternalLabel() : endLabel;
-
-        instructions.push({ kind: "if-goto", condition: statement.condition, label: thenLabel, location: statement.location });
-        instructions.push({ kind: "goto", label: elseLabel, location: statement.location });
-        instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
-        lowerStatements(statement.thenBranch, instructions, nextInternalLabel);
 
         if (statement.elseBranch.length > 0) {
-          instructions.push({ kind: "goto", label: endLabel, location: statement.location });
-          instructions.push({ kind: "label", name: elseLabel, internal: true, location: statement.location });
+          instructions.push({ kind: "if-goto", condition: statement.condition, label: thenLabel, location: statement.location });
           lowerStatements(statement.elseBranch, instructions, nextInternalLabel);
+          instructions.push({ kind: "goto", label: endLabel, location: statement.location });
+          instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
+          lowerStatements(statement.thenBranch, instructions, nextInternalLabel);
+        } else {
+          instructions.push({ kind: "if-goto", condition: statement.condition, label: thenLabel, location: statement.location });
+          instructions.push({ kind: "goto", label: endLabel, location: statement.location });
+          instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
+          lowerStatements(statement.thenBranch, instructions, nextInternalLabel);
         }
 
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });

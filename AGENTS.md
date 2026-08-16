@@ -288,7 +288,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Render target keywords in uppercase.
 - Reject duplicate labels.
 - Reject references to undefined labels.
-- Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
+- Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.
