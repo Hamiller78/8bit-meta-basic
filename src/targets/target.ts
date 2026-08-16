@@ -11,6 +11,7 @@ export interface TargetBackend {
   readonly id: TargetId;
   readonly gotoSpelling: GotoSpelling;
   readonly maxLineLength: number;
+  readonly maxLineNumber: number;
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram;
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string;
 }

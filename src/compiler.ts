@@ -34,8 +34,22 @@ export function compileSource(source: string, options: CompileOptions): string {
   if (options.target === "c64") {
     setC64RenderProgram(targetLowered.instructions);
   }
-  const numbered = assignLineNumbers(targetLowered, readability);
+  const numbered = assignLineNumbers(targetLowered, readability, {
+    maxLineNumber: target.maxLineNumber,
+    targetName: targetDisplayName(options.target)
+  });
   const lines = numbered.lines.map((line) => renderCheckedLine(target, line.number, line.instruction, numbered.labelLines, readability));
 
   return `${lines.join("\n")}\n`;
+}
+
+function targetDisplayName(target: TargetId): string {
+  switch (target) {
+    case "spectrum":
+      return "Spectrum";
+    case "atari800xl":
+      return "Atari 800XL";
+    case "c64":
+      return "C64";
+  }
 }

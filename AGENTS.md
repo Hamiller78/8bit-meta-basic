@@ -273,7 +273,9 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 
 ## Shared output semantics
 
-- Generate line numbers beginning at 10 in increments of 10.
+- Generate line numbers beginning at 10 and prefer increments of 10.
+- If increments of 10 would exceed the target's maximum line number, automatically fall back to increments of 1.
+- Reject generated programs that still exceed the target's maximum line number with increment 1: Spectrum 9999, Atari 800XL 32767, and C64 63999.
 - Render target keywords in uppercase.
 - Reject duplicate labels.
 - Reject references to undefined labels.

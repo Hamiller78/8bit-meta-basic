@@ -192,6 +192,13 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("uses dense line numbering when Spectrum line numbers would exceed 9999", () => {
+    const source = Array.from({ length: 1000 }, (_, index) => `print "${index}"`).join("\n");
+    const output = compileSource(`${source}\n`, { filename: "many.mbas", target: "spectrum" });
+
+    expect(output.split("\n").at(-2)).toBe('1009 PRINT "999"');
+  });
+
   it("uses Spectrum environment constants and case-insensitive lookup", () => {
     expect(
       compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {

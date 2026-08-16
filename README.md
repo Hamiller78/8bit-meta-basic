@@ -153,6 +153,8 @@ Compiler output is readable BASIC text. Atari builds additionally create a `.lst
 
 Generated lines are checked against practical editable limits for each target: 80 characters on C64, 120 on Atari 800XL, and 640 on Spectrum. If a generated line is too long, compilation fails with a diagnostic pointing back to the source line.
 
+Line numbers start at 10 and normally use increments of 10. If that would exceed the target's maximum line number, the compiler automatically switches to increments of 1. Programs that still do not fit are rejected. Current line-number limits are Spectrum 9999, Atari 800XL 32767, and C64 63999.
+
 ## Example
 
 Source:

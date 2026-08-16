@@ -9,6 +9,7 @@ export const c64Target: TargetBackend = {
   id: "c64",
   gotoSpelling: "GOTO",
   maxLineLength: 80,
+  maxLineNumber: 63999,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.at!.row, location: instruction.location },

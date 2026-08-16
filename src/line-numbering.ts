@@ -1,7 +1,12 @@
 import type { Instruction, LoweredProgram } from "./lowering.js";
 import { normalizeLabel } from "./lowering.js";
+import { DiagnosticError } from "./diagnostics.js";
 
 export type ReadabilityLevel = 0 | 1 | 2;
+
+const startingLineNumber = 10;
+const defaultLineNumberIncrement = 10;
+const denseLineNumberIncrement = 1;
 
 export interface NumberedLine {
   readonly number: number;
@@ -14,20 +19,33 @@ export interface NumberedProgram {
   readonly labelLines: ReadonlyMap<string, number>;
 }
 
-export function assignLineNumbers(program: LoweredProgram, readability: ReadabilityLevel): NumberedProgram {
+export interface LineNumberingOptions {
+  readonly maxLineNumber: number;
+  readonly targetName: string;
+}
+
+export function assignLineNumbers(program: LoweredProgram, readability: ReadabilityLevel, options: LineNumberingOptions): NumberedProgram {
   const emittedInstructions = program.instructions
     .map((instruction, instructionIndex) => ({ instruction, instructionIndex }))
     .filter(({ instruction }) => shouldEmitInstruction(instruction, readability));
+  const increment = chooseLineNumberIncrement(emittedInstructions, options);
 
   const lines = emittedInstructions.map(({ instruction, instructionIndex }, lineIndex) => ({
-    number: 10 + lineIndex * 10,
+    number: startingLineNumber + lineIndex * increment,
     instruction,
     instructionIndex
   }));
   const labelLines = new Map<string, number>();
 
   for (const [key, label] of program.labels) {
-    labelLines.set(key, resolveLabelLine(lines, label.index));
+    const line = resolveLabelLine(lines, label.index, increment);
+    if (line > options.maxLineNumber) {
+      throw new DiagnosticError(
+        label.location,
+        `Generated ${options.targetName} BASIC label "${label.name}" resolves to line ${line}, exceeding the maximum line number ${options.maxLineNumber}.`
+      );
+    }
+    labelLines.set(key, line);
   }
 
   return { lines, labelLines };
@@ -54,7 +72,31 @@ function shouldEmitInstruction(instruction: Instruction, readability: Readabilit
   return readability === 1 && !instruction.internal;
 }
 
-function resolveLabelLine(lines: readonly NumberedLine[], labelIndex: number): number {
+function chooseLineNumberIncrement(
+  emittedInstructions: readonly { readonly instruction: Instruction; readonly instructionIndex: number }[],
+  options: LineNumberingOptions
+): number {
+  if (emittedInstructions.length === 0 || lastLineNumber(emittedInstructions.length, defaultLineNumberIncrement) <= options.maxLineNumber) {
+    return defaultLineNumberIncrement;
+  }
+
+  if (lastLineNumber(emittedInstructions.length, denseLineNumberIncrement) <= options.maxLineNumber) {
+    return denseLineNumberIncrement;
+  }
+
+  const maxDenseLines = Math.max(0, options.maxLineNumber - startingLineNumber + 1);
+  const overflow = emittedInstructions[maxDenseLines] ?? emittedInstructions.at(-1);
+  throw new DiagnosticError(
+    overflow?.instruction.location ?? { filename: "<generated>", line: 1 },
+    `Generated ${options.targetName} BASIC program needs ${emittedInstructions.length} numbered lines, but line numbers starting at ${startingLineNumber} cannot exceed ${options.maxLineNumber}.`
+  );
+}
+
+function lastLineNumber(lineCount: number, increment: number): number {
+  return startingLineNumber + (lineCount - 1) * increment;
+}
+
+function resolveLabelLine(lines: readonly NumberedLine[], labelIndex: number, increment: number): number {
   const exactLine = lines.find((line) => line.instructionIndex === labelIndex);
   if (exactLine) {
     return exactLine.number;
@@ -66,5 +108,5 @@ function resolveLabelLine(lines: readonly NumberedLine[], labelIndex: number): n
   }
 
   const lastLine = lines.at(-1);
-  return lastLine ? lastLine.number + 10 : 10;
+  return lastLine ? lastLine.number + increment : startingLineNumber;
 }

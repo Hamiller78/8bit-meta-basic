@@ -9,6 +9,7 @@ export const spectrumTarget: TargetBackend = {
   id: "spectrum",
   gotoSpelling: "GO TO",
   maxLineLength: 640,
+  maxLineNumber: 9999,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
     const instructions: Instruction[] = [];
