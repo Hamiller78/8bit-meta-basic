@@ -17,6 +17,7 @@ export const keywords = new Set([
   "PRINT",
   "PRINT_AT",
   "THEN",
+  "TEXT_COLOR",
   "TRUE"
 ]);
 

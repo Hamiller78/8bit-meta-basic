@@ -31,6 +31,7 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
       case "cls":
       case "border-color":
+      case "text-color":
       case "paper":
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
@@ -64,6 +65,10 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
 
 function renderC64Function(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
   const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.jiffies) {
+    return "TI";
+  }
 
   if (name === builtinFunctions.len) {
     return `LEN(${renderExpression(expression.args[0], options)})`;
@@ -144,6 +149,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.value];
     case "cls":
     case "border-color":
+    case "text-color":
     case "paper":
     case "setcolor":
     case "print-chr":
@@ -193,7 +199,7 @@ function significantName(name: string): string {
   return `${base}${suffix}`;
 }
 
-const reservedNames = new Set(["TO", "IF", "GO", "ON", "OR", "AN", "NO", "PR", "PO", "SY", "RE", "ST", "TH"]);
+const reservedNames = new Set(["TO", "IF", "GO", "ON", "OR", "AN", "NO", "PR", "PO", "SY", "RE", "ST", "TH", "TI"]);
 
 function preferredVariableName(name: string): string | undefined {
   const clean = name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
@@ -261,10 +267,22 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         });
       }
       instructions.push({ kind: "print-chr", code: 147, trailingSemicolon: true, location: instruction.location });
-    } else if (instruction.kind === "border-color") {
+      } else if (instruction.kind === "border-color") {
+        instructions.push({
+          kind: "poke",
+          address: 53280,
+          value: {
+          kind: "number",
+          value: c64ColorCodes[instruction.color.color],
+          raw: c64ColorCodes[instruction.color.color].toString(),
+          location: instruction.location
+        },
+        location: instruction.location
+      });
+    } else if (instruction.kind === "text-color") {
       instructions.push({
         kind: "poke",
-        address: 53280,
+        address: 646,
         value: {
           kind: "number",
           value: c64ColorCodes[instruction.color.color],

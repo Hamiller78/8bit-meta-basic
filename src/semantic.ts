@@ -58,6 +58,10 @@ function analyzeStatements(
         analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "BORDER_COLOR") });
         break;
       }
+      case "text-color": {
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "TEXT_COLOR") });
+        break;
+      }
       case "let": {
         const existing = constants.get(normalizeName(statement.name));
         if (existing?.environment) {
@@ -183,6 +187,14 @@ function foldFunctionCall(
   unknownIdentifierIsError: boolean
 ): Expression {
   const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.jiffies) {
+    if (expression.args.length !== 0) {
+      throw new DiagnosticError(expression.location, "JIFFIES expects no arguments.");
+    }
+
+    return { ...expression, name, args: [] };
+  }
 
   if (name === builtinFunctions.space) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));

@@ -13,6 +13,7 @@ export type Statement =
   | LabelStatement
   | ClsStatement
   | BorderColorStatement
+  | TextColorStatement
   | PrintStatement
   | LetStatement
   | GotoStatement
@@ -47,6 +48,12 @@ export interface ClsStatement {
 
 export interface BorderColorStatement {
   readonly kind: "border-color";
+  readonly color: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface TextColorStatement {
+  readonly kind: "text-color";
   readonly color: Expression;
   readonly location: SourceLocation;
 }

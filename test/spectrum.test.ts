@@ -248,6 +248,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders Spectrum TEXT_COLOR as INK", () => {
+    expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "spectrum" })).toBe(
+      ["10 INK 7", "20 INK 6", ""].join("\n")
+    );
+  });
+
   it("maps long string variable names to Spectrum single-letter string variables", () => {
     expect(compileSource('tickerText$ = "READY"\nprint tickerText$\n', { filename: "strings.mbas", target: "spectrum" })).toBe(
       ['10 LET A$="READY"', "20 PRINT A$", ""].join("\n")
@@ -275,6 +281,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders JIFFIES from the Spectrum FRAMES counter", () => {
+    expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
+      ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
+    );
+  });
+
   it("reports invalid compile-time string fill calls", () => {
     expect(() => compileSource('print string$("ab", 1)\n', { filename: "fill.mbas", target: "spectrum" })).toThrow(
       "STRING$ first argument must be a string with exactly one character"
@@ -296,6 +308,10 @@ describe("Spectrum compiler", () => {
   it("reports invalid LEN calls", () => {
     expect(() => compileSource("print len()\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN expects exactly one argument");
     expect(() => compileSource("print len(123)\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN argument must be a string expression");
+  });
+
+  it("reports invalid JIFFIES calls", () => {
+    expect(() => compileSource("print jiffies(1)\n", { filename: "jiffies.mbas", target: "spectrum" })).toThrow("JIFFIES expects no arguments");
   });
 
   it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {

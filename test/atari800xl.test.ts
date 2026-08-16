@@ -80,9 +80,21 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders Atari TEXT_COLOR as SETCOLOR 1", () => {
+    expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "atari800xl" })).toBe(
+      ["10 SETCOLOR 1,0,14", "20 SETCOLOR 1,13,12", ""].join("\n")
+    );
+  });
+
   it("renders string variable assignment with required DIM and PRINT", () => {
     expect(compileSource('tickerText$ = "READY"\nprint tickerText$\n', { filename: "strings.mbas", target: "atari800xl" })).toBe(
       ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="READY"', "30 PRINT TICKERTEXT$", ""].join("\n")
+    );
+  });
+
+  it("renders string self-append using Atari substring assignment", () => {
+    expect(compileSource('tickerText$ = "READY"\ntickerText$ = tickerText$ + " NOW"\n', { filename: "append.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="READY"', '30 TICKERTEXT$(LEN(TICKERTEXT$)+1)=" NOW"', ""].join("\n")
     );
   });
 
@@ -104,6 +116,12 @@ describe("Atari 800XL compiler", () => {
   it("renders LEN as an Atari string length expression", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\ntextLength = len(tickerText$)\nprint textLength\n', { filename: "len.mbas", target: "atari800xl" })).toBe(
       ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 TEXTLENGTH=LEN(TICKERTEXT$)", "40 PRINT TEXTLENGTH", ""].join("\n")
+    );
+  });
+
+  it("renders JIFFIES from the Atari real-time clock", () => {
+    expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
+      ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")
     );
   });
 

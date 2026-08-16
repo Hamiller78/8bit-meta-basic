@@ -10,6 +10,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
+  ["TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["IF", (parser, location) => parser.parseIf(location)]
 ]);
@@ -97,6 +98,15 @@ class Parser {
     const color = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "border-color", color, location };
+  }
+
+  parseTextColor(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "TEXT_COLOR requires a colour expression.");
+    }
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "text-color", color, location };
   }
 
   parsePrintAtStatement(location: SourceLocation): Statement {

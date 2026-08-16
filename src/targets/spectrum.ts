@@ -38,6 +38,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} BORDER ${spectrumColorCodes[instruction.color.color]}`;
       case "paper":
         return `${lineNumber} PAPER ${spectrumColorCodes[instruction.color.color]}`;
+      case "text-color":
+        return `${lineNumber} INK ${spectrumColorCodes[instruction.color.color]}`;
       case "print":
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
@@ -67,6 +69,10 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 
 function renderSpectrumFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
   const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.jiffies) {
+    return "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674";
+  }
 
   if (name === builtinFunctions.len) {
     const [source] = expression.args;
@@ -125,6 +131,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.value];
     case "cls":
     case "border-color":
+    case "text-color":
     case "paper":
     case "setcolor":
     case "print-chr":

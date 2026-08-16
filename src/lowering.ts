@@ -19,6 +19,7 @@ export type Instruction =
   | RemInstruction
   | ClsInstruction
   | BorderColorInstruction
+  | TextColorInstruction
   | PaperInstruction
   | PrintInstruction
   | LetInstruction
@@ -52,6 +53,12 @@ export interface ClsInstruction {
 
 export interface BorderColorInstruction {
   readonly kind: "border-color";
+  readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface TextColorInstruction {
+  readonly kind: "text-color";
   readonly color: Extract<Expression, { kind: "color" }>;
   readonly location: SourceLocation;
 }
@@ -167,6 +174,13 @@ function lowerStatements(
       case "border-color":
         instructions.push({
           kind: "border-color",
+          color: statement.color as Extract<Expression, { kind: "color" }>,
+          location: statement.location
+        });
+        break;
+      case "text-color":
+        instructions.push({
+          kind: "text-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
           location: statement.location
         });

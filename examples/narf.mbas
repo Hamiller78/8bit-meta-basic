@@ -1,0 +1,79 @@
+const tickerRow = TEXT_ROWS - 1
+const lowerRuleRow = TEXT_ROWS - 2
+const tickerColumns = TEXT_COLUMNS - 1
+const scrollDelay = JIFFIES_PER_SECOND / 5
+const ruleLine$ = string$("-", tickerColumns)
+const clearLine$ = space$(tickerColumns)
+
+digits$ = "0123456789"
+tickerText$ = "BEIRUT ROCKET BATTERY WORRIES U.S. * "
+tickerText$ = tickerText$ + "REAGAN MOURNS MARINES LOST IN LEBANON AND GRENADA * "
+tickerText$ = tickerText$ + "NBC REPORTS K.I.T.T. THE CAT ON KNIGHT RIDER TONIGHT * "
+tickerText$ = tickerText$ + "NATO MANEUVER ABLE ARCHER COMMENCES TOMORROW * "
+tickerText$ = tickerText$ + space$(tickerColumns)
+tickerPos = 1
+lastTick = jiffies()
+lastClockTick = jiffies()
+clockMinuteTens = 0
+clockMinuteOnes = 0
+clockSecondTens = 0
+clockSecondOnes = 0
+
+border_color BLACK
+cls BLACK
+text_color WHITE
+
+print_at 0, 0; ruleLine$;
+print_at 1, 0; "DEFCON5 1983-11-06 23:00:00";
+print_at 2, 0; "N.A.R.F. FAILSAFE";
+print_at 3, 0; ruleLine$;
+print_at 5, 0; "COMMAND CHANNEL";
+print_at 6, 0; "N.A.R.F. OFFLINE";
+print_at 8, 0; "AUTOMATED FAILSAFE STANDING BY";
+print_at 10, 0; "INCOMING THREATS";
+print_at 11, 0; "NO THREATS DETECTED";
+print_at 13, 0; "PRIMARY NETWORK: DISCONNECTED";
+print_at 14, 0; "CIVIL DEFENCE LINK: STANDBY";
+print_at 16, 0; "SYSTEM STATUS: PROBABLY FINE";
+print_at lowerRuleRow, 0; ruleLine$;
+text_color YELLOW
+print_at tickerRow, 0; clearLine$;
+print_at tickerRow, 0; mid$(tickerText$, tickerPos, tickerColumns);
+
+scroll:
+    if jiffies() - lastClockTick >= JIFFIES_PER_SECOND then
+        lastClockTick = jiffies()
+        clockSecondOnes = clockSecondOnes + 1
+        if clockSecondOnes >= 10 then
+            clockSecondOnes = 0
+            clockSecondTens = clockSecondTens + 1
+            if clockSecondTens >= 6 then
+                clockSecondTens = 0
+                clockMinuteOnes = clockMinuteOnes + 1
+                if clockMinuteOnes >= 10 then
+                    clockMinuteOnes = 0
+                    clockMinuteTens = clockMinuteTens + 1
+                    if clockMinuteTens >= 6 then
+                        clockMinuteTens = 0
+                    end if
+                end if
+            end if
+        end if
+        text_color WHITE
+        print_at 1, 19; "23:";
+        print_at 1, 22; mid$(digits$, clockMinuteTens + 1, 1);
+        print_at 1, 23; mid$(digits$, clockMinuteOnes + 1, 1);
+        print_at 1, 24; ":";
+        print_at 1, 25; mid$(digits$, clockSecondTens + 1, 1);
+        print_at 1, 26; mid$(digits$, clockSecondOnes + 1, 1);
+        text_color YELLOW
+    end if
+    if jiffies() - lastTick >= scrollDelay then
+        lastTick = jiffies()
+        tickerPos = tickerPos + 1
+        if tickerPos > len(tickerText$) - tickerColumns then
+            tickerPos = 1
+        end if
+        print_at tickerRow, 0; mid$(tickerText$, tickerPos, tickerColumns);
+    end if
+    goto scroll

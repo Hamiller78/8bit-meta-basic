@@ -169,16 +169,21 @@ describe("parser", () => {
     expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT_AT column");
   });
 
-  it("parses CLS with an optional colour expression and BORDER_COLOR", () => {
-    expect(parseSource("cls\ncls alert_colour\nborder_color BLUE\n", "screen.mbas").statements).toMatchObject([
+  it("parses CLS with an optional colour expression, BORDER_COLOR, and TEXT_COLOR", () => {
+    expect(parseSource("cls\ncls alert_colour\nborder_color BLUE\ntext_color YELLOW\n", "screen.mbas").statements).toMatchObject([
       { kind: "cls" },
       { kind: "cls", color: { kind: "identifier", name: "alert_colour" } },
-      { kind: "border-color", color: { kind: "identifier", name: "BLUE" } }
+      { kind: "border-color", color: { kind: "identifier", name: "BLUE" } },
+      { kind: "text-color", color: { kind: "identifier", name: "YELLOW" } }
     ]);
   });
 
   it("reports missing BORDER_COLOR colour", () => {
     expect(() => parseSource("border_color\n", "border.mbas")).toThrow("border.mbas:1: BORDER_COLOR requires a colour expression");
+  });
+
+  it("reports missing TEXT_COLOR colour", () => {
+    expect(() => parseSource("text_color\n", "text.mbas")).toThrow("text.mbas:1: TEXT_COLOR requires a colour expression");
   });
 
   it("rejects PRINTAT and the former PRINT AT spelling", () => {

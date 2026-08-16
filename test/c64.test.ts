@@ -82,6 +82,12 @@ describe("C64 compiler", () => {
     expect(output).not.toContain("POKE 53281");
   });
 
+  it("renders C64 TEXT_COLOR as the current text colour register", () => {
+    expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "c64" })).toBe(
+      ["10 POKE 646,1", "20 POKE 646,7", ""].join("\n")
+    );
+  });
+
   it("deterministically maps C64 variable names that would alias in BASIC V2", () => {
     expect(
       compileSource("sensorCount = 1\nsensorState = sensorCount + 1\nprint sensorCount; sensorState\n", {
@@ -118,7 +124,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 TI$="READY"', "20 PRINT TI$", ""].join("\n"));
+    ).toBe(['10 V0$="READY"', "20 PRINT V0$", ""].join("\n"));
   });
 
   it("folds compile-time STRING$ and SPACE$ using target constants", () => {
@@ -137,7 +143,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 TI$="HELLO WORLD"', "20 PRINT MID$(TI$,2,5)", ""].join("\n"));
+    ).toBe(['10 V0$="HELLO WORLD"', "20 PRINT MID$(V0$,2,5)", ""].join("\n"));
   });
 
   it("renders LEN directly for C64", () => {
@@ -147,7 +153,17 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 TI$="HELLO WORLD"', "20 TE=LEN(TI$)", "30 PRINT TE", ""].join("\n"));
+    ).toBe(['10 V0$="HELLO WORLD"', "20 TE=LEN(V0$)", "30 PRINT TE", ""].join("\n"));
+  });
+
+  it("renders JIFFIES as the C64 jiffy clock", () => {
+    expect(
+      compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {
+        filename: "jiffies.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 LA=TI", "20 PRINT 50", ""].join("\n"));
   });
 
   it("preserves logical truth behavior in representative expressions", () => {
@@ -162,14 +178,14 @@ describe("C64 compiler", () => {
         "10 SENSORCOUNT=1",
         "20 ALERTLEVEL=2",
         "30 CONFIRMED=1",
-        '40 TICKERTEXT$="DEFENCE NETWORK ONLINE"',
+        '40 V0$="DEFENCE NETWORK ONLINE"',
         "50 POKE 53280,6",
         "60 POKE 53281,6",
         "70 PRINT CHR$(147);",
         "80 REM START:",
         '90 PRINT "****************************************"',
         '100 PRINT "WARNING"',
-        "110 PRINT TICKERTEXT$",
+        "110 PRINT V0$",
         '120 PRINT "SECONDS: ";60',
         "130 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
         "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 160",

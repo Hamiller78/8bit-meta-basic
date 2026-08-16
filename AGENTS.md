@@ -84,17 +84,19 @@ Supported constructs:
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
-- Target-provided environment constants `TEXT_ROWS` and `TEXT_COLUMNS`
+- Target-provided environment constants `TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND`
 - Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
+- Runtime jiffy timer reading with `jiffies()`
 - Numeric assignments written canonically as `name = expression`
 - String assignments written canonically as `name$ = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
 - `cls` and `cls colour`
 - `border_color colour`
+- `text_color colour`
 - Expressions in `IF`, `CONST`, assignments, and `PRINT`
 
 Important source-language rule:
@@ -102,7 +104,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `JIFFIES` is supported as a portable runtime timer helper.
 
 ## Tokenizer and parser
 
@@ -126,7 +128,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, and `LEN` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, and `JIFFIES` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers.
 
 ## Expression grammar
 
@@ -139,6 +141,7 @@ Supported expression forms:
 - Identifiers
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
 - Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
+- Runtime timer function call `JIFFIES()`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -165,11 +168,11 @@ Binary operators are left-associative. Comparison chaining such as `a < b < c` i
 
 Selected targets provide read-only, case-insensitive environment constants:
 
-| Target | `TEXT_ROWS` | `TEXT_COLUMNS` |
-| --- | ---: | ---: |
-| ZX Spectrum | 22 | 32 |
-| Atari 800XL | 24 | 40 |
-| Commodore 64 | 25 | 40 |
+| Target | `TEXT_ROWS` | `TEXT_COLUMNS` | `JIFFIES_PER_SECOND` |
+| --- | ---: | ---: | ---: |
+| ZX Spectrum | 22 | 32 | 50 |
+| Atari 800XL | 24 | 40 | 50 |
+| Commodore 64 | 25 | 40 | 50 |
 
 Implemented requirements:
 
@@ -256,11 +259,14 @@ Supported clear-screen forms:
 cls
 cls BLUE
 border_color BLUE
+text_color WHITE
 ```
 
 `CLS` clears the text screen. `CLS colour` selects the portable background colour and then clears the screen. The colour form does not change the foreground/text colour or border colour.
 
 `BORDER_COLOR colour` changes the target machine's border colour without changing the text/background colour.
+
+`TEXT_COLOR colour` changes the target machine's current text/foreground colour without clearing the screen.
 
 Target lowering:
 
@@ -268,6 +274,7 @@ Target lowering:
 - Atari 800XL: `PRINT CHR$(125);`, or `SETCOLOR 2,targetHue,targetLuminance` followed by `PRINT CHR$(125);`.
 - C64: `PRINT CHR$(147);`, or `POKE 53281,targetColour` followed by `PRINT CHR$(147);`.
 - Border colour lowers to Spectrum `BORDER targetColour`, Atari `SETCOLOR 4,targetHue,targetLuminance`, and C64 `POKE 53280,targetColour`.
+- Text colour lowers to Spectrum `INK targetColour`, Atari `SETCOLOR 1,targetHue,targetLuminance`, and C64 `POKE 646,targetColour`.
 
 Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 
@@ -327,6 +334,7 @@ Meaning:
 - Render assignments without `LET`.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
+- Lower string self-append assignments such as `name$ = name$ + "more"` to Atari substring assignment such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
 - Lower positioned output into:
 
 ```basic
@@ -359,7 +367,7 @@ PRINT ...
 - At readability `1`, allocate compact generated variable names deterministically and comment the first explicit assignment for each variable with its source name.
 - At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
 - Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
-- Avoid generated names that conflict with BASIC keywords. Constants are substituted and require no runtime variable name.
+- Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Constants are substituted and require no runtime variable name.
 
 ## Logical semantics across targets
 
@@ -471,10 +479,12 @@ Coverage currently includes:
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
+- Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
 - `PRINT_AT` parsing and malformed coordinate diagnostics
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
 - C64 `POKE`/`SYS` expansion
+- Portable `TEXT_COLOR` lowering
 - Coordinate range diagnostics for all targets
 - Deterministic C64 variable-name mapping, including two-character collisions
 - Uppercase output casing for Spectrum, Atari, and C64
@@ -516,7 +526,7 @@ Do not claim support for machines or constructs that are only planned.
 - Calling `bas2tap`
 - Calling `petcat`, creating ATR images, or invoking Atari packaging utilities
 - Unicode, PETSCII, ATASCII, or Spectrum character-set conversion and validation
-- Source-level `INK`, `PAPER`, `COLOR`, `SETCOLOR`, or `TEXT_COLOR`
+- Source-level target-specific colour commands such as `INK`, `PAPER`, `COLOR`, or `SETCOLOR`
 - Assembly routines, PRG packaging, or native runtime libraries
 - Source maps
 - A VS Code extension, syntax highlighting, or language server

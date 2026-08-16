@@ -38,6 +38,15 @@ export const atari800xlTarget: TargetBackend = {
           luminance: color.luminance,
           location: instruction.location
         });
+      } else if (instruction.kind === "text-color") {
+        const color = atariColorCodes[instruction.color.color];
+        instructions.push({
+          kind: "setcolor",
+          register: 1,
+          hue: color.hue,
+          luminance: color.luminance,
+          location: instruction.location
+        });
       } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
         if (!instructions.some((existing) => existing.kind === "dim-string" && existing.name.toLowerCase() === instruction.name.toLowerCase())) {
           instructions.push({ kind: "dim-string", name: instruction.name, length: 255, location: instruction.location });
@@ -60,12 +69,13 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} REM ${instruction.text.toUpperCase()}`;
       case "cls":
       case "border-color":
+      case "text-color":
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
-        return `${lineNumber} ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
+        return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
       case "dim-string":
         return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
       case "goto":
@@ -91,8 +101,39 @@ export function setAtariRenderProgram(instructions: readonly Instruction[]): voi
   currentProgramInstructions = instructions;
 }
 
+function renderAtariAssignment(
+  lineNumber: number,
+  instruction: Extract<Instruction, { kind: "let" }>,
+  variableMap: ReadonlyMap<string, string>,
+  renderOptions: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }
+): string {
+  const targetName = variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase();
+  const appendExpression = stringSelfAppendRight(instruction.name, instruction.expression);
+  if (appendExpression) {
+    return `${lineNumber} ${targetName}(LEN(${targetName})+1)=${renderExpression(appendExpression, renderOptions)}`;
+  }
+
+  return `${lineNumber} ${targetName}=${renderExpression(instruction.expression, renderOptions)}`;
+}
+
+function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
+  if (!name.endsWith("$") || expression.kind !== "binary" || expression.operator !== "+") {
+    return undefined;
+  }
+
+  if (expression.left.kind === "identifier" && expression.left.name.toLowerCase() === name.toLowerCase()) {
+    return expression.right;
+  }
+
+  return undefined;
+}
+
 function renderAtariFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
   const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.jiffies) {
+    return "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536";
+  }
 
   if (name === builtinFunctions.len) {
     return `LEN(${renderExpression(expression.args[0], options)})`;
@@ -135,6 +176,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.value];
     case "cls":
     case "border-color":
+    case "text-color":
     case "paper":
     case "setcolor":
     case "print-chr":

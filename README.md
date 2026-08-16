@@ -125,16 +125,18 @@ The milestone language supports:
 - Blank lines
 - Comments beginning with an apostrophe
 - Labels such as `start:`
-- Target-provided environment constants such as `TEXT_ROWS` and `TEXT_COLUMNS`
+- Target-provided environment constants such as `TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND`
 - Compile-time constants such as `const warningRow = TEXT_ROWS - 2`
 - Compile-time string fill helpers such as `string$("*", TEXT_COLUMNS)` and `space$(TEXT_COLUMNS)`
 - Runtime string slicing with `mid$(text$, start, length)`
+- Runtime jiffy timer reading with `jiffies()`
 - Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
 - String variable assignments such as `tickerText$ = "READY"`
 - `print` with one or more semicolon-separated expressions
 - Portable positioned output such as `print_at 10, 5; "WARNING"`
 - `cls` and `cls colour` with portable background colour constants
 - `border_color colour` with portable border colour constants
+- `text_color colour` with portable foreground/text colour constants
 - `goto label`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
@@ -143,11 +145,13 @@ The milestone language supports:
 
 Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore. A trailing `$` marks a string variable.
 
-Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, runtime `MID$` and `LEN`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
+Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, runtime `MID$`, `LEN`, and `JIFFIES`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
 
-Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support includes assignment, output, concatenation, `MID$(text$, start, length)`, and `LEN(text$)`.
+Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `JIFFIES_PER_SECOND` currently resolves to `50` for all targets. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support includes assignment, output, concatenation, `MID$(text$, start, length)`, and `LEN(text$)`.
 
-The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
+`jiffies()` returns the target machine's running timer tick count: Spectrum uses the three-byte `FRAMES` counter, Atari uses the three-byte `RTCLOK` counter, and C64 uses `TI`. The portable unit is a target jiffy/frame-ish tick, not milliseconds.
+
+The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE`, `border_color BLUE`, or `text_color YELLOW`.
 
 Compiler output is readable BASIC text. Atari builds additionally create a `.lst` text-listing variant with Atari line endings and a staging folder for ATR creation. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap`, Atari `.atr`, or C64 `.prg` when local conversion tools are configured.
 
@@ -318,7 +322,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - There are no variable declarations, local variables, procedures, functions, imports, or linking.
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
 - Arrays, runtime `LEFT$`/`RIGHT$`, general function calls, and exponentiation are not implemented.
-- Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
+- Commas and apostrophe print separators in `PRINT`, streams, and target character-set conversion are not implemented.
 - The compiler emits plain text BASIC. Atari `.lst` output currently only adapts line endings to Atari's `0x9B`; full ATASCII conversion is not implemented. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.
 
@@ -326,5 +330,5 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 
 - Add more source constructs after the first syntax remains well-tested.
 - Introduce target-specific libraries or namespaces for machine features.
-- Decide portable text-colour semantics before implementing `TEXT_COLOR`, especially for Atari `GRAPHICS 0`.
+- Refine portable text-colour mappings after more emulator and hardware testing, especially for Atari `GRAPHICS 0`.
 - Add further BASIC dialect backends.

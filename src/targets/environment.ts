@@ -18,15 +18,16 @@ export interface TargetEnvironment {
 export const portableColors: readonly PortableColor[] = ["BLACK", "BLUE", "RED", "MAGENTA", "GREEN", "CYAN", "YELLOW", "WHITE"];
 
 export const targetEnvironments: Readonly<Record<TargetId, TargetEnvironment>> = {
-  spectrum: buildEnvironment(22, 32),
-  atari800xl: buildEnvironment(24, 40),
-  c64: buildEnvironment(25, 40)
+  spectrum: buildEnvironment(22, 32, 50),
+  atari800xl: buildEnvironment(24, 40, 50),
+  c64: buildEnvironment(25, 40, 50)
 };
 
-function buildEnvironment(textRows: number, textColumns: number): TargetEnvironment {
+function buildEnvironment(textRows: number, textColumns: number, jiffiesPerSecond: number): TargetEnvironment {
   const constants = new Map<string, EnvironmentConstantValue>([
     ["text_rows", textRows],
-    ["text_columns", textColumns]
+    ["text_columns", textColumns],
+    ["jiffies_per_second", jiffiesPerSecond]
   ]);
 
   for (const color of portableColors) {

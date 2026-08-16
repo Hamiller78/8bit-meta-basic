@@ -1,4 +1,5 @@
 export const builtinFunctions = {
+  jiffies: "JIFFIES",
   len: "LEN",
   mid: "MID$",
   space: "SPACE$",
