@@ -210,7 +210,7 @@ Do not add variable declarations or a full type system. Variables first encounte
 Target string-variable lowering:
 
 - Spectrum maps Meta-BASIC string variable names deterministically to single-letter string variables such as `A$`, `B$`, and `C$`.
-- Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable.
+- Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable and lowers string concatenation into Atari substring assignments, using a temporary string buffer when needed to preserve Meta-BASIC expression semantics.
 - C64 preserves readable string names at readability `2` where safe, and uses deterministic compact string names at lower readability levels.
 
 ## PRINT and positioned output
@@ -334,7 +334,7 @@ Meaning:
 - Render assignments without `LET`.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
-- Lower string self-append assignments such as `name$ = name$ + "more"` to Atari substring assignment such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
+- Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
 - Lower positioned output into:
 
 ```basic

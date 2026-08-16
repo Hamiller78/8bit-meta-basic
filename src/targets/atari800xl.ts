@@ -1,5 +1,5 @@
 import type { Expression } from "../ast.js";
-import { builtinFunctions } from "../functions.js";
+import { builtinFunctions, isStringFunctionName } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -16,7 +16,24 @@ export const atari800xlTarget: TargetBackend = {
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
+    const allocateTempStringName = createTempStringNameAllocator(expanded.instructions);
+    const dimmedStrings = new Set<string>();
     const instructions: Instruction[] = [];
+
+    const ensureStringDim = (name: string, location: Expression["location"]): void => {
+      const key = name.toLowerCase();
+      if (dimmedStrings.has(key)) {
+        return;
+      }
+      dimmedStrings.add(key);
+      instructions.push({ kind: "dim-string", name, length: 255, location });
+    };
+
+    const pushStringAssignment = (instruction: Extract<Instruction, { kind: "let" }>): void => {
+      ensureStringDim(instruction.name, instruction.location);
+      instructions.push(...expandAtariStringAssignment(instruction, allocateTempStringName, ensureStringDim));
+    };
+
     for (const instruction of expanded.instructions) {
       if (instruction.kind === "cls") {
         if (instruction.color) {
@@ -49,10 +66,26 @@ export const atari800xlTarget: TargetBackend = {
           location: instruction.location
         });
       } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
-        if (!instructions.some((existing) => existing.kind === "dim-string" && existing.name.toLowerCase() === instruction.name.toLowerCase())) {
-          instructions.push({ kind: "dim-string", name: instruction.name, length: 255, location: instruction.location });
-        }
-        instructions.push(instruction);
+        pushStringAssignment(instruction);
+      } else if (instruction.kind === "print") {
+        const beforePrint: Instruction[] = [];
+        const items = instruction.items.map((item) => {
+          if (!isStringConcatenation(item)) {
+            return item;
+          }
+
+          const tempName = allocateTempStringName();
+          ensureStringDim(tempName, item.location);
+          beforePrint.push(
+            ...expandAtariStringAssignment(
+              { kind: "let", name: tempName, expression: item, location: item.location },
+              allocateTempStringName,
+              ensureStringDim
+            )
+          );
+          return { kind: "identifier", name: tempName, location: item.location } satisfies Expression;
+        });
+        instructions.push(...beforePrint, { ...instruction, items });
       } else {
         instructions.push(instruction);
       }
@@ -127,6 +160,174 @@ function stringSelfAppendRight(name: string, expression: Expression): Expression
   }
 
   return undefined;
+}
+
+function expandAtariStringAssignment(
+  instruction: Extract<Instruction, { kind: "let" }>,
+  allocateTempStringName: () => string,
+  ensureStringDim: (name: string, location: Expression["location"]) => void
+): readonly Instruction[] {
+  const parts = flattenStringConcatenation(instruction.expression);
+  if (!parts) {
+    return [instruction];
+  }
+
+  const leadingSelfAppend = isIdentifierNamed(parts[0], instruction.name);
+  const needsTemp = !leadingSelfAppend && expressionReferencesName(instruction.expression, instruction.name);
+  const targetName = needsTemp ? allocateTempStringName() : instruction.name;
+  const instructions: Instruction[] = [];
+  const appendStart = leadingSelfAppend ? 1 : 0;
+
+  if (needsTemp) {
+    ensureStringDim(targetName, instruction.location);
+  }
+
+  if (!leadingSelfAppend) {
+    instructions.push({ ...instruction, name: targetName, expression: parts[0] });
+  }
+
+  for (const part of parts.slice(appendStart + (leadingSelfAppend ? 0 : 1))) {
+    instructions.push({
+      kind: "let",
+      name: targetName,
+      expression: {
+        kind: "binary",
+        operator: "+",
+        left: { kind: "identifier", name: targetName, location: part.location },
+        right: part,
+        location: part.location
+      },
+      location: part.location
+    });
+  }
+
+  if (needsTemp) {
+    instructions.push({
+      ...instruction,
+      expression: { kind: "identifier", name: targetName, location: instruction.location }
+    });
+  }
+
+  return instructions;
+}
+
+function flattenStringConcatenation(expression: Expression): readonly Expression[] | undefined {
+  if (!isStringConcatenation(expression)) {
+    return undefined;
+  }
+
+  return flattenStringParts(expression);
+}
+
+function flattenStringParts(expression: Expression): readonly Expression[] {
+  if (expression.kind === "parenthesized") {
+    return flattenStringParts(expression.expression);
+  }
+  if (isStringConcatenation(expression)) {
+    return [...flattenStringParts(expression.left), ...flattenStringParts(expression.right)];
+  }
+  return [expression];
+}
+
+function isStringConcatenation(expression: Expression): expression is Extract<Expression, { kind: "binary" }> {
+  return expression.kind === "binary" && expression.operator === "+" && isAtariStringExpression(expression.left) && isAtariStringExpression(expression.right);
+}
+
+function isAtariStringExpression(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "string":
+      return true;
+    case "identifier":
+      return expression.name.endsWith("$");
+    case "parenthesized":
+      return isAtariStringExpression(expression.expression);
+    case "binary":
+      return expression.operator === "+" && isAtariStringExpression(expression.left) && isAtariStringExpression(expression.right);
+    case "function-call":
+      return isStringFunctionName(expression.name);
+    case "number":
+    case "boolean":
+    case "color":
+    case "unary":
+      return false;
+  }
+}
+
+function isIdentifierNamed(expression: Expression, name: string): boolean {
+  return expression.kind === "identifier" && expression.name.toLowerCase() === name.toLowerCase();
+}
+
+function expressionReferencesName(expression: Expression, name: string): boolean {
+  switch (expression.kind) {
+    case "identifier":
+      return expression.name.toLowerCase() === name.toLowerCase();
+    case "parenthesized":
+      return expressionReferencesName(expression.expression, name);
+    case "unary":
+      return expressionReferencesName(expression.operand, name);
+    case "binary":
+      return expressionReferencesName(expression.left, name) || expressionReferencesName(expression.right, name);
+    case "function-call":
+      return expression.args.some((arg) => expressionReferencesName(arg, name));
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      return false;
+  }
+}
+
+function createTempStringNameAllocator(instructions: readonly Instruction[]): () => string {
+  const used = new Set<string>();
+  for (const instruction of instructions) {
+    if (instruction.kind === "let" || instruction.kind === "dim-string") {
+      used.add(instruction.name.toLowerCase());
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectExpressionNames(expression, used);
+    }
+  }
+
+  let next = 0;
+  return () => {
+    while (true) {
+      const name = next === 0 ? "MBTEMP$" : `MBTEMP${next}$`;
+      next += 1;
+      const key = name.toLowerCase();
+      if (!used.has(key)) {
+        used.add(key);
+        return name;
+      }
+    }
+  };
+}
+
+function collectExpressionNames(expression: Expression, used: Set<string>): void {
+  switch (expression.kind) {
+    case "identifier":
+      used.add(expression.name.toLowerCase());
+      break;
+    case "parenthesized":
+      collectExpressionNames(expression.expression, used);
+      break;
+    case "unary":
+      collectExpressionNames(expression.operand, used);
+      break;
+    case "binary":
+      collectExpressionNames(expression.left, used);
+      collectExpressionNames(expression.right, used);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectExpressionNames(arg, used);
+      }
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      break;
+  }
 }
 
 const renderAtariFunction = createFunctionRenderer(

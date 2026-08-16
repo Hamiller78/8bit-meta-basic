@@ -98,6 +98,50 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("lowers string concatenation assignments into Atari substring appends", () => {
+    expect(
+      compileSource('prefix$ = "N.A.R.F."\nstatus$ = prefix$ + " " + "OFFLINE"\n', { filename: "concat.mbas", target: "atari800xl" })
+    ).toBe(
+      [
+        '10 DIM PREFIX$(255)',
+        '20 PREFIX$="N.A.R.F."',
+        '30 DIM STATUS$(255)',
+        "40 STATUS$=PREFIX$",
+        '50 STATUS$(LEN(STATUS$)+1)=" "',
+        '60 STATUS$(LEN(STATUS$)+1)="OFFLINE"',
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("uses a temporary Atari string when concatenation reads the destination after overwriting would change it", () => {
+    expect(compileSource('status$ = "OFFLINE"\nstatus$ = "N.A.R.F. " + status$\n', { filename: "prepend.mbas", target: "atari800xl" })).toBe(
+      [
+        '10 DIM STATUS$(255)',
+        '20 STATUS$="OFFLINE"',
+        '30 DIM MBTEMP$(255)',
+        '40 MBTEMP$="N.A.R.F. "',
+        "50 MBTEMP$(LEN(MBTEMP$)+1)=STATUS$",
+        "60 STATUS$=MBTEMP$",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("lowers string concatenation in PRINT items through an Atari temporary string", () => {
+    expect(compileSource('status$ = "READY"\nprint status$ + " NOW"\n', { filename: "print-concat.mbas", target: "atari800xl" })).toBe(
+      [
+        '10 DIM STATUS$(255)',
+        '20 STATUS$="READY"',
+        '30 DIM MBTEMP$(255)',
+        "40 MBTEMP$=STATUS$",
+        '50 MBTEMP$(LEN(MBTEMP$)+1)=" NOW"',
+        "60 PRINT MBTEMP$",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("folds compile-time STRING$ and SPACE$ using target constants", () => {
     expect(
       compileSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint borderLine$\nprint space$(3)\n', {
