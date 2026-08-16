@@ -49,6 +49,7 @@ export const atari800xlTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
+    const renderOptions = { variableMap, functionRenderer: renderAtariFunction };
 
     switch (instruction.kind) {
       case "label":
@@ -60,17 +61,17 @@ export const atari800xlTarget: TargetBackend = {
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
-        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
+        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
-        return `${lineNumber} ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
       case "dim-string":
         return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
-        return `${lineNumber} POSITION ${renderExpression(instruction.column, { variableMap })},${renderExpression(instruction.row, { variableMap })}`;
+        return `${lineNumber} POSITION ${renderExpression(instruction.column, renderOptions)},${renderExpression(instruction.row, renderOptions)}`;
       case "setcolor":
         return `${lineNumber} SETCOLOR ${instruction.register},${instruction.hue},${instruction.luminance}`;
       case "print-chr":
@@ -86,6 +87,19 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function renderAtariFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name.toUpperCase() === "LEN") {
+    return `LEN(${renderExpression(expression.args[0], options)})`;
+  }
+
+  if (expression.name.toUpperCase() === "MID$") {
+    const [source, start, length] = expression.args;
+    return `${renderExpression(source, options)}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  }
+
+  return undefined;
 }
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {

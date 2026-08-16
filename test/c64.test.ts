@@ -130,6 +130,26 @@ describe("C64 compiler", () => {
     ).toBe([`10 PRINT "${"*".repeat(38)}"`, '20 PRINT "   "', ""].join("\n"));
   });
 
+  it("renders MID$ directly for C64", () => {
+    expect(
+      compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5)\n', {
+        filename: "mid.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 TI$="HELLO WORLD"', "20 PRINT MID$(TI$,2,5)", ""].join("\n"));
+  });
+
+  it("renders LEN directly for C64", () => {
+    expect(
+      compileSource('tickerText$ = "HELLO WORLD"\ntextLength = len(tickerText$)\nprint textLength\n', {
+        filename: "len.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 TI$="HELLO WORLD"', "20 TE=LEN(TI$)", "30 PRINT TE", ""].join("\n"));
+  });
+
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" })).toContain(
       "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"

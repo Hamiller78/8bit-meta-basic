@@ -147,7 +147,7 @@ function foldExpression(
       return expression;
     }
     case "function-call":
-      return foldCompileTimeFunction(expression, constants);
+      return foldFunctionCall(expression, constants, unknownIdentifierIsError);
     case "parenthesized": {
       const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError);
       if (isLiteralExpression(folded)) {
@@ -176,11 +176,15 @@ function foldExpression(
   }
 }
 
-function foldCompileTimeFunction(expression: Extract<Expression, { kind: "function-call" }>, constants: ReadonlyMap<string, ConstantDefinition>): Expression {
+function foldFunctionCall(
+  expression: Extract<Expression, { kind: "function-call" }>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  unknownIdentifierIsError: boolean
+): Expression {
   const name = normalizeName(expression.name);
-  const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
 
   if (name === "space$") {
+    const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 1) {
       throw new DiagnosticError(expression.location, "SPACE$ expects exactly one argument.");
     }
@@ -189,6 +193,7 @@ function foldCompileTimeFunction(expression: Extract<Expression, { kind: "functi
   }
 
   if (name === "string$") {
+    const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 2) {
       throw new DiagnosticError(expression.location, "STRING$ expects exactly two arguments.");
     }
@@ -197,7 +202,41 @@ function foldCompileTimeFunction(expression: Extract<Expression, { kind: "functi
     return { kind: "string", value: char.repeat(count), location: expression.location };
   }
 
-  throw new DiagnosticError(expression.location, `Unknown compile-time function "${expression.name}".`);
+  if (name === "mid$") {
+    if (expression.args.length !== 3) {
+      throw new DiagnosticError(expression.location, "MID$ expects exactly three arguments.");
+    }
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+    const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError);
+    const length = foldExpression(expression.args[2], constants, unknownIdentifierIsError);
+
+    if (!isStringExpression(source)) {
+      throw new DiagnosticError(expression.args[0].location, "MID$ first argument must be a string expression.");
+    }
+    if (isStringExpression(start) || start.kind === "color") {
+      throw new DiagnosticError(expression.args[1].location, "MID$ start argument must be numeric.");
+    }
+    if (isStringExpression(length) || length.kind === "color") {
+      throw new DiagnosticError(expression.args[2].location, "MID$ length argument must be numeric.");
+    }
+
+    return { ...expression, name: "MID$", args: [source, start, length] };
+  }
+
+  if (name === "len") {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "LEN expects exactly one argument.");
+    }
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+
+    if (!isStringExpression(source)) {
+      throw new DiagnosticError(expression.args[0].location, "LEN argument must be a string expression.");
+    }
+
+    return { ...expression, name: "LEN", args: [source] };
+  }
+
+  throw new DiagnosticError(expression.location, `Unknown function "${expression.name}".`);
 }
 
 function requireSingleCharacterString(value: ConstantValue, expression: Expression, functionName: string): string {
@@ -376,7 +415,7 @@ function isStringExpression(expression: Expression): boolean {
     case "binary":
       return expression.operator === "+" && isStringExpression(expression.left) && isStringExpression(expression.right);
     case "function-call":
-      return true;
+      return expression.name.toUpperCase() === "MID$";
     case "number":
     case "boolean":
     case "color":

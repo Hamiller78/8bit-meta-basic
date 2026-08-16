@@ -256,6 +256,18 @@ describe("Spectrum compiler", () => {
     ).toBe([`10 PRINT "${"*".repeat(30)}"`, '20 PRINT "   "', ""].join("\n"));
   });
 
+  it("renders MID$ as Spectrum string slicing", () => {
+    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5)\n', { filename: "mid.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$="HELLO WORLD"', "20 PRINT A$(2 TO 2 + 5 - 1)", ""].join("\n")
+    );
+  });
+
+  it("renders LEN as a Spectrum string length expression", () => {
+    expect(compileSource('tickerText$ = "HELLO WORLD"\ntextLength = len(tickerText$)\nprint textLength\n', { filename: "len.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$="HELLO WORLD"', "20 LET TEXTLENGTH=LEN A$", "30 PRINT TEXTLENGTH", ""].join("\n")
+    );
+  });
+
   it("reports invalid compile-time string fill calls", () => {
     expect(() => compileSource('print string$("ab", 1)\n', { filename: "fill.mbas", target: "spectrum" })).toThrow(
       "STRING$ first argument must be a string with exactly one character"
@@ -263,6 +275,20 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource("print space$(256)\n", { filename: "fill.mbas", target: "spectrum" })).toThrow(
       "SPACE$ result length must not exceed 255 characters"
     );
+  });
+
+  it("reports invalid MID$ calls", () => {
+    expect(() => compileSource('print mid$(1, 2, 3)\n', { filename: "mid.mbas", target: "spectrum" })).toThrow(
+      "MID$ first argument must be a string expression"
+    );
+    expect(() => compileSource('print mid$("ABC", "2", 1)\n', { filename: "mid.mbas", target: "spectrum" })).toThrow(
+      "MID$ start argument must be numeric"
+    );
+  });
+
+  it("reports invalid LEN calls", () => {
+    expect(() => compileSource("print len()\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN expects exactly one argument");
+    expect(() => compileSource("print len(123)\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN argument must be a string expression");
   });
 
   it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {

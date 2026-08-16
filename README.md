@@ -128,6 +128,7 @@ The milestone language supports:
 - Target-provided environment constants such as `TEXT_ROWS` and `TEXT_COLUMNS`
 - Compile-time constants such as `const warningRow = TEXT_ROWS - 2`
 - Compile-time string fill helpers such as `string$("*", TEXT_COLUMNS)` and `space$(TEXT_COLUMNS)`
+- Runtime string slicing with `mid$(text$, start, length)`
 - Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
 - String variable assignments such as `tickerText$ = "READY"`
 - `print` with one or more semicolon-separated expressions
@@ -142,9 +143,9 @@ The milestone language supports:
 
 Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore. A trailing `$` marks a string variable.
 
-Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
+Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, runtime `MID$` and `LEN`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
 
-Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support is limited to assignment and output; runtime string functions and slicing are not implemented yet.
+Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support includes assignment, output, concatenation, `MID$(text$, start, length)`, and `LEN(text$)`.
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE` or `border_color BLUE`.
 
@@ -314,7 +315,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - Only one source file is accepted.
 - There are no variable declarations, local variables, procedures, functions, imports, or linking.
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
-- Arrays, runtime string functions, string slicing, general function calls, and exponentiation are not implemented.
+- Arrays, runtime `LEFT$`/`RIGHT$`, general function calls, and exponentiation are not implemented.
 - Commas and apostrophe print separators in `PRINT`, streams, target character-set conversion, and `TEXT_COLOR` are not implemented.
 - The compiler emits plain text BASIC. Atari `.lst` output currently only adapts line endings to Atari's `0x9B`; full ATASCII conversion is not implemented. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.

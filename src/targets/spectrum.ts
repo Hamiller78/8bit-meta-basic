@@ -23,6 +23,7 @@ export const spectrumTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
+    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction };
 
     switch (instruction.kind) {
       case "label":
@@ -37,14 +38,14 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} PAPER ${spectrumColorCodes[instruction.color.color]}`;
       case "print":
         return instruction.at
-          ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, { variableMap })},${renderExpression(instruction.at.column, { variableMap })};${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`
-          : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
+          ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
+          : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
-        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
       case "setcolor":
       case "poke":
@@ -60,6 +61,28 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setSpectrumRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function renderSpectrumFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name.toUpperCase() === "LEN") {
+    const [source] = expression.args;
+    return `LEN ${renderSpectrumLenArgument(source, options)}`;
+  }
+
+  if (expression.name.toUpperCase() === "MID$") {
+    const [source, start, length] = expression.args;
+    return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  }
+
+  return undefined;
+}
+
+function renderSpectrumLenArgument(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  if (expression.kind === "identifier" || expression.kind === "string" || expression.kind === "function-call") {
+    return renderExpression(expression, options);
+  }
+
+  return `(${renderExpression(expression, options)})`;
 }
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {

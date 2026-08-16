@@ -20,6 +20,7 @@ export const c64Target: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
+    const renderOptions = { variableMap, functionRenderer: renderC64Function };
 
     switch (instruction.kind) {
       case "label":
@@ -32,19 +33,19 @@ export const c64Target: TargetBackend = {
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
-        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, { variableMap })}`;
+        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
-        return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, { variableMap })}`;
+        return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "dim-string":
         throw new Error("Internal error: unexpected dim-string instruction for C64.");
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, { variableMap })} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
         throw new Error("Internal error: unexpected position instruction for C64.");
       case "poke":
-        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, { variableMap })}`;
+        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "sys":
@@ -57,6 +58,18 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function renderC64Function(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name.toUpperCase() === "LEN") {
+    return `LEN(${renderExpression(expression.args[0], options)})`;
+  }
+
+  if (expression.name.toUpperCase() === "MID$") {
+    return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
+  }
+
+  return undefined;
 }
 
 function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {

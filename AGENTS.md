@@ -88,6 +88,7 @@ Supported constructs:
 - Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
+- Runtime string slicing with `mid$(text$, start, length)`
 - Numeric assignments written canonically as `name = expression`
 - String assignments written canonically as `name$ = expression`
 - `print` containing one or more expressions separated by semicolons
@@ -101,7 +102,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers; runtime string functions and slicing are not implemented yet.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper.
 
 ## Tokenizer and parser
 
@@ -135,6 +136,7 @@ Supported expression forms:
 - String literals
 - Identifiers
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
+- Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -198,7 +200,7 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables. String variables currently support assignment and `PRINT` output only. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, and `LEN`. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
 
 Target string-variable lowering:
 
@@ -463,6 +465,8 @@ Coverage currently includes:
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
+- Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
+- Runtime `LEN` lowering to each target's string-length function
 - `PRINT_AT` parsing and malformed coordinate diagnostics
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
@@ -500,8 +504,8 @@ Do not claim support for machines or constructs that are only planned.
 - Multiple source files, imports, or linking
 - A type system beyond current limited compile-time checks
 - Arrays
-- Runtime string functions and slicing
-- General runtime functions or function calls in expressions
+- Runtime `LEFT$`, `RIGHT$`, and other string functions beyond `MID$` and `LEN`
+- General runtime functions or function calls beyond the currently supported string helpers
 - Exponentiation
 - Optimization or minification
 - BASIC tokenization or TAP generation

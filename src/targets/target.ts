@@ -29,6 +29,7 @@ export function renderCheckedLine(
 
 export interface ExpressionRenderOptions {
   readonly variableMap?: ReadonlyMap<string, string>;
+  readonly functionRenderer?: (expression: Extract<Expression, { kind: "function-call" }>, options: ExpressionRenderOptions) => string | undefined;
 }
 
 export type SpectrumColorCode = Readonly<Record<PortableColor, number>>;
@@ -179,8 +180,13 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
       throw new DiagnosticError(expression.location, `Portable colour ${expression.color} cannot be rendered as a numeric expression.`);
     case "identifier":
       return options.variableMap?.get(expression.name.toLowerCase()) ?? expression.name;
-    case "function-call":
+    case "function-call": {
+      const rendered = options.functionRenderer?.(expression, options);
+      if (rendered !== undefined) {
+        return rendered;
+      }
       throw new DiagnosticError(expression.location, `Function ${expression.name} must be resolved at compile time.`);
+    }
     case "parenthesized":
       return `(${renderExpression(expression.expression, options)})`;
     case "unary":
