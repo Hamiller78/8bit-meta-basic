@@ -1,4 +1,5 @@
 import type { Expression } from "../ast.js";
+import { builtinFunctions, canonicalFunctionName } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -64,12 +65,14 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 }
 
 function renderSpectrumFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  if (expression.name.toUpperCase() === "LEN") {
+  const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.len) {
     const [source] = expression.args;
     return `LEN ${renderSpectrumLenArgument(source, options)}`;
   }
 
-  if (expression.name.toUpperCase() === "MID$") {
+  if (name === builtinFunctions.mid) {
     const [source, start, length] = expression.args;
     return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
   }

@@ -1,4 +1,5 @@
 import type { Expression } from "../ast.js";
+import { builtinFunctions, canonicalFunctionName } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -61,11 +62,13 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
 }
 
 function renderC64Function(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  if (expression.name.toUpperCase() === "LEN") {
+  const name = canonicalFunctionName(expression.name);
+
+  if (name === builtinFunctions.len) {
     return `LEN(${renderExpression(expression.args[0], options)})`;
   }
 
-  if (expression.name.toUpperCase() === "MID$") {
+  if (name === builtinFunctions.mid) {
     return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
   }
 

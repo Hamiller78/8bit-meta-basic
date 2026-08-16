@@ -1,5 +1,6 @@
 import type { BinaryOperator, Expression, Program, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { builtinFunctions, canonicalFunctionName, isStringFunctionName } from "./functions.js";
 import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
 
@@ -181,9 +182,9 @@ function foldFunctionCall(
   constants: ReadonlyMap<string, ConstantDefinition>,
   unknownIdentifierIsError: boolean
 ): Expression {
-  const name = normalizeName(expression.name);
+  const name = canonicalFunctionName(expression.name);
 
-  if (name === "space$") {
+  if (name === builtinFunctions.space) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 1) {
       throw new DiagnosticError(expression.location, "SPACE$ expects exactly one argument.");
@@ -192,7 +193,7 @@ function foldFunctionCall(
     return { kind: "string", value: " ".repeat(count), location: expression.location };
   }
 
-  if (name === "string$") {
+  if (name === builtinFunctions.string) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 2) {
       throw new DiagnosticError(expression.location, "STRING$ expects exactly two arguments.");
@@ -202,7 +203,7 @@ function foldFunctionCall(
     return { kind: "string", value: char.repeat(count), location: expression.location };
   }
 
-  if (name === "mid$") {
+  if (name === builtinFunctions.mid) {
     if (expression.args.length !== 3) {
       throw new DiagnosticError(expression.location, "MID$ expects exactly three arguments.");
     }
@@ -220,10 +221,10 @@ function foldFunctionCall(
       throw new DiagnosticError(expression.args[2].location, "MID$ length argument must be numeric.");
     }
 
-    return { ...expression, name: "MID$", args: [source, start, length] };
+    return { ...expression, name, args: [source, start, length] };
   }
 
-  if (name === "len") {
+  if (name === builtinFunctions.len) {
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "LEN expects exactly one argument.");
     }
@@ -233,7 +234,7 @@ function foldFunctionCall(
       throw new DiagnosticError(expression.args[0].location, "LEN argument must be a string expression.");
     }
 
-    return { ...expression, name: "LEN", args: [source] };
+    return { ...expression, name, args: [source] };
   }
 
   throw new DiagnosticError(expression.location, `Unknown function "${expression.name}".`);
@@ -415,7 +416,7 @@ function isStringExpression(expression: Expression): boolean {
     case "binary":
       return expression.operator === "+" && isStringExpression(expression.left) && isStringExpression(expression.right);
     case "function-call":
-      return expression.name.toUpperCase() === "MID$";
+      return isStringFunctionName(expression.name);
     case "number":
     case "boolean":
     case "color":

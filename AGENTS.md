@@ -126,6 +126,8 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, and `LEN` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers.
+
 ## Expression grammar
 
 Expressions are represented as discriminated-union AST nodes. Do not retain expressions as unvalidated text.
