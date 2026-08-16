@@ -1,8 +1,9 @@
 import type { Expression } from "../ast.js";
-import { builtinFunctions, canonicalFunctionName } from "../functions.js";
+import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
@@ -63,22 +64,20 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
   currentProgramInstructions = instructions;
 }
 
-function renderC64Function(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  const name = canonicalFunctionName(expression.name);
+const renderC64Function = createFunctionRenderer(
+  new Map([
+    [builtinFunctions.jiffies, () => "TI"],
+    [builtinFunctions.len, renderC64Len],
+    [builtinFunctions.mid, renderC64Mid]
+  ])
+);
 
-  if (name === builtinFunctions.jiffies) {
-    return "TI";
-  }
+function renderC64Len(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `LEN(${renderExpression(expression.args[0], options)})`;
+}
 
-  if (name === builtinFunctions.len) {
-    return `LEN(${renderExpression(expression.args[0], options)})`;
-  }
-
-  if (name === builtinFunctions.mid) {
-    return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
-  }
-
-  return undefined;
+function renderC64Mid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
 }
 
 function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {

@@ -43,6 +43,7 @@ npm run build:spectrum -- --profile debug
 npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
+npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 ```
@@ -61,6 +62,8 @@ build/<profile>/atari800xl/warning.atr-files/WARNING.LST
 ```
 
 The Atari `.lst` keeps the generated ASCII BASIC text and uses Atari's `0x9B` line ending, which is the form expected by listing import flows such as `ENTER "D:WARNING.LST"`. The `warning.atr-files` directory is a staging folder for ATR tools and uses an Atari DOS-compatible filename. Full ATASCII character-set conversion is still intentionally out of scope.
+
+When using an emulator that accepts ATR disk images directly, the generated `.atr` file can be mounted as a data disk. Some real-hardware-style devices and mini consoles create or manage their own ATR image from USB storage instead. In that workflow, copy the DOS-compatible listing from the staging directory, for example `build/release/atari800xl/narf.atr-files/NARF.LST`, into the device-managed disk image rather than copying the generated `narf.atr` into it.
 
 Current Atari emulator workflow:
 
@@ -117,6 +120,38 @@ npm run dev -- examples/warning.mbas --target spectrum --readability 2
 For C64 output, readability level `1` uses compact variable names and adds `REM SHORTNAME=ORIGINALNAME` comments at the first explicit assignment for each variable.
 
 `--comments 0|1|2` is still accepted as a compatibility alias for the label-comment portion of this setting.
+
+## N.A.R.F. Demo
+
+`examples/narf.mbas` is the larger cross-target demo used during development. It renders a fictional **Nuclear Attack Response Failsafe** screen with a static status area, a ticking clock, and a bottom-row news ticker.
+
+Build deployable release artifacts with local conversion tools enabled:
+
+```text
+npm run build:all-targets -- --source examples/narf.mbas --profile release
+```
+
+Expected outputs:
+
+```text
+build/release/spectrum/narf.bas
+build/release/spectrum/narf.tap
+build/release/atari800xl/narf.bas
+build/release/atari800xl/narf.lst
+build/release/atari800xl/narf.atr
+build/release/atari800xl/narf.atr-files/NARF.LST
+build/release/c64/narf.bas
+build/release/c64/narf.prg
+```
+
+The Spectrum `.tap` and C64 `.prg` are currently the most direct emulator/mini-console artifacts. Atari workflows vary more: emulators can often mount `narf.atr` directly, while some USB/device workflows need `NARF.LST` copied into a disk image created by the device itself, then imported with:
+
+```basic
+ENTER "D:NARF.LST"
+RUN
+```
+
+If the Atari display crops the far right or bottom of the ticker, increase the emulator or device display size/overscan setting. The program writes to the logical `GRAPHICS 0` text area, but visible TV-safe area differs across emulators, PAL/NTSC settings, and displays.
 
 ## Supported Syntax
 

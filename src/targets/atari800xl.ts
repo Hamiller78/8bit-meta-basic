@@ -1,8 +1,9 @@
 import type { Expression } from "../ast.js";
-import { builtinFunctions, canonicalFunctionName } from "../functions.js";
+import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
@@ -128,23 +129,21 @@ function stringSelfAppendRight(name: string, expression: Expression): Expression
   return undefined;
 }
 
-function renderAtariFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  const name = canonicalFunctionName(expression.name);
+const renderAtariFunction = createFunctionRenderer(
+  new Map([
+    [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
+    [builtinFunctions.len, renderAtariLen],
+    [builtinFunctions.mid, renderAtariMid]
+  ])
+);
 
-  if (name === builtinFunctions.jiffies) {
-    return "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536";
-  }
+function renderAtariLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `LEN(${renderExpression(expression.args[0], options)})`;
+}
 
-  if (name === builtinFunctions.len) {
-    return `LEN(${renderExpression(expression.args[0], options)})`;
-  }
-
-  if (name === builtinFunctions.mid) {
-    const [source, start, length] = expression.args;
-    return `${renderExpression(source, options)}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
-  }
-
-  return undefined;
+function renderAtariMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, start, length] = expression.args;
+  return `${renderExpression(source, options)}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {

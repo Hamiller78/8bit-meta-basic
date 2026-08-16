@@ -1,8 +1,9 @@
 import type { Expression } from "../ast.js";
-import { builtinFunctions, canonicalFunctionName } from "../functions.js";
+import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
@@ -67,24 +68,22 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
   currentProgramInstructions = instructions;
 }
 
-function renderSpectrumFunction(expression: Extract<Expression, { kind: "function-call" }>, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  const name = canonicalFunctionName(expression.name);
+const renderSpectrumFunction = createFunctionRenderer(
+  new Map([
+    [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
+    [builtinFunctions.len, renderSpectrumLen],
+    [builtinFunctions.mid, renderSpectrumMid]
+  ])
+);
 
-  if (name === builtinFunctions.jiffies) {
-    return "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674";
-  }
+function renderSpectrumLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source] = expression.args;
+  return `LEN ${renderSpectrumLenArgument(source, options)}`;
+}
 
-  if (name === builtinFunctions.len) {
-    const [source] = expression.args;
-    return `LEN ${renderSpectrumLenArgument(source, options)}`;
-  }
-
-  if (name === builtinFunctions.mid) {
-    const [source, start, length] = expression.args;
-    return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
-  }
-
-  return undefined;
+function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, start, length] = expression.args;
+  return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }
 
 function renderSpectrumLenArgument(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

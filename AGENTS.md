@@ -128,7 +128,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, and `JIFFIES` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, and `JIFFIES` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -390,6 +390,7 @@ npm run build:spectrum -- --profile debug
 npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
+npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 ```
@@ -400,7 +401,9 @@ Build profiles map to readability levels:
 - `balanced`: readability `1`
 - `release`: readability `0`
 
-The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `WARNING.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:WARNING.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `WARNING.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:WARNING.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+
+`examples/narf.mbas` is the larger N.A.R.F. demo. Its release build should create `build/release/spectrum/narf.tap`, `build/release/atari800xl/narf.atr`, `build/release/atari800xl/narf.atr-files/NARF.LST`, and `build/release/c64/narf.prg` when local tools are configured. For emulator workflows, the generated Atari `.atr` can be mounted directly. For devices or mini consoles that create their own ATR from USB storage, copy the staged `NARF.LST` into the device-managed disk image rather than copying `narf.atr` into it.
 
 When passing options through `npm run`, `--` separates npm's own options from script options. Direct Node commands such as `node scripts/build-target.mjs spectrum --all-profiles` do not need it.
 
@@ -431,6 +434,8 @@ Current structure:
 src/
   ast.ts
   diagnostics.ts
+  environment.ts
+  functions.ts
   lexer.ts
   parser.ts
   semantic.ts
@@ -442,6 +447,7 @@ src/
   targets/
     target.ts
     index.ts
+    function-rendering.ts
     spectrum.ts
     atari800xl.ts
     c64.ts
@@ -506,7 +512,7 @@ README.md should accurately describe:
 - Readability options
 - That target output is readable BASIC text
 - That Atari builds also emit `.lst` files with Atari `0x9B` line endings and ATR staging folders
-- That packaging into TAP, ATR, PRG, or tokenized BASIC is not implemented
+- That TAP, ATR, PRG, and tokenized BASIC artifacts are optional local-tool outputs, while `.bas` text output is always generated
 - Explicit limitations
 
 Do not claim support for machines or constructs that are only planned.
