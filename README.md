@@ -44,6 +44,8 @@ npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
+npm run build:all-targets -- --source examples/input-demo.mbas --profile debug
+npm run build:directory -- --source-dir examples --profile debug
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 ```
@@ -62,6 +64,16 @@ build/<profile>/atari800xl/warning.atr-files/WARNING.LST
 ```
 
 The Atari `.lst` keeps the generated ASCII BASIC text and uses Atari's `0x9B` line ending, which is the form expected by listing import flows such as `ENTER "D:WARNING.LST"`. The `warning.atr-files` directory is a staging folder for ATR tools and uses an Atari DOS-compatible filename. Full ATASCII character-set conversion is still intentionally out of scope.
+
+Build every `.mbas` file directly inside one directory for all targets:
+
+```text
+npm run build:directory -- --source-dir examples --profile debug
+npm run build:directory -- --source-dir examples --profile release --no-tools
+npm run build:directory -- --source-dir examples --all-profiles
+```
+
+Use `--target spectrum`, `--target atari800xl`, or `--target c64` to limit the directory build to one or more targets. The directory scan is non-recursive.
 
 When using an emulator that accepts ATR disk images directly, the generated `.atr` file can be mounted as a data disk. Some real-hardware-style devices and mini consoles create or manage their own ATR image from USB storage instead. In that workflow, copy the DOS-compatible listing from the staging directory, for example `build/release/atari800xl/narf.atr-files/NARF.LST`, into the device-managed disk image rather than copying the generated `narf.atr` into it.
 
@@ -121,6 +133,16 @@ For C64 output, readability level `1` uses compact variable names and adds `REM 
 
 `--comments 0|1|2` is still accepted as a compatibility alias for the label-comment portion of this setting.
 
+## Input Demo
+
+`examples/input-demo.mbas` is a small keyboard-control demo. It displays an `X,Y` coordinate pair, changes it with `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, and `KEY_RIGHT`, and confirms the current target coordinates with `KEY_ENTER` or `KEY_SPACE`.
+
+Build debug artifacts for all targets with:
+
+```text
+npm run build:all-targets -- --source examples/input-demo.mbas --profile debug
+```
+
 ## N.A.R.F. Demo
 
 `examples/narf.mbas` is the larger cross-target demo used during development. It renders a fictional **Nuclear Attack Response Failsafe** screen with a static status area, a ticking clock, and a bottom-row news ticker.
@@ -165,6 +187,7 @@ The milestone language supports:
 - Compile-time string fill helpers such as `string$("*", TEXT_COLUMNS)` and `space$(TEXT_COLUMNS)`
 - Runtime string slicing with `mid$(text$, start, length)`
 - Runtime jiffy timer reading with `jiffies()`
+- Non-blocking keyboard polling with `key_code()`
 - Numeric assignments such as `urgency = sensorCount * 2 + alertLevel`
 - String variable assignments such as `tickerText$ = "READY"`
 - `print` with one or more semicolon-separated expressions
@@ -184,11 +207,15 @@ The milestone language supports:
 
 Identifiers may contain ASCII letters, digits, and underscores, and must begin with a letter or underscore. A trailing `$` marks a string variable.
 
-Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, runtime `MID$`, `LEN`, and `JIFFIES`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
+Expressions support numeric literals, string literals, identifiers, compile-time `STRING$` and `SPACE$`, runtime `MID$`, `LEN`, `JIFFIES`, and `KEY_CODE`, parentheses, unary `-`, `NOT`, arithmetic `+ - * /`, comparisons, `AND`, `OR`, and boolean literals `TRUE` and `FALSE`.
 
 Constants are evaluated at compile time, emit no BASIC lines, and may reference earlier constants or target environment constants. `JIFFIES_PER_SECOND` currently resolves to `50` for all targets. `STRING$(char$, count)` and `SPACE$(count)` are compile-time-only helpers; their arguments must fold to constants, and their result length is capped at 255 characters. Runtime variables are numeric unless their name ends in `$`. Current runtime string support includes assignment, output, concatenation, `MID$(text$, start, length)`, and `LEN(text$)`. Atari output lowers Meta-BASIC string concatenation into Atari-style substring assignments where needed.
 
 `jiffies()` returns the target machine's running timer tick count: Spectrum uses the three-byte `FRAMES` counter, Atari uses the three-byte `RTCLOK` counter, and C64 uses `TI`. The portable unit is a target jiffy/frame-ish tick, not milliseconds.
+
+`key_code()` returns a numeric target key code for the currently available key. Use it in the direct assignment form `key = key_code()` and compare the result with key constants. C64 output uses `GET`, so it reads from the keyboard buffer. Spectrum output uses `INKEY$`, so it reads the current keyboard state and may miss short taps while the program is busy. Atari output uses `PEEK(764)` and resets it with `POKE 764,255` after consuming a key.
+
+Target-specific key constants are available as numeric constants, including `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. Unsupported target keys currently use `-1`. On Spectrum, the directional constants use the traditional keyboard-game mapping `Q`, `A`, `O`, and `P`.
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE`, `screen_border_color BLUE`, or `cell_text_color YELLOW`.
 
@@ -380,7 +407,7 @@ Examples include duplicate labels, undefined labels, duplicate constants, unknow
 - Only one source file is accepted.
 - There are no variable declarations, local variables, procedures, functions, imports, or linking.
 - There is no type system beyond limited compile-time checks for constants and known string assignments.
-- Arrays, runtime `LEFT$`/`RIGHT$`, general function calls, and exponentiation are not implemented.
+- Arrays, runtime `LEFT$`/`RIGHT$`, general function calls beyond the documented built-ins, and exponentiation are not implemented.
 - Commas and apostrophe print separators in `PRINT`, streams, and target character-set conversion are not implemented.
 - The compiler emits plain text BASIC. Atari `.lst` output currently only adapts line endings to Atari's `0x9B`; full ATASCII conversion is not implemented. Tokenized BASIC, TAP, ATR, PRG, and disk images are optional build-script artifacts that require local tools.
 - There is no optimization, minification, source map support, editor integration, or language server.

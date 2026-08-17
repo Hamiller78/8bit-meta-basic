@@ -200,6 +200,16 @@ describe("C64 compiler", () => {
     ).toBe(["10 LA=TI", "20 PRINT 50", ""].join("\n"));
   });
 
+  it("renders non-blocking KEY_CODE through GET and exposes target key constants", () => {
+    expect(
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+        filename: "keys.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 GET MB$', "20 KE=0", '30 IF MB$ <> "" THEN GOTO 50', "40 GOTO 60", "50 KE=ASC(MB$)", "60 PRINT 145;65;48;KE", ""].join("\n"));
+  });
+
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" })).toContain(
       "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"

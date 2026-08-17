@@ -241,6 +241,14 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.keyCode) {
+    if (expression.args.length !== 0) {
+      throw new DiagnosticError(expression.location, "KEY_CODE expects no arguments.");
+    }
+
+    return { ...expression, name, args: [] };
+  }
+
   if (name === builtinFunctions.space) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 1) {

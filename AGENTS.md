@@ -93,6 +93,7 @@ Supported constructs:
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
 - Runtime jiffy timer reading with `jiffies()`
+- Non-blocking keyboard polling with `key_code()`
 - Numeric assignments written canonically as `name = expression`
 - String assignments written canonically as `name$ = expression`
 - `print` containing one or more expressions separated by semicolons
@@ -112,7 +113,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `JIFFIES` is supported as a portable runtime timer helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
 
 ## Tokenizer and parser
 
@@ -136,7 +137,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, and `JIFFIES` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -150,6 +151,7 @@ Supported expression forms:
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
 - Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
 - Runtime timer function call `JIFFIES()`
+- Runtime keyboard function call `KEY_CODE()`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -181,6 +183,8 @@ Selected targets provide read-only, case-insensitive environment constants:
 | ZX Spectrum | 22 | 32 | 50 |
 | Atari 800XL | 24 | 40 | 50 |
 | Commodore 64 | 25 | 40 | 50 |
+
+Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Spectrum directional constants intentionally use the common keyboard-game mapping `Q`, `A`, `O`, and `P`.
 
 Implemented requirements:
 
@@ -220,6 +224,13 @@ Target string-variable lowering:
 - Spectrum maps Meta-BASIC string variable names deterministically to single-letter string variables such as `A$`, `B$`, and `C$`.
 - Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable and lowers string concatenation into Atari substring assignments, using a temporary string buffer when needed to preserve Meta-BASIC expression semantics.
 - C64 preserves readable string names at readability `2` where safe, and uses deterministic compact string names at lower readability levels.
+
+Target keyboard lowering:
+
+- `KEY_CODE()` is currently supported only in direct numeric assignments such as `key = key_code()`.
+- Spectrum lowers that assignment through `INKEY$`, `KEY_NONE`, and `CODE` only after a key string is present.
+- C64 lowers that assignment through `GET`, `KEY_NONE`, and `ASC` only after a key string is present, reading from the C64 keyboard buffer.
+- Atari lowers that assignment through `PEEK(764)`, uses Atari `KEY_NONE` (`255`) when no key is present, and emits `POKE 764,255` after consuming a key.
 
 ## PRINT and positioned output
 
@@ -419,6 +430,7 @@ npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
+npm run build:directory -- --source-dir examples --profile debug
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 ```
@@ -430,6 +442,8 @@ Build profiles map to readability levels:
 - `release`: readability `0`
 
 The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `WARNING.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:WARNING.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+
+`scripts/build-directory.mjs` backs `npm run build:directory`. It finds all `.mbas` files directly inside a selected directory, builds each selected profile and target, and optionally runs configured local conversion tools. It is intentionally non-recursive for now so a single command updates one program collection without accidentally sweeping unrelated folders.
 
 `examples/narf.mbas` is the larger N.A.R.F. demo. Its release build should create `build/release/spectrum/narf.tap`, `build/release/atari800xl/narf.atr`, `build/release/atari800xl/narf.atr-files/NARF.LST`, and `build/release/c64/narf.prg` when local tools are configured. For emulator workflows, the generated Atari `.atr` can be mounted directly. For devices or mini consoles that create their own ATR from USB storage, copy the staged `NARF.LST` into the device-managed disk image rather than copying `narf.atr` into it.
 
@@ -516,6 +530,7 @@ Coverage currently includes:
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
+- Runtime `KEY_CODE` lowering plus target key constants
 - `PRINT_AT` parsing and malformed coordinate diagnostics
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
@@ -554,8 +569,8 @@ Do not claim support for machines or constructs that are only planned.
 - Multiple source files, imports, or linking
 - A type system beyond current limited compile-time checks
 - Arrays
-- Runtime `LEFT$`, `RIGHT$`, and other string functions beyond `MID$` and `LEN`
-- General runtime functions or function calls beyond the currently supported string helpers
+- Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
+- General runtime functions or function calls beyond the currently supported helpers
 - Exponentiation
 - Optimization or minification
 - BASIC tokenization or TAP generation

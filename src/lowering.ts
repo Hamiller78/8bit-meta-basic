@@ -26,6 +26,7 @@ export type Instruction =
   | PaperInstruction
   | PrintInstruction
   | LetInstruction
+  | ReadKeyInstruction
   | GotoInstruction
   | GosubInstruction
   | ReturnInstruction
@@ -109,6 +110,12 @@ export interface LetInstruction {
   readonly kind: "let";
   readonly name: string;
   readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface ReadKeyInstruction {
+  readonly kind: "read-key";
+  readonly name: string;
   readonly location: SourceLocation;
 }
 

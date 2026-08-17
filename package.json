@@ -7,6 +7,7 @@
     "dev": "tsx src/cli.ts",
     "build": "tsc",
     "build:target": "node scripts/build-target.mjs",
+    "build:directory": "node scripts/build-directory.mjs",
     "build:all-targets": "node scripts/build-all.mjs",
     "build:all-profiles": "node scripts/build-all.mjs --all-profiles",
     "build:spectrum": "node scripts/build-target.mjs spectrum",

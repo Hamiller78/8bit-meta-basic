@@ -3,6 +3,7 @@ import { builtinFunctions, isStringFunctionName } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { normalizeLabel } from "../lowering.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
@@ -17,6 +18,7 @@ export const atari800xlTarget: TargetBackend = {
       { ...instruction, at: undefined }
     ]);
     const allocateTempStringName = createTempStringNameAllocator(expanded.instructions);
+    const allocateInternalLabel = createInternalLabelAllocator(expanded);
     const dimmedStrings = new Set<string>();
     const instructions: Instruction[] = [];
 
@@ -76,6 +78,9 @@ export const atari800xlTarget: TargetBackend = {
         });
       } else if (instruction.kind === "cell-text-color" || instruction.kind === "cell-background-color") {
         continue;
+      } else if (isKeyCodeAssignment(instruction)) {
+        const assignment = instruction as Extract<Instruction, { kind: "let" }>;
+        instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
       } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
         pushStringAssignment(instruction);
       } else if (instruction.kind === "print") {
@@ -124,6 +129,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
         return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
+      case "read-key":
+        throw new Error("Internal error: unexpected read-key instruction for Atari 800XL.");
       case "dim-string":
         return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
       case "goto":
@@ -145,6 +152,7 @@ export const atari800xlTarget: TargetBackend = {
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "poke":
+        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
     }
@@ -352,13 +360,21 @@ function collectExpressionNames(expression: Expression, used: Set<string>): void
   }
 }
 
-const renderAtariFunction = createFunctionRenderer(
+const renderKnownAtariFunction = createFunctionRenderer(
   new Map([
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid]
   ])
 );
+
+function renderAtariFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name.toUpperCase() === "PEEK") {
+    return `PEEK(${renderExpression(expression.args[0], options)})`;
+  }
+
+  return renderKnownAtariFunction(expression, options);
+}
 
 function renderAtariLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `LEN(${renderExpression(expression.args[0], options)})`;
@@ -373,8 +389,8 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   const map = new Map<string, string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let" || instruction.kind === "for" || instruction.kind === "next") {
-      const name = instruction.kind === "let" ? instruction.name : instruction.variable;
+    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "for" || instruction.kind === "next") {
+      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
       map.set(name.toLowerCase(), name.toUpperCase());
     }
     for (const expression of instructionExpressions(instruction)) {
@@ -391,6 +407,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "read-key":
+      return [];
     case "for":
       return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
@@ -419,6 +437,65 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [];
   }
 }
+
+function expandAtariKeyCodeAssignment(
+  instruction: Extract<Instruction, { kind: "let" }>,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const gotKeyLabel = allocateInternalLabel();
+  const endLabel = allocateInternalLabel();
+  const keyCodeIdentifier: Expression = { kind: "identifier", name: instruction.name, location: instruction.location };
+
+  return [
+    {
+      ...instruction,
+      expression: { kind: "function-call", name: "PEEK", args: [{ kind: "number", value: 764, raw: "764", location: instruction.location }], location: instruction.location },
+      location: instruction.location
+    },
+    {
+      kind: "if-goto",
+      condition: {
+        kind: "binary",
+        operator: "<>",
+        left: keyCodeIdentifier,
+        right: { kind: "number", value: 255, raw: "255", location: instruction.location },
+        location: instruction.location
+      },
+      label: gotKeyLabel,
+      location: instruction.location
+    },
+    { kind: "goto", label: endLabel, location: instruction.location },
+    { kind: "label", name: gotKeyLabel, internal: true, location: instruction.location },
+    { kind: "poke", address: 764, value: { kind: "number", value: 255, raw: "255", location: instruction.location }, location: instruction.location },
+    { kind: "label", name: endLabel, internal: true, location: instruction.location }
+  ];
+}
+
+function isKeyCodeAssignment(instruction: Instruction): boolean {
+  return (
+    instruction.kind === "let" &&
+    !instruction.name.endsWith("$") &&
+    instruction.expression.kind === "function-call" &&
+    instruction.expression.name === builtinFunctions.keyCode
+  );
+}
+
+function createInternalLabelAllocator(program: LoweredProgram): () => string {
+  const used = new Set(program.labels.keys());
+  let next = 1;
+
+  return () => {
+    while (true) {
+      const candidate = `__mb_key_${next}`;
+      next += 1;
+      if (!used.has(normalizeLabel(candidate))) {
+        used.add(normalizeLabel(candidate));
+        return candidate;
+      }
+    }
+  };
+}
+
 
 function collectIdentifiers(expression: Expression, map: Map<string, string>): void {
   switch (expression.kind) {

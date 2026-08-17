@@ -3,6 +3,7 @@ import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { normalizeLabel } from "../lowering.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
@@ -19,7 +20,8 @@ export const c64Target: TargetBackend = {
       { ...instruction, at: undefined }
     ]);
     const withScreenControls = expandScreenControls(expanded);
-    return readability === 1 ? addCompactVariableComments(withScreenControls) : withScreenControls;
+    const withKeyboardInput = expandKeyboardInput(withScreenControls);
+    return readability === 1 ? addCompactVariableComments(withKeyboardInput) : withKeyboardInput;
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
@@ -43,6 +45,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
+      case "read-key":
+        return `${lineNumber} GET ${renderVariableName(instruction.name, variableMap)}`;
       case "dim-string":
         throw new Error("Internal error: unexpected dim-string instruction for C64.");
       case "goto":
@@ -75,13 +79,21 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
   currentProgramInstructions = instructions;
 }
 
-const renderC64Function = createFunctionRenderer(
+const renderKnownC64Function = createFunctionRenderer(
   new Map([
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid]
   ])
 );
+
+function renderC64Function(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name.toUpperCase() === "ASC") {
+    return `ASC(${renderExpression(expression.args[0], options)})`;
+  }
+
+  return renderKnownC64Function(expression, options);
+}
 
 function renderC64Len(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `LEN(${renderExpression(expression.args[0], options)})`;
@@ -96,8 +108,8 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
   const seen = new Set<string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let" || instruction.kind === "for" || instruction.kind === "next") {
-      const name = instruction.kind === "let" ? instruction.name : instruction.variable;
+    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "for" || instruction.kind === "next") {
+      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
       if (!seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
         names.push(name);
@@ -154,6 +166,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "read-key":
+      return [];
     case "for":
       return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
@@ -255,7 +269,7 @@ function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
   const commented = new Set<string>();
 
   for (const instruction of program.instructions) {
-    if (instruction.kind === "let") {
+    if (instruction.kind === "let" || instruction.kind === "read-key") {
       const key = instruction.name.toLowerCase();
       if (!commented.has(key)) {
         const compactName = renderVariableName(instruction.name, variableMap);
@@ -332,4 +346,131 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
   }
 
   return rebuildLabels(program, instructions);
+}
+
+function expandKeyboardInput(program: LoweredProgram): LoweredProgram {
+  const allocateInternalLabel = createInternalLabelAllocator(program);
+  const keyStringTempName = allocateKeyStringTempName(program.instructions);
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (isKeyCodeAssignment(instruction)) {
+      const assignment = instruction as Extract<Instruction, { kind: "let" }>;
+      instructions.push(...expandC64KeyCodeAssignment(assignment, keyStringTempName, allocateInternalLabel));
+    } else {
+      instructions.push(instruction);
+    }
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function expandC64KeyCodeAssignment(
+  instruction: Extract<Instruction, { kind: "let" }>,
+  keyStringTempName: string,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const gotKeyLabel = allocateInternalLabel();
+  const endLabel = allocateInternalLabel();
+  const keyStringIdentifier: Expression = { kind: "identifier", name: keyStringTempName, location: instruction.location };
+
+  return [
+    { kind: "read-key", name: keyStringTempName, location: instruction.location },
+    { ...instruction, expression: { kind: "number", value: 0, raw: "0", location: instruction.location } },
+    {
+      kind: "if-goto",
+      condition: {
+        kind: "binary",
+        operator: "<>",
+        left: keyStringIdentifier,
+        right: { kind: "string", value: "", location: instruction.location },
+        location: instruction.location
+      },
+      label: gotKeyLabel,
+      location: instruction.location
+    },
+    { kind: "goto", label: endLabel, location: instruction.location },
+    { kind: "label", name: gotKeyLabel, internal: true, location: instruction.location },
+    {
+      ...instruction,
+      expression: { kind: "function-call", name: "ASC", args: [keyStringIdentifier], location: instruction.location }
+    },
+    { kind: "label", name: endLabel, internal: true, location: instruction.location }
+  ];
+}
+
+function isKeyCodeAssignment(instruction: Instruction): boolean {
+  return (
+    instruction.kind === "let" &&
+    !instruction.name.endsWith("$") &&
+    instruction.expression.kind === "function-call" &&
+    instruction.expression.name === builtinFunctions.keyCode
+  );
+}
+
+function createInternalLabelAllocator(program: LoweredProgram): () => string {
+  const used = new Set(program.labels.keys());
+  let next = 1;
+
+  return () => {
+    while (true) {
+      const candidate = `__mb_key_${next}`;
+      next += 1;
+      if (!used.has(normalizeLabel(candidate))) {
+        used.add(normalizeLabel(candidate));
+        return candidate;
+      }
+    }
+  };
+}
+
+function allocateKeyStringTempName(instructions: readonly Instruction[]): string {
+  const used = new Set<string>();
+  for (const instruction of instructions) {
+    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
+      used.add(instruction.name.toLowerCase());
+    } else if (instruction.kind === "for" || instruction.kind === "next") {
+      used.add(instruction.variable.toLowerCase());
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectUsedExpressionNames(expression, used);
+    }
+  }
+
+  let next = 0;
+  while (true) {
+    const candidate = next === 0 ? "MBKEY$" : `MBKEY${next}$`;
+    next += 1;
+    if (!used.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+}
+
+function collectUsedExpressionNames(expression: Expression, used: Set<string>): void {
+  switch (expression.kind) {
+    case "identifier":
+      used.add(expression.name.toLowerCase());
+      break;
+    case "parenthesized":
+      collectUsedExpressionNames(expression.expression, used);
+      break;
+    case "unary":
+      collectUsedExpressionNames(expression.operand, used);
+      break;
+    case "binary":
+      collectUsedExpressionNames(expression.left, used);
+      collectUsedExpressionNames(expression.right, used);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectUsedExpressionNames(arg, used);
+      }
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      break;
+  }
 }

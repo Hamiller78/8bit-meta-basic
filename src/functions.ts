@@ -1,5 +1,6 @@
 export const builtinFunctions = {
   jiffies: "JIFFIES",
+  keyCode: "KEY_CODE",
   len: "LEN",
   mid: "MID$",
   space: "SPACE$",

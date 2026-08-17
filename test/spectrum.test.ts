@@ -314,6 +314,27 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders non-blocking KEY_CODE and target key constants", () => {
+    expect(
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+        filename: "keys.mbas",
+        target: "spectrum"
+      })
+    ).toBe(
+      [
+        "10 LET A$=INKEY$",
+        "20 LET KEYCODE=0",
+        '30 IF A$ <> "" THEN GO TO 50',
+        "40 GO TO 70",
+        "50 REM __MB_KEY_1:",
+        "60 LET KEYCODE=CODE A$",
+        "70 REM __MB_KEY_2:",
+        "80 PRINT 81;65;48;KEYCODE",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("reports invalid compile-time string fill calls", () => {
     expect(() => compileSource('print string$("ab", 1)\n', { filename: "fill.mbas", target: "spectrum" })).toThrow(
       "STRING$ first argument must be a string with exactly one character"
@@ -339,6 +360,12 @@ describe("Spectrum compiler", () => {
 
   it("reports invalid JIFFIES calls", () => {
     expect(() => compileSource("print jiffies(1)\n", { filename: "jiffies.mbas", target: "spectrum" })).toThrow("JIFFIES expects no arguments");
+  });
+
+  it("reports invalid keyboard function calls", () => {
+    expect(() => compileSource("print key_code(1)\n", { filename: "keys.mbas", target: "spectrum" })).toThrow("KEY_CODE expects no arguments");
+    expect(() => compileSource("print key$()\n", { filename: "keys.mbas", target: "spectrum" })).toThrow('Unknown function "key$"');
+    expect(() => compileSource("print asc(\"A\")\n", { filename: "keys.mbas", target: "spectrum" })).toThrow('Unknown function "asc"');
   });
 
   it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {

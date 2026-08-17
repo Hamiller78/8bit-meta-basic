@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 describe("build scripts", () => {
   it("creates Atari LST bytes with Atari line endings", async () => {
@@ -44,5 +47,16 @@ describe("build scripts", () => {
 
     expect(toAtariDosFileName("warning", "lst")).toBe("WARNING.LST");
     expect(toAtariDosFileName("long-example_name", "basic")).toBe("LONGEXAM.BAS");
+  });
+
+  it("finds all Meta-BASIC sources in one directory", async () => {
+    const { findMbasSources } = await import("../scripts/build-directory.mjs");
+    const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));
+
+    await writeFile(join(dir, "beta.MBAS"), "print \"B\"\n", "utf8");
+    await writeFile(join(dir, "alpha.mbas"), "print \"A\"\n", "utf8");
+    await writeFile(join(dir, "notes.txt"), "ignore me\n", "utf8");
+
+    expect(await findMbasSources(".", { cwd: dir })).toEqual(["./alpha.mbas", "./beta.MBAS"]);
   });
 });

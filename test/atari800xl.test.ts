@@ -195,6 +195,26 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("lowers non-blocking KEY_CODE through CH at PEEK(764) and resets consumed keys", () => {
+    expect(
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+        filename: "keys.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(
+      [
+        "10 KEYCODE=PEEK(764)",
+        "20 IF KEYCODE <> 255 THEN GOTO 40",
+        "30 GOTO 60",
+        "40 REM __MB_KEY_1:",
+        "50 POKE 764,255",
+        "60 REM __MB_KEY_2:",
+        "70 PRINT 14;63;50;KEYCODE",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "atari800xl" })).toContain(
       "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"

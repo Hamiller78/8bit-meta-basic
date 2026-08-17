@@ -112,10 +112,13 @@ export function rebuildLabels(program: LoweredProgram, instructions: readonly In
       return;
     }
     const definition = program.labels.get(normalizeLabel(instruction.name));
-    if (!definition) {
-      throw new Error(`Internal error: missing label definition for ${instruction.name}.`);
-    }
-    labels.set(normalizeLabel(instruction.name), { ...definition, index });
+    labels.set(normalizeLabel(instruction.name), {
+      name: instruction.name,
+      index,
+      location: instruction.location,
+      internal: instruction.internal,
+      ...(definition ? { location: definition.location, internal: definition.internal } : {})
+    });
   });
 
   return { instructions, labels };

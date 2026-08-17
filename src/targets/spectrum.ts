@@ -3,6 +3,7 @@ import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { normalizeLabel } from "../lowering.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
@@ -13,11 +14,16 @@ export const spectrumTarget: TargetBackend = {
   maxLineNumber: 9999,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const allocateInternalLabel = createInternalLabelAllocator(expanded);
+    const keyStringTempName = allocateKeyStringTempName(expanded.instructions);
     const instructions: Instruction[] = [];
     for (const instruction of expanded.instructions) {
       if (instruction.kind === "cls" && instruction.color) {
         instructions.push({ kind: "paper", color: instruction.color, location: instruction.location });
         instructions.push({ ...instruction, color: undefined });
+      } else if (isKeyCodeAssignment(instruction)) {
+        const assignment = instruction as Extract<Instruction, { kind: "let" }>;
+        instructions.push(...expandSpectrumKeyCodeAssignment(assignment, keyStringTempName, allocateInternalLabel));
       } else {
         instructions.push(instruction);
       }
@@ -67,6 +73,7 @@ export const spectrumTarget: TargetBackend = {
       case "poke":
       case "print-chr":
       case "dim-string":
+      case "read-key":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
     }
@@ -79,13 +86,25 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
   currentProgramInstructions = instructions;
 }
 
-const renderSpectrumFunction = createFunctionRenderer(
+const renderKnownSpectrumFunction = createFunctionRenderer(
   new Map([
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid]
   ])
 );
+
+function renderSpectrumFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  const upper = expression.name.toUpperCase();
+  if (upper === "INKEY$") {
+    return "INKEY$";
+  }
+  if (upper === "CODE") {
+    return `CODE ${renderSpectrumLenArgument(expression.args[0], options)}`;
+  }
+
+  return renderKnownSpectrumFunction(expression, options);
+}
 
 function renderSpectrumLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source] = expression.args;
@@ -137,6 +156,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "read-key":
+      return [];
     case "for":
       return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
@@ -353,4 +374,119 @@ function nextSpectrumStringName(used: ReadonlySet<string>): string {
 
 function isStringVariableName(name: string): boolean {
   return name.endsWith("$");
+}
+
+function expandSpectrumKeyCodeAssignment(
+  instruction: Extract<Instruction, { kind: "let" }>,
+  keyStringTempName: string,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const gotKeyLabel = allocateInternalLabel();
+  const endLabel = allocateInternalLabel();
+  const keyStringIdentifier: Expression = { kind: "identifier", name: keyStringTempName, location: instruction.location };
+
+  return [
+    {
+      kind: "let",
+      name: keyStringTempName,
+      expression: { kind: "function-call", name: "INKEY$", args: [], location: instruction.location },
+      location: instruction.location
+    },
+    { ...instruction, expression: { kind: "number", value: 0, raw: "0", location: instruction.location } },
+    {
+      kind: "if-goto",
+      condition: {
+        kind: "binary",
+        operator: "<>",
+        left: keyStringIdentifier,
+        right: { kind: "string", value: "", location: instruction.location },
+        location: instruction.location
+      },
+      label: gotKeyLabel,
+      location: instruction.location
+    },
+    { kind: "goto", label: endLabel, location: instruction.location },
+    { kind: "label", name: gotKeyLabel, internal: true, location: instruction.location },
+    {
+      ...instruction,
+      expression: { kind: "function-call", name: "CODE", args: [keyStringIdentifier], location: instruction.location }
+    },
+    { kind: "label", name: endLabel, internal: true, location: instruction.location }
+  ];
+}
+
+function isKeyCodeAssignment(instruction: Instruction): boolean {
+  return (
+    instruction.kind === "let" &&
+    !instruction.name.endsWith("$") &&
+    instruction.expression.kind === "function-call" &&
+    instruction.expression.name === builtinFunctions.keyCode
+  );
+}
+
+function createInternalLabelAllocator(program: LoweredProgram): () => string {
+  const used = new Set(program.labels.keys());
+  let next = 1;
+
+  return () => {
+    while (true) {
+      const candidate = `__mb_key_${next}`;
+      next += 1;
+      if (!used.has(normalizeLabel(candidate))) {
+        used.add(normalizeLabel(candidate));
+        return candidate;
+      }
+    }
+  };
+}
+
+function allocateKeyStringTempName(instructions: readonly Instruction[]): string {
+  const used = new Set<string>();
+  for (const instruction of instructions) {
+    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
+      used.add(instruction.name.toLowerCase());
+    } else if (instruction.kind === "for" || instruction.kind === "next") {
+      used.add(instruction.variable.toLowerCase());
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectUsedExpressionNames(expression, used);
+    }
+  }
+
+  let next = 0;
+  while (true) {
+    const candidate = next === 0 ? "MBKEY$" : `MBKEY${next}$`;
+    next += 1;
+    if (!used.has(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+}
+
+function collectUsedExpressionNames(expression: Expression, used: Set<string>): void {
+  switch (expression.kind) {
+    case "identifier":
+      used.add(expression.name.toLowerCase());
+      break;
+    case "parenthesized":
+      collectUsedExpressionNames(expression.expression, used);
+      break;
+    case "unary":
+      collectUsedExpressionNames(expression.operand, used);
+      break;
+    case "binary":
+      collectUsedExpressionNames(expression.left, used);
+      collectUsedExpressionNames(expression.right, used);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectUsedExpressionNames(arg, used);
+      }
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      break;
+  }
 }
