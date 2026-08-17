@@ -107,6 +107,22 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders FOR/NEXT with single-letter Spectrum loop variables", () => {
+    expect(compileSource("for counter = 1 to 3\nprint counter\nnext counter\n", { filename: "for.mbas", target: "spectrum" })).toBe(
+      ["10 FOR C=1 TO 3", "20 PRINT C", "30 NEXT C", ""].join("\n")
+    );
+  });
+
+  it("renders nested Spectrum FOR/NEXT with STEP", () => {
+    expect(
+      compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {
+        filename: "nested-for.mbas",
+        target: "spectrum",
+        readability: 0
+      })
+    ).toBe(["10 FOR R=10 TO 1 STEP -2", "20 FOR C=1 TO 2", "30 PRINT R;C", "40 NEXT C", "50 NEXT R", ""].join("\n"));
+  });
+
   it("renders primary, unary, binary, comparison, and logical expression forms", () => {
     expect(
       compileSource(
@@ -254,6 +270,15 @@ describe("Spectrum compiler", () => {
     expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "spectrum" })).toBe(
       ["10 INK 7", "20 INK 6", ""].join("\n")
     );
+  });
+
+  it("renders Spectrum global and cell colour commands", () => {
+    expect(
+      compileSource("screen_border_color BLUE\nscreen_background_color BLACK\nscreen_text_color WHITE\ncell_text_color YELLOW\ncell_background_color BLUE\n", {
+        filename: "cell-colors.mbas",
+        target: "spectrum"
+      })
+    ).toBe(["10 BORDER 1", "20 PAPER 0", "30 INK 7", "40 INK 6", "50 PAPER 1", ""].join("\n"));
   });
 
   it("maps long string variable names to Spectrum single-letter string variables", () => {

@@ -83,6 +83,7 @@ Supported constructs:
 - `goto label`
 - `gosub label`
 - `return`
+- `for name = start to limit` / `next name`, with optional `step`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
@@ -99,7 +100,12 @@ Supported constructs:
 - `cls` and `cls colour`
 - `border_color colour`
 - `text_color colour`
-- Expressions in `IF`, `CONST`, assignments, and `PRINT`
+- `screen_border_color colour`
+- `screen_background_color colour`
+- `screen_text_color colour`
+- `cell_text_color colour`
+- `cell_background_color colour`
+- Expressions in `IF`, `CONST`, assignments, `FOR`, and `PRINT`
 
 Important source-language rule:
 
@@ -262,13 +268,24 @@ cls
 cls BLUE
 border_color BLUE
 text_color WHITE
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cell_text_color YELLOW
+cell_background_color BLUE
 ```
 
 `CLS` clears the text screen. `CLS colour` selects the portable background colour and then clears the screen. The colour form does not change the foreground/text colour or border colour.
 
-`BORDER_COLOR colour` changes the target machine's border colour without changing the text/background colour.
+`SCREEN_BORDER_COLOR colour` changes the target machine's border colour without changing the text/background colour. `BORDER_COLOR` is kept as a compatibility spelling.
 
-`TEXT_COLOR colour` changes the target machine's current text/foreground colour without clearing the screen.
+`SCREEN_BACKGROUND_COLOR colour` changes the target machine's global screen background colour without clearing the screen.
+
+`SCREEN_TEXT_COLOR colour` changes the target machine's global/current text colour. `TEXT_COLOR` is kept as a compatibility spelling for this global text colour operation.
+
+`CELL_TEXT_COLOR colour` changes the following printed cell text colour where the target supports per-cell text colour. Atari 800XL `GRAPHICS 0` ignores it.
+
+`CELL_BACKGROUND_COLOR colour` changes the following printed cell background colour where the target supports per-cell background attributes. Spectrum supports it; C64 and Atari 800XL ignore it.
 
 Target lowering:
 
@@ -276,7 +293,10 @@ Target lowering:
 - Atari 800XL: `PRINT CHR$(125);`, or `SETCOLOR 2,targetHue,targetLuminance` followed by `PRINT CHR$(125);`.
 - C64: `PRINT CHR$(147);`, or `POKE 53281,targetColour` followed by `PRINT CHR$(147);`.
 - Border colour lowers to Spectrum `BORDER targetColour`, Atari `SETCOLOR 4,targetHue,targetLuminance`, and C64 `POKE 53280,targetColour`.
-- Text colour lowers to Spectrum `INK targetColour`, Atari `SETCOLOR 1,targetHue,targetLuminance`, and C64 `POKE 646,targetColour`.
+- Global background colour lowers to Spectrum `PAPER targetColour`, Atari `SETCOLOR 2,targetHue,targetLuminance`, and C64 `POKE 53281,targetColour`.
+- Global text colour lowers to Spectrum `INK targetColour`, Atari `SETCOLOR 1,targetHue,targetLuminance`, and C64 `POKE 646,targetColour`.
+- Cell text colour lowers to Spectrum `INK targetColour`, C64 `POKE 646,targetColour`, and no Atari 800XL output.
+- Cell background colour lowers to Spectrum `PAPER targetColour` and no C64 or Atari 800XL output.
 
 Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 
@@ -325,6 +345,7 @@ Meaning:
 - Use `GO TO`.
 - Use `GO SUB` and `RETURN`.
 - Render assignments as `LET NAME=expression`.
+- Render `FOR` loop variables as single-letter numeric variables.
 - Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
 - Constant coordinates must satisfy row `0..21` and column `0..31`.
@@ -336,6 +357,7 @@ Meaning:
 - Use `GOTO`.
 - Use `GOSUB` and `RETURN`.
 - Render assignments without `LET`.
+- Render `FOR`/`NEXT` with explicit loop variables.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
 - Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
@@ -356,6 +378,7 @@ PRINT ...
 - Use `GOTO`.
 - Use `GOSUB` and `RETURN`.
 - Render assignments without `LET`.
+- Render `FOR`/`NEXT` with explicit loop variables.
 - Render identifiers and `REM` label text in uppercase for readable C64 listings. Preserve string literal contents exactly.
 - Lower positioned output into:
 
@@ -439,7 +462,6 @@ Current structure:
 src/
   ast.ts
   diagnostics.ts
-  environment.ts
   functions.ts
   lexer.ts
   parser.ts
@@ -452,6 +474,7 @@ src/
   targets/
     target.ts
     index.ts
+    environment.ts
     function-rendering.ts
     spectrum.ts
     atari800xl.ts
@@ -488,6 +511,7 @@ Coverage currently includes:
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
 - `GOSUB`/`RETURN` parsing, label resolution, and target spelling
+- `FOR`/`NEXT` parsing, nesting diagnostics, numeric semantic checks, `STEP`, and target spelling
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
@@ -496,7 +520,7 @@ Coverage currently includes:
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion
 - C64 `POKE`/`SYS` expansion
-- Portable `TEXT_COLOR` lowering
+- Portable global and cell colour lowering, including ignored cell colours for unsupported targets
 - Coordinate range diagnostics for all targets
 - Deterministic C64 variable-name mapping, including two-character collisions
 - Uppercase output casing for Spectrum, Atari, and C64

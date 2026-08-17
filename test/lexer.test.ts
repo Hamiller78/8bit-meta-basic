@@ -38,6 +38,10 @@ describe("lexer", () => {
     expect(keywords.has("BORDER_COLOR")).toBe(true);
     expect(keywords.has("PRINT_AT")).toBe(true);
     expect(keywords.has("AND")).toBe(true);
+    expect(keywords.has("FOR")).toBe(true);
+    expect(keywords.has("NEXT")).toBe(true);
+    expect(keywords.has("TO")).toBe(true);
+    expect(keywords.has("STEP")).toBe(true);
     expect(keywords.has("AT")).toBe(false);
     expect(keywords.has("LET")).toBe(false);
     expect(tokenize("pRiNt true and false\n", "case.mbas").filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual([

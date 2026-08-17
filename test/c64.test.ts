@@ -38,6 +38,25 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("renders FOR/NEXT with C64 compact variable mapping", () => {
+    expect(
+      compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {
+        filename: "for.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 FOR RO=10 TO 1 STEP -2", "20 FOR CO=1 TO 2", "30 PRINT RO;CO", "40 NEXT CO", "50 NEXT RO", ""].join("\n"));
+  });
+
+  it("reports invalid FOR loop variables and bounds", () => {
+    expect(() => compileSource('for name$ = 1 to 3\nprint name$\nnext name$\n', { filename: "bad-for.mbas", target: "c64" })).toThrow(
+      "FOR loop variable must be numeric."
+    );
+    expect(() => compileSource('for row = "A" to 3\nprint row\nnext row\n', { filename: "bad-for.mbas", target: "c64" })).toThrow(
+      "FOR start value must be numeric."
+    );
+  });
+
   it("renders C64 CLS and every portable background colour without border or text-colour changes", () => {
     const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
     const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "c64" });
@@ -92,6 +111,15 @@ describe("C64 compiler", () => {
     expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "c64" })).toBe(
       ["10 POKE 646,1", "20 POKE 646,7", ""].join("\n")
     );
+  });
+
+  it("renders C64 global colours, supports cell text colour, and ignores cell background colour", () => {
+    expect(
+      compileSource('screen_background_color BLUE\nscreen_text_color WHITE\ncell_text_color YELLOW\ncell_background_color RED\nprint "OK"\n', {
+        filename: "cell-colors.mbas",
+        target: "c64"
+      })
+    ).toBe(["10 POKE 53281,6", "20 POKE 646,1", "30 POKE 646,7", '40 PRINT "OK"', ""].join("\n"));
   });
 
   it("deterministically maps C64 variable names that would alias in BASIC V2", () => {

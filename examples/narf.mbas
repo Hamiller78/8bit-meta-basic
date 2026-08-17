@@ -19,9 +19,10 @@ clockMinuteOnes = 0
 clockSecondTens = 0
 clockSecondOnes = 0
 
-border_color BLACK
-cls BLACK
-text_color WHITE
+screen_border_color BLACK
+screen_background_color BLACK
+cls
+screen_text_color WHITE
 
 print_at 0, 0; ruleLine$;
 print_at 1, 0; "DEFCON5 1983-11-06 23:00:00";
@@ -36,7 +37,7 @@ print_at 13, 0; "PRIMARY NETWORK: DISCONNECTED";
 print_at 14, 0; "CIVIL DEFENCE LINK: STANDBY";
 print_at 16, 0; "SYSTEM STATUS: PROBABLY FINE";
 print_at lowerRuleRow, 0; ruleLine$;
-text_color YELLOW
+cell_text_color YELLOW
 print_at tickerRow, 0; clearLine$;
 print_at tickerRow, 0; mid$(tickerText$, tickerPos, tickerColumns);
 
@@ -59,14 +60,14 @@ scroll:
                 end if
             end if
         end if
-        text_color WHITE
+        cell_text_color WHITE
         print_at 1, 19; "23:";
         print_at 1, 22; mid$(digits$, clockMinuteTens + 1, 1);
         print_at 1, 23; mid$(digits$, clockMinuteOnes + 1, 1);
         print_at 1, 24; ":";
         print_at 1, 25; mid$(digits$, clockSecondTens + 1, 1);
         print_at 1, 26; mid$(digits$, clockSecondOnes + 1, 1);
-        text_color YELLOW
+        cell_text_color YELLOW
     end if
     if jiffies() - lastTick >= scrollDelay then
         lastTick = jiffies()

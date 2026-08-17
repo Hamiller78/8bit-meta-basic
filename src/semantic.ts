@@ -62,6 +62,18 @@ function analyzeStatements(
         analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "TEXT_COLOR") });
         break;
       }
+      case "screen-background-color": {
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "SCREEN_BACKGROUND_COLOR") });
+        break;
+      }
+      case "cell-text-color": {
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_TEXT_COLOR") });
+        break;
+      }
+      case "cell-background-color": {
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_BACKGROUND_COLOR") });
+        break;
+      }
       case "let": {
         const existing = constants.get(normalizeName(statement.name));
         if (existing?.environment) {
@@ -107,6 +119,30 @@ function analyzeStatements(
           elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression)
         });
         break;
+      case "for": {
+        const existing = constants.get(normalizeName(statement.variable));
+        if (existing?.environment) {
+          throw new DiagnosticError(statement.location, `Cannot use environment constant "${statement.variable}" as a FOR loop variable.`);
+        }
+        if (existing) {
+          throw new DiagnosticError(statement.location, `Cannot use constant "${statement.variable}" as a FOR loop variable.`);
+        }
+        if (isStringVariableName(statement.variable)) {
+          throw new DiagnosticError(statement.location, "FOR loop variable must be numeric.");
+        }
+
+        const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression), "FOR start value");
+        const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression), "FOR limit value");
+        const step = statement.step ? requireNumericExpression(foldExpression(statement.step, constants, inConstantExpression), "FOR STEP value") : undefined;
+        analyzed.push({
+          ...statement,
+          start,
+          limit,
+          ...(step ? { step } : {}),
+          body: analyzeStatements(statement.body, constants, inConstantExpression)
+        });
+        break;
+      }
       case "label":
       case "goto":
       case "gosub":
@@ -117,6 +153,13 @@ function analyzeStatements(
   }
 
   return analyzed;
+}
+
+function requireNumericExpression(expression: Expression, context: string): Expression {
+  if (expression.kind === "color" || isStringExpression(expression)) {
+    throw new DiagnosticError(expression.location, `${context} must be numeric.`);
+  }
+  return expression;
 }
 
 function analyzeColorExpression(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>, command: string): Extract<Expression, { kind: "color" }> {

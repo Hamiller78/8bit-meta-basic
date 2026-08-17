@@ -170,11 +170,13 @@ The milestone language supports:
 - `print` with one or more semicolon-separated expressions
 - Portable positioned output such as `print_at 10, 5; "WARNING"`
 - `cls` and `cls colour` with portable background colour constants
-- `border_color colour` with portable border colour constants
-- `text_color colour` with portable foreground/text colour constants
+- Global screen colour commands: `screen_border_color`, `screen_background_color`, and `screen_text_color`
+- Cell colour commands: `cell_text_color` and `cell_background_color`
+- Compatibility colour commands: `border_color colour` and `text_color colour`
 - `goto label`
 - `gosub label`
 - `return`
+- `for name = start to limit` / `next name`, with optional `step`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
@@ -188,7 +190,7 @@ Constants are evaluated at compile time, emit no BASIC lines, and may reference 
 
 `jiffies()` returns the target machine's running timer tick count: Spectrum uses the three-byte `FRAMES` counter, Atari uses the three-byte `RTCLOK` counter, and C64 uses `TI`. The portable unit is a target jiffy/frame-ish tick, not milliseconds.
 
-The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE`, `border_color BLUE`, or `text_color YELLOW`.
+The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE`, `screen_border_color BLUE`, or `cell_text_color YELLOW`.
 
 Compiler output is readable BASIC text. Atari builds additionally create a `.lst` text-listing variant with Atari line endings and a staging folder for ATR creation. The optional build-script tool hooks can additionally create packaged files such as Spectrum `.tap`, Atari `.atr`, or C64 `.prg` when local conversion tools are configured.
 
@@ -320,10 +322,10 @@ The colour form does not emit border-colour or text-colour changes. Atari colour
 
 ## Border Colour
 
-`border_color colour` changes the target machine's border colour without changing the text/background colour:
+`screen_border_color colour` changes the target machine's border colour without changing the text/background colour. `border_color` is kept as a compatibility spelling:
 
 ```basic
-border_color BLUE
+screen_border_color BLUE
 ```
 
 Spectrum BASIC:
@@ -345,6 +347,26 @@ Commodore 64 BASIC V2:
 ```
 
 Atari border colours use the same deterministic hue/luminance approximations as `cls colour`.
+
+## Text Colours
+
+Global screen colours are intended for setup, typically around `cls`:
+
+```basic
+screen_background_color BLACK
+cls
+screen_text_color WHITE
+```
+
+Cell colours are intended for following printed cells where the target can support that idea:
+
+```basic
+cell_text_color YELLOW
+print "NEWS"
+cell_text_color WHITE
+```
+
+Spectrum supports cell text and cell background attributes with `INK` and `PAPER`. C64 supports cell text colour through the current text colour register, but ignores `cell_background_color`. Atari 800XL `GRAPHICS 0` has global text/background registers only, so `cell_text_color` and `cell_background_color` intentionally emit no BASIC there. The older `text_color` command remains as a global text-colour compatibility spelling.
 
 ## Diagnostics
 

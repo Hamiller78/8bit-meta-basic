@@ -38,6 +38,17 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders FOR/NEXT with readable Atari variable names", () => {
+    expect(
+      compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {
+        filename: "for.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(
+      ["10 FOR ROW=10 TO 1 STEP -2", "20 FOR COLUMN=1 TO 2", "30 PRINT ROW;COLUMN", "40 NEXT COLUMN", "50 NEXT ROW", ""].join("\n")
+    );
+  });
+
   it("renders Atari CLS and every portable background colour without text-colour changes", () => {
     const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
     const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "atari800xl" });
@@ -90,6 +101,15 @@ describe("Atari 800XL compiler", () => {
     expect(compileSource("text_color WHITE\ntext_color YELLOW\n", { filename: "text-color.mbas", target: "atari800xl" })).toBe(
       ["10 SETCOLOR 1,0,14", "20 SETCOLOR 1,13,12", ""].join("\n")
     );
+  });
+
+  it("renders Atari global colours and ignores cell colour commands in GRAPHICS 0", () => {
+    expect(
+      compileSource('screen_background_color BLUE\nscreen_text_color WHITE\ncell_text_color YELLOW\ncell_background_color RED\nprint "OK"\n', {
+        filename: "cell-colors.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(["10 SETCOLOR 2,7,8", "20 SETCOLOR 1,0,14", '30 PRINT "OK"', ""].join("\n"));
   });
 
   it("renders string variable assignment with required DIM and PRINT", () => {

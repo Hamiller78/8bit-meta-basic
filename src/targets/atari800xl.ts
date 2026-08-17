@@ -56,6 +56,15 @@ export const atari800xlTarget: TargetBackend = {
           luminance: color.luminance,
           location: instruction.location
         });
+      } else if (instruction.kind === "screen-background-color") {
+        const color = atariColorCodes[instruction.color.color];
+        instructions.push({
+          kind: "setcolor",
+          register: 2,
+          hue: color.hue,
+          luminance: color.luminance,
+          location: instruction.location
+        });
       } else if (instruction.kind === "text-color") {
         const color = atariColorCodes[instruction.color.color];
         instructions.push({
@@ -65,6 +74,8 @@ export const atari800xlTarget: TargetBackend = {
           luminance: color.luminance,
           location: instruction.location
         });
+      } else if (instruction.kind === "cell-text-color" || instruction.kind === "cell-background-color") {
+        continue;
       } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
         pushStringAssignment(instruction);
       } else if (instruction.kind === "print") {
@@ -104,6 +115,9 @@ export const atari800xlTarget: TargetBackend = {
       case "cls":
       case "border-color":
       case "text-color":
+      case "screen-background-color":
+      case "cell-text-color":
+      case "cell-background-color":
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
@@ -118,6 +132,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} GOSUB ${resolveLabel(labelLines, instruction.label)}`;
       case "return":
         return `${lineNumber} RETURN`;
+      case "for":
+        return `${lineNumber} FOR ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}=${renderExpression(instruction.start, renderOptions)} TO ${renderExpression(instruction.limit, renderOptions)}${instruction.step ? ` STEP ${renderExpression(instruction.step, renderOptions)}` : ""}`;
+      case "next":
+        return `${lineNumber} NEXT ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
@@ -355,8 +373,9 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   const map = new Map<string, string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let") {
-      map.set(instruction.name.toLowerCase(), instruction.name.toUpperCase());
+    if (instruction.kind === "let" || instruction.kind === "for" || instruction.kind === "next") {
+      const name = instruction.kind === "let" ? instruction.name : instruction.variable;
+      map.set(name.toLowerCase(), name.toUpperCase());
     }
     for (const expression of instructionExpressions(instruction)) {
       collectIdentifiers(expression, map);
@@ -372,6 +391,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "for":
+      return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
       return [instruction.condition];
     case "position":
@@ -381,6 +402,9 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "cls":
     case "border-color":
     case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
     case "paper":
     case "setcolor":
     case "print-chr":
@@ -390,6 +414,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "goto":
     case "gosub":
     case "return":
+    case "next":
     case "sys":
       return [];
   }

@@ -6,6 +6,11 @@ type StatementParser = (parser: Parser, location: SourceLocation) => Statement |
 
 const statementParsers = new Map<string, StatementParser>([
   ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
+  ["SCREEN_BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
+  ["SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseScreenBackgroundColor(location)],
+  ["SCREEN_TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
+  ["CELL_TEXT_COLOR", (parser, location) => parser.parseCellTextColor(location)],
+  ["CELL_BACKGROUND_COLOR", (parser, location) => parser.parseCellBackgroundColor(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
@@ -14,6 +19,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["RETURN", (parser, location) => parser.parseReturn(location)],
+  ["FOR", (parser, location) => parser.parseFor(location)],
   ["IF", (parser, location) => parser.parseIf(location)]
 ]);
 
@@ -111,6 +117,33 @@ class Parser {
     return { kind: "text-color", color, location };
   }
 
+  parseScreenBackgroundColor(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "SCREEN_BACKGROUND_COLOR requires a colour expression.");
+    }
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "screen-background-color", color, location };
+  }
+
+  parseCellTextColor(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "CELL_TEXT_COLOR requires a colour expression.");
+    }
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "cell-text-color", color, location };
+  }
+
+  parseCellBackgroundColor(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "CELL_BACKGROUND_COLOR requires a colour expression.");
+    }
+    const color = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "cell-background-color", color, location };
+  }
+
   parsePrintAtStatement(location: SourceLocation): Statement {
     const at = this.parsePrintAt("PRINT_AT");
     const print = this.parsePrint(location);
@@ -175,7 +208,31 @@ class Parser {
     return { kind: "if", condition, thenBranch, elseBranch, location };
   }
 
-  private parseBlock(until: "eof" | "else-or-end-if" | "end-if", missingBlockLocation?: SourceLocation): Statement[] {
+  parseFor(location: SourceLocation): Statement {
+    const variable = this.expectIdentifier("Expected loop variable after FOR.").text;
+    this.expectPunctuation("=", "Expected = after FOR loop variable.");
+    const start = this.parseExpression(() => this.matchKeyword("TO") || this.isLineEnd());
+    this.expectKeyword("TO", "Expected TO in FOR statement.");
+    const limit = this.parseExpression(() => this.matchKeyword("STEP") || this.isLineEnd());
+    let step: Expression | undefined;
+
+    if (this.matchKeyword("STEP")) {
+      this.advance();
+      step = this.parseExpressionUntilLine();
+    }
+
+    this.expectLineEnd();
+    const body = this.parseBlock("next", location);
+    this.expectKeyword("NEXT", "Expected NEXT.");
+    const nextVariable = this.expectIdentifier("Expected loop variable after NEXT.").text;
+    if (nextVariable.toLowerCase() !== variable.toLowerCase()) {
+      throw new DiagnosticError(this.current().location, `NEXT ${nextVariable} does not match FOR ${variable}.`);
+    }
+    this.expectLineEnd();
+    return step ? { kind: "for", variable, start, limit, step, body, location } : { kind: "for", variable, start, limit, body, location };
+  }
+
+  private parseBlock(until: "eof" | "else-or-end-if" | "end-if" | "next", missingBlockLocation?: SourceLocation): Statement[] {
     const statements: Statement[] = [];
 
     while (true) {
@@ -184,6 +241,9 @@ class Parser {
       if (this.matchKind("eof")) {
         if (until === "eof") {
           return statements;
+        }
+        if (until === "next") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing NEXT for FOR block.");
         }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
@@ -200,6 +260,13 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected END IF without matching IF.");
+      }
+
+      if (this.matchKeyword("NEXT")) {
+        if (until === "next") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected NEXT without matching FOR.");
       }
 
       const statement = this.parseStatement();

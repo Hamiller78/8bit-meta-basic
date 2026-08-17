@@ -14,11 +14,15 @@ export type Statement =
   | ClsStatement
   | BorderColorStatement
   | TextColorStatement
+  | ScreenBackgroundColorStatement
+  | CellTextColorStatement
+  | CellBackgroundColorStatement
   | PrintStatement
   | LetStatement
   | GotoStatement
   | GosubStatement
   | ReturnStatement
+  | ForStatement
   | IfStatement;
 
 export interface LabelStatement {
@@ -60,6 +64,24 @@ export interface TextColorStatement {
   readonly location: SourceLocation;
 }
 
+export interface ScreenBackgroundColorStatement {
+  readonly kind: "screen-background-color";
+  readonly color: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface CellTextColorStatement {
+  readonly kind: "cell-text-color";
+  readonly color: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface CellBackgroundColorStatement {
+  readonly kind: "cell-background-color";
+  readonly color: Expression;
+  readonly location: SourceLocation;
+}
+
 export interface PrintAtPosition {
   readonly row: Expression;
   readonly column: Expression;
@@ -87,6 +109,16 @@ export interface GosubStatement {
 
 export interface ReturnStatement {
   readonly kind: "return";
+  readonly location: SourceLocation;
+}
+
+export interface ForStatement {
+  readonly kind: "for";
+  readonly variable: string;
+  readonly start: Expression;
+  readonly limit: Expression;
+  readonly step?: Expression;
+  readonly body: readonly Statement[];
   readonly location: SourceLocation;
 }
 

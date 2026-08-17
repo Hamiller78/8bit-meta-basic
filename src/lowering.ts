@@ -20,12 +20,17 @@ export type Instruction =
   | ClsInstruction
   | BorderColorInstruction
   | TextColorInstruction
+  | ScreenBackgroundColorInstruction
+  | CellTextColorInstruction
+  | CellBackgroundColorInstruction
   | PaperInstruction
   | PrintInstruction
   | LetInstruction
   | GotoInstruction
   | GosubInstruction
   | ReturnInstruction
+  | ForInstruction
+  | NextInstruction
   | IfGotoInstruction
   | PositionInstruction
   | SetColorInstruction
@@ -61,6 +66,24 @@ export interface BorderColorInstruction {
 
 export interface TextColorInstruction {
   readonly kind: "text-color";
+  readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface ScreenBackgroundColorInstruction {
+  readonly kind: "screen-background-color";
+  readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface CellTextColorInstruction {
+  readonly kind: "cell-text-color";
+  readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface CellBackgroundColorInstruction {
+  readonly kind: "cell-background-color";
   readonly color: Extract<Expression, { kind: "color" }>;
   readonly location: SourceLocation;
 }
@@ -103,6 +126,21 @@ export interface GosubInstruction {
 
 export interface ReturnInstruction {
   readonly kind: "return";
+  readonly location: SourceLocation;
+}
+
+export interface ForInstruction {
+  readonly kind: "for";
+  readonly variable: string;
+  readonly start: Expression;
+  readonly limit: Expression;
+  readonly step?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface NextInstruction {
+  readonly kind: "next";
+  readonly variable: string;
   readonly location: SourceLocation;
 }
 
@@ -198,6 +236,27 @@ function lowerStatements(
           location: statement.location
         });
         break;
+      case "screen-background-color":
+        instructions.push({
+          kind: "screen-background-color",
+          color: statement.color as Extract<Expression, { kind: "color" }>,
+          location: statement.location
+        });
+        break;
+      case "cell-text-color":
+        instructions.push({
+          kind: "cell-text-color",
+          color: statement.color as Extract<Expression, { kind: "color" }>,
+          location: statement.location
+        });
+        break;
+      case "cell-background-color":
+        instructions.push({
+          kind: "cell-background-color",
+          color: statement.color as Extract<Expression, { kind: "color" }>,
+          location: statement.location
+        });
+        break;
       case "label":
         instructions.push({ kind: "label", name: statement.name, internal: false, location: statement.location });
         break;
@@ -221,6 +280,18 @@ function lowerStatements(
         break;
       case "return":
         instructions.push({ kind: "return", location: statement.location });
+        break;
+      case "for":
+        instructions.push({
+          kind: "for",
+          variable: statement.variable,
+          start: statement.start,
+          limit: statement.limit,
+          ...(statement.step ? { step: statement.step } : {}),
+          location: statement.location
+        });
+        lowerStatements(statement.body, instructions, nextInternalLabel);
+        instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
         break;
       case "if": {
         const thenLabel = nextInternalLabel();
@@ -261,6 +332,8 @@ function collectUserLabels(statements: readonly Statement[], seen = new Map<stri
     if (statement.kind === "if") {
       collectUserLabels(statement.thenBranch, seen);
       collectUserLabels(statement.elseBranch, seen);
+    } else if (statement.kind === "for") {
+      collectUserLabels(statement.body, seen);
     }
   }
 

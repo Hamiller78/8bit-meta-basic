@@ -33,6 +33,9 @@ export const c64Target: TargetBackend = {
       case "cls":
       case "border-color":
       case "text-color":
+      case "screen-background-color":
+      case "cell-text-color":
+      case "cell-background-color":
       case "paper":
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
@@ -48,6 +51,10 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} GOSUB ${resolveLabel(labelLines, instruction.label)}`;
       case "return":
         return `${lineNumber} RETURN`;
+      case "for":
+        return `${lineNumber} FOR ${renderVariableName(instruction.variable, variableMap)}=${renderExpression(instruction.start, renderOptions)} TO ${renderExpression(instruction.limit, renderOptions)}${instruction.step ? ` STEP ${renderExpression(instruction.step, renderOptions)}` : ""}`;
+      case "next":
+        return `${lineNumber} NEXT ${renderVariableName(instruction.variable, variableMap)}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "position":
@@ -89,9 +96,12 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
   const seen = new Set<string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let" && !seen.has(instruction.name.toLowerCase())) {
-      seen.add(instruction.name.toLowerCase());
-      names.push(instruction.name);
+    if (instruction.kind === "let" || instruction.kind === "for" || instruction.kind === "next") {
+      const name = instruction.kind === "let" ? instruction.name : instruction.variable;
+      if (!seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        names.push(name);
+      }
     }
     for (const expression of instructionExpressions(instruction)) {
       collectIdentifiers(expression, names, seen);
@@ -144,6 +154,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "for":
+      return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
       return [instruction.condition];
     case "position":
@@ -153,6 +165,9 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "cls":
     case "border-color":
     case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
     case "paper":
     case "setcolor":
     case "print-chr":
@@ -162,6 +177,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "goto":
     case "gosub":
     case "return":
+    case "next":
     case "sys":
       return [];
   }
@@ -272,7 +288,7 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         });
       }
       instructions.push({ kind: "print-chr", code: 147, trailingSemicolon: true, location: instruction.location });
-      } else if (instruction.kind === "border-color") {
+    } else if (instruction.kind === "border-color") {
         instructions.push({
           kind: "poke",
           address: 53280,
@@ -284,7 +300,19 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         },
         location: instruction.location
       });
-    } else if (instruction.kind === "text-color") {
+    } else if (instruction.kind === "screen-background-color") {
+      instructions.push({
+        kind: "poke",
+        address: 53281,
+        value: {
+          kind: "number",
+          value: c64ColorCodes[instruction.color.color],
+          raw: c64ColorCodes[instruction.color.color].toString(),
+          location: instruction.location
+        },
+        location: instruction.location
+      });
+    } else if (instruction.kind === "text-color" || instruction.kind === "cell-text-color") {
       instructions.push({
         kind: "poke",
         address: 646,
@@ -296,6 +324,8 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         },
         location: instruction.location
       });
+    } else if (instruction.kind === "cell-background-color") {
+      continue;
     } else {
       instructions.push(instruction);
     }

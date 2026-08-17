@@ -58,6 +58,27 @@ describe("parser", () => {
     });
   });
 
+  it("parses FOR/NEXT blocks with optional STEP", () => {
+    const program = parseSource("for counter = 10 to 1 step -2\nprint counter\nnext counter\n", "for.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "for",
+        variable: "counter",
+        start: { kind: "number", value: 10 },
+        limit: { kind: "number", value: 1 },
+        step: { kind: "unary", operator: "-" },
+        body: [{ kind: "print", items: [{ kind: "identifier", name: "counter" }] }]
+      }
+    ]);
+  });
+
+  it("reports mismatched or missing NEXT statements", () => {
+    expect(() => parseSource("for row = 1 to 2\nnext column\n", "badnext.mbas")).toThrow("NEXT column does not match FOR row.");
+    expect(() => parseSource("for row = 1 to 2\nprint row\n", "missingnext.mbas")).toThrow("Missing NEXT for FOR block.");
+    expect(() => parseSource("next row\n", "unexpectednext.mbas")).toThrow("Unexpected NEXT without matching FOR.");
+  });
+
   it("accepts case-insensitive keywords and preserves string literal contents", () => {
     const program = parseSource('PrInT "Warning: Don\'t Panic"\nGoTo Done\n', "case.mbas");
 
@@ -180,12 +201,22 @@ describe("parser", () => {
     expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT_AT column");
   });
 
-  it("parses CLS with an optional colour expression, BORDER_COLOR, and TEXT_COLOR", () => {
-    expect(parseSource("cls\ncls alert_colour\nborder_color BLUE\ntext_color YELLOW\n", "screen.mbas").statements).toMatchObject([
+  it("parses CLS and global/cell colour commands", () => {
+    expect(
+      parseSource(
+        "cls\ncls alert_colour\nborder_color BLUE\nscreen_border_color BLACK\nscreen_background_color BLUE\ntext_color YELLOW\nscreen_text_color WHITE\ncell_text_color RED\ncell_background_color CYAN\n",
+        "screen.mbas"
+      ).statements
+    ).toMatchObject([
       { kind: "cls" },
       { kind: "cls", color: { kind: "identifier", name: "alert_colour" } },
       { kind: "border-color", color: { kind: "identifier", name: "BLUE" } },
-      { kind: "text-color", color: { kind: "identifier", name: "YELLOW" } }
+      { kind: "border-color", color: { kind: "identifier", name: "BLACK" } },
+      { kind: "screen-background-color", color: { kind: "identifier", name: "BLUE" } },
+      { kind: "text-color", color: { kind: "identifier", name: "YELLOW" } },
+      { kind: "text-color", color: { kind: "identifier", name: "WHITE" } },
+      { kind: "cell-text-color", color: { kind: "identifier", name: "RED" } },
+      { kind: "cell-background-color", color: { kind: "identifier", name: "CYAN" } }
     ]);
   });
 
