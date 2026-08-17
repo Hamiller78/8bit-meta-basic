@@ -197,7 +197,7 @@ describe("Atari 800XL compiler", () => {
 
   it("lowers non-blocking KEY_CODE through CH at PEEK(764) and resets consumed keys", () => {
     expect(
-      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {
         filename: "keys.mbas",
         target: "atari800xl"
       })
@@ -209,7 +209,7 @@ describe("Atari 800XL compiler", () => {
         "40 REM __MB_KEY_1:",
         "50 POKE 764,255",
         "60 REM __MB_KEY_2:",
-        "70 PRINT 14;63;50;KEYCODE",
+        "70 PRINT 142;63;142;33;KEYCODE",
         ""
       ].join("\n")
     );

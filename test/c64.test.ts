@@ -202,12 +202,12 @@ describe("C64 compiler", () => {
 
   it("renders non-blocking KEY_CODE through GET and exposes target key constants", () => {
     expect(
-      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {
         filename: "keys.mbas",
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 GET MB$', "20 KE=0", '30 IF MB$ <> "" THEN GOTO 50', "40 GOTO 60", "50 KE=ASC(MB$)", "60 PRINT 145;65;48;KE", ""].join("\n"));
+    ).toBe(['10 GET MB$', "20 KE=0", '30 IF MB$ <> "" THEN GOTO 50', "40 GOTO 60", "50 KE=ASC(MB$)", "60 PRINT 145;65;145;32;KE", ""].join("\n"));
   });
 
   it("preserves logical truth behavior in representative expressions", () => {

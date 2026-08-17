@@ -184,7 +184,9 @@ Selected targets provide read-only, case-insensitive environment constants:
 | Atari 800XL | 24 | 40 | 50 |
 | Commodore 64 | 25 | 40 | 50 |
 
-Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Spectrum directional constants intentionally use the common keyboard-game mapping `Q`, `A`, `O`, and `P`.
+Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Direction constants represent each machine's cursor/direction key codes; letter constants such as `KEY_Q`, `KEY_A`, `KEY_O`, and `KEY_P` remain available.
+
+Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum maps these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
 
 Implemented requirements:
 

@@ -316,7 +316,7 @@ describe("Spectrum compiler", () => {
 
   it("renders non-blocking KEY_CODE and target key constants", () => {
     expect(
-      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; KEY_0; keyCode\n", {
+      compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {
         filename: "keys.mbas",
         target: "spectrum"
       })
@@ -329,7 +329,7 @@ describe("Spectrum compiler", () => {
         "50 REM __MB_KEY_1:",
         "60 LET KEYCODE=CODE A$",
         "70 REM __MB_KEY_2:",
-        "80 PRINT 81;65;48;KEYCODE",
+        "80 PRINT 11;97;113;32;KEYCODE",
         ""
       ].join("\n")
     );

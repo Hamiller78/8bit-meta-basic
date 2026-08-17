@@ -135,12 +135,22 @@ For C64 output, readability level `1` uses compact variable names and adds `REM 
 
 ## Input Demo
 
-`examples/input-demo.mbas` is a small keyboard-control demo. It displays an `X,Y` coordinate pair, changes it with `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, and `KEY_RIGHT`, and confirms the current target coordinates with `KEY_ENTER` or `KEY_SPACE`.
+`examples/input-demo.mbas` is a small keyboard-control demo. It displays an `X,Y` coordinate pair, changes it with `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, and `GAME_RIGHT`, and confirms the current target coordinates with `KEY_ENTER` or `GAME_FIRE`.
 
 Build debug artifacts for all targets with:
 
 ```text
 npm run build:all-targets -- --source examples/input-demo.mbas --profile debug
+```
+
+## Key Diagnostics Demo
+
+`examples/key-diagnostics.mbas` displays raw `key_code()` values and shows which built-in key constant currently matches. It is meant for checking real machines and emulators before adjusting target key mappings.
+
+Build release artifacts for all targets with:
+
+```text
+npm run build:all-targets -- --source examples/key-diagnostics.mbas --profile release
 ```
 
 ## N.A.R.F. Demo
@@ -215,7 +225,9 @@ Constants are evaluated at compile time, emit no BASIC lines, and may reference 
 
 `key_code()` returns a numeric target key code for the currently available key. Use it in the direct assignment form `key = key_code()` and compare the result with key constants. C64 output uses `GET`, so it reads from the keyboard buffer. Spectrum output uses `INKEY$`, so it reads the current keyboard state and may miss short taps while the program is busy. Atari output uses `PEEK(764)` and resets it with `POKE 764,255` after consuming a key.
 
-Target-specific key constants are available as numeric constants, including `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. Unsupported target keys currently use `-1`. On Spectrum, the directional constants use the traditional keyboard-game mapping `Q`, `A`, `O`, and `P`.
+Target-specific key constants are available as numeric constants, including `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. Unsupported target keys currently use `-1`. Direction constants represent each machine's cursor/direction key codes; letter constants such as `KEY_Q`, `KEY_A`, `KEY_O`, and `KEY_P` remain available.
+
+Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum maps these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
 
 The portable colour constants are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. They are semantic colour names, not native target colour numbers, and currently may be used only where a colour is expected, such as `cls BLUE`, `screen_border_color BLUE`, or `cell_text_color YELLOW`.
 

@@ -1,0 +1,79 @@
+const codeRow = 10
+const matchRow = 12
+const clearLine$ = space$(TEXT_COLUMNS)
+
+key = KEY_NONE
+lastKey = -2
+
+screen_border_color BLACK
+screen_background_color BLACK
+cls
+screen_text_color WHITE
+
+print_at 0, 0; "META-BASIC KEY DIAGNOSTICS";
+print_at 2, 0; "PRESS KEYS ON THE MACHINE";
+print_at 3, 0; "WATCH RAW KEY_CODE() VALUES";
+print_at 5, 0; "UP "; KEY_UP; " DOWN "; KEY_DOWN;
+print_at 6, 0; "LEFT "; KEY_LEFT; " RIGHT "; KEY_RIGHT;
+print_at 7, 0; "Q "; KEY_Q; " A "; KEY_A; " O "; KEY_O; " P "; KEY_P;
+print_at 8, 0; "SPACE "; KEY_SPACE; " ENTER "; KEY_ENTER;
+print_at 9, 0; "GAME "; GAME_UP; ","; GAME_DOWN; ","; GAME_LEFT; ","; GAME_RIGHT;
+print_at codeRow, 0; "PRESS A KEY";
+
+loop:
+    key = key_code()
+
+    if key <> KEY_NONE and key <> lastKey then
+        lastKey = key
+        print_at codeRow, 0; clearLine$;
+        print_at codeRow, 0; "KEY_CODE="; key;
+        print_at matchRow, 0; clearLine$;
+
+        if key = KEY_UP then
+            print_at matchRow, 0; "MATCH: KEY_UP";
+        end if
+        if key = KEY_DOWN then
+            print_at matchRow, 0; "MATCH: KEY_DOWN";
+        end if
+        if key = KEY_LEFT then
+            print_at matchRow, 0; "MATCH: KEY_LEFT";
+        end if
+        if key = KEY_RIGHT then
+            print_at matchRow, 0; "MATCH: KEY_RIGHT";
+        end if
+        if key = KEY_Q then
+            print_at matchRow, 0; "MATCH: KEY_Q";
+        end if
+        if key = KEY_A then
+            print_at matchRow, 0; "MATCH: KEY_A";
+        end if
+        if key = KEY_O then
+            print_at matchRow, 0; "MATCH: KEY_O";
+        end if
+        if key = KEY_P then
+            print_at matchRow, 0; "MATCH: KEY_P";
+        end if
+        if key = KEY_SPACE then
+            print_at matchRow, 0; "MATCH: KEY_SPACE";
+        end if
+        if key = KEY_ENTER then
+            print_at matchRow, 0; "MATCH: KEY_ENTER";
+        end if
+        if key = GAME_UP then
+            print_at matchRow, 0; "MATCH: GAME_UP";
+        end if
+        if key = GAME_DOWN then
+            print_at matchRow, 0; "MATCH: GAME_DOWN";
+        end if
+        if key = GAME_LEFT then
+            print_at matchRow, 0; "MATCH: GAME_LEFT";
+        end if
+        if key = GAME_RIGHT then
+            print_at matchRow, 0; "MATCH: GAME_RIGHT";
+        end if
+        if key = GAME_FIRE then
+            print_at matchRow, 0; "MATCH: GAME_FIRE";
+        end if
+    end if
+
+    goto loop
