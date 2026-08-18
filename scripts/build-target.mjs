@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -154,8 +154,27 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
     };
     const args = (tool.args ?? ["{input}", "{output}"]).map((arg) => replacePlaceholders(arg, replacements));
     await run(toolPath, args, { cwd });
+    artifacts[tool.name] = outputPath;
+
+    if (tool.copyToArtifact) {
+      await copyToolOutputToArtifact({ cwd, tool, sourcePath, outputPath, artifacts });
+    }
+
     console.log(`created ${relativeToCwd(cwd, outputPath)}`);
   }
+}
+
+async function copyToolOutputToArtifact({ cwd, tool, sourcePath, outputPath, artifacts }) {
+  const destinationDirectory = artifacts[tool.copyToArtifact];
+  if (!destinationDirectory) {
+    throw new Error(`Unknown tool copy destination artifact "${tool.copyToArtifact}".`);
+  }
+
+  const extension = tool.copyExtension ?? tool.outputExtension ?? "OUT";
+  const destinationName = toAtariDosFileName(basename(sourcePath, extname(sourcePath)), extension);
+  const destinationPath = resolve(destinationDirectory, destinationName);
+  await copyFile(outputPath, destinationPath);
+  console.log(`created ${relativeToCwd(cwd, destinationPath)}`);
 }
 
 function selectToolInput({ tool, artifacts }) {

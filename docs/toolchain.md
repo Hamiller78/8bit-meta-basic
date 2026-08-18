@@ -30,6 +30,15 @@ build/<profile>/atari800xl/<source-name>.atr-files/PROGRAM.LST
 
 The Atari `.lst` contains the ASCII listing with Atari `0x9B` line endings. Full ATASCII character conversion is not implemented yet.
 
+When `basicParser` is configured, Atari builds also produce:
+
+```text
+build/<profile>/atari800xl/<source-name>.tokenized.bas
+build/<profile>/atari800xl/<source-name>.atr-files/PROGRAM.BAS
+```
+
+The tokenized `.BAS` is copied into the ATR staging directory before `dir2atr` runs, so the generated ATR can contain both the importable `.LST` and direct-load `.BAS` forms.
+
 ## Local tool configuration
 
 Copy:
@@ -72,7 +81,7 @@ The integration applies a lowercase input transformation because `petcat` interp
 
 Status: packaging hook implemented; exact emulator and Mini procedures need to be kept in the running guide.
 
-## Atari 800XL: current listing/ATR path
+## Atari 800XL: listing/ATR path
 
 The implemented path is:
 
@@ -83,23 +92,23 @@ Meta-BASIC .mbas -> Atari .bas text -> .lst with 0x9B endings
 
 The `.lst` file is imported by Atari BASIC with `ENTER`; `SAVE` then creates tokenized `.BAS` data.
 
-## Atari 800XL: direct tokenization candidate
+## Atari 800XL: direct tokenization
 
-[`tbxl-parser`](https://github.com/dmsc/tbxl-parser) can parse and tokenize both Turbo-BASIC XL and original Atari BASIC. For Atari BASIC, its documentation specifies `-A`; `-f` preserves full variable names.
+The [`tbxl-parser`](https://github.com/dmsc/tbxl-parser) project provides an executable named `basicParser`. It can parse and tokenize both Turbo-BASIC XL and original Atari BASIC. For Atari BASIC, its documentation specifies `-A`; binary tokenized output is the default and can also be forced with `-b`; `-f` preserves full variable names in binary output.
 
-Proposed command for testing:
-
-```text
-basicParser -A -f input.lst -o output.bas
-```
-
-Proposed pipeline:
+The configured command shape is:
 
 ```text
-Meta-BASIC .mbas -> Atari listing -> basicParser -A -f -> tokenized .BAS
+basicParser -A -b -f -o output.bas input.bas
 ```
 
-Status: **documented by the external project, not yet verified in our Windows pipeline**. Verify the executable name, argument ordering, output overwrite behaviour, handling of `0x9B` versus host line endings, and compatibility with Altirra before adding it to `tools.example.json`.
+Configured pipeline:
+
+```text
+Meta-BASIC .mbas -> Atari .bas text -> basicParser -A -b -f -> tokenized .BAS
+```
+
+Status: **integrated into the optional Windows tool pipeline**. Emulator/device loading of the tokenized output should still be recorded when repeated.
 
 Potential validation tools:
 

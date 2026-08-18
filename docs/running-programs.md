@@ -71,10 +71,10 @@ If the rightmost column or bottom row is cropped, increase the emulator/device d
 
 ## Atari 800XL with direct tokenized BASIC
 
-Status: **planned evening experiment**.
+Status: **artifact generation available; emulator/device loading still needs a clean repeat test**.
 
-1. Convert the generated Atari listing with `tbxl-parser` in Atari BASIC mode.
-2. Mount or expose the tokenized `.BAS` file to Altirra.
+1. Build the Atari target with `basicParser` configured in `scripts/tools.local.json`.
+2. Mount the generated ATR or expose the staged tokenized `.BAS` file to Altirra.
 3. In Atari BASIC, run:
 
    ```basic
@@ -87,9 +87,8 @@ Status: **planned evening experiment**.
 
 Record during the test:
 
-- `tbxl-parser` version and download/build source
-- Exact successful command line
-- Accepted input line endings
+- `tbxl-parser` version, `basicParser` executable path/name, and download/build source
+- Exact generated artifact used: `.tokenized.bas`, staged `.BAS`, or generated `.atr`
 - Whether `-f` preserves Meta-BASIC's readable Atari variable names
 - Altirra version and host-directory/disk setup
 - A400 Mini file/container requirements

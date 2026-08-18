@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -47,6 +47,24 @@ describe("build scripts", () => {
 
     expect(toAtariDosFileName("warning", "lst")).toBe("WARNING.LST");
     expect(toAtariDosFileName("long-example_name", "basic")).toBe("LONGEXAM.BAS");
+    expect(toAtariDosFileName("narf", ".bas")).toBe("NARF.BAS");
+  });
+
+  it("configures Atari tokenization before ATR packaging", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+    const tools = config.atari800xl.tools;
+
+    expect(tools.map((tool: { name: string }) => tool.name)).toEqual(["basicParser", "dir2atr"]);
+    expect(tools[0]).toMatchObject({
+      inputArtifact: "basic",
+      outputExtension: ".tokenized.bas",
+      copyToArtifact: "atariDiskDirectory",
+      copyExtension: "BAS"
+    });
+    expect(tools[1]).toMatchObject({
+      inputArtifact: "atariDiskDirectory",
+      outputExtension: ".atr"
+    });
   });
 
   it("finds all Meta-BASIC sources in one directory", async () => {

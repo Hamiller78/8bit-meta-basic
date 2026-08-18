@@ -12,7 +12,7 @@ This page records external material used to understand target dialects, file for
 
 ### Conversion and inspection tools
 
-- dmsc, [`tbxl-parser`](https://github.com/dmsc/tbxl-parser), GPL-2.0. Parses and tokenizes Turbo-BASIC XL or original Atari BASIC; Atari mode is selected with `-A`.
+- dmsc, [`tbxl-parser`](https://github.com/dmsc/tbxl-parser), GPL-2.0. Provides the `basicParser` executable, which parses and tokenizes Turbo-BASIC XL or original Atari BASIC. Atari mode is selected with `-A`; binary output can be selected with `-b`; full variable names in binary output are preserved with `-f`.
 - mistalro, [`atariconv`](https://github.com/mistalro/atariconv). Converts tokenized Atari BASIC programs to text and can inspect/reconstruct variable-name information.
 - Urchlay, [`bw-atari8-tools`](https://slackware.uk/~urchlay/repos/bw-atari8-tools/tree/README.txt?id=ea8a90992582971100d5d73ab18f0944059587fa). Includes `listbas`, `dumpbas`, `diffbas`, `renumbas`, cross-reference tools, ATR utilities, and ATASCII conversion tools.
 - [AtariAge discussion: Tools to convert text Atari BASIC to a runnable format](https://forums.atariage.com/topic/296123-tools-to-convert-text-atari-basic-to-a-runnable-format/). Contains a practical text-to-BAS-to-ATR workflow from the `tbxl-parser` author.

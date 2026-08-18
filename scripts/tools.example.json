@@ -12,6 +12,15 @@
   "atari800xl": {
     "tools": [
       {
+        "name": "basicParser",
+        "path": "",
+        "inputArtifact": "basic",
+        "args": ["-A", "-b", "-f", "-o", "{output}", "{input}"],
+        "outputExtension": ".tokenized.bas",
+        "copyToArtifact": "atariDiskDirectory",
+        "copyExtension": "BAS"
+      },
+      {
         "name": "dir2atr",
         "path": "",
         "inputArtifact": "atariDiskDirectory",

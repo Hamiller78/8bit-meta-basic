@@ -4,8 +4,7 @@ This roadmap records attractive directions rather than promises. New work should
 
 ## Near-term toolchain work
 
-- Test `tbxl-parser -A -f` as a direct Atari text-to-tokenized-BAS step.
-- Add the Atari tokenizer to the optional local-tool pipeline if the experiment is reliable.
+- Verify `basicParser -A -b -f` tokenized Atari output in Altirra and on the A400 Mini.
 - Add a tokenizer/detokenizer round-trip test outside the compiler core.
 - Record reproducible emulator and Mini loading procedures.
 - Complete direct source links and tested versions in `sources.md`.
