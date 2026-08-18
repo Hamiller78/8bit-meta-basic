@@ -249,6 +249,32 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.chr) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "CHR$ expects exactly one argument.");
+    }
+    const code = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+
+    if (isStringExpression(code) || code.kind === "color") {
+      throw new DiagnosticError(expression.args[0].location, "CHR$ argument must be numeric.");
+    }
+
+    return { ...expression, name, args: [code] };
+  }
+
+  if (name === builtinFunctions.code) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "CODE expects exactly one argument.");
+    }
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+
+    if (!isStringExpression(source)) {
+      throw new DiagnosticError(expression.args[0].location, "CODE argument must be a string expression.");
+    }
+
+    return { ...expression, name, args: [source] };
+  }
+
   if (name === builtinFunctions.space) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 1) {

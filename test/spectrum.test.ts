@@ -308,6 +308,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders CHR$ and CODE as Spectrum character conversion functions", () => {
+    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', { filename: "chars.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$=CHR$ (48 + VALUE)', '20 PRINT A$;CODE "A"', ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
       ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
@@ -356,6 +362,14 @@ describe("Spectrum compiler", () => {
   it("reports invalid LEN calls", () => {
     expect(() => compileSource("print len()\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN expects exactly one argument");
     expect(() => compileSource("print len(123)\n", { filename: "len.mbas", target: "spectrum" })).toThrow("LEN argument must be a string expression");
+  });
+
+  it("reports invalid CHR$ and CODE calls", () => {
+    expect(() => compileSource("print chr$()\n", { filename: "chars.mbas", target: "spectrum" })).toThrow("CHR$ expects exactly one argument");
+    expect(() => compileSource('print chr$("A")\n', { filename: "chars.mbas", target: "spectrum" })).toThrow("CHR$ argument must be numeric");
+    expect(() => compileSource("print code(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
+      "CODE argument must be a string expression"
+    );
   });
 
   it("reports invalid JIFFIES calls", () => {

@@ -11,6 +11,8 @@ npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:directory -- --source-dir examples --profile debug
+npm run launch:c64 -- --source examples/narf.mbas
+npm run launch:c64 -- --source examples/input-demo.mbas --restart
 ```
 
 The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, or `--target c64` to restrict it.
@@ -57,6 +59,10 @@ and configure local executable paths. Keep `tools.local.json` out of version con
 
 The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
 
+The C64 launch script also understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured `petcat` conversion, then starts the emulator with the generated `.prg` and exits without waiting for the emulator window.
+
+Use `--restart` when switching examples to close an existing emulator process before launching the new one.
+
 ## Spectrum: bas2tap
 
 `bas2tap` converts a Spectrum BASIC text listing to a tape image:
@@ -80,6 +86,32 @@ Meta-BASIC .mbas -> C64 .bas text -> petcat -w2 -> .prg
 The integration applies a lowercase input transformation because `petcat` interprets lowercase host ASCII as ordinary uppercase C64 text in its listing format.
 
 Status: packaging hook implemented; exact emulator and Mini procedures need to be kept in the running guide.
+
+## Commodore 64: emulator launch
+
+Configure VICE in `scripts/tools.local.json`:
+
+```json
+"emulator": {
+  "name": "x64sc",
+  "path": "C:\\Emulator\\C64\\GTK3VICE-3.5-win64\\bin\\x64sc.exe",
+  "args": ["-autostart", "{artifact}", "-autostart-warp"]
+}
+```
+
+Then run:
+
+```text
+npm run launch:c64 -- --source examples/narf.mbas
+```
+
+The launch script defaults to the `release` profile because it is intended for emulator/device runs rather than inspecting generated BASIC.
+
+When another VICE instance is already running:
+
+```text
+npm run launch:c64 -- --source examples/input-demo.mbas --restart
+```
 
 ## Atari 800XL: listing/ATR path
 

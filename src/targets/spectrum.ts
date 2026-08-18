@@ -88,6 +88,8 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 
 const renderKnownSpectrumFunction = createFunctionRenderer(
   new Map([
+    [builtinFunctions.chr, renderSpectrumChr],
+    [builtinFunctions.code, renderSpectrumCode],
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid]
@@ -104,6 +106,14 @@ function renderSpectrumFunction(expression: FunctionCallExpression, options: { r
   }
 
   return renderKnownSpectrumFunction(expression, options);
+}
+
+function renderSpectrumChr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `CHR$ ${renderSpectrumLenArgument(expression.args[0], options)}`;
+}
+
+function renderSpectrumCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `CODE ${renderSpectrumLenArgument(expression.args[0], options)}`;
 }
 
 function renderSpectrumLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

@@ -67,6 +67,15 @@ describe("build scripts", () => {
     });
   });
 
+  it("configures the C64 emulator launch command", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+
+    expect(config.c64.emulator).toMatchObject({
+      name: "x64sc",
+      args: ["-autostart", "{artifact}", "-autostart-warp"]
+    });
+  });
+
   it("finds all Meta-BASIC sources in one directory", async () => {
     const { findMbasSources } = await import("../scripts/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));

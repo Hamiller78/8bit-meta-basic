@@ -5,7 +5,6 @@ const scrollDelay = JIFFIES_PER_SECOND / 5
 const ruleLine$ = string$("-", tickerColumns)
 const clearLine$ = space$(tickerColumns)
 
-digits$ = "0123456789"
 tickerText$ = "BEIRUT ROCKET BATTERY WORRIES U.S. * "
 tickerText$ = tickerText$ + "REAGAN MOURNS MARINES LOST IN LEBANON AND GRENADA * "
 tickerText$ = tickerText$ + "NBC REPORTS K.I.T.T. THE CAT ON KNIGHT RIDER TONIGHT * "
@@ -62,11 +61,11 @@ scroll:
         end if
         cell_text_color WHITE
         print_at 1, 19; "23:";
-        print_at 1, 22; mid$(digits$, clockMinuteTens + 1, 1);
-        print_at 1, 23; mid$(digits$, clockMinuteOnes + 1, 1);
+        print_at 1, 22; chr$(48 + clockMinuteTens);
+        print_at 1, 23; chr$(48 + clockMinuteOnes);
         print_at 1, 24; ":";
-        print_at 1, 25; mid$(digits$, clockSecondTens + 1, 1);
-        print_at 1, 26; mid$(digits$, clockSecondOnes + 1, 1);
+        print_at 1, 25; chr$(48 + clockSecondTens);
+        print_at 1, 26; chr$(48 + clockSecondOnes);
         cell_text_color YELLOW
     end if
     if jiffies() - lastTick >= scrollDelay then

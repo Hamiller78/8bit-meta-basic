@@ -81,6 +81,8 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
 
 const renderKnownC64Function = createFunctionRenderer(
   new Map([
+    [builtinFunctions.chr, renderC64Chr],
+    [builtinFunctions.code, renderC64Code],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid]
@@ -93,6 +95,14 @@ function renderC64Function(expression: FunctionCallExpression, options: { readon
   }
 
   return renderKnownC64Function(expression, options);
+}
+
+function renderC64Chr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `CHR$(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderC64Code(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `ASC(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderC64Len(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

@@ -1,4 +1,6 @@
 export const builtinFunctions = {
+  chr: "CHR$",
+  code: "CODE",
   jiffies: "JIFFIES",
   keyCode: "KEY_CODE",
   len: "LEN",
@@ -22,5 +24,10 @@ export function canonicalFunctionName(name: string): BuiltinFunctionName | undef
 
 export function isStringFunctionName(name: string): boolean {
   const canonical = canonicalFunctionName(name);
-  return canonical === builtinFunctions.mid || canonical === builtinFunctions.space || canonical === builtinFunctions.string;
+  return (
+    canonical === builtinFunctions.chr ||
+    canonical === builtinFunctions.mid ||
+    canonical === builtinFunctions.space ||
+    canonical === builtinFunctions.string
+  );
 }

@@ -189,6 +189,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders CHR$ and CODE as Atari character conversion functions", () => {
+    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', { filename: "chars.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM DIGIT$(255)', "20 DIGIT$=CHR$(48 + VALUE)", '30 PRINT DIGIT$;ASC("A")', ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
       ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")

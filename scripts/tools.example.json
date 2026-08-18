@@ -38,6 +38,11 @@
         "args": ["-w2", "-o", "{output}", "--", "{input}"],
         "outputExtension": ".prg"
       }
-    ]
+    ],
+    "emulator": {
+      "name": "x64sc",
+      "path": "",
+      "args": ["-autostart", "{artifact}", "-autostart-warp"]
+    }
   }
 }

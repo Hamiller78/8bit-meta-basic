@@ -362,6 +362,8 @@ function collectExpressionNames(expression: Expression, used: Set<string>): void
 
 const renderKnownAtariFunction = createFunctionRenderer(
   new Map([
+    [builtinFunctions.chr, renderAtariChr],
+    [builtinFunctions.code, renderAtariCode],
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid]
@@ -374,6 +376,14 @@ function renderAtariFunction(expression: FunctionCallExpression, options: { read
   }
 
   return renderKnownAtariFunction(expression, options);
+}
+
+function renderAtariChr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `CHR$(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAtariCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `ASC(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderAtariLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

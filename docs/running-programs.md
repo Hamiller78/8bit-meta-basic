@@ -97,9 +97,15 @@ Record during the test:
 
 Status: **artifact generation available; exact repeatable procedure still to document**.
 
-1. Build a `.prg` with the configured `petcat -w2` integration.
-2. Attach or autostart the `.prg` in VICE.
-3. If the emulator loads without running it, enter:
+1. Build and launch with:
+
+   ```text
+   npm run launch:c64 -- --source examples/narf.mbas
+   ```
+
+2. When switching to another example, close VICE yourself or launch with `--restart`.
+3. Or build a `.prg` with the configured `petcat -w2` integration and attach or autostart it in VICE manually.
+4. If the emulator loads without running it, enter:
 
    ```basic
    RUN
@@ -136,7 +142,7 @@ Record:
 
 Status: **physical device available; needs direct tokenized-BASIC and listing-import experiments**.
 
-Potential inputs include a device-managed ATR image, a generated ATR, a staged `.LST`, or a tokenized `.BAS`. Do not describe any one of these as supported until it has been verified on the installed firmware.
+Potential inputs include a device-managed ATR image, a generated ATR, a staged `.LST`, or a tokenized `.BAS`. Early testing suggests the carousel may start BASIC programs from `.BAS` files but not `.LST` listings, making the `basicParser` tokenized output especially useful. Treat this as a working observation until the exact firmware flow has been repeated and recorded.
 
 Record:
 

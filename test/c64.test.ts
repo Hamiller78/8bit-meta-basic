@@ -190,6 +190,16 @@ describe("C64 compiler", () => {
     ).toBe(['10 V0$="HELLO WORLD"', "20 TE=LEN(V0$)", "30 PRINT TE", ""].join("\n"));
   });
 
+  it("renders CHR$ and CODE as C64 character conversion functions", () => {
+    expect(
+      compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', {
+        filename: "chars.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A")', ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {
