@@ -65,6 +65,14 @@ describe("build scripts", () => {
       inputArtifact: "atariDiskDirectory",
       outputExtension: ".atr"
     });
+    expect(config.atari800xl.emulator).toMatchObject({
+      name: "Altirra",
+      args: ["{artifact}"],
+      artifactArgs: {
+        atr: ["/disk", "{artifact}"],
+        "tokenized-bas": ["/runbas", "{artifact}"]
+      }
+    });
   });
 
   it("configures the C64 emulator launch command", async () => {

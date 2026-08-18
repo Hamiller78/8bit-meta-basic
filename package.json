@@ -16,6 +16,7 @@
     "build:atari:all-profiles": "node scripts/build-target.mjs atari800xl --all-profiles",
     "build:c64": "node scripts/build-target.mjs c64",
     "build:c64:all-profiles": "node scripts/build-target.mjs c64 --all-profiles",
+    "launch:atari": "node scripts/launch-atari.mjs",
     "launch:c64": "node scripts/launch-c64.mjs",
     "test": "vitest run test",
     "test:watch": "vitest test",

@@ -42,6 +42,20 @@ Still to verify:
 
 Status: **current documented project workflow; emulator details need a clean repeat test**.
 
+The launch helper can build the selected program and run the tokenized `.BAS` in Altirra:
+
+```text
+npm run launch:atari -- --source examples/narf.mbas
+```
+
+Use `--restart` when switching examples. To open the generated data ATR instead:
+
+```text
+npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
+```
+
+The generated ATR is not bootable; booting from it directly causes a boot error.
+
 Mount:
 
 ```text
@@ -92,6 +106,12 @@ Record during the test:
 - Whether `-f` preserves Meta-BASIC's readable Atari variable names
 - Altirra version and host-directory/disk setup
 - A400 Mini file/container requirements
+
+For an explicit raw tokenized-file launch in Altirra:
+
+```text
+npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --restart
+```
 
 ## Commodore 64 emulator
 

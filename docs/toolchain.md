@@ -11,6 +11,8 @@ npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:directory -- --source-dir examples --profile debug
+npm run launch:atari -- --source examples/narf.mbas
+npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
 ```
@@ -60,6 +62,8 @@ and configure local executable paths. Keep `tools.local.json` out of version con
 The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
 
 The C64 launch script also understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured `petcat` conversion, then starts the emulator with the generated `.prg` and exits without waiting for the emulator window.
+
+Atari and C64 launch scripts also understand an `emulator` block with an `{artifact}` placeholder. They build the selected source, run the configured conversion tools, then start the emulator and exit without waiting for the emulator window.
 
 Use `--restart` when switching examples to close an existing emulator process before launching the new one.
 
@@ -148,6 +152,34 @@ Potential validation tools:
 - [`bw-atari8-tools`](https://slackware.uk/~urchlay/repos/bw-atari8-tools/tree/README.txt?id=ea8a90992582971100d5d73ab18f0944059587fa): `listbas`, `dumpbas`, `diffbas`, `renumbas`, and other Atari BASIC utilities
 
 A useful automated check would tokenize a generated listing and detokenize it again, then compare the normalized listing rather than the binary representation.
+
+## Atari 800XL: emulator launch
+
+Configure Altirra in `scripts/tools.local.json`:
+
+```json
+"emulator": {
+  "name": "Altirra",
+  "path": "C:\\Emulator\\Altirra-4.40\\Altirra64.exe",
+  "args": ["{artifact}"]
+}
+```
+
+Then run:
+
+```text
+npm run launch:atari -- --source examples/narf.mbas
+```
+
+The Atari launcher defaults to the tokenized `.BAS` and uses Altirra's `/runbas` mode. Other artifact choices are available for experiments:
+
+```text
+npm run launch:atari -- --source examples/narf.mbas --artifact atr
+npm run launch:atari -- --source examples/narf.mbas --artifact lst
+npm run launch:atari -- --source examples/narf.mbas --artifact disk-directory
+```
+
+Use `--restart` to close an existing Altirra process before launching the new one. The generated ATR is a data disk, not a bootable DOS disk; launching it with `/disk` is useful for inspection or manual loading, but it should not be treated as an autorun disk.
 
 ## ATR creation
 

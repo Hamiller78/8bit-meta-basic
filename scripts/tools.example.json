@@ -27,7 +27,18 @@
         "args": ["-S", "{output}", "{input}"],
         "outputExtension": ".atr"
       }
-    ]
+    ],
+    "emulator": {
+      "name": "Altirra",
+      "path": "",
+      "args": ["{artifact}"],
+      "artifactArgs": {
+        "atr": ["/disk", "{artifact}"],
+        "tokenized-bas": ["/runbas", "{artifact}"],
+        "lst": ["/runbas", "{artifact}"],
+        "disk-directory": ["{artifact}"]
+      }
+    }
   },
   "c64": {
     "tools": [
