@@ -7,7 +7,12 @@
         "args": ["-a", "{input}", "{output}"],
         "outputExtension": ".tap"
       }
-    ]
+    ],
+    "emulator": {
+      "name": "Fuse",
+      "path": "",
+      "args": ["-tape", "{artifact}"]
+    }
   },
   "atari800xl": {
     "tools": [

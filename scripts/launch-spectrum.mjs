@@ -1,0 +1,177 @@
+#!/usr/bin/env node
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { basename, extname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { spawn } from "node:child_process";
+import { buildTarget } from "./build-target.mjs";
+
+const defaultSource = "examples/warning.mbas";
+const defaultOutDir = "build";
+const defaultProfile = "release";
+const defaultToolConfig = "scripts/tools.local.json";
+
+async function launchSpectrum(options) {
+  const cwd = options.cwd ?? process.cwd();
+
+  await buildTarget({
+    target: "spectrum",
+    profile: options.profile,
+    source: options.source,
+    outDir: options.outDir,
+    configPath: options.configPath,
+    runBuild: true,
+    runTools: true
+  });
+
+  const artifact = outputPathFor(cwd, options.outDir, options.profile, options.source, ".tap");
+  if (!(await exists(artifact))) {
+    throw new Error(`Spectrum launch artifact not found: ${artifact}. Check that bas2tap is configured and produced a .tap file.`);
+  }
+
+  const config = await loadConfig(resolve(cwd, options.configPath));
+  const emulator = config?.spectrum?.emulator;
+  if (!emulator?.path) {
+    throw new Error(`No Spectrum emulator path configured. Add spectrum.emulator.path to ${options.configPath}.`);
+  }
+
+  const emulatorPath = resolve(cwd, emulator.path);
+  if (!(await exists(emulatorPath))) {
+    throw new Error(`Spectrum emulator not found at ${emulator.path}.`);
+  }
+
+  if (options.restart) {
+    await terminateExistingEmulator(emulatorPath);
+  }
+
+  const replacements = {
+    artifact,
+    source: resolve(cwd, options.source),
+    sourceName: basename(options.source, extname(options.source)),
+    profile: options.profile,
+    target: "spectrum"
+  };
+  const args = (emulator.args ?? ["-autostart", "{artifact}"]).map((arg) => replacePlaceholders(arg, replacements));
+
+  const child = spawn(emulatorPath, args, {
+    cwd,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false
+  });
+  child.unref();
+
+  console.log(`launched ${emulator.name ?? "Spectrum emulator"} with ${relativeToCwd(cwd, artifact)}`);
+}
+
+function parseArgs(argv) {
+  const options = {
+    source: defaultSource,
+    profile: defaultProfile,
+    outDir: defaultOutDir,
+    configPath: defaultToolConfig,
+    restart: false
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === "--source") {
+      options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--profile") {
+      options.profile = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--out-dir") {
+      options.outDir = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--config") {
+      options.configPath = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--restart" || arg === "--kill-existing") {
+      options.restart = true;
+      continue;
+    }
+
+    throw new Error(`Unknown option "${arg}".`);
+  }
+
+  return options;
+}
+
+function readValue(argv, index, option) {
+  const value = argv[index + 1];
+  if (!value) {
+    throw new Error(`Missing value for ${option}.`);
+  }
+  return value;
+}
+
+async function loadConfig(configPath) {
+  if (!(await exists(configPath))) {
+    return undefined;
+  }
+
+  return JSON.parse(await readFile(configPath, "utf8"));
+}
+
+function outputPathFor(cwd, outDir, profile, source, extension) {
+  const name = basename(source, extname(source));
+  return resolve(cwd, outDir, profile, "Spectrum", `${name}${extension}`);
+}
+
+function replacePlaceholders(value, replacements) {
+  return value.replaceAll(/\{([A-Za-z]+)\}/g, (match, key) => replacements[key] ?? match);
+}
+
+async function terminateExistingEmulator(emulatorPath) {
+  const executableName = basename(emulatorPath);
+  if (process.platform === "win32") {
+    await runBestEffort("taskkill", ["/F", "/IM", executableName]);
+    return;
+  }
+
+  await runBestEffort("pkill", ["-x", executableName]);
+}
+
+function runBestEffort(command, args) {
+  return new Promise((resolveRun) => {
+    const child = spawn(command, args, { stdio: "ignore" });
+    child.on("error", () => resolveRun());
+    child.on("exit", () => resolveRun());
+  });
+}
+
+async function exists(path) {
+  try {
+    await access(path, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function relativeToCwd(cwd, path) {
+  return path.startsWith(cwd) ? path.slice(cwd.length + 1) : path;
+}
+
+async function main() {
+  try {
+    await launchSpectrum(parseArgs(process.argv.slice(2)));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  await main();
+}

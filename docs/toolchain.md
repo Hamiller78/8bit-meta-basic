@@ -15,6 +15,8 @@ npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
+npm run launch:spectrum -- --source examples/narf.mbas
+npm run launch:c64 -- --source examples/input-demo.mbas --restart
 ```
 
 The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, or `--target c64` to restrict it.
@@ -78,6 +80,32 @@ Meta-BASIC .mbas -> Spectrum .bas text -> bas2tap -> .tap
 The existing example configuration contains the integration. Exact command-line details depend on the installed `bas2tap` build.
 
 Status: **tested manually in Fuse**, but the precise emulator procedure should be recorded in [running-programs.md](running-programs.md) when repeated.
+
+## Spectrum: emulator launch
+
+Configure Fuse in `scripts/tools.local.json`:
+
+```json
+"emulator": {
+  "name": "Fuse",
+  "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
+  "args": ["-tape", "{artifact}"]
+}
+```
+
+Then run:
+
+```text
+npm run launch:spectrum -- --source examples/narf.mbas
+```
+
+The launch script defaults to the `release` profile because it is intended for emulator/device runs rather than inspecting generated BASIC.
+
+When another Fuse instance is already running:
+
+```text
+npm run launch:spectrum -- --source examples/input-demo.mbas --restart
+```
 
 ## Commodore 64: petcat
 

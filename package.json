@@ -18,6 +18,7 @@
     "build:c64:all-profiles": "node scripts/build-target.mjs c64 --all-profiles",
     "launch:atari": "node scripts/launch-atari.mjs",
     "launch:c64": "node scripts/launch-c64.mjs",
+    "launch:spectrum": "node scripts/launch-spectrum.mjs",
     "test": "vitest run test",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"
