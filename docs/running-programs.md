@@ -67,16 +67,16 @@ After a cold boot, return from DOS to BASIC with `B. RUN CARTRIDGE` if necessary
 
 ```basic
 NEW
-ENTER "D2:WARNING.LST"
+ENTER "D2:COLORS.LST"
 LIST
-SAVE "D2:WARNING.BAS"
+SAVE "D2:COLORS.BAS"
 RUN
 ```
 
 On later boots, the tokenized version can be started directly:
 
 ```basic
-RUN "D2:WARNING.BAS"
+RUN "D2:COLORS.BAS"
 ```
 
 `ENTER` parses the text listing; `SAVE` writes Atari BASIC's tokenized format.

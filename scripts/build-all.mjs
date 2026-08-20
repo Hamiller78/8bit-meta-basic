@@ -7,7 +7,7 @@ function parseArgs(argv) {
   const options = {
     profile: "debug",
     allProfiles: false,
-    source: "examples/warning.mbas",
+    source: "examples/colors.mbas",
     outDir: "build",
     configPath: "scripts/tools.local.json",
     runTools: true

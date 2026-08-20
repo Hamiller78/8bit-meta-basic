@@ -45,7 +45,7 @@ describe("build scripts", () => {
   it("creates Atari DOS-compatible filenames for disk directories", async () => {
     const { toAtariDosFileName } = await import("../scripts/build-target.mjs");
 
-    expect(toAtariDosFileName("warning", "lst")).toBe("WARNING.LST");
+    expect(toAtariDosFileName("colors", "lst")).toBe("COLORS.LST");
     expect(toAtariDosFileName("long-example_name", "basic")).toBe("LONGEXAM.BAS");
     expect(toAtariDosFileName("narf", ".bas")).toBe("NARF.BAS");
   });

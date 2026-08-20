@@ -12,7 +12,7 @@ export const profiles = {
   release: 0
 };
 
-const defaultSource = "examples/warning.mbas";
+const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultToolConfig = "scripts/tools.local.json";
 

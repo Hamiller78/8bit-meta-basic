@@ -34,8 +34,8 @@ describe("Spectrum compiler", () => {
       ""
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum" })).toBe(expected);
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum" })).toBe(expected);
+    expect(compileSource(source, { filename: "flow.mbas", target: "spectrum" })).toBe(expected);
+    expect(compileSource(source, { filename: "flow.mbas", target: "spectrum" })).toBe(expected);
   });
 
   it("resolves forward labels", () => {
@@ -62,7 +62,7 @@ describe("Spectrum compiler", () => {
       "goto start"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", readability: 1 })).toBe(
+    expect(compileSource(source, { filename: "flow.mbas", target: "spectrum", readability: 1 })).toBe(
       [
         "10 REM START:",
         '20 PRINT "WARNING"',
@@ -88,7 +88,7 @@ describe("Spectrum compiler", () => {
       "goto start"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum", readability: 0 })).toBe(
+    expect(compileSource(source, { filename: "flow.mbas", target: "spectrum", readability: 0 })).toBe(
       [
         '10 PRINT "WARNING"',
         "20 IF CONFIRMED THEN GO TO 50",
@@ -459,59 +459,43 @@ describe("Spectrum compiler", () => {
     );
   });
 
-  it("renders exact output for the updated warning example", () => {
+  it("renders exact output for the colors example", () => {
     const source = [
-      "const warningRow = TEXT_ROWS - 2",
-      "const initialCountdown = 5 * 12",
-      'const borderLine$ = string$("*", TEXT_COLUMNS)',
+      "const titleColumn = 4",
+      "const messageRow = 4",
+      'const ruleLine$ = string$("-", TEXT_COLUMNS)',
       "",
-      "sensorCount = 1",
-      "alertLevel = 2",
-      "confirmed = 1",
-      'tickerText$ = "DEFENCE NETWORK ONLINE"',
+      "screen_border_color BLUE",
+      "screen_background_color BLACK",
+      "screen_text_color WHITE",
+      "cls",
       "",
-      "    border_color BLUE",
-      "    cls BLUE",
+      "cell_text_color YELLOW",
+      "cell_background_color BLUE",
+      "print ruleLine$",
+      'print_at 2, titleColumn; "META-BASIC COLOURS"',
       "",
-      "start:",
-      "    print borderLine$",
-      '    print "WARNING"',
-      "    print tickerText$",
-      '    print "SECONDS: "; initialCountdown',
+      "screen_text_color CYAN",
+      'print_at messageRow, 0; "PRINT AND PRINT_AT"',
       "",
-      "    urgency = sensorCount * 2 + alertLevel",
-      "",
-      "    if confirmed and urgency >= 4 then",
-      '        print_at warningRow, 5; "ATTACK CONFIRMED"',
-      "    else",
-      '        print "AWAITING SECOND SOURCE AT ROW "; warningRow',
-      "    end if",
-      "",
-      "    goto start"
+      "screen_text_color WHITE",
+      "print ruleLine$"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "spectrum" })).toBe(
+    expect(compileSource(source, { filename: "colors.mbas", target: "spectrum" })).toBe(
       [
-        "10 LET SENSORCOUNT=1",
-        "20 LET ALERTLEVEL=2",
-        "30 LET CONFIRMED=1",
-        '40 LET A$="DEFENCE NETWORK ONLINE"',
-        "50 BORDER 1",
+        "10 BORDER 1",
+        "20 PAPER 0",
+        "30 INK 7",
+        "40 CLS",
+        "50 INK 6",
         "60 PAPER 1",
-        "70 CLS",
-        "80 REM START:",
-        '90 PRINT "********************************"',
-        '100 PRINT "WARNING"',
-        "110 PRINT A$",
-        '120 PRINT "SECONDS: ";60',
-        "130 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "140 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GO TO 170",
-        '150 PRINT "AWAITING SECOND SOURCE AT ROW ";20',
-        "160 GO TO 190",
-        "170 REM __MB_1:",
-        '180 PRINT AT 20,5;"ATTACK CONFIRMED"',
-        "190 REM __MB_2:",
-        "200 GO TO 80",
+        '70 PRINT "--------------------------------"',
+        '80 PRINT AT 2,4;"META-BASIC COLOURS"',
+        "90 INK 5",
+        '100 PRINT AT 4,0;"PRINT AND PRINT_AT"',
+        "110 INK 7",
+        '120 PRINT "--------------------------------"',
         ""
       ].join("\n")
     );

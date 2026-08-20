@@ -27,9 +27,9 @@ npm run build
 Compile the example directly during development:
 
 ```text
-npm run dev -- examples/warning.mbas --target spectrum
-npm run dev -- examples/warning.mbas --target atari800xl
-npm run dev -- examples/warning.mbas --target c64
+npm run dev -- examples/colors.mbas --target spectrum
+npm run dev -- examples/colors.mbas --target atari800xl
+npm run dev -- examples/colors.mbas --target c64
 ```
 
 Build artifacts for all targets:
@@ -51,23 +51,31 @@ Build profiles select the output readability:
 Meta-BASIC source:
 
 ```basic
-const warningRow = TEXT_ROWS - 2
-countdown = 60
+const titleColumn = 4
+const ruleLine$ = string$("-", TEXT_COLUMNS)
 
-start:
-    print_at warningRow, 5; "SECONDS: "; countdown
-    countdown = countdown - 1
-    goto start
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+cell_text_color YELLOW
+cell_background_color BLUE
+print ruleLine$
+print_at 2, titleColumn; "META-BASIC COLOURS"
 ```
 
 Spectrum output begins like this:
 
 ```basic
-10 LET COUNTDOWN=60
-20 REM START:
-30 PRINT AT 20,5;"SECONDS: ";COUNTDOWN
-40 LET COUNTDOWN=COUNTDOWN - 1
-50 GO TO 20
+10 BORDER 1
+20 PAPER 0
+30 INK 7
+40 CLS
+50 INK 6
+60 PAPER 1
+70 PRINT "--------------------------------"
+80 PRINT AT 2,4;"META-BASIC COLOURS"
 ```
 
 ## Documentation

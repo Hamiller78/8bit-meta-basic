@@ -422,9 +422,9 @@ Meta-BASIC logical operators mean logical truth over numeric values, with zero f
 Supported development commands:
 
 ```text
-npm run dev -- examples/warning.mbas --target spectrum
-npm run dev -- examples/warning.mbas --target atari800xl
-npm run dev -- examples/warning.mbas --target c64
+npm run dev -- examples/colors.mbas --target spectrum
+npm run dev -- examples/colors.mbas --target atari800xl
+npm run dev -- examples/colors.mbas --target c64
 ```
 
 Target build scripts:
@@ -452,7 +452,7 @@ Build profiles map to readability levels:
 - `balanced`: readability `1`
 - `release`: readability `0`
 
-The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `WARNING.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:WARNING.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
+The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `COLORS.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:COLORS.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected source with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
@@ -469,9 +469,9 @@ When passing options through `npm run`, `--` separates npm's own options from sc
 Compiled commands after `npm run build`:
 
 ```text
-npm start -- examples/warning.mbas --target spectrum
-npm start -- examples/warning.mbas --target atari800xl
-npm start -- examples/warning.mbas --target c64
+npm start -- examples/colors.mbas --target spectrum
+npm start -- examples/colors.mbas --target atari800xl
+npm start -- examples/colors.mbas --target c64
 ```
 
 Default output is standard output. Also support:
@@ -517,7 +517,7 @@ test/
   atari800xl.test.ts
   c64.test.ts
 examples/
-  warning.mbas
+  colors.mbas
 ```
 
 Keep target-independent parsing and semantic analysis separate from all target rendering. Shared control-flow lowering may produce a neutral lowered representation, while target-specific lowering may expand operations such as positioned printing and normalize target quirks.
@@ -560,7 +560,7 @@ Coverage currently includes:
 - Uppercase output casing for Spectrum, Atari, and C64
 - Logical truth normalization
 - Target generated-line length diagnostics
-- Exact warning example output for all targets
+- Exact colors example output for all targets
 - CLI target selection, output files, compact readability, and invalid target rejection
 
 ## Documentation expectations

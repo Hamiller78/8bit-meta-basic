@@ -233,68 +233,50 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
-  it("renders exact output for the updated warning example", () => {
-    const source = warningSource();
+  it("renders exact output for the colors example", () => {
+    const source = colorsSource();
 
-    expect(compileSource(source, { filename: "warning.mbas", target: "atari800xl" })).toBe(
+    expect(compileSource(source, { filename: "colors.mbas", target: "atari800xl" })).toBe(
       [
-        "10 SENSORCOUNT=1",
-        "20 ALERTLEVEL=2",
-        "30 CONFIRMED=1",
-        "40 DIM TICKERTEXT$(255)",
-        '50 TICKERTEXT$="DEFENCE NETWORK ONLINE"',
-        "60 SETCOLOR 4,7,8",
-        "70 SETCOLOR 2,7,8",
-        "80 PRINT CHR$(125);",
-        "90 REM START:",
-        '100 PRINT "****************************************"',
-        '110 PRINT "WARNING"',
-        "120 PRINT TICKERTEXT$",
-        '130 PRINT "SECONDS: ";60',
-        "140 URGENCY=SENSORCOUNT * 2 + ALERTLEVEL",
-        "150 IF ((CONFIRMED) <> 0) AND ((URGENCY >= 4) <> 0) THEN GOTO 180",
-        '160 PRINT "AWAITING SECOND SOURCE AT ROW ";22',
-        "170 GOTO 210",
-        "180 REM __MB_1:",
-        "190 POSITION 5,22",
-        '200 PRINT "ATTACK CONFIRMED"',
-        "210 REM __MB_2:",
-        "220 GOTO 90",
+        "10 SETCOLOR 4,7,8",
+        "20 SETCOLOR 2,0,0",
+        "30 SETCOLOR 1,0,14",
+        "40 PRINT CHR$(125);",
+        '50 PRINT "----------------------------------------"',
+        "60 POSITION 4,2",
+        '70 PRINT "META-BASIC COLOURS"',
+        "80 SETCOLOR 1,10,8",
+        "90 POSITION 0,4",
+        '100 PRINT "PRINT AND PRINT_AT"',
+        "110 SETCOLOR 1,0,14",
+        '120 PRINT "----------------------------------------"',
         ""
       ].join("\n")
     );
   });
 });
 
-function warningSource(): string {
+function colorsSource(): string {
   return [
-    "const warningRow = TEXT_ROWS - 2",
-    "const initialCountdown = 5 * 12",
-    'const borderLine$ = string$("*", TEXT_COLUMNS)',
+    "const titleColumn = 4",
+    "const messageRow = 4",
+    'const ruleLine$ = string$("-", TEXT_COLUMNS)',
     "",
-    "sensorCount = 1",
-    "alertLevel = 2",
-    "confirmed = 1",
-    'tickerText$ = "DEFENCE NETWORK ONLINE"',
+    "screen_border_color BLUE",
+    "screen_background_color BLACK",
+    "screen_text_color WHITE",
+    "cls",
     "",
-    "    border_color BLUE",
-    "    cls BLUE",
+    "cell_text_color YELLOW",
+    "cell_background_color BLUE",
+    "print ruleLine$",
+    'print_at 2, titleColumn; "META-BASIC COLOURS"',
     "",
-    "start:",
-    "    print borderLine$",
-    '    print "WARNING"',
-    "    print tickerText$",
-    '    print "SECONDS: "; initialCountdown',
+    "screen_text_color CYAN",
+    'print_at messageRow, 0; "PRINT AND PRINT_AT"',
     "",
-    "    urgency = sensorCount * 2 + alertLevel",
-    "",
-    "    if confirmed and urgency >= 4 then",
-    '        print_at warningRow, 5; "ATTACK CONFIRMED"',
-    "    else",
-    '        print "AWAITING SECOND SOURCE AT ROW "; warningRow',
-    "    end if",
-    "",
-    "    goto start"
+    "screen_text_color WHITE",
+    "print ruleLine$"
   ].join("\n");
 }
 

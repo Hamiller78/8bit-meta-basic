@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { buildTarget } from "./build-target.mjs";
 
-const defaultSource = "examples/warning.mbas";
+const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
