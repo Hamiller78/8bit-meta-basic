@@ -10,6 +10,7 @@ export interface Program {
 
 export type Statement =
   | ConstStatement
+  | DimStatement
   | LabelStatement
   | ClsStatement
   | BorderColorStatement
@@ -19,6 +20,7 @@ export type Statement =
   | CellBackgroundColorStatement
   | PrintStatement
   | LetStatement
+  | ArrayLetStatement
   | GotoStatement
   | GosubStatement
   | ReturnStatement
@@ -35,6 +37,13 @@ export interface ConstStatement {
   readonly kind: "const";
   readonly name: string;
   readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface DimStatement {
+  readonly kind: "dim";
+  readonly name: string;
+  readonly dimensions: readonly Expression[];
   readonly location: SourceLocation;
 }
 
@@ -95,6 +104,14 @@ export interface LetStatement {
   readonly location: SourceLocation;
 }
 
+export interface ArrayLetStatement {
+  readonly kind: "array-let";
+  readonly name: string;
+  readonly indices: readonly Expression[];
+  readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
 export interface GotoStatement {
   readonly kind: "goto";
   readonly label: string;
@@ -136,6 +153,7 @@ export type Expression =
   | BooleanLiteralExpression
   | ColorLiteralExpression
   | IdentifierExpression
+  | ArrayAccessExpression
   | FunctionCallExpression
   | ParenthesizedExpression
   | UnaryExpression
@@ -169,6 +187,13 @@ export interface ColorLiteralExpression {
 export interface IdentifierExpression {
   readonly kind: "identifier";
   readonly name: string;
+  readonly location: SourceLocation;
+}
+
+export interface ArrayAccessExpression {
+  readonly kind: "array-access";
+  readonly name: string;
+  readonly indices: readonly Expression[];
   readonly location: SourceLocation;
 }
 

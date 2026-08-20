@@ -207,6 +207,15 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders zero-based numeric and integer arrays with native Atari upper bounds", () => {
+    expect(
+      compileSource("dim values(3)\ndim counters%(3)\nvalues(0)=1.5\nvalues(2)=4.5\ncounters%(2)=values(2)\nprint values(0); counters%(2)\n", {
+        filename: "arrays.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(["10 DIM VALUES(2)", "20 DIM COUNTERSI(2)", "30 VALUES(0)=1.5", "40 VALUES(2)=4.5", "50 COUNTERSI(2)=INT(VALUES(2))", "60 PRINT VALUES(0);COUNTERSI(2)", ""].join("\n"));
+  });
+
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
       ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")

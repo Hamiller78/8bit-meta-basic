@@ -95,9 +95,11 @@ Supported constructs:
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime jiffy timer reading with `jiffies()`
 - Non-blocking keyboard polling with `key_code()`
+- Numeric and integer arrays declared as `dim name(count)` and indexed from zero
 - Numeric assignments written canonically as `name = expression`
 - Integer numeric assignments written canonically as `name% = expression`
 - String assignments written canonically as `name$ = expression`
+- Numeric array assignments written canonically as `name(index) = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
 - `cls` and `cls colour`
@@ -156,6 +158,7 @@ Supported expression forms:
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
+- Numeric array reads such as `VALUES(0)`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -236,6 +239,27 @@ Target integer-variable lowering:
 - Spectrum maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
 - Atari 800XL maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
 - C64 preserves native `%` integer variables where safe, uses deterministic compact `%` names at lower readability levels, and coerces assignments with `INT`.
+
+## Arrays
+
+Meta-BASIC supports numeric arrays and integer numeric arrays:
+
+```basic
+dim values(3)
+dim counters%(3)
+
+values(0) = 1.5
+values(2) = values(0) + 2
+counters%(2) = values(2)
+```
+
+Array dimensions are element counts, not native target upper bounds. Indexes are zero-based in Meta-BASIC, so `dim values(3)` supports indexes `0`, `1`, and `2`. Dimensions must be positive compile-time integers. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Array use before `DIM` is rejected. String arrays are not supported yet. Assignments to integer arrays are coerced with `INT(expression)`.
+
+Target array lowering:
+
+- Spectrum maps Meta-BASIC numeric array names to single-letter numeric array names and shifts every Meta-BASIC index by `+ 1`.
+- Atari 800XL renders native numeric arrays and lowers each declared count to the native zero-based upper bound, so `dim values(3)` becomes `DIM VALUES(2)`.
+- C64 renders native numeric arrays, applies deterministic variable-name mapping, preserves `%` for integer arrays where safe, and lowers each declared count to the native zero-based upper bound.
 
 Target keyboard lowering:
 
@@ -369,6 +393,7 @@ Meaning:
 - Use `GO SUB` and `RETURN`.
 - Render assignments as `LET NAME=expression`.
 - Render `FOR` loop variables as single-letter numeric variables.
+- Render numeric arrays as single-letter numeric arrays and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
 - Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
 - Constant coordinates must satisfy row `0..21` and column `0..31`.
@@ -383,6 +408,7 @@ Meaning:
 - Render `FOR`/`NEXT` with explicit loop variables.
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
+- Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 - Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
 - Lower positioned output into:
 
@@ -419,6 +445,7 @@ PRINT ...
 - At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
 - Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
 - Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Constants are substituted and require no runtime variable name.
+- Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 
 ## Logical semantics across targets
 
@@ -445,6 +472,7 @@ npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:directory -- --source-dir examples --profile debug
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
+npm run launch:all -- --source examples/narf.mbas --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -466,6 +494,8 @@ The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<pr
 `scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected source with the release profile by default, runs the configured Atari packaging tools, and launches the configured emulator. The Atari emulator path and arguments live in the `atari800xl.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
 `scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected source with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+
+`scripts/launch-all.mjs` backs `npm run launch:all`. It launches the selected source for every target whose `emulator.path` is configured in `scripts/tools.local.json`, skipping unconfigured targets. It accepts common launch options such as `--source`, `--profile`, `--out-dir`, `--config`, and `--restart`. Atari uses the tokenized `.BAS` artifact by default; `--atari-artifact atr` can select the ATR artifact instead.
 
 `scripts/build-directory.mjs` backs `npm run build:directory`. It finds all `.mbas` files directly inside a selected directory, builds each selected profile and target, and optionally runs configured local conversion tools. It is intentionally non-recursive for now so a single command updates one program collection without accidentally sweeping unrelated folders.
 
@@ -552,6 +582,7 @@ Coverage currently includes:
 - `FOR`/`NEXT` parsing, nesting diagnostics, numeric semantic checks, `STEP`, and target spelling
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Integer variable tokenization, assignment coercion, target name mapping, and C64 native `%` output
+- Numeric and integer array parsing, declaration diagnostics, constant index range checks, target rendering, and integer array assignment coercion
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
@@ -595,7 +626,7 @@ Do not claim support for machines or constructs that are only planned.
 - Variable declarations, local variables, procedures, or functions
 - Multiple source files, imports, or linking
 - A type system beyond current limited compile-time checks
-- Arrays
+- String arrays
 - Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
 - General runtime functions or function calls beyond the currently supported helpers
 - Exponentiation

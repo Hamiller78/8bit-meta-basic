@@ -220,6 +220,16 @@ describe("C64 compiler", () => {
     ).toBe(["10 CO%=INT(3.7)", "20 PRINT CO%", ""].join("\n"));
   });
 
+  it("renders zero-based numeric and integer arrays with native C64 upper bounds", () => {
+    expect(
+      compileSource("dim values(3)\ndim counters%(3)\nvalues(0)=1.5\nvalues(2)=4.5\ncounters%(2)=values(2)\nprint values(0); counters%(2)\n", {
+        filename: "arrays.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 DIM VA(2)", "20 DIM CO%(2)", "30 VA(0)=1.5", "40 VA(2)=4.5", "50 CO%(2)=INT(VA(2))", "60 PRINT VA(0);CO%(2)", ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {

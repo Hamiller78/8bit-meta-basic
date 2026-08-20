@@ -11,6 +11,7 @@ npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:directory -- --source-dir examples --profile debug
+npm run launch:all -- --source examples/narf.mbas --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -63,11 +64,17 @@ and configure local executable paths. Keep `tools.local.json` out of version con
 
 The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
 
-The C64 launch script also understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured `petcat` conversion, then starts the emulator with the generated `.prg` and exits without waiting for the emulator window.
-
-Atari and C64 launch scripts also understand an `emulator` block with an `{artifact}` placeholder. They build the selected source, run the configured conversion tools, then start the emulator and exit without waiting for the emulator window.
+Each launch script understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured conversion tools, then starts the emulator and exits without waiting for the emulator window.
 
 Use `--restart` when switching examples to close an existing emulator process before launching the new one.
+
+To launch every target with an emulator path configured:
+
+```text
+npm run launch:all -- --source examples/narf.mbas --restart
+```
+
+The all-launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead.
 
 ## Spectrum: bas2tap
 

@@ -140,6 +140,16 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses DIM, array element assignment, and array reads", () => {
+    const program = parseSource("dim values(3)\nvalues(0) = 1\nprint values(2)\n", "arrays.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "dim", name: "values", dimensions: [{ kind: "number", value: 3 }] },
+      { kind: "array-let", name: "values", indices: [{ kind: "number", value: 0 }], expression: { kind: "number", value: 1 } },
+      { kind: "print", items: [{ kind: "function-call", name: "values", args: [{ kind: "number", value: 2 }] }] }
+    ]);
+  });
+
   it("parses function calls in expressions", () => {
     const program = parseSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint space$(3)\n', "functions.mbas");
 

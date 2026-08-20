@@ -8,6 +8,7 @@ export const keywords = new Set([
   "CELL_TEXT_COLOR",
   "CLS",
   "CONST",
+  "DIM",
   "ELSE",
   "END",
   "ENDIF",

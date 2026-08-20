@@ -26,7 +26,7 @@ export const c64Target: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
-    const renderOptions = { variableMap, functionRenderer: renderC64Function };
+    const renderOptions = { variableMap, functionRenderer: renderC64Function, arrayRenderer: renderC64ArrayAccess };
 
     switch (instruction.kind) {
       case "label":
@@ -46,6 +46,10 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
+      case "dim-array":
+        return `${lineNumber} DIM ${renderVariableName(instruction.name, variableMap)}(${instruction.dimensions.map(renderC64ArrayDimension).join(",")})`;
+      case "array-let":
+        return `${lineNumber} ${renderC64ArrayAccess({ kind: "array-access", name: instruction.name, indices: instruction.indices, location: instruction.location }, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "read-key":
         return `${lineNumber} GET ${renderVariableName(instruction.name, variableMap)}`;
       case "dim-string":
@@ -126,12 +130,30 @@ function renderC64Mid(expression: FunctionCallExpression, options: { readonly va
   return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
 }
 
+function renderC64ArrayAccess(
+  expression: Extract<Expression, { kind: "array-access" }>,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderC64Function; readonly arrayRenderer?: typeof renderC64ArrayAccess }
+): string {
+  return `${renderVariableName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderExpression(index, options)).join(",")})`;
+}
+
+function renderC64ArrayDimension(dimension: number): string {
+  return (dimension - 1).toString();
+}
+
 function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {
   const names: string[] = [];
   const seen = new Set<string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "for" || instruction.kind === "next") {
+    if (
+      instruction.kind === "let" ||
+      instruction.kind === "array-let" ||
+      instruction.kind === "dim-array" ||
+      instruction.kind === "read-key" ||
+      instruction.kind === "for" ||
+      instruction.kind === "next"
+    ) {
       const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
       if (!seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
@@ -189,6 +211,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "array-let":
+      return [...instruction.indices, instruction.expression];
     case "read-key":
       return [];
     case "for":
@@ -209,6 +233,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "setcolor":
     case "print-chr":
     case "dim-string":
+    case "dim-array":
     case "label":
     case "rem":
     case "goto":
@@ -241,6 +266,15 @@ function collectIdentifiers(expression: Expression, names: string[], seen: Set<s
     case "function-call":
       for (const arg of expression.args) {
         collectIdentifiers(arg, names, seen);
+      }
+      break;
+    case "array-access":
+      if (!seen.has(expression.name.toLowerCase())) {
+        seen.add(expression.name.toLowerCase());
+        names.push(expression.name);
+      }
+      for (const index of expression.indices) {
+        collectIdentifiers(index, names, seen);
       }
       break;
     case "number":

@@ -2,7 +2,7 @@
 
 This document describes the implemented source language. Target-specific rendering is documented in [targets.md](targets.md).
 
-Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may contain ASCII letters, digits, and underscores, must begin with a letter or underscore, and may end in `$` to denote a string variable.
+Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may contain ASCII letters, digits, and underscores, must begin with a letter or underscore, and may end in `$` to denote a string variable or `%` to denote an integer numeric variable.
 
 ## Program structure
 
@@ -60,12 +60,29 @@ Spectrum and Atari lower integer variables to ordinary numeric variables plus ex
 
 Current string support includes assignment, concatenation, output, `MID$`, `LEN`, `CHR$`, and `CODE`. Keep string values within the portable 255-character limit.
 
+## Arrays
+
+Numeric arrays are declared with `DIM`. Dimensions are element counts, and Meta-BASIC array indexes start at zero:
+
+```basic
+dim values(3)
+dim counters%(3)
+
+values(0) = 1.5
+values(2) = values(0) + 2
+counters%(2) = values(2)
+print values(0); counters%(2)
+```
+
+`dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments. String arrays are not supported yet.
+
 ## Expressions
 
 Supported primary expressions are:
 
 - Numeric and string literals
 - Identifiers
+- Numeric array reads such as `values(0)`
 - `TRUE` and `FALSE`
 - Parenthesized expressions
 - Supported function calls
@@ -189,4 +206,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations, locals, procedures, user functions, imports, multiple source files, arrays, exponentiation, general function calls, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM`, locals, procedures, user functions, imports, multiple source files, string arrays, exponentiation, general function calls, or `PRINT` comma/apostrophe separators.

@@ -326,6 +326,28 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders zero-based numeric and integer arrays using Spectrum one-based array access", () => {
+    expect(
+      compileSource("dim values(3)\ndim counters%(3)\nvalues(0)=1.5\nvalues(2)=4.5\ncounters%(2)=values(2)\nprint values(0); counters%(2)\n", {
+        filename: "arrays.mbas",
+        target: "spectrum"
+      })
+    ).toBe(["10 DIM V(3)", "20 DIM C(3)", "30 LET V(1)=1.5", "40 LET V(3)=4.5", "50 LET C(3)=INT (V(3))", "60 PRINT V(1);C(3)", ""].join("\n"));
+  });
+
+  it("reports invalid array declarations and constant indexes", () => {
+    expect(() => compileSource("dim values$(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow("String arrays are not supported yet");
+    expect(() => compileSource("dim values(3)\nvalues(3)=1\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      'Array "values" index 3 is outside the supported range 0..2'
+    );
+    expect(() => compileSource("values(0)=1\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      'Array "values" must be declared with DIM before use'
+    );
+    expect(() => compileSource("dim abs(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      'Cannot declare array "abs" with the same name as a built-in function'
+    );
+  });
+
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
       ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")

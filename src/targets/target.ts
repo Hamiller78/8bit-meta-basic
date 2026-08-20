@@ -31,6 +31,7 @@ export function renderCheckedLine(
 export interface ExpressionRenderOptions {
   readonly variableMap?: ReadonlyMap<string, string>;
   readonly functionRenderer?: (expression: Extract<Expression, { kind: "function-call" }>, options: ExpressionRenderOptions) => string | undefined;
+  readonly arrayRenderer?: (expression: Extract<Expression, { kind: "array-access" }>, options: ExpressionRenderOptions) => string;
 }
 
 export type SpectrumColorCode = Readonly<Record<PortableColor, number>>;
@@ -184,6 +185,11 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
       throw new DiagnosticError(expression.location, `Portable colour ${expression.color} cannot be rendered as a numeric expression.`);
     case "identifier":
       return options.variableMap?.get(expression.name.toLowerCase()) ?? expression.name;
+    case "array-access":
+      if (!options.arrayRenderer) {
+        throw new DiagnosticError(expression.location, `Array ${expression.name} cannot be rendered for this target.`);
+      }
+      return options.arrayRenderer(expression, options);
     case "function-call": {
       const rendered = options.functionRenderer?.(expression, options);
       if (rendered !== undefined) {
@@ -220,6 +226,7 @@ function expressionPrecedence(expression: Expression): number {
     case "boolean":
     case "color":
     case "identifier":
+    case "array-access":
     case "function-call":
     case "parenthesized":
       return 7;

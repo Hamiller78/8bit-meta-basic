@@ -93,6 +93,18 @@ describe("build scripts", () => {
     });
   });
 
+  it("finds all configured emulator launch targets", async () => {
+    const { configuredLaunchTargets } = await import("../scripts/launch-all.mjs");
+
+    expect(
+      configuredLaunchTargets({
+        spectrum: { emulator: { path: "fuse" } },
+        atari800xl: { emulator: { path: "" } },
+        c64: { emulator: { path: "x64sc" } }
+      }).map((entry: { target: string }) => entry.target)
+    ).toEqual(["spectrum", "c64"]);
+  });
+
   it("finds all Meta-BASIC sources in one directory", async () => {
     const { findMbasSources } = await import("../scripts/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));

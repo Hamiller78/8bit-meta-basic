@@ -1,0 +1,21 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+dim values(3)
+dim counters%(3)
+
+values(0) = 1.5
+values(1) = 2.5
+values(2) = values(0) + values(1)
+
+counters%(0) = values(0)
+counters%(1) = values(1)
+counters%(2) = values(2)
+
+print "ARRAY DEMO"
+print "VALUES(0): "; values(0)
+print "VALUES(2): "; values(2)
+print "COUNTERS%(0): "; counters%(0)
+print "COUNTERS%(2): "; counters%(2)

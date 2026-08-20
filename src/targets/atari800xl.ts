@@ -111,7 +111,7 @@ export const atari800xlTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
-    const renderOptions = { variableMap, functionRenderer: renderAtariFunction };
+    const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess };
 
     switch (instruction.kind) {
       case "label":
@@ -130,6 +130,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
         return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
+      case "dim-array":
+        return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${instruction.dimensions.map(renderAtariArrayDimension).join(",")})`;
+      case "array-let":
+        return `${lineNumber} ${renderAtariArrayAccess({ kind: "array-access", name: instruction.name, indices: instruction.indices, location: instruction.location }, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "read-key":
         throw new Error("Internal error: unexpected read-key instruction for Atari 800XL.");
       case "dim-string":
@@ -179,6 +183,21 @@ function renderAtariAssignment(
   }
 
   return `${lineNumber} ${targetName}=${renderExpression(instruction.expression, renderOptions)}`;
+}
+
+function renderAtariArrayAccess(
+  expression: Extract<Expression, { kind: "array-access" }>,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderExpression(index, options)).join(",")})`;
+}
+
+function renderAtariArrayName(name: string, variableMap: ReadonlyMap<string, string>): string {
+  return variableMap.get(name.toLowerCase()) ?? renderAtariVariableName(name);
+}
+
+function renderAtariArrayDimension(dimension: number): string {
+  return (dimension - 1).toString();
 }
 
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
@@ -276,6 +295,8 @@ function isAtariStringExpression(expression: Expression): boolean {
       return expression.operator === "+" && isAtariStringExpression(expression.left) && isAtariStringExpression(expression.right);
     case "function-call":
       return isStringFunctionName(expression.name);
+    case "array-access":
+      return false;
     case "number":
     case "boolean":
     case "color":
@@ -300,6 +321,8 @@ function expressionReferencesName(expression: Expression, name: string): boolean
       return expressionReferencesName(expression.left, name) || expressionReferencesName(expression.right, name);
     case "function-call":
       return expression.args.some((arg) => expressionReferencesName(arg, name));
+    case "array-access":
+      return expression.indices.some((index) => expressionReferencesName(index, name));
     case "number":
     case "string":
     case "boolean":
@@ -351,6 +374,12 @@ function collectExpressionNames(expression: Expression, used: Set<string>): void
     case "function-call":
       for (const arg of expression.args) {
         collectExpressionNames(arg, used);
+      }
+      break;
+    case "array-access":
+      used.add(expression.name.toLowerCase());
+      for (const index of expression.indices) {
+        collectExpressionNames(index, used);
       }
       break;
     case "number":
@@ -412,7 +441,14 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   const map = new Map<string, string>();
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "for" || instruction.kind === "next") {
+    if (
+      instruction.kind === "let" ||
+      instruction.kind === "array-let" ||
+      instruction.kind === "dim-array" ||
+      instruction.kind === "read-key" ||
+      instruction.kind === "for" ||
+      instruction.kind === "next"
+    ) {
       const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
       map.set(name.toLowerCase(), renderAtariVariableName(name));
     }
@@ -440,6 +476,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "array-let":
+      return [...instruction.indices, instruction.expression];
     case "read-key":
       return [];
     case "for":
@@ -460,6 +498,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "setcolor":
     case "print-chr":
     case "dim-string":
+    case "dim-array":
     case "label":
     case "rem":
     case "goto":
@@ -548,6 +587,12 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>): v
     case "function-call":
       for (const arg of expression.args) {
         collectIdentifiers(arg, map);
+      }
+      break;
+    case "array-access":
+      map.set(expression.name.toLowerCase(), renderAtariVariableName(expression.name));
+      for (const index of expression.indices) {
+        collectIdentifiers(index, map);
       }
       break;
     case "number":

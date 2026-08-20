@@ -25,7 +25,9 @@ export type Instruction =
   | CellBackgroundColorInstruction
   | PaperInstruction
   | PrintInstruction
+  | DimArrayInstruction
   | LetInstruction
+  | ArrayLetInstruction
   | ReadKeyInstruction
   | GotoInstruction
   | GosubInstruction
@@ -109,6 +111,21 @@ export interface PrintInstruction {
 export interface LetInstruction {
   readonly kind: "let";
   readonly name: string;
+  readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface DimArrayInstruction {
+  readonly kind: "dim-array";
+  readonly name: string;
+  readonly dimensions: readonly number[];
+  readonly location: SourceLocation;
+}
+
+export interface ArrayLetInstruction {
+  readonly kind: "array-let";
+  readonly name: string;
+  readonly indices: readonly Expression[];
   readonly expression: Expression;
   readonly location: SourceLocation;
 }
@@ -222,6 +239,19 @@ function lowerStatements(
     switch (statement.kind) {
       case "const":
         break;
+      case "dim":
+        instructions.push({
+          kind: "dim-array",
+          name: statement.name,
+          dimensions: statement.dimensions.map((dimension) => {
+            if (dimension.kind !== "number") {
+              throw new DiagnosticError(dimension.location, "Internal error: array dimensions must be resolved before lowering.");
+            }
+            return dimension.value;
+          }),
+          location: statement.location
+        });
+        break;
       case "cls":
         instructions.push({
           kind: "cls",
@@ -278,6 +308,15 @@ function lowerStatements(
         break;
       case "let":
         instructions.push({ kind: "let", name: statement.name, expression: statement.expression, location: statement.location });
+        break;
+      case "array-let":
+        instructions.push({
+          kind: "array-let",
+          name: statement.name,
+          indices: statement.indices,
+          expression: statement.expression,
+          location: statement.location
+        });
         break;
       case "goto":
         instructions.push({ kind: "goto", label: statement.label, location: statement.location });

@@ -13,21 +13,31 @@ interface ConstantDefinition {
   readonly environment: boolean;
 }
 
+interface ArrayDefinition {
+  readonly name: string;
+  readonly dimensions: readonly number[];
+  readonly location: Expression["location"];
+}
+
 export function analyzeProgram(program: Program, environment: TargetEnvironment): Program {
   const constants = new Map<string, ConstantDefinition>();
   for (const [key, value] of environment.constants) {
     constants.set(key, { name: key.toUpperCase(), value, environment: true });
   }
+  const arrays = new Map<string, ArrayDefinition>();
+  const scalarNames = new Set<string>();
 
   return {
-    statements: analyzeStatements(program.statements, constants, false)
+    statements: analyzeStatements(program.statements, constants, false, arrays, scalarNames)
   };
 }
 
 function analyzeStatements(
   statements: readonly Statement[],
   constants: Map<string, ConstantDefinition>,
-  inConstantExpression: boolean
+  inConstantExpression: boolean,
+  arrays: Map<string, ArrayDefinition>,
+  scalarNames: Set<string>
 ): readonly Statement[] {
   const analyzed: Statement[] = [];
 
@@ -47,32 +57,61 @@ function analyzeStatements(
         constants.set(key, { name: statement.name, value, environment: false });
         break;
       }
+      case "dim": {
+        const key = normalizeName(statement.name);
+        if (constants.has(key)) {
+          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a constant.`);
+        }
+        if (arrays.has(key)) {
+          throw new DiagnosticError(statement.location, `Duplicate array "${statement.name}".`);
+        }
+        if (scalarNames.has(key)) {
+          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" after using it as a scalar variable.`);
+        }
+        if (canonicalFunctionName(statement.name)) {
+          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a built-in function.`);
+        }
+        if (isStringVariableName(statement.name)) {
+          throw new DiagnosticError(statement.location, "String arrays are not supported yet.");
+        }
+        if (statement.dimensions.length === 0) {
+          throw new DiagnosticError(statement.location, "DIM requires at least one dimension.");
+        }
+
+        const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
+        arrays.set(key, { name: statement.name, dimensions, location: statement.location });
+        analyzed.push({
+          ...statement,
+          dimensions: dimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location }))
+        });
+        break;
+      }
       case "cls": {
         if (!statement.color) {
           analyzed.push(statement);
           break;
         }
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CLS") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CLS", arrays) });
         break;
       }
       case "border-color": {
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "BORDER_COLOR") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "BORDER_COLOR", arrays) });
         break;
       }
       case "text-color": {
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "TEXT_COLOR") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "TEXT_COLOR", arrays) });
         break;
       }
       case "screen-background-color": {
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "SCREEN_BACKGROUND_COLOR") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "SCREEN_BACKGROUND_COLOR", arrays) });
         break;
       }
       case "cell-text-color": {
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_TEXT_COLOR") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_TEXT_COLOR", arrays) });
         break;
       }
       case "cell-background-color": {
-        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_BACKGROUND_COLOR") });
+        analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_BACKGROUND_COLOR", arrays) });
         break;
       }
       case "let": {
@@ -83,7 +122,11 @@ function analyzeStatements(
         if (existing) {
           throw new DiagnosticError(statement.location, `Cannot assign to constant "${statement.name}".`);
         }
-        const expression = foldExpression(statement.expression, constants, inConstantExpression);
+        if (arrays.has(normalizeName(statement.name))) {
+          throw new DiagnosticError(statement.location, `Cannot assign scalar value to array "${statement.name}".`);
+        }
+        scalarNames.add(normalizeName(statement.name));
+        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays);
         if (expression.kind === "color") {
           throw new DiagnosticError(statement.location, "Assignments require a numeric or string expression.");
         }
@@ -103,16 +146,36 @@ function analyzeStatements(
         analyzed.push({ ...statement, expression });
         break;
       }
+      case "array-let": {
+        const definition = arrays.get(normalizeName(statement.name));
+        if (!definition) {
+          throw new DiagnosticError(statement.location, `Array "${statement.name}" must be declared with DIM before use.`);
+        }
+        const indices = analyzeArrayIndices(statement.name, statement.indices, definition, constants, inConstantExpression, arrays);
+        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays);
+        if (expression.kind === "color") {
+          throw new DiagnosticError(statement.location, "Array assignments require a numeric expression.");
+        }
+        if (expression.kind === "string" || isStringExpression(expression)) {
+          throw new DiagnosticError(statement.location, "Array assignments require a numeric expression.");
+        }
+        analyzed.push({
+          ...statement,
+          indices,
+          expression: isIntegerVariableName(statement.name) ? intCoercion(expression, statement.location) : expression
+        });
+        break;
+      }
       case "print":
         analyzed.push({
           ...statement,
-          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression), "PRINT")),
+          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays), "PRINT")),
           ...(statement.at
             ? {
                 at: {
                   ...statement.at,
-                  row: foldExpression(statement.at.row, constants, inConstantExpression),
-                  column: foldExpression(statement.at.column, constants, inConstantExpression)
+                  row: foldExpression(statement.at.row, constants, inConstantExpression, arrays),
+                  column: foldExpression(statement.at.column, constants, inConstantExpression, arrays)
                 }
               }
             : {})
@@ -121,9 +184,9 @@ function analyzeStatements(
       case "if":
         analyzed.push({
           ...statement,
-          condition: foldExpression(statement.condition, constants, inConstantExpression),
-          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression),
-          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression)
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays),
+          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames),
+          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames)
         });
         break;
       case "for": {
@@ -141,15 +204,16 @@ function analyzeStatements(
           throw new DiagnosticError(statement.location, "FOR loop variable cannot be an integer variable yet.");
         }
 
-        const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression), "FOR start value");
-        const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression), "FOR limit value");
-        const step = statement.step ? requireNumericExpression(foldExpression(statement.step, constants, inConstantExpression), "FOR STEP value") : undefined;
+        scalarNames.add(normalizeName(statement.variable));
+        const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression, arrays), "FOR start value");
+        const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression, arrays), "FOR limit value");
+        const step = statement.step ? requireNumericExpression(foldExpression(statement.step, constants, inConstantExpression, arrays), "FOR STEP value") : undefined;
         analyzed.push({
           ...statement,
           start,
           limit,
           ...(step ? { step } : {}),
-          body: analyzeStatements(statement.body, constants, inConstantExpression)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames)
         });
         break;
       }
@@ -172,6 +236,45 @@ function requireNumericExpression(expression: Expression, context: string): Expr
   return expression;
 }
 
+function requireArrayDimension(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>): number {
+  const folded = foldExpression(expression, constants, true);
+  const value = evaluateLiteralExpression(folded);
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    throw new DiagnosticError(expression.location, "Array dimensions must be positive integers.");
+  }
+  return value;
+}
+
+function analyzeArrayIndices(
+  name: string,
+  indices: readonly Expression[],
+  definition: ArrayDefinition,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  inConstantExpression: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition>
+): readonly Expression[] {
+  if (indices.length !== definition.dimensions.length) {
+    throw new DiagnosticError(
+      indices[0]?.location ?? definition.location,
+      `Array "${name}" expects ${definition.dimensions.length} index expression${definition.dimensions.length === 1 ? "" : "s"}.`
+    );
+  }
+
+  return indices.map((index, position) => {
+    const folded = requireNumericExpression(foldExpression(index, constants, inConstantExpression, arrays), "Array index");
+    if (folded.kind === "number") {
+      const upperExclusive = definition.dimensions[position];
+      if (!Number.isInteger(folded.value) || folded.value < 0 || folded.value >= upperExclusive) {
+        throw new DiagnosticError(
+          folded.location,
+          `Array "${name}" index ${formatNumber(folded.value)} is outside the supported range 0..${upperExclusive - 1}.`
+        );
+      }
+    }
+    return folded;
+  });
+}
+
 function intCoercion(expression: Expression, location: Expression["location"]): Expression {
   return {
     kind: "function-call",
@@ -181,8 +284,13 @@ function intCoercion(expression: Expression, location: Expression["location"]): 
   };
 }
 
-function analyzeColorExpression(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>, command: string): Extract<Expression, { kind: "color" }> {
-  const color = foldExpression(expression, constants, true);
+function analyzeColorExpression(
+  expression: Expression,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  command: string,
+  arrays: ReadonlyMap<string, ArrayDefinition>
+): Extract<Expression, { kind: "color" }> {
+  const color = foldExpression(expression, constants, true, arrays);
   if (color.kind !== "color") {
     throw new DiagnosticError(expression.location, `${command} colour must be a compile-time portable colour.`);
   }
@@ -197,7 +305,8 @@ function evaluateConstant(expression: Expression, constants: ReadonlyMap<string,
 function foldExpression(
   expression: Expression,
   constants: ReadonlyMap<string, ConstantDefinition>,
-  unknownIdentifierIsError: boolean
+  unknownIdentifierIsError: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition> = new Map()
 ): Expression {
   switch (expression.kind) {
     case "number":
@@ -215,25 +324,35 @@ function foldExpression(
       }
       return expression;
     }
+    case "array-access": {
+      const definition = arrays.get(normalizeName(expression.name));
+      if (!definition) {
+        throw new DiagnosticError(expression.location, `Array "${expression.name}" must be declared with DIM before use.`);
+      }
+      return {
+        ...expression,
+        indices: analyzeArrayIndices(expression.name, expression.indices, definition, constants, unknownIdentifierIsError, arrays)
+      };
+    }
     case "function-call":
-      return foldFunctionCall(expression, constants, unknownIdentifierIsError);
+      return foldFunctionCall(expression, constants, unknownIdentifierIsError, arrays);
     case "parenthesized": {
-      const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError);
+      const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError, arrays);
       if (isLiteralExpression(folded)) {
         return folded;
       }
       return { ...expression, expression: folded };
     }
     case "unary": {
-      const operand = foldExpression(expression.operand, constants, unknownIdentifierIsError);
+      const operand = foldExpression(expression.operand, constants, unknownIdentifierIsError, arrays);
       if (isLiteralExpression(operand)) {
         return literalFromValue(evaluateUnary(expression.operator, evaluateLiteralExpression(operand), expression), expression.location);
       }
       return { ...expression, operand };
     }
     case "binary": {
-      const left = foldExpression(expression.left, constants, unknownIdentifierIsError);
-      const right = foldExpression(expression.right, constants, unknownIdentifierIsError);
+      const left = foldExpression(expression.left, constants, unknownIdentifierIsError, arrays);
+      const right = foldExpression(expression.right, constants, unknownIdentifierIsError, arrays);
       if (isLiteralExpression(left) && isLiteralExpression(right)) {
         return literalFromValue(
           evaluateBinary(expression.operator, evaluateLiteralExpression(left), evaluateLiteralExpression(right), expression),
@@ -248,9 +367,22 @@ function foldExpression(
 function foldFunctionCall(
   expression: Extract<Expression, { kind: "function-call" }>,
   constants: ReadonlyMap<string, ConstantDefinition>,
-  unknownIdentifierIsError: boolean
+  unknownIdentifierIsError: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition>
 ): Expression {
   const name = canonicalFunctionName(expression.name);
+
+  if (!name) {
+    const definition = arrays.get(normalizeName(expression.name));
+    if (definition) {
+      return {
+        kind: "array-access",
+        name: expression.name,
+        indices: analyzeArrayIndices(expression.name, expression.args, definition, constants, unknownIdentifierIsError, arrays),
+        location: expression.location
+      };
+    }
+  }
 
   if (name === builtinFunctions.jiffies) {
     if (expression.args.length !== 0) {
@@ -272,7 +404,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "CHR$ expects exactly one argument.");
     }
-    const code = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+    const code = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays);
 
     if (isStringExpression(code) || code.kind === "color") {
       throw new DiagnosticError(expression.args[0].location, "CHR$ argument must be numeric.");
@@ -285,7 +417,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "CODE expects exactly one argument.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "CODE argument must be a string expression.");
@@ -298,7 +430,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);
     }
-    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays);
 
     if (isStringExpression(value) || value.kind === "color") {
       throw new DiagnosticError(expression.args[0].location, `${name} argument must be numeric.`);
@@ -330,9 +462,9 @@ function foldFunctionCall(
     if (expression.args.length !== 3) {
       throw new DiagnosticError(expression.location, "MID$ expects exactly three arguments.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
-    const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError);
-    const length = foldExpression(expression.args[2], constants, unknownIdentifierIsError);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays);
+    const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays);
+    const length = foldExpression(expression.args[2], constants, unknownIdentifierIsError, arrays);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "MID$ first argument must be a string expression.");
@@ -351,7 +483,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "LEN expects exactly one argument.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "LEN argument must be a string expression.");
@@ -404,6 +536,7 @@ function evaluateLiteralExpression(expression: Expression): ConstantValue {
     case "color":
       return { kind: "color", color: expression.color };
     case "function-call":
+    case "array-access":
     default:
       throw new DiagnosticError(expression.location, "Constant expression must be fully known at compile time.");
   }
@@ -553,6 +686,8 @@ function isStringExpression(expression: Expression): boolean {
       return expression.operator === "+" && isStringExpression(expression.left) && isStringExpression(expression.right);
     case "function-call":
       return isStringFunctionName(expression.name);
+    case "array-access":
+      return false;
     case "number":
     case "boolean":
     case "color":

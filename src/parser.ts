@@ -12,6 +12,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["CELL_TEXT_COLOR", (parser, location) => parser.parseCellTextColor(location)],
   ["CELL_BACKGROUND_COLOR", (parser, location) => parser.parseCellBackgroundColor(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
+  ["DIM", (parser, location) => parser.parseDim(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
@@ -59,6 +60,13 @@ class Parser {
     const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "const", name, expression, location };
+  }
+
+  parseDim(location: SourceLocation): Statement {
+    const name = this.expectIdentifier("Expected array name after DIM.").text;
+    const dimensions = this.parseArgumentList("Expected opening parenthesis after array name.");
+    this.expectLineEnd();
+    return { kind: "dim", name, dimensions, location };
   }
 
   parsePrint(location: SourceLocation): PrintStatement {
@@ -155,6 +163,14 @@ class Parser {
     const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "let", name, expression, location };
+  }
+
+  parseArrayAssignment(location: SourceLocation, name: string): Statement {
+    const indices = this.parseArgumentList("Expected opening parenthesis after array name.");
+    this.expectPunctuation("=", "Expected = after array element.");
+    const expression = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "array-let", name, indices, expression, location };
   }
 
   private parsePrintAt(commandName: "PRINT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
@@ -289,6 +305,11 @@ class Parser {
       return this.parseAssignment(token.location, token.text);
     }
 
+    if (token.kind === "identifier" && this.nextIsPunctuation("(")) {
+      this.advance();
+      return this.parseArrayAssignment(token.location, token.text);
+    }
+
     if (token.kind === "keyword") {
       const parser = statementParsers.get(token.text);
       if (parser) {
@@ -419,12 +440,17 @@ class Parser {
   }
 
   private parseFunctionCall(name: string, location: SourceLocation): Expression {
-    this.expectPunctuation("(", "Expected opening parenthesis after function name.");
+    const args = this.parseArgumentList("Expected opening parenthesis after function name.");
+    return { kind: "function-call", name, args, location };
+  }
+
+  private parseArgumentList(openMessage: string): Expression[] {
+    this.expectPunctuation("(", openMessage);
     const args: Expression[] = [];
 
     if (this.matchPunctuation(")")) {
       this.advance();
-      return { kind: "function-call", name, args, location };
+      return args;
     }
 
     while (true) {
@@ -434,7 +460,7 @@ class Parser {
         continue;
       }
       this.expectPunctuation(")", "Expected closing parenthesis after function arguments.");
-      return { kind: "function-call", name, args, location };
+      return args;
     }
   }
 

@@ -33,7 +33,7 @@ export const spectrumTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
-    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction };
+    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess };
 
     switch (instruction.kind) {
       case "label":
@@ -57,6 +57,10 @@ export const spectrumTarget: TargetBackend = {
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "let":
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
+      case "dim-array":
+        return `${lineNumber} DIM ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.dimensions.join(",")})`;
+      case "array-let":
+        return `${lineNumber} LET ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.indices.map((index) => renderSpectrumArrayIndex(index, renderOptions)).join(",")})=${renderExpression(instruction.expression, renderOptions)}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "gosub":
@@ -147,10 +151,30 @@ function renderSpectrumLenArgument(expression: Expression, options: { readonly v
   return `(${renderExpression(expression, options)})`;
 }
 
+function renderSpectrumArrayAccess(
+  expression: Extract<Expression, { kind: "array-access" }>,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderSpectrumFunction; readonly arrayRenderer?: typeof renderSpectrumArrayAccess }
+): string {
+  return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
+}
+
+function renderSpectrumArrayName(name: string, variableMap: ReadonlyMap<string, string>): string {
+  return variableMap.get(name.toLowerCase()) ?? "A";
+}
+
+function renderSpectrumArrayIndex(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderSpectrumFunction; readonly arrayRenderer?: typeof renderSpectrumArrayAccess }): string {
+  if (expression.kind === "number") {
+    return (expression.value + 1).toString();
+  }
+
+  return `${renderExpression(expression, options)} + 1`;
+}
+
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
   const stringNames: string[] = [];
   const seenStrings = new Set<string>();
+  allocateSpectrumArrayNames(collectSpectrumArrayNames(instructions), map);
   const loopNames = collectSpectrumLoopNames(instructions);
   allocateSpectrumLoopNames(loopNames, collectReservedSingleLetterNumericNames(instructions), map);
 
@@ -161,6 +185,8 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       } else {
         collectNumericName(instruction.name, map);
       }
+    } else if (instruction.kind === "dim-array" || instruction.kind === "array-let") {
+      collectNumericName(instruction.name, map);
     } else if (instruction.kind === "for" || instruction.kind === "next") {
       collectNumericName(instruction.variable, map);
     }
@@ -179,6 +205,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "let":
       return [instruction.expression];
+    case "array-let":
+      return [...instruction.indices, instruction.expression];
     case "read-key":
       return [];
     case "for":
@@ -199,6 +227,7 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
     case "setcolor":
     case "print-chr":
     case "dim-string":
+    case "dim-array":
     case "label":
     case "rem":
     case "goto":
@@ -267,11 +296,52 @@ function collectSingleLetterNumericIdentifiers(expression: Expression, names: Se
         collectSingleLetterNumericIdentifiers(arg, names);
       }
       break;
+    case "array-access":
+      for (const index of expression.indices) {
+        collectSingleLetterNumericIdentifiers(index, names);
+      }
+      break;
     case "number":
     case "string":
     case "boolean":
     case "color":
       break;
+  }
+}
+
+function collectSpectrumArrayNames(instructions: readonly Instruction[]): readonly string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  for (const instruction of instructions) {
+    if (instruction.kind !== "dim-array") {
+      continue;
+    }
+    const key = instruction.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      names.push(instruction.name);
+    }
+  }
+
+  return names;
+}
+
+function allocateSpectrumArrayNames(names: readonly string[], map: Map<string, string>): void {
+  const used = new Set<string>();
+
+  for (const name of names) {
+    const key = name.toLowerCase();
+    const preferred = baseVariableName(name)[0]?.toUpperCase();
+    if (preferred && /^[A-Z]$/.test(preferred) && !used.has(preferred)) {
+      map.set(key, preferred);
+      used.add(preferred);
+      continue;
+    }
+
+    const next = nextSpectrumNumericName(used);
+    map.set(key, next);
+    used.add(next);
   }
 }
 
@@ -338,6 +408,12 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>, st
     case "function-call":
       for (const arg of expression.args) {
         collectIdentifiers(arg, map, stringNames, seenStrings);
+      }
+      break;
+    case "array-access":
+      collectNumericName(expression.name, map);
+      for (const index of expression.indices) {
+        collectIdentifiers(index, map, stringNames, seenStrings);
       }
       break;
     case "number":
@@ -506,6 +582,12 @@ function collectUsedExpressionNames(expression: Expression, used: Set<string>): 
     case "function-call":
       for (const arg of expression.args) {
         collectUsedExpressionNames(arg, used);
+      }
+      break;
+    case "array-access":
+      used.add(expression.name.toLowerCase());
+      for (const index of expression.indices) {
+        collectUsedExpressionNames(index, used);
       }
       break;
     case "number":
