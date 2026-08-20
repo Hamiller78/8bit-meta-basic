@@ -1,0 +1,26 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+print "LOOP DEMO"
+print ""
+
+print "FOR/NEXT"
+for value = 0 to 2
+    print value
+next value
+
+print "WHILE/WEND"
+value = 0
+while value < 3
+    print value
+    value = value + 1
+wend
+
+print "REPEAT/UNTIL"
+value = 3
+repeat
+    value = value - 1
+    print value
+until value = 0

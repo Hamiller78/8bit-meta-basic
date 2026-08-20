@@ -339,6 +339,31 @@ function lowerStatements(
         lowerStatements(statement.body, instructions, nextInternalLabel);
         instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
         break;
+      case "while": {
+        const startLabel = nextInternalLabel();
+        const bodyLabel = nextInternalLabel();
+        const endLabel = nextInternalLabel();
+
+        instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
+        instructions.push({ kind: "if-goto", condition: statement.condition, label: bodyLabel, location: statement.location });
+        instructions.push({ kind: "goto", label: endLabel, location: statement.location });
+        instructions.push({ kind: "label", name: bodyLabel, internal: true, location: statement.location });
+        lowerStatements(statement.body, instructions, nextInternalLabel);
+        instructions.push({ kind: "goto", label: startLabel, location: statement.location });
+        instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
+        break;
+      }
+      case "repeat-until": {
+        const startLabel = nextInternalLabel();
+        const endLabel = nextInternalLabel();
+
+        instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
+        lowerStatements(statement.body, instructions, nextInternalLabel);
+        instructions.push({ kind: "if-goto", condition: statement.condition, label: endLabel, location: statement.location });
+        instructions.push({ kind: "goto", label: startLabel, location: statement.location });
+        instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
+        break;
+      }
       case "if": {
         const thenLabel = nextInternalLabel();
         const endLabel = nextInternalLabel();
@@ -379,6 +404,8 @@ function collectUserLabels(statements: readonly Statement[], seen = new Map<stri
       collectUserLabels(statement.thenBranch, seen);
       collectUserLabels(statement.elseBranch, seen);
     } else if (statement.kind === "for") {
+      collectUserLabels(statement.body, seen);
+    } else if (statement.kind === "while" || statement.kind === "repeat-until") {
       collectUserLabels(statement.body, seen);
     }
   }

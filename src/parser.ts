@@ -21,6 +21,8 @@ const statementParsers = new Map<string, StatementParser>([
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["RETURN", (parser, location) => parser.parseReturn(location)],
   ["FOR", (parser, location) => parser.parseFor(location)],
+  ["WHILE", (parser, location) => parser.parseWhile(location)],
+  ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
   ["IF", (parser, location) => parser.parseIf(location)]
 ]);
 
@@ -248,7 +250,25 @@ class Parser {
     return step ? { kind: "for", variable, start, limit, step, body, location } : { kind: "for", variable, start, limit, body, location };
   }
 
-  private parseBlock(until: "eof" | "else-or-end-if" | "end-if" | "next", missingBlockLocation?: SourceLocation): Statement[] {
+  parseWhile(location: SourceLocation): Statement {
+    const condition = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    const body = this.parseBlock("wend", location);
+    this.expectKeyword("WEND", "Expected WEND.");
+    this.expectLineEnd();
+    return { kind: "while", condition, body, location };
+  }
+
+  parseRepeatUntil(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    const body = this.parseBlock("until", location);
+    this.expectKeyword("UNTIL", "Expected UNTIL.");
+    const condition = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "repeat-until", body, condition, location };
+  }
+
+  private parseBlock(until: "eof" | "else-or-end-if" | "end-if" | "next" | "wend" | "until", missingBlockLocation?: SourceLocation): Statement[] {
     const statements: Statement[] = [];
 
     while (true) {
@@ -260,6 +280,12 @@ class Parser {
         }
         if (until === "next") {
           throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing NEXT for FOR block.");
+        }
+        if (until === "wend") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing WEND for WHILE block.");
+        }
+        if (until === "until") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing UNTIL for REPEAT block.");
         }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
@@ -283,6 +309,20 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected NEXT without matching FOR.");
+      }
+
+      if (this.matchKeyword("WEND")) {
+        if (until === "wend") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected WEND without matching WHILE.");
+      }
+
+      if (this.matchKeyword("UNTIL")) {
+        if (until === "until") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected UNTIL without matching REPEAT.");
       }
 
       const statement = this.parseStatement();

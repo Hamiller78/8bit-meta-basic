@@ -22,6 +22,7 @@ export const keywords = new Set([
   "PRINT",
   "PRINT_AT",
   "RETURN",
+  "REPEAT",
   "SCREEN_BACKGROUND_COLOR",
   "SCREEN_BORDER_COLOR",
   "SCREEN_TEXT_COLOR",
@@ -30,7 +31,10 @@ export const keywords = new Set([
   "THEN",
   "TO",
   "TEXT_COLOR",
-  "TRUE"
+  "TRUE",
+  "UNTIL",
+  "WEND",
+  "WHILE"
 ]);
 
 export type Keyword = typeof keywords extends Set<infer T> ? T & string : never;

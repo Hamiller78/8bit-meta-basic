@@ -226,6 +226,20 @@ function analyzeStatements(
         });
         break;
       }
+      case "while":
+        analyzed.push({
+          ...statement,
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays),
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames)
+        });
+        break;
+      case "repeat-until":
+        analyzed.push({
+          ...statement,
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames),
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays)
+        });
+        break;
       case "label":
       case "goto":
       case "gosub":

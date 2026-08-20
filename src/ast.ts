@@ -25,6 +25,8 @@ export type Statement =
   | GosubStatement
   | ReturnStatement
   | ForStatement
+  | WhileStatement
+  | RepeatUntilStatement
   | IfStatement;
 
 export interface LabelStatement {
@@ -136,6 +138,20 @@ export interface ForStatement {
   readonly limit: Expression;
   readonly step?: Expression;
   readonly body: readonly Statement[];
+  readonly location: SourceLocation;
+}
+
+export interface WhileStatement {
+  readonly kind: "while";
+  readonly condition: Expression;
+  readonly body: readonly Statement[];
+  readonly location: SourceLocation;
+}
+
+export interface RepeatUntilStatement {
+  readonly kind: "repeat-until";
+  readonly body: readonly Statement[];
+  readonly condition: Expression;
   readonly location: SourceLocation;
 }
 

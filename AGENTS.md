@@ -84,6 +84,8 @@ Supported constructs:
 - `gosub label`
 - `return`
 - `for name = start to limit` / `next name`, with optional `step`
+- `while expression` / `wend`
+- `repeat` / `until expression`
 - Multiline `if expression then ... else ... end if`
 - Nested `if` statements
 - Optional `else` blocks
@@ -360,6 +362,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Reject duplicate labels.
 - Reject references to undefined labels.
 - Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
+- Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.
@@ -586,6 +589,7 @@ Coverage currently includes:
 - Rejection of source `LET`
 - `GOSUB`/`RETURN` parsing, label resolution, and target spelling
 - `FOR`/`NEXT` parsing, nesting diagnostics, numeric semantic checks, `STEP`, and target spelling
+- `WHILE/WEND` and `REPEAT/UNTIL` parsing, delimiter diagnostics, semantic expression folding, and jump lowering
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Integer variable tokenization, assignment coercion, target name mapping, and C64 native `%` output
 - Numeric, integer, and fixed-width string array parsing, declaration diagnostics, constant index range checks, target rendering, string width checks, and integer array assignment coercion

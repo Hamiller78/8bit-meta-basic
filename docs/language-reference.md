@@ -198,6 +198,24 @@ for countdown = 10 to 0 step -1
 next countdown
 ```
 
+`WHILE/WEND` checks the condition before every iteration:
+
+```basic
+while count < 3
+    print count
+    count = count + 1
+wend
+```
+
+`REPEAT/UNTIL` runs the body once before checking the exit condition:
+
+```basic
+repeat
+    count = count - 1
+    print count
+until count = 0
+```
+
 ## Screen and colour commands
 
 Portable colours are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`.

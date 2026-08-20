@@ -123,6 +123,44 @@ describe("Spectrum compiler", () => {
     ).toBe(["10 FOR R=10 TO 1 STEP -2", "20 FOR C=1 TO 2", "30 PRINT R;C", "40 NEXT C", "50 NEXT R", ""].join("\n"));
   });
 
+  it("lowers WHILE/WEND and REPEAT/UNTIL to conditional jumps", () => {
+    expect(
+      compileSource(
+        [
+          "count = 0",
+          "while count < 3",
+          "print count",
+          "count = count + 1",
+          "wend",
+          "repeat",
+          "count = count - 1",
+          "print count",
+          "until count = 0"
+        ].join("\n"),
+        { filename: "loops.mbas", target: "spectrum" }
+      )
+    ).toBe(
+      [
+        "10 LET COUNT=0",
+        "20 REM __MB_1:",
+        "30 IF COUNT < 3 THEN GO TO 50",
+        "40 GO TO 90",
+        "50 REM __MB_2:",
+        "60 PRINT COUNT",
+        "70 LET COUNT=COUNT + 1",
+        "80 GO TO 20",
+        "90 REM __MB_3:",
+        "100 REM __MB_4:",
+        "110 LET COUNT=COUNT - 1",
+        "120 PRINT COUNT",
+        "130 IF COUNT = 0 THEN GO TO 150",
+        "140 GO TO 100",
+        "150 REM __MB_5:",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders primary, unary, binary, comparison, and logical expression forms", () => {
     expect(
       compileSource(

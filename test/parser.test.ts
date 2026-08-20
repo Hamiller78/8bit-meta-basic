@@ -73,10 +73,37 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses WHILE/WEND and REPEAT/UNTIL blocks", () => {
+    const program = parseSource(
+      "while count < 3\nprint count\nwend\nrepeat\ncount = count - 1\nuntil count = 0\n",
+      "loops.mbas"
+    );
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "while",
+        condition: { kind: "binary", operator: "<" },
+        body: [{ kind: "print", items: [{ kind: "identifier", name: "count" }] }]
+      },
+      {
+        kind: "repeat-until",
+        body: [{ kind: "let", name: "count", expression: { kind: "binary", operator: "-" } }],
+        condition: { kind: "binary", operator: "=" }
+      }
+    ]);
+  });
+
   it("reports mismatched or missing NEXT statements", () => {
     expect(() => parseSource("for row = 1 to 2\nnext column\n", "badnext.mbas")).toThrow("NEXT column does not match FOR row.");
     expect(() => parseSource("for row = 1 to 2\nprint row\n", "missingnext.mbas")).toThrow("Missing NEXT for FOR block.");
     expect(() => parseSource("next row\n", "unexpectednext.mbas")).toThrow("Unexpected NEXT without matching FOR.");
+  });
+
+  it("reports mismatched or missing loop delimiters", () => {
+    expect(() => parseSource("while ready\nprint ready\n", "missing-wend.mbas")).toThrow("Missing WEND for WHILE block.");
+    expect(() => parseSource("repeat\nprint ready\n", "missing-until.mbas")).toThrow("Missing UNTIL for REPEAT block.");
+    expect(() => parseSource("wend\n", "unexpected-wend.mbas")).toThrow("Unexpected WEND without matching WHILE.");
+    expect(() => parseSource("until ready\n", "unexpected-until.mbas")).toThrow("Unexpected UNTIL without matching REPEAT.");
   });
 
   it("accepts case-insensitive keywords and preserves string literal contents", () => {

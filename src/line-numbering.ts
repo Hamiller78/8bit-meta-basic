@@ -30,12 +30,13 @@ export function assignLineNumbers(program: LoweredProgram, readability: Readabil
     .filter(({ instruction }) => shouldEmitInstruction(instruction, readability));
   const increment = chooseLineNumberIncrement(emittedInstructions, options);
 
-  const lines = emittedInstructions.map(({ instruction, instructionIndex }, lineIndex) => ({
+  const lines: NumberedLine[] = emittedInstructions.map(({ instruction, instructionIndex }, lineIndex) => ({
     number: startingLineNumber + lineIndex * increment,
     instruction,
     instructionIndex
   }));
   const labelLines = new Map<string, number>();
+  const terminalLabelLines: number[] = [];
 
   for (const [key, label] of program.labels) {
     const line = resolveLabelLine(lines, label.index, increment);
@@ -46,6 +47,22 @@ export function assignLineNumbers(program: LoweredProgram, readability: Readabil
       );
     }
     labelLines.set(key, line);
+    if (line > (lines.at(-1)?.number ?? 0)) {
+      terminalLabelLines.push(line);
+    }
+  }
+
+  if (terminalLabelLines.length > 0) {
+    const line = Math.min(...terminalLabelLines);
+    lines.push({
+      number: line,
+      instruction: {
+        kind: "rem",
+        text: "END",
+        location: program.instructions.at(-1)?.location ?? { filename: "<generated>", line: 1 }
+      },
+      instructionIndex: program.instructions.length
+    });
   }
 
   return { lines, labelLines };
