@@ -275,6 +275,19 @@ function foldFunctionCall(
     return { ...expression, name, args: [source] };
   }
 
+  if (name && isNumericRuntimeFunctionName(name)) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);
+    }
+    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError);
+
+    if (isStringExpression(value) || value.kind === "color") {
+      throw new DiagnosticError(expression.args[0].location, `${name} argument must be numeric.`);
+    }
+
+    return { ...expression, name, args: [value] };
+  }
+
   if (name === builtinFunctions.space) {
     const args = expression.args.map((arg) => evaluateLiteralExpression(foldExpression(arg, constants, true)));
     if (args.length !== 1) {
@@ -329,6 +342,19 @@ function foldFunctionCall(
   }
 
   throw new DiagnosticError(expression.location, `Unknown function "${expression.name}".`);
+}
+
+function isNumericRuntimeFunctionName(name: string): boolean {
+  return (
+    name === builtinFunctions.abs ||
+    name === builtinFunctions.atn ||
+    name === builtinFunctions.cos ||
+    name === builtinFunctions.exp ||
+    name === builtinFunctions.int ||
+    name === builtinFunctions.sgn ||
+    name === builtinFunctions.sin ||
+    name === builtinFunctions.sqr
+  );
 }
 
 function requireSingleCharacterString(value: ConstantValue, expression: Expression, functionName: string): string {

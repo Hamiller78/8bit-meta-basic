@@ -314,6 +314,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders numeric math functions with Spectrum spelling", () => {
+    expect(compileSource("print abs(x); atn(x); cos(x); exp(x); int(x); sgn(x); sin(x); sqr(x)\n", { filename: "math.mbas", target: "spectrum" })).toBe(
+      ["10 PRINT ABS X;ATN X;COS X;EXP X;INT X;SGN X;SIN X;SQR X", ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
       ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
@@ -370,6 +376,11 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource("print code(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
       "CODE argument must be a string expression"
     );
+  });
+
+  it("reports invalid numeric math function calls", () => {
+    expect(() => compileSource("print abs()\n", { filename: "math.mbas", target: "spectrum" })).toThrow("ABS expects exactly one argument");
+    expect(() => compileSource('print sin("A")\n', { filename: "math.mbas", target: "spectrum" })).toThrow("SIN argument must be numeric");
   });
 
   it("reports invalid JIFFIES calls", () => {

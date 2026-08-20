@@ -1,11 +1,19 @@
 export const builtinFunctions = {
+  abs: "ABS",
+  atn: "ATN",
   chr: "CHR$",
   code: "CODE",
+  cos: "COS",
+  exp: "EXP",
+  int: "INT",
   jiffies: "JIFFIES",
   keyCode: "KEY_CODE",
   len: "LEN",
   mid: "MID$",
+  sgn: "SGN",
+  sin: "SIN",
   space: "SPACE$",
+  sqr: "SQR",
   string: "STRING$"
 } as const;
 

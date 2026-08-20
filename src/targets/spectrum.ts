@@ -88,11 +88,19 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 
 const renderKnownSpectrumFunction = createFunctionRenderer(
   new Map([
+    [builtinFunctions.abs, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.atn, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.chr, renderSpectrumChr],
     [builtinFunctions.code, renderSpectrumCode],
+    [builtinFunctions.cos, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.exp, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.int, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
     [builtinFunctions.len, renderSpectrumLen],
-    [builtinFunctions.mid, renderSpectrumMid]
+    [builtinFunctions.mid, renderSpectrumMid],
+    [builtinFunctions.sgn, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.sin, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.sqr, renderSpectrumUnaryNumericFunction]
   ])
 );
 
@@ -114,6 +122,10 @@ function renderSpectrumChr(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `CODE ${renderSpectrumLenArgument(expression.args[0], options)}`;
+}
+
+function renderSpectrumUnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `${expression.name.toUpperCase()} ${renderSpectrumLenArgument(expression.args[0], options)}`;
 }
 
 function renderSpectrumLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

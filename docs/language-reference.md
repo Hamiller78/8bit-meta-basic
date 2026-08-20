@@ -84,10 +84,20 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `len(text$)` | Runtime | Return string length |
 | `chr$(code)` | Runtime | Convert a numeric character code to a one-character string |
 | `code(text$)` | Runtime | Convert the first character of a string to a numeric code |
+| `abs(x)` | Runtime | Return absolute value |
+| `atn(x)` | Runtime | Return arctangent |
+| `cos(x)` | Runtime | Return cosine |
+| `exp(x)` | Runtime | Return `e` raised to a power |
+| `int(x)` | Runtime | Return integer part using target BASIC semantics |
+| `sgn(x)` | Runtime | Return sign |
+| `sin(x)` | Runtime | Return sine |
+| `sqr(x)` | Runtime | Return square root |
 | `jiffies()` | Runtime | Read the target's running tick counter |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 
 `CHR$` and `CODE` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` to native `CODE`; Atari and C64 lower it to `ASC`.
+
+Math functions lower to the target BASIC function of the same name. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
 
 `STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
 

@@ -92,6 +92,7 @@ Supported constructs:
 - Constants written as `const name = expression`
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
+- Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime jiffy timer reading with `jiffies()`
 - Non-blocking keyboard polling with `key_code()`
 - Numeric assignments written canonically as `name = expression`
@@ -137,7 +138,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -151,6 +152,7 @@ Supported expression forms:
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
 - Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
 - Runtime character-code function calls `CHR$(code)` and `CODE(text$)`
+- Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
 - Parenthesized expressions
@@ -545,6 +547,7 @@ Coverage currently includes:
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
+- Runtime numeric math function lowering for `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, and `SQR`
 - Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
 - Runtime `KEY_CODE` lowering plus target key constants
 - `PRINT_AT` parsing and malformed coordinate diagnostics

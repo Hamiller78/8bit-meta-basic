@@ -200,6 +200,16 @@ describe("C64 compiler", () => {
     ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A")', ""].join("\n"));
   });
 
+  it("renders numeric math functions with C64 spelling", () => {
+    expect(
+      compileSource("print abs(x); atn(x); cos(x); exp(x); int(x); sgn(x); sin(x); sqr(x)\n", {
+        filename: "math.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 PRINT ABS(X);ATN(X);COS(X);EXP(X);INT(X);SGN(X);SIN(X);SQR(X)", ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {

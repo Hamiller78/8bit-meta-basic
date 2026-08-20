@@ -362,11 +362,19 @@ function collectExpressionNames(expression: Expression, used: Set<string>): void
 
 const renderKnownAtariFunction = createFunctionRenderer(
   new Map([
+    [builtinFunctions.abs, renderAtariUnaryNumericFunction],
+    [builtinFunctions.atn, renderAtariUnaryNumericFunction],
     [builtinFunctions.chr, renderAtariChr],
     [builtinFunctions.code, renderAtariCode],
+    [builtinFunctions.cos, renderAtariUnaryNumericFunction],
+    [builtinFunctions.exp, renderAtariUnaryNumericFunction],
+    [builtinFunctions.int, renderAtariUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
     [builtinFunctions.len, renderAtariLen],
-    [builtinFunctions.mid, renderAtariMid]
+    [builtinFunctions.mid, renderAtariMid],
+    [builtinFunctions.sgn, renderAtariUnaryNumericFunction],
+    [builtinFunctions.sin, renderAtariUnaryNumericFunction],
+    [builtinFunctions.sqr, renderAtariUnaryNumericFunction]
   ])
 );
 
@@ -384,6 +392,10 @@ function renderAtariChr(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAtariUnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `${expression.name.toUpperCase()}(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderAtariLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

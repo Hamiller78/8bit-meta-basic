@@ -81,11 +81,19 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
 
 const renderKnownC64Function = createFunctionRenderer(
   new Map([
+    [builtinFunctions.abs, renderC64UnaryNumericFunction],
+    [builtinFunctions.atn, renderC64UnaryNumericFunction],
     [builtinFunctions.chr, renderC64Chr],
     [builtinFunctions.code, renderC64Code],
+    [builtinFunctions.cos, renderC64UnaryNumericFunction],
+    [builtinFunctions.exp, renderC64UnaryNumericFunction],
+    [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.len, renderC64Len],
-    [builtinFunctions.mid, renderC64Mid]
+    [builtinFunctions.mid, renderC64Mid],
+    [builtinFunctions.sgn, renderC64UnaryNumericFunction],
+    [builtinFunctions.sin, renderC64UnaryNumericFunction],
+    [builtinFunctions.sqr, renderC64UnaryNumericFunction]
   ])
 );
 
@@ -103,6 +111,10 @@ function renderC64Chr(expression: FunctionCallExpression, options: { readonly va
 
 function renderC64Code(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderC64UnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `${expression.name.toUpperCase()}(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderC64Len(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
