@@ -194,6 +194,7 @@ export interface ArrayAccessExpression {
   readonly kind: "array-access";
   readonly name: string;
   readonly indices: readonly Expression[];
+  readonly valueType?: "number" | "string";
   readonly location: SourceLocation;
 }
 

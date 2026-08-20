@@ -131,9 +131,9 @@ export const atari800xlTarget: TargetBackend = {
       case "let":
         return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
       case "dim-array":
-        return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${instruction.dimensions.map(renderAtariArrayDimension).join(",")})`;
+        return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${renderAtariArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
       case "array-let":
-        return `${lineNumber} ${renderAtariArrayAccess({ kind: "array-access", name: instruction.name, indices: instruction.indices, location: instruction.location }, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
+        return `${lineNumber} ${renderAtariArrayAssignmentTarget(instruction.name, instruction.indices, instruction.location, variableMap, renderOptions)}=${renderAtariArrayAssignmentExpression(instruction.name, instruction.expression) ?? renderExpression(instruction.expression, renderOptions)}`;
       case "read-key":
         throw new Error("Internal error: unexpected read-key instruction for Atari 800XL.");
       case "dim-string":
@@ -189,6 +189,11 @@ function renderAtariArrayAccess(
   expression: Extract<Expression, { kind: "array-access" }>,
   options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
 ): string {
+  if (isStringVariableName(expression.name)) {
+    const width = atariStringArrayWidth(expression.name);
+    return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${renderAtariStringArrayStart(expression.indices[0], width, options)},${renderAtariStringArrayEnd(expression.indices[0], width, options)})`;
+  }
+
   return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderExpression(index, options)).join(",")})`;
 }
 
@@ -198,6 +203,70 @@ function renderAtariArrayName(name: string, variableMap: ReadonlyMap<string, str
 
 function renderAtariArrayDimension(dimension: number): string {
   return (dimension - 1).toString();
+}
+
+function renderAtariArrayDimensions(name: string, dimensions: readonly number[]): readonly string[] {
+  if (isStringVariableName(name)) {
+    return [(dimensions[0] * dimensions[1]).toString()];
+  }
+
+  return dimensions.map(renderAtariArrayDimension);
+}
+
+function renderAtariArrayAssignmentTarget(
+  name: string,
+  indices: readonly Expression[],
+  location: Expression["location"],
+  variableMap: ReadonlyMap<string, string>,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  if (!isStringVariableName(name)) {
+    return renderAtariArrayAccess({ kind: "array-access", name, indices, location }, options);
+  }
+
+  const width = atariStringArrayWidth(name);
+  return `${renderAtariArrayName(name, variableMap)}(${renderAtariStringArrayStart(indices[0], width, options)},${renderAtariStringArrayEnd(indices[0], width, options)})`;
+}
+
+function renderAtariArrayAssignmentExpression(name: string, expression: Expression): string | undefined {
+  if (!isStringVariableName(name) || expression.kind !== "string") {
+    return undefined;
+  }
+
+  return `"${expression.value.padEnd(atariStringArrayWidth(name), " ")}"`;
+}
+
+function atariStringArrayWidth(name: string): number {
+  const definition = currentProgramInstructions.find((instruction) => instruction.kind === "dim-array" && instruction.name.toLowerCase() === name.toLowerCase());
+  if (!definition || definition.kind !== "dim-array") {
+    throw new Error(`Internal error: missing string array definition for ${name}.`);
+  }
+
+  return definition.dimensions[definition.dimensions.length - 1];
+}
+
+function renderAtariStringArrayStart(
+  index: Expression,
+  width: number,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  if (index.kind === "number") {
+    return (index.value * width + 1).toString();
+  }
+
+  return `${renderExpression(index, options)} * ${width} + 1`;
+}
+
+function renderAtariStringArrayEnd(
+  index: Expression,
+  width: number,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  if (index.kind === "number") {
+    return ((index.value + 1) * width).toString();
+  }
+
+  return `(${renderExpression(index, options)} + 1) * ${width}`;
 }
 
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
@@ -296,7 +365,7 @@ function isAtariStringExpression(expression: Expression): boolean {
     case "function-call":
       return isStringFunctionName(expression.name);
     case "array-access":
-      return false;
+      return expression.valueType === "string";
     case "number":
     case "boolean":
     case "color":

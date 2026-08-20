@@ -334,13 +334,13 @@ function allocateSpectrumArrayNames(names: readonly string[], map: Map<string, s
     const key = name.toLowerCase();
     const preferred = baseVariableName(name)[0]?.toUpperCase();
     if (preferred && /^[A-Z]$/.test(preferred) && !used.has(preferred)) {
-      map.set(key, preferred);
+      map.set(key, isStringVariableName(name) ? `${preferred}$` : preferred);
       used.add(preferred);
       continue;
     }
 
     const next = nextSpectrumNumericName(used);
-    map.set(key, next);
+    map.set(key, isStringVariableName(name) ? `${next}$` : next);
     used.add(next);
   }
 }

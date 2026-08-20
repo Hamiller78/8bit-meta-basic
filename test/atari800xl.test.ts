@@ -216,6 +216,23 @@ describe("Atari 800XL compiler", () => {
     ).toBe(["10 DIM VALUES(2)", "20 DIM COUNTERSI(2)", "30 VALUES(0)=1.5", "40 VALUES(2)=4.5", "50 COUNTERSI(2)=INT(VALUES(2))", "60 PRINT VALUES(0);COUNTERSI(2)", ""].join("\n"));
   });
 
+  it("renders fixed-width string arrays using one Atari backing string", () => {
+    expect(
+      compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {
+        filename: "string-arrays.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(
+      [
+        "10 DIM MESSAGES$(36)",
+        '20 MESSAGES$(1,12)="READY       "',
+        '30 MESSAGES$(25,36)="STANDBY     "',
+        "40 PRINT MESSAGES$(1,12);MESSAGES$(25,36)",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
       ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")

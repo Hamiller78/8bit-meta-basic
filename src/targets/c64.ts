@@ -47,7 +47,7 @@ export const c64Target: TargetBackend = {
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "dim-array":
-        return `${lineNumber} DIM ${renderVariableName(instruction.name, variableMap)}(${instruction.dimensions.map(renderC64ArrayDimension).join(",")})`;
+        return `${lineNumber} DIM ${renderVariableName(instruction.name, variableMap)}(${renderC64ArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
       case "array-let":
         return `${lineNumber} ${renderC64ArrayAccess({ kind: "array-access", name: instruction.name, indices: instruction.indices, location: instruction.location }, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "read-key":
@@ -139,6 +139,11 @@ function renderC64ArrayAccess(
 
 function renderC64ArrayDimension(dimension: number): string {
   return (dimension - 1).toString();
+}
+
+function renderC64ArrayDimensions(name: string, dimensions: readonly number[]): readonly string[] {
+  const targetDimensions = isStringVariableName(name) ? dimensions.slice(0, -1) : dimensions;
+  return targetDimensions.map(renderC64ArrayDimension);
 }
 
 function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {

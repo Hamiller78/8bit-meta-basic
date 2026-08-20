@@ -95,11 +95,11 @@ Supported constructs:
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime jiffy timer reading with `jiffies()`
 - Non-blocking keyboard polling with `key_code()`
-- Numeric and integer arrays declared as `dim name(count)` and indexed from zero
+- Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Numeric assignments written canonically as `name = expression`
 - Integer numeric assignments written canonically as `name% = expression`
 - String assignments written canonically as `name$ = expression`
-- Numeric array assignments written canonically as `name(index) = expression`
+- Numeric and string array assignments written canonically as `name(index) = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
 - `cls` and `cls colour`
@@ -158,7 +158,7 @@ Supported expression forms:
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
-- Numeric array reads such as `VALUES(0)`
+- Array reads such as `VALUES(0)` and `MESSAGES$(0)`
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
@@ -242,24 +242,28 @@ Target integer-variable lowering:
 
 ## Arrays
 
-Meta-BASIC supports numeric arrays and integer numeric arrays:
+Meta-BASIC supports numeric arrays, integer numeric arrays, and fixed-width string arrays:
 
 ```basic
 dim values(3)
 dim counters%(3)
+dim messages$(3, 12)
 
 values(0) = 1.5
 values(2) = values(0) + 2
 counters%(2) = values(2)
+messages$(0) = "READY"
 ```
 
-Array dimensions are element counts, not native target upper bounds. Indexes are zero-based in Meta-BASIC, so `dim values(3)` supports indexes `0`, `1`, and `2`. Dimensions must be positive compile-time integers. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Array use before `DIM` is rejected. String arrays are not supported yet. Assignments to integer arrays are coerced with `INT(expression)`.
+Array dimensions are element counts, not native target upper bounds. Indexes are zero-based in Meta-BASIC, so `dim values(3)` supports indexes `0`, `1`, and `2`. Dimensions must be positive compile-time integers. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Array use before `DIM` is rejected. Assignments to integer arrays are coerced with `INT(expression)`.
+
+String arrays require exactly two declaration dimensions: element count and fixed width. Use only the element index at read/write sites: `dim messages$(3, 12)` followed by `messages$(0) = "READY"` and `print messages$(0)`. String literal assignments longer than the fixed width are rejected at compile time. Dynamic string expressions are accepted, but Atari's fixed-slice backing storage is most predictable when assignments fit the declared width.
 
 Target array lowering:
 
-- Spectrum maps Meta-BASIC numeric array names to single-letter numeric array names and shifts every Meta-BASIC index by `+ 1`.
-- Atari 800XL renders native numeric arrays and lowers each declared count to the native zero-based upper bound, so `dim values(3)` becomes `DIM VALUES(2)`.
-- C64 renders native numeric arrays, applies deterministic variable-name mapping, preserves `%` for integer arrays where safe, and lowers each declared count to the native zero-based upper bound.
+- Spectrum maps Meta-BASIC numeric array names to single-letter numeric array names, maps string arrays to single-letter string array names, and shifts every Meta-BASIC index by `+ 1`.
+- Atari 800XL renders native numeric arrays and lowers each declared count to the native zero-based upper bound, so `dim values(3)` becomes `DIM VALUES(2)`. Fixed-width string arrays render as one backing string, so `dim messages$(3, 12)` becomes `DIM MESSAGES$(36)` and each element access renders as a substring slice.
+- C64 renders native numeric and string arrays, applies deterministic variable-name mapping, preserves `%` for integer arrays where safe, and lowers each declared count to the native zero-based upper bound. For string arrays, the fixed width is used for Meta-BASIC diagnostics and is not emitted as a C64 dimension.
 
 Target keyboard lowering:
 
@@ -393,7 +397,7 @@ Meaning:
 - Use `GO SUB` and `RETURN`.
 - Render assignments as `LET NAME=expression`.
 - Render `FOR` loop variables as single-letter numeric variables.
-- Render numeric arrays as single-letter numeric arrays and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
+- Render numeric arrays as single-letter numeric arrays, string arrays as single-letter string arrays, and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
 - Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
 - Constant coordinates must satisfy row `0..21` and column `0..31`.
@@ -409,6 +413,7 @@ Meaning:
 - Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
+- Render fixed-width string arrays as one backing string with substring slices for element reads and writes.
 - Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
 - Lower positioned output into:
 
@@ -446,6 +451,7 @@ PRINT ...
 - Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
 - Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Constants are substituted and require no runtime variable name.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
+- Render fixed-width string arrays as native string arrays and omit the fixed width from C64 `DIM`.
 
 ## Logical semantics across targets
 
@@ -582,7 +588,7 @@ Coverage currently includes:
 - `FOR`/`NEXT` parsing, nesting diagnostics, numeric semantic checks, `STEP`, and target spelling
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Integer variable tokenization, assignment coercion, target name mapping, and C64 native `%` output
-- Numeric and integer array parsing, declaration diagnostics, constant index range checks, target rendering, and integer array assignment coercion
+- Numeric, integer, and fixed-width string array parsing, declaration diagnostics, constant index range checks, target rendering, string width checks, and integer array assignment coercion
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
@@ -626,7 +632,7 @@ Do not claim support for machines or constructs that are only planned.
 - Variable declarations, local variables, procedures, or functions
 - Multiple source files, imports, or linking
 - A type system beyond current limited compile-time checks
-- String arrays
+- Variable-length string arrays
 - Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
 - General runtime functions or function calls beyond the currently supported helpers
 - Exponentiation

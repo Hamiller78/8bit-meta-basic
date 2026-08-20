@@ -15,6 +15,7 @@ interface ConstantDefinition {
 
 interface ArrayDefinition {
   readonly name: string;
+  readonly valueType: "number" | "string";
   readonly dimensions: readonly number[];
   readonly location: Expression["location"];
 }
@@ -71,15 +72,15 @@ function analyzeStatements(
         if (canonicalFunctionName(statement.name)) {
           throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a built-in function.`);
         }
-        if (isStringVariableName(statement.name)) {
-          throw new DiagnosticError(statement.location, "String arrays are not supported yet.");
-        }
         if (statement.dimensions.length === 0) {
           throw new DiagnosticError(statement.location, "DIM requires at least one dimension.");
         }
 
         const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
-        arrays.set(key, { name: statement.name, dimensions, location: statement.location });
+        if (isStringVariableName(statement.name) && dimensions.length !== 2) {
+          throw new DiagnosticError(statement.location, "String arrays require element count and fixed width, for example DIM NAME$(10, 32).");
+        }
+        arrays.set(key, { name: statement.name, valueType: isStringVariableName(statement.name) ? "string" : "number", dimensions, location: statement.location });
         analyzed.push({
           ...statement,
           dimensions: dimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location }))
@@ -153,6 +154,14 @@ function analyzeStatements(
         }
         const indices = analyzeArrayIndices(statement.name, statement.indices, definition, constants, inConstantExpression, arrays);
         const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays);
+        if (definition.valueType === "string") {
+          if (expression.kind === "color" || !isStringExpression(expression)) {
+            throw new DiagnosticError(statement.location, "String array assignments require a string expression.");
+          }
+          validateStringArrayAssignmentLength(statement.name, expression, definition);
+          analyzed.push({ ...statement, indices, expression });
+          break;
+        }
         if (expression.kind === "color") {
           throw new DiagnosticError(statement.location, "Array assignments require a numeric expression.");
         }
@@ -253,10 +262,11 @@ function analyzeArrayIndices(
   inConstantExpression: boolean,
   arrays: ReadonlyMap<string, ArrayDefinition>
 ): readonly Expression[] {
-  if (indices.length !== definition.dimensions.length) {
+  const expectedIndexCount = definition.valueType === "string" ? definition.dimensions.length - 1 : definition.dimensions.length;
+  if (indices.length !== expectedIndexCount) {
     throw new DiagnosticError(
       indices[0]?.location ?? definition.location,
-      `Array "${name}" expects ${definition.dimensions.length} index expression${definition.dimensions.length === 1 ? "" : "s"}.`
+      `Array "${name}" expects ${expectedIndexCount} index expression${expectedIndexCount === 1 ? "" : "s"}.`
     );
   }
 
@@ -273,6 +283,16 @@ function analyzeArrayIndices(
     }
     return folded;
   });
+}
+
+function validateStringArrayAssignmentLength(name: string, expression: Expression, definition: ArrayDefinition): void {
+  if (expression.kind !== "string") {
+    return;
+  }
+  const width = definition.dimensions[definition.dimensions.length - 1];
+  if ([...expression.value].length > width) {
+    throw new DiagnosticError(expression.location, `String array "${name}" element width is ${width}, but assigned string has length ${[...expression.value].length}.`);
+  }
 }
 
 function intCoercion(expression: Expression, location: Expression["location"]): Expression {
@@ -331,6 +351,7 @@ function foldExpression(
       }
       return {
         ...expression,
+        valueType: definition.valueType,
         indices: analyzeArrayIndices(expression.name, expression.indices, definition, constants, unknownIdentifierIsError, arrays)
       };
     }
@@ -378,6 +399,7 @@ function foldFunctionCall(
       return {
         kind: "array-access",
         name: expression.name,
+        valueType: definition.valueType,
         indices: analyzeArrayIndices(expression.name, expression.args, definition, constants, unknownIdentifierIsError, arrays),
         location: expression.location
       };
@@ -687,7 +709,7 @@ function isStringExpression(expression: Expression): boolean {
     case "function-call":
       return isStringFunctionName(expression.name);
     case "array-access":
-      return false;
+      return expression.valueType === "string";
     case "number":
     case "boolean":
     case "color":

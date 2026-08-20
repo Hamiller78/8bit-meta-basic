@@ -96,7 +96,7 @@ Spectrum output begins like this:
 ## Important limitations
 
 - Only one Meta-BASIC source file is accepted.
-- There are no local variables, procedures, user functions, imports, string arrays, or general type system yet.
+- There are no local variables, procedures, user functions, imports, or general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.
 - Plain `.bas` text is always generated. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools.
 - External tools and physical-device procedures are platform-dependent. Consult the running guide for verification status.

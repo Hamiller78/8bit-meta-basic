@@ -1,0 +1,15 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+dim messages$(3, 12)
+
+messages$(0) = "READY"
+messages$(1) = "TRACKING"
+messages$(2) = "STANDBY"
+
+print "STRING ARRAY"
+print messages$(0)
+print messages$(1)
+print "MODE: "; messages$(2)

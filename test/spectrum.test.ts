@@ -335,8 +335,19 @@ describe("Spectrum compiler", () => {
     ).toBe(["10 DIM V(3)", "20 DIM C(3)", "30 LET V(1)=1.5", "40 LET V(3)=4.5", "50 LET C(3)=INT (V(3))", "60 PRINT V(1);C(3)", ""].join("\n"));
   });
 
+  it("renders fixed-width string arrays using Spectrum string arrays", () => {
+    expect(
+      compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {
+        filename: "string-arrays.mbas",
+        target: "spectrum"
+      })
+    ).toBe(['10 DIM M$(3,12)', '20 LET M$(1)="READY"', '30 LET M$(3)="STANDBY"', "40 PRINT M$(1);M$(3)", ""].join("\n"));
+  });
+
   it("reports invalid array declarations and constant indexes", () => {
-    expect(() => compileSource("dim values$(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow("String arrays are not supported yet");
+    expect(() => compileSource("dim values$(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      "String arrays require element count and fixed width"
+    );
     expect(() => compileSource("dim values(3)\nvalues(3)=1\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
       'Array "values" index 3 is outside the supported range 0..2'
     );
@@ -345,6 +356,12 @@ describe("Spectrum compiler", () => {
     );
     expect(() => compileSource("dim abs(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
       'Cannot declare array "abs" with the same name as a built-in function'
+    );
+    expect(() => compileSource('dim messages$(3, 4)\nmessages$(0)="READY"\n', { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      'String array "messages$" element width is 4, but assigned string has length 5'
+    );
+    expect(() => compileSource('dim messages$(3, 4)\nmessages$(0)=1\n', { filename: "arrays.mbas", target: "spectrum" })).toThrow(
+      "String array assignments require a string expression"
     );
   });
 

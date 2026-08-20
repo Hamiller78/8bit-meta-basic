@@ -230,6 +230,16 @@ describe("C64 compiler", () => {
     ).toBe(["10 DIM VA(2)", "20 DIM CO%(2)", "30 VA(0)=1.5", "40 VA(2)=4.5", "50 CO%(2)=INT(VA(2))", "60 PRINT VA(0);CO%(2)", ""].join("\n"));
   });
 
+  it("renders fixed-width string arrays using native C64 string arrays", () => {
+    expect(
+      compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {
+        filename: "string-arrays.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 DIM ME$(2)', '20 ME$(0)="READY"', '30 ME$(2)="STANDBY"', "40 PRINT ME$(0);ME$(2)", ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {

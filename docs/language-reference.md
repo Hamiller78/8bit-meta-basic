@@ -62,7 +62,7 @@ Current string support includes assignment, concatenation, output, `MID$`, `LEN`
 
 ## Arrays
 
-Numeric arrays are declared with `DIM`. Dimensions are element counts, and Meta-BASIC array indexes start at zero:
+Arrays are declared with `DIM`. Dimensions are element counts, and Meta-BASIC array indexes start at zero:
 
 ```basic
 dim values(3)
@@ -74,7 +74,19 @@ counters%(2) = values(2)
 print values(0); counters%(2)
 ```
 
-`dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments. String arrays are not supported yet.
+`dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments.
+
+String arrays are fixed-width:
+
+```basic
+dim messages$(3, 12)
+
+messages$(0) = "READY"
+messages$(2) = "STANDBY"
+print messages$(0); messages$(2)
+```
+
+`dim messages$(3, 12)` creates three string slots with a maximum width of 12 characters. String array use still supplies only the element index; the width is part of the storage declaration. String literal assignments longer than the fixed width are rejected at compile time.
 
 ## Expressions
 
@@ -82,7 +94,7 @@ Supported primary expressions are:
 
 - Numeric and string literals
 - Identifiers
-- Numeric array reads such as `values(0)`
+- Array reads such as `values(0)` and `messages$(0)`
 - `TRUE` and `FALSE`
 - Parenthesized expressions
 - Supported function calls
@@ -206,4 +218,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM`, locals, procedures, user functions, imports, multiple source files, string arrays, exponentiation, general function calls, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM`, locals, procedures, user functions, imports, multiple source files, variable-length string arrays, exponentiation, general function calls, or `PRINT` comma/apostrophe separators.

@@ -150,6 +150,16 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses fixed-width string arrays", () => {
+    const program = parseSource('dim messages$(3, 12)\nmessages$(0) = "READY"\nprint messages$(0)\n', "string-arrays.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "dim", name: "messages$", dimensions: [{ kind: "number", value: 3 }, { kind: "number", value: 12 }] },
+      { kind: "array-let", name: "messages$", indices: [{ kind: "number", value: 0 }], expression: { kind: "string", value: "READY" } },
+      { kind: "print", items: [{ kind: "function-call", name: "messages$", args: [{ kind: "number", value: 0 }] }] }
+    ]);
+  });
+
   it("parses function calls in expressions", () => {
     const program = parseSource('const borderLine$ = string$("*", TEXT_COLUMNS - 2)\nprint space$(3)\n', "functions.mbas");
 

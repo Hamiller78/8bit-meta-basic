@@ -11,6 +11,7 @@ All targets share one parsed syntax tree and target-independent control-flow low
 | Practical generated-line limit | 640 | 120 | 80 |
 | Assignment | `LET X=1` | `X=1` | `X=1` |
 | `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
+| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` |
 | Jump | `GO TO` | `GOTO` | `GOTO` |
 | Positioned output | Native `PRINT AT` | `POSITION` + `PRINT` | POKE/ROM-call macro + `PRINT` |
 
@@ -59,6 +60,7 @@ Constant coordinates must fit these zero-based ranges:
 - String variables are mapped deterministically to single-letter names such as `A$`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
+- Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`.
 - `PRINT_AT` maps directly to `PRINT AT`.
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
@@ -74,6 +76,7 @@ Constant coordinates must fit these zero-based ranges:
 - String concatenation is lowered into Atari substring assignments where necessary.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
+- Fixed-width string arrays render as one backing Atari string. For example, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
@@ -94,6 +97,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `JIFFIES()` uses `TI`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
+- Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 
 Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`.
 
