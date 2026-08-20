@@ -125,7 +125,7 @@ async function loadConfig(configPath) {
 
 function outputPathFor(cwd, outDir, profile, source, extension) {
   const name = basename(source, extname(source));
-  return resolve(cwd, outDir, profile, "Spectrum", `${name}${extension}`);
+  return resolve(cwd, outDir, profile, "spectrum", `${name}${extension}`);
 }
 
 function replacePlaceholders(value, replacements) {

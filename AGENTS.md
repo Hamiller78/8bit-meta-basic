@@ -440,6 +440,8 @@ npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
+npm run launch:spectrum -- --source examples/narf.mbas
+npm run launch:spectrum -- --source examples/input-demo.mbas --restart
 ```
 
 Build profiles map to readability levels:
@@ -453,6 +455,8 @@ The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<pr
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected source with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
 `scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected source with the release profile by default, runs the configured Atari packaging tools, and launches the configured emulator. The Atari emulator path and arguments live in the `atari800xl.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+
+`scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected source with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
 `scripts/build-directory.mjs` backs `npm run build:directory`. It finds all `.mbas` files directly inside a selected directory, builds each selected profile and target, and optionally runs configured local conversion tools. It is intentionally non-recursive for now so a single command updates one program collection without accidentally sweeping unrelated folders.
 

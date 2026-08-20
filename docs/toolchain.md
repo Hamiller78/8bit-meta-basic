@@ -16,7 +16,7 @@ npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
 npm run launch:spectrum -- --source examples/narf.mbas
-npm run launch:c64 -- --source examples/input-demo.mbas --restart
+npm run launch:spectrum -- --source examples/input-demo.mbas --restart
 ```
 
 The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, or `--target c64` to restrict it.
