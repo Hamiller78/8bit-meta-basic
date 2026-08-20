@@ -3,6 +3,7 @@ import { DiagnosticError } from "./diagnostics.js";
 import { builtinFunctions, canonicalFunctionName, isStringFunctionName } from "./functions.js";
 import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
+import { isIntegerVariableName, isStringVariableName } from "./variables.js";
 
 type ConstantValue = number | string | boolean | ColorValue;
 
@@ -90,6 +91,12 @@ function analyzeStatements(
           if (expression.kind !== "string" && !isStringExpression(expression)) {
             throw new DiagnosticError(statement.location, "String variable assignments require a string expression.");
           }
+        } else if (isIntegerVariableName(statement.name)) {
+          if (expression.kind === "string" || isStringExpression(expression)) {
+            throw new DiagnosticError(statement.location, "Integer variable assignments require a numeric expression.");
+          }
+          analyzed.push({ ...statement, expression: intCoercion(expression, statement.location) });
+          break;
         } else if (expression.kind === "string" || isStringExpression(expression)) {
           throw new DiagnosticError(statement.location, "Assignments require a numeric expression.");
         }
@@ -130,6 +137,9 @@ function analyzeStatements(
         if (isStringVariableName(statement.variable)) {
           throw new DiagnosticError(statement.location, "FOR loop variable must be numeric.");
         }
+        if (isIntegerVariableName(statement.variable)) {
+          throw new DiagnosticError(statement.location, "FOR loop variable cannot be an integer variable yet.");
+        }
 
         const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression), "FOR start value");
         const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression), "FOR limit value");
@@ -160,6 +170,15 @@ function requireNumericExpression(expression: Expression, context: string): Expr
     throw new DiagnosticError(expression.location, `${context} must be numeric.`);
   }
   return expression;
+}
+
+function intCoercion(expression: Expression, location: Expression["location"]): Expression {
+  return {
+    kind: "function-call",
+    name: builtinFunctions.int,
+    args: [expression],
+    location
+  };
 }
 
 function analyzeColorExpression(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>, command: string): Extract<Expression, { kind: "color" }> {
@@ -540,10 +559,6 @@ function isStringExpression(expression: Expression): boolean {
     case "unary":
       return false;
   }
-}
-
-function isStringVariableName(name: string): boolean {
-  return name.endsWith("$");
 }
 
 function isColorValue(value: ConstantValue): value is ColorValue {

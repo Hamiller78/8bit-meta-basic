@@ -11,7 +11,7 @@
     "emulator": {
       "name": "Fuse",
       "path": "",
-      "args": ["-tape", "{artifact}"]
+      "args": ["-tape", "{artifact}", "-auto-play"]
     }
   },
   "atari800xl": {

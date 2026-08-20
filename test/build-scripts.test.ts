@@ -84,6 +84,15 @@ describe("build scripts", () => {
     });
   });
 
+  it("configures the Spectrum emulator launch command", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+
+    expect(config.spectrum.emulator).toMatchObject({
+      name: "Fuse",
+      args: ["-tape", "{artifact}", "-auto-play"]
+    });
+  });
+
   it("finds all Meta-BASIC sources in one directory", async () => {
     const { findMbasSources } = await import("../scripts/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));

@@ -201,6 +201,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("coerces integer variable assignments and renders them as numeric variables", () => {
+    expect(compileSource("counter% = 3.7\nprint counter%\n", { filename: "ints.mbas", target: "atari800xl" })).toBe(
+      ["10 COUNTERI=INT(3.7)", "20 PRINT COUNTERI", ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
       ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")

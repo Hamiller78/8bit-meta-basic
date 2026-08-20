@@ -96,6 +96,7 @@ Supported constructs:
 - Runtime jiffy timer reading with `jiffies()`
 - Non-blocking keyboard polling with `key_code()`
 - Numeric assignments written canonically as `name = expression`
+- Integer numeric assignments written canonically as `name% = expression`
 - String assignments written canonically as `name$ = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
@@ -222,13 +223,19 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEN`, `CHR$`, and `CODE`. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables, or `%`, in which case they are integer numeric variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEN`, `CHR$`, and `CODE`. Integer variable assignment accepts numeric expressions and lowers to `INT(expression)` assignment coercion. Non-integer numeric constants are allowed. Integer variables are not supported as `FOR` loop variables yet. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
 
 Target string-variable lowering:
 
 - Spectrum maps Meta-BASIC string variable names deterministically to single-letter string variables such as `A$`, `B$`, and `C$`.
 - Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable and lowers string concatenation into Atari substring assignments, using a temporary string buffer when needed to preserve Meta-BASIC expression semantics.
 - C64 preserves readable string names at readability `2` where safe, and uses deterministic compact string names at lower readability levels.
+
+Target integer-variable lowering:
+
+- Spectrum maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
+- Atari 800XL maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
+- C64 preserves native `%` integer variables where safe, uses deterministic compact `%` names at lower readability levels, and coerces assignments with `INT`.
 
 Target keyboard lowering:
 
@@ -544,6 +551,7 @@ Coverage currently includes:
 - `GOSUB`/`RETURN` parsing, label resolution, and target spelling
 - `FOR`/`NEXT` parsing, nesting diagnostics, numeric semantic checks, `STEP`, and target spelling
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
+- Integer variable tokenization, assignment coercion, target name mapping, and C64 native `%` output
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`

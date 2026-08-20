@@ -320,6 +320,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("coerces integer variable assignments and renders them as numeric variables", () => {
+    expect(compileSource("counter% = 3.7\nprint counter%\n", { filename: "ints.mbas", target: "spectrum" })).toBe(
+      ["10 LET COUNTERI=INT (3.7)", "20 PRINT COUNTERI", ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
       ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
@@ -381,6 +387,15 @@ describe("Spectrum compiler", () => {
   it("reports invalid numeric math function calls", () => {
     expect(() => compileSource("print abs()\n", { filename: "math.mbas", target: "spectrum" })).toThrow("ABS expects exactly one argument");
     expect(() => compileSource('print sin("A")\n', { filename: "math.mbas", target: "spectrum" })).toThrow("SIN argument must be numeric");
+  });
+
+  it("reports invalid integer variable uses", () => {
+    expect(() => compileSource('counter% = "NO"\n', { filename: "ints.mbas", target: "spectrum" })).toThrow(
+      "Integer variable assignments require a numeric expression"
+    );
+    expect(() => compileSource("for counter% = 1 to 3\nprint counter%\nnext counter%\n", { filename: "ints.mbas", target: "spectrum" })).toThrow(
+      "FOR loop variable cannot be an integer variable yet"
+    );
   });
 
   it("reports invalid JIFFIES calls", () => {

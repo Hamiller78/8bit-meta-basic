@@ -210,6 +210,16 @@ describe("C64 compiler", () => {
     ).toBe(["10 PRINT ABS(X);ATN(X);COS(X);EXP(X);INT(X);SGN(X);SIN(X);SQR(X)", ""].join("\n"));
   });
 
+  it("coerces integer variable assignments and renders native C64 integer variables", () => {
+    expect(
+      compileSource("counter% = 3.7\nprint counter%\n", {
+        filename: "ints.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 CO%=INT(3.7)", "20 PRINT CO%", ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {

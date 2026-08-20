@@ -56,6 +56,7 @@ Constant coordinates must fit these zero-based ranges:
 - Assignments use `LET`.
 - Labels and identifiers are rendered in uppercase where appropriate.
 - String variables are mapped deterministically to single-letter names such as `A$`.
+- Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - `PRINT_AT` maps directly to `PRINT AT`.
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
@@ -69,6 +70,7 @@ Constant coordinates must fit these zero-based ranges:
 - `PRINT_AT` reverses portable `row, column` into Atari's `POSITION column,row`.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
+- Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
@@ -87,6 +89,7 @@ Atari colour values are deterministic approximations and can look different betw
 - C64 cell background colour has no direct equivalent and therefore has no effect.
 - `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
+- Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 
 Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`.
 

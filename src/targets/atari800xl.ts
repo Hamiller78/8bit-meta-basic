@@ -4,6 +4,7 @@ import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
+import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
@@ -81,7 +82,7 @@ export const atari800xlTarget: TargetBackend = {
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
-      } else if (instruction.kind === "let" && instruction.name.endsWith("$")) {
+      } else if (instruction.kind === "let" && isStringVariableName(instruction.name)) {
         pushStringAssignment(instruction);
       } else if (instruction.kind === "print") {
         const beforePrint: Instruction[] = [];
@@ -181,7 +182,7 @@ function renderAtariAssignment(
 }
 
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
-  if (!name.endsWith("$") || expression.kind !== "binary" || expression.operator !== "+") {
+  if (!isStringVariableName(name) || expression.kind !== "binary" || expression.operator !== "+") {
     return undefined;
   }
 
@@ -268,7 +269,7 @@ function isAtariStringExpression(expression: Expression): boolean {
     case "string":
       return true;
     case "identifier":
-      return expression.name.endsWith("$");
+      return isStringVariableName(expression.name);
     case "parenthesized":
       return isAtariStringExpression(expression.expression);
     case "binary":
@@ -413,7 +414,7 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "for" || instruction.kind === "next") {
       const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
-      map.set(name.toLowerCase(), name.toUpperCase());
+      map.set(name.toLowerCase(), renderAtariVariableName(name));
     }
     for (const expression of instructionExpressions(instruction)) {
       collectIdentifiers(expression, map);
@@ -421,6 +422,16 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   }
 
   return map;
+}
+
+function renderAtariVariableName(name: string): string {
+  if (isStringVariableName(name)) {
+    return name.toUpperCase();
+  }
+
+  const clean = baseVariableName(name).toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  const base = clean || "N";
+  return isIntegerVariableName(name) ? `${base}I` : base;
 }
 
 function instructionExpressions(instruction: Instruction): readonly Expression[] {
@@ -496,7 +507,7 @@ function expandAtariKeyCodeAssignment(
 function isKeyCodeAssignment(instruction: Instruction): boolean {
   return (
     instruction.kind === "let" &&
-    !instruction.name.endsWith("$") &&
+    !isStringVariableName(instruction.name) &&
     instruction.expression.kind === "function-call" &&
     instruction.expression.name === builtinFunctions.keyCode
   );
@@ -522,7 +533,7 @@ function createInternalLabelAllocator(program: LoweredProgram): () => string {
 function collectIdentifiers(expression: Expression, map: Map<string, string>): void {
   switch (expression.kind) {
     case "identifier":
-      map.set(expression.name.toLowerCase(), expression.name.toUpperCase());
+      map.set(expression.name.toLowerCase(), renderAtariVariableName(expression.name));
       break;
     case "parenthesized":
       collectIdentifiers(expression.expression, map);

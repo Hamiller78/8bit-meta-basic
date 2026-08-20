@@ -4,6 +4,7 @@ import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
+import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
@@ -349,8 +350,14 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>, st
 
 function collectNumericName(name: string, map: Map<string, string>): void {
   if (!map.has(name.toLowerCase())) {
-    map.set(name.toLowerCase(), name.toUpperCase());
+    map.set(name.toLowerCase(), renderSpectrumNumericName(name));
   }
+}
+
+function renderSpectrumNumericName(name: string): string {
+  const clean = baseVariableName(name).toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  const base = clean || "N";
+  return isIntegerVariableName(name) ? `${base}I` : base;
 }
 
 function collectStringName(name: string, stringNames: string[], seenStrings: Set<string>): void {
@@ -392,10 +399,6 @@ function nextSpectrumStringName(used: ReadonlySet<string>): string {
   }
 
   throw new Error("Spectrum target only supports 26 string variables.");
-}
-
-function isStringVariableName(name: string): boolean {
-  return name.endsWith("$");
 }
 
 function expandSpectrumKeyCodeAssignment(
@@ -440,7 +443,7 @@ function expandSpectrumKeyCodeAssignment(
 function isKeyCodeAssignment(instruction: Instruction): boolean {
   return (
     instruction.kind === "let" &&
-    !instruction.name.endsWith("$") &&
+    !isStringVariableName(instruction.name) &&
     instruction.expression.kind === "function-call" &&
     instruction.expression.name === builtinFunctions.keyCode
   );

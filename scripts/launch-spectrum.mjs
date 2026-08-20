@@ -51,7 +51,7 @@ async function launchSpectrum(options) {
     profile: options.profile,
     target: "spectrum"
   };
-  const args = (emulator.args ?? ["-autostart", "{artifact}"]).map((arg) => replacePlaceholders(arg, replacements));
+  const args = (emulator.args ?? ["-tape", "{artifact}", "-auto-play"]).map((arg) => replacePlaceholders(arg, replacements));
 
   const child = spawn(emulatorPath, args, {
     cwd,

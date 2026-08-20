@@ -4,6 +4,7 @@ import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
+import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
@@ -251,7 +252,7 @@ function collectIdentifiers(expression: Expression, names: string[], seen: Set<s
 }
 
 function significantName(name: string): string {
-  const suffix = isStringVariableName(name) ? "$" : "";
+  const suffix = variableTypeSuffix(name);
   const base = name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "").slice(0, 2).padEnd(2, "_");
   return `${base}${suffix}`;
 }
@@ -264,12 +265,12 @@ function preferredVariableName(name: string): string | undefined {
     return undefined;
   }
 
-  return `${clean.slice(0, 2)}${isStringVariableName(name) ? "$" : ""}`;
+  return `${clean.slice(0, 2)}${variableTypeSuffix(name)}`;
 }
 
 function nextGeneratedVariableName(name: string, allocated: ReadonlySet<string>, next: () => number): string {
   while (true) {
-    const candidate = `V${next().toString(36).toUpperCase()}${isStringVariableName(name) ? "$" : ""}`;
+    const candidate = `V${next().toString(36).toUpperCase()}${variableTypeSuffix(name)}`;
     if (canAllocate(candidate, allocated)) {
       return candidate;
     }
@@ -281,8 +282,14 @@ function canAllocate(name: string, allocated: ReadonlySet<string>): boolean {
   return !allocated.has(key) && !reservedNames.has(key.slice(0, 2));
 }
 
-function isStringVariableName(name: string): boolean {
-  return name.endsWith("$");
+function variableTypeSuffix(name: string): "" | "$" | "%" {
+  if (isStringVariableName(name)) {
+    return "$";
+  }
+  if (isIntegerVariableName(name)) {
+    return "%";
+  }
+  return "";
 }
 
 function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
@@ -424,7 +431,7 @@ function expandC64KeyCodeAssignment(
 function isKeyCodeAssignment(instruction: Instruction): boolean {
   return (
     instruction.kind === "let" &&
-    !instruction.name.endsWith("$") &&
+    !isStringVariableName(instruction.name) &&
     instruction.expression.kind === "function-call" &&
     instruction.expression.name === builtinFunctions.keyCode
   );

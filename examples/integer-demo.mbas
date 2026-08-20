@@ -1,0 +1,17 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+rawValue = 7.8
+count% = rawValue
+stepValue = 2.5
+mixedValue = count% + stepValue
+roundedMix% = mixedValue
+
+print "INTEGER DEMO"
+print "RAW FLOAT: "; rawValue
+print "COUNT%: "; count%
+print "STEP FLOAT: "; stepValue
+print "COUNT% + STEP: "; mixedValue
+print "ROUNDED MIX%: "; roundedMix%

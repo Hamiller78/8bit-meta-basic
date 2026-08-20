@@ -19,11 +19,17 @@ describe("lexer", () => {
     ]);
   });
 
-  it("treats a trailing dollar sign as part of an identifier", () => {
-    const tokens = tokenize('tickerText$ = "READY"\nprint tickerText$\n', "strings.mbas");
+  it("treats trailing type markers as part of identifiers", () => {
+    const tokens = tokenize('tickerText$ = "READY"\ncount% = 1\nprint tickerText$; count%\n', "typed.mbas");
 
     expect(tokens).toContainEqual(expect.objectContaining({ kind: "identifier", text: "tickerText$" }));
-    expect(tokens.filter((token) => token.kind === "identifier").map((token) => token.text)).toEqual(["tickerText$", "tickerText$"]);
+    expect(tokens).toContainEqual(expect.objectContaining({ kind: "identifier", text: "count%" }));
+    expect(tokens.filter((token) => token.kind === "identifier").map((token) => token.text)).toEqual([
+      "tickerText$",
+      "count%",
+      "tickerText$",
+      "count%"
+    ]);
   });
 
   it("does not interpret keywords inside strings or comments", () => {

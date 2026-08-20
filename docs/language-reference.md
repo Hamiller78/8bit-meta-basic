@@ -44,10 +44,19 @@ Assignment does not use `LET` in Meta-BASIC source:
 
 ```basic
 urgency = sensorCount * 2 + alertLevel
+countdown% = 60
 tickerText$ = "DEFENCE NETWORK ONLINE"
 ```
 
-Variables ending in `$` are strings; other runtime variables are numeric. Constants and environment constants cannot be assigned to.
+Variables ending in `$` are strings. Variables ending in `%` are integer numeric variables. Other runtime variables are regular numeric variables. Constants and environment constants cannot be assigned to.
+
+Integer variable assignment accepts any numeric expression and stores `INT(expression)`. This means non-integer constants are allowed:
+
+```basic
+counter% = 3.7
+```
+
+Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 lowers them to native `%` integer variables and still emits explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
 
 Current string support includes assignment, concatenation, output, `MID$`, `LEN`, `CHR$`, and `CODE`. Keep string values within the portable 255-character limit.
 

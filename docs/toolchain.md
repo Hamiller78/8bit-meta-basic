@@ -86,10 +86,10 @@ Status: **tested manually in Fuse**, but the precise emulator procedure should b
 Configure Fuse in `scripts/tools.local.json`:
 
 ```json
-"emulator": {
+  "emulator": {
   "name": "Fuse",
   "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
-  "args": ["-tape", "{artifact}"]
+  "args": ["-tape", "{artifact}", "-auto-play"]
 }
 ```
 
@@ -100,6 +100,7 @@ npm run launch:spectrum -- --source examples/narf.mbas
 ```
 
 The launch script defaults to the `release` profile because it is intended for emulator/device runs rather than inspecting generated BASIC.
+If Fuse is already configured to play loaded tapes automatically, `-auto-play` can be omitted from the local config.
 
 When another Fuse instance is already running:
 
