@@ -200,6 +200,9 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
     case "parenthesized":
       return `(${renderExpression(expression.expression, options)})`;
     case "unary":
+      if (expression.operator === "-" && expression.operand.kind === "binary" && expression.operand.operator === "^") {
+        return `-(${renderExpression(expression.operand, options)})`;
+      }
       return expression.operator === "-"
         ? `-${renderExpressionWithParent(expression.operand, expressionPrecedence(expression), "right", options)}`
         : `NOT (${renderExpression(expression.operand, options)} <> 0)`;
@@ -229,7 +232,7 @@ function expressionPrecedence(expression: Expression): number {
     case "array-access":
     case "function-call":
     case "parenthesized":
-      return 7;
+      return 8;
     case "unary":
       return 6;
     case "binary":
@@ -256,6 +259,8 @@ function binaryPrecedence(operator: BinaryOperator): number {
     case "*":
     case "/":
       return 5;
+    case "^":
+      return 7;
     default:
       return 0;
   }

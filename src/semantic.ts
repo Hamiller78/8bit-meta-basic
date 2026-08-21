@@ -473,6 +473,9 @@ function foldExpression(
           expression.location
         );
       }
+      if (expression.operator === "^" && (left.kind === "color" || right.kind === "color" || isStringExpression(left) || isStringExpression(right))) {
+        throw new DiagnosticError(expression.location, "Operator ^ requires numeric operands.");
+      }
       return { ...expression, left, right };
     }
   }
@@ -743,6 +746,8 @@ function evaluateBinary(operator: BinaryOperator, left: ConstantValue, right: Co
         throw new DiagnosticError(expression.location, "Division by zero in constant expression.");
       }
       return numericBinary(operator, left, right, expression, (a, b) => a / b);
+    case "^":
+      return numericBinary(operator, left, right, expression, (a, b) => a ** b);
     case "=":
       if (isColorValue(left) || isColorValue(right)) {
         throw new DiagnosticError(expression.location, "Operator = does not support portable colours.");

@@ -236,6 +236,42 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses exponentiation with higher precedence than multiplication and unary minus", () => {
+    const program = parseSource("total = -base ^ exponent * 3\nchain = 2 ^ 3 ^ 2\n", "power.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "let",
+        name: "total",
+        expression: {
+          kind: "binary",
+          operator: "*",
+          left: {
+            kind: "unary",
+            operator: "-",
+            operand: {
+              kind: "binary",
+              operator: "^",
+              left: { kind: "identifier", name: "base" },
+              right: { kind: "identifier", name: "exponent" }
+            }
+          },
+          right: { kind: "number", value: 3 }
+        }
+      },
+      {
+        kind: "let",
+        name: "chain",
+        expression: {
+          kind: "binary",
+          operator: "^",
+          left: { kind: "binary", operator: "^", left: { kind: "number", value: 2 }, right: { kind: "number", value: 3 } },
+          right: { kind: "number", value: 2 }
+        }
+      }
+    ]);
+  });
+
   it("does not accept LET as assignment syntax", () => {
     expect(() => parseSource("let urgency = 1\n", "legacy-let.mbas")).toThrow(
       'legacy-let.mbas:1: Unsupported or invalid syntax near "let"'

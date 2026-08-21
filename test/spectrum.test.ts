@@ -168,6 +168,8 @@ describe("Spectrum compiler", () => {
           "decimal = 1.5",
           "grouped = (a + b) * 2",
           "unary = -a + 3",
+          "power = base ^ exponent * 3",
+          "negativePower = -base ^ exponent",
           "if not confirmed or a <> b and c <= 10 then",
           'print "YES";',
           "end if"
@@ -179,11 +181,13 @@ describe("Spectrum compiler", () => {
         "10 LET DECIMAL=1.5",
         "20 LET GROUPED=(A + B) * 2",
         "30 LET UNARY=-A + 3",
-        "40 IF ((NOT (CONFIRMED <> 0)) <> 0) OR ((((A <> B) <> 0) AND ((C <= 10) <> 0)) <> 0) THEN GO TO 60",
-        "50 GO TO 80",
-        "60 REM __MB_1:",
-        '70 PRINT "YES";',
-        "80 REM __MB_2:",
+        "40 LET POWER=BASE ^ EXPONENT * 3",
+        "50 LET NEGATIVEPOWER=-(BASE ^ EXPONENT)",
+        "60 IF ((NOT (CONFIRMED <> 0)) <> 0) OR ((((A <> B) <> 0) AND ((C <= 10) <> 0)) <> 0) THEN GO TO 80",
+        "70 GO TO 100",
+        "80 REM __MB_1:",
+        '90 PRINT "YES";',
+        "100 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -484,6 +488,10 @@ describe("Spectrum compiler", () => {
   it("reports invalid numeric math function calls", () => {
     expect(() => compileSource("print abs()\n", { filename: "math.mbas", target: "spectrum" })).toThrow("ABS expects exactly one argument");
     expect(() => compileSource('print sin("A")\n', { filename: "math.mbas", target: "spectrum" })).toThrow("SIN argument must be numeric");
+  });
+
+  it("reports invalid exponentiation operands", () => {
+    expect(() => compileSource('print name$ ^ 2\n', { filename: "power.mbas", target: "spectrum" })).toThrow("Operator ^ requires numeric operands");
   });
 
   it("reports invalid integer variable uses", () => {

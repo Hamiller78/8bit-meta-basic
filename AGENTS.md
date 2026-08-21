@@ -170,7 +170,7 @@ Supported expression forms:
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
-- Arithmetic `+`, `-`, `*`, `/`
+- Arithmetic `+`, `-`, `*`, `/`, `^`
 - Comparisons `=`, `<>`, `<`, `<=`, `>`, `>=`
 - Logical `AND`, `OR`
 - Boolean literals `TRUE` and `FALSE`
@@ -178,14 +178,15 @@ Supported expression forms:
 Precedence from highest to lowest:
 
 1. Parentheses and primary expressions
-2. Unary `-`, `NOT`
-3. `*`, `/`
-4. `+`, `-`
-5. `=`, `<>`, `<`, `<=`, `>`, `>=`
-6. `AND`
-7. `OR`
+2. `^`
+3. Unary `-`, `NOT`
+4. `*`, `/`
+5. `+`, `-`
+6. `=`, `<>`, `<`, `<=`, `>`, `>=`
+7. `AND`
+8. `OR`
 
-Binary operators are left-associative. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
+Binary operators are left-associative. `^` is implemented naively for now and renders to the native target exponentiation operator; target-specific precedence quirks may still need additional lowering after emulator testing. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
 
 ## Constants and semantic analysis
 
@@ -623,6 +624,7 @@ Coverage currently includes:
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
 - Runtime `STR$` and `VAL` lowering, with Spectrum using operator-style `STR$ expression` and `VAL expression`
 - Runtime numeric math function lowering for `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, and `SQR`
+- Runtime exponentiation operator rendering with `^`
 - Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
 - Runtime `KEY_CODE` lowering plus target key constants
 - `PRINT_AT` parsing and malformed coordinate diagnostics
@@ -665,7 +667,6 @@ Do not claim support for machines or constructs that are only planned.
 - Variable-length string arrays
 - Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
 - General runtime functions or function calls beyond the currently supported helpers
-- Exponentiation
 - Optimization or minification
 - BASIC tokenization or TAP generation
 - Calling `bas2tap`

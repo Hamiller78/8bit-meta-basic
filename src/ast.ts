@@ -281,4 +281,4 @@ export interface BinaryExpression {
 }
 
 export type UnaryOperator = "-" | "NOT";
-export type BinaryOperator = "+" | "-" | "*" | "/" | "=" | "<>" | "<" | "<=" | ">" | ">=" | "AND" | "OR";
+export type BinaryOperator = "+" | "-" | "*" | "/" | "^" | "=" | "<>" | "<" | "<=" | ">" | ">=" | "AND" | "OR";

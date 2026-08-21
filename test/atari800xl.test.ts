@@ -207,6 +207,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders exponentiation with Atari spelling", () => {
+    expect(compileSource("power = base ^ exponent * 3\nnegativePower = -base ^ exponent\n", { filename: "power.mbas", target: "atari800xl" })).toBe(
+      ["10 POWER=BASE ^ EXPONENT * 3", "20 NEGATIVEPOWER=-(BASE ^ EXPONENT)", ""].join("\n")
+    );
+  });
+
   it("coerces integer variable assignments and renders them as numeric variables", () => {
     expect(compileSource("counter% = 3.7\nprint counter%\n", { filename: "ints.mbas", target: "atari800xl" })).toBe(
       ["10 COUNTERI=INT(3.7)", "20 PRINT COUNTERI", ""].join("\n")

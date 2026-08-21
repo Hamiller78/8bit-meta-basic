@@ -41,7 +41,8 @@ const binaryPrecedence = new Map<string, number>([
   ["+", 4],
   ["-", 4],
   ["*", 5],
-  ["/", 5]
+  ["/", 5],
+  ["^", 7]
 ]);
 
 const comparisonOperators = new Set(["=", "<>", "<", "<=", ">", ">="]);
@@ -457,12 +458,12 @@ class Parser {
 
     if (token.kind === "operator" && token.text === "-") {
       this.advance();
-      return { kind: "unary", operator: "-", operand: this.parseExpression(isTerminator, 6), location: token.location };
+      return { kind: "unary", operator: "-", operand: this.parseExpression(isTerminator, 7), location: token.location };
     }
 
     if (token.kind === "keyword" && token.text === "NOT") {
       this.advance();
-      return { kind: "unary", operator: "NOT", operand: this.parseExpression(isTerminator, 6), location: token.location };
+      return { kind: "unary", operator: "NOT", operand: this.parseExpression(isTerminator, 7), location: token.location };
     }
 
     return this.parsePrimary(isTerminator);

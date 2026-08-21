@@ -101,14 +101,15 @@ Supported primary expressions are:
 
 Supported operators, from highest to lowest precedence:
 
-1. Unary `-` and `NOT`
-2. `*` and `/`
-3. `+` and `-`
-4. `=`, `<>`, `<`, `<=`, `>`, and `>=`
-5. `AND`
-6. `OR`
+1. `^`
+2. Unary `-` and `NOT`
+3. `*` and `/`
+4. `+` and `-`
+5. `=`, `<>`, `<`, `<=`, `>`, and `>=`
+6. `AND`
+7. `OR`
 
-Binary operators are left-associative. Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
+Binary operators are left-associative. `^` renders to the native target exponentiation operator; target-specific numeric precision and domain quirks remain visible. Spectrum BASIC rejects negative bases for exponentiation at runtime, so avoid expressions such as `(-x) ^ 2` in portable programs for now. Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
 
 Meta-BASIC treats zero as false and every nonzero numeric value as true. Target lowering preserves these logical semantics despite differences between the original BASIC implementations.
 
@@ -250,4 +251,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, exponentiation, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

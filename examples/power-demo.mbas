@@ -1,0 +1,17 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+base = 2
+exponent = 3
+factor = 4
+
+print "POWER DEMO"
+print ""
+print "BASE ^ EXPONENT = "; base ^ exponent
+print "BASE ^ EXPONENT * 4 = "; base ^ exponent * factor
+print "BASE * EXPONENT ^ 2 = "; base * exponent ^ 2
+print "BASE ^ EXPONENT ^ 2 = "; base ^ exponent ^ 2
+print "-BASE ^ 2 = "; -base ^ 2
+print "-BASE ^ EXPONENT = "; -base ^ exponent

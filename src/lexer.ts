@@ -165,7 +165,7 @@ export function tokenize(source: string, filename: string): Token[] {
       continue;
     }
 
-    if (char === "+" || char === "-" || char === "*" || char === "/" || char === "<" || char === ">") {
+    if (char === "+" || char === "-" || char === "*" || char === "/" || char === "^" || char === "<" || char === ">") {
       tokens.push({ kind: "operator", text: char, location: location() });
       advance(char);
       continue;
