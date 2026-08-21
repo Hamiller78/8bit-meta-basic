@@ -24,6 +24,8 @@ export type Statement =
   | GotoStatement
   | GosubStatement
   | ReturnStatement
+  | LocalStatement
+  | FunctionStatement
   | ForStatement
   | WhileStatement
   | RepeatUntilStatement
@@ -128,6 +130,34 @@ export interface GosubStatement {
 
 export interface ReturnStatement {
   readonly kind: "return";
+  readonly expression?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface LocalStatement {
+  readonly kind: "local";
+  readonly names: readonly string[];
+  readonly location: SourceLocation;
+}
+
+export interface FunctionStorage {
+  readonly sourceName: string;
+  readonly storageName: string;
+}
+
+export interface FunctionImplementation {
+  readonly entryLabel: string;
+  readonly returnName: string;
+  readonly parameters: readonly FunctionStorage[];
+  readonly locals: readonly FunctionStorage[];
+}
+
+export interface FunctionStatement {
+  readonly kind: "function";
+  readonly name: string;
+  readonly parameters: readonly string[];
+  readonly body: readonly Statement[];
+  readonly implementation?: FunctionImplementation;
   readonly location: SourceLocation;
 }
 
@@ -218,6 +248,7 @@ export interface FunctionCallExpression {
   readonly kind: "function-call";
   readonly name: string;
   readonly args: readonly Expression[];
+  readonly valueType?: "number" | "string";
   readonly location: SourceLocation;
 }
 

@@ -20,6 +20,8 @@ const statementParsers = new Map<string, StatementParser>([
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["RETURN", (parser, location) => parser.parseReturn(location)],
+  ["LOCAL", (parser, location) => parser.parseLocal(location)],
+  ["FUNCTION", (parser, location) => parser.parseFunction(location)],
   ["FOR", (parser, location) => parser.parseFor(location)],
   ["WHILE", (parser, location) => parser.parseWhile(location)],
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
@@ -203,8 +205,29 @@ class Parser {
   }
 
   parseReturn(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      this.expectLineEnd();
+      return { kind: "return", location };
+    }
+    const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
-    return { kind: "return", location };
+    return { kind: "return", expression, location };
+  }
+
+  parseLocal(location: SourceLocation): Statement {
+    const names = this.parseIdentifierSequence("Expected local variable name after LOCAL.");
+    this.expectLineEnd();
+    return { kind: "local", names, location };
+  }
+
+  parseFunction(location: SourceLocation): Statement {
+    const name = this.expectIdentifier("Expected function name after FUNCTION.").text;
+    const parameters = this.parseIdentifierList("Expected opening parenthesis after function name.");
+    this.expectLineEnd();
+    const body = this.parseBlock("end-function", location);
+    this.expectEndFunction();
+    this.expectLineEnd();
+    return { kind: "function", name, parameters, body, location };
   }
 
   parseIf(location: SourceLocation): Statement {
@@ -268,7 +291,10 @@ class Parser {
     return { kind: "repeat-until", body, condition, location };
   }
 
-  private parseBlock(until: "eof" | "else-or-end-if" | "end-if" | "next" | "wend" | "until", missingBlockLocation?: SourceLocation): Statement[] {
+  private parseBlock(
+    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "next" | "wend" | "until",
+    missingBlockLocation?: SourceLocation
+  ): Statement[] {
     const statements: Statement[] = [];
 
     while (true) {
@@ -287,6 +313,9 @@ class Parser {
         if (until === "until") {
           throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing UNTIL for REPEAT block.");
         }
+        if (until === "end-function") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END FUNCTION for FUNCTION block.");
+        }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
 
@@ -302,6 +331,13 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected END IF without matching IF.");
+      }
+
+      if (this.isEndFunction()) {
+        if (until === "end-function") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected END FUNCTION without matching FUNCTION.");
       }
 
       if (this.matchKeyword("NEXT")) {
@@ -504,6 +540,28 @@ class Parser {
     }
   }
 
+  private parseIdentifierList(openMessage: string): string[] {
+    this.expectPunctuation("(", openMessage);
+    if (this.matchPunctuation(")")) {
+      this.advance();
+      return [];
+    }
+    const names = this.parseIdentifierSequence("Expected parameter name.");
+    this.expectPunctuation(")", "Expected closing parenthesis after parameter list.");
+    return names;
+  }
+
+  private parseIdentifierSequence(firstMessage: string): string[] {
+    const names: string[] = [this.expectIdentifier(firstMessage).text];
+
+    while (this.matchPunctuation(",")) {
+      this.advance();
+      names.push(this.expectIdentifier("Expected identifier after comma.").text);
+    }
+
+    return names;
+  }
+
   private expectEndIf(): void {
     if (this.matchKeyword("ENDIF")) {
       this.advance();
@@ -514,9 +572,19 @@ class Parser {
     this.expectKeyword("IF", "Expected IF after END.");
   }
 
+  private expectEndFunction(): void {
+    this.expectKeyword("END", "Expected END FUNCTION.");
+    this.expectKeyword("FUNCTION", "Expected FUNCTION after END.");
+  }
+
   private isEndIf(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("ENDIF") || (this.matchKeyword("END") && next?.kind === "keyword" && next.text === "IF");
+  }
+
+  private isEndFunction(): boolean {
+    const next = this.tokens[this.index + 1];
+    return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "FUNCTION";
   }
 
   private expectIdentifier(message: string): Extract<Token, { kind: "identifier" }> {

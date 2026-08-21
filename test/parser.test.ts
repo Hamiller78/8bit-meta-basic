@@ -28,6 +28,23 @@ describe("parser", () => {
     });
   });
 
+  it("parses FUNCTION blocks with parameters, locals, and return expressions", () => {
+    expect(parseSource("FUNCTION AddBonus(Score, Bonus)\nLOCAL Result\nResult = Score + Bonus\nRETURN Result\nEND FUNCTION\n", "fn.mbas")).toMatchObject({
+      statements: [
+        {
+          kind: "function",
+          name: "AddBonus",
+          parameters: ["Score", "Bonus"],
+          body: [
+            { kind: "local", names: ["Result"] },
+            { kind: "let", name: "Result", expression: { kind: "binary", operator: "+" } },
+            { kind: "return", expression: { kind: "identifier", name: "Result" } }
+          ]
+        }
+      ]
+    });
+  });
+
   it("parses nested IF statements and optional ELSE blocks", () => {
     const program = parseSource(
       [
