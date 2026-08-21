@@ -352,6 +352,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders STR$ and VAL as Spectrum conversion functions", () => {
+    expect(compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', { filename: "convert.mbas", target: "spectrum" })).toBe(
+      ["10 LET A$=STR$ (SCORE + 10)", "20 LET SCORE=VAL A$", "30 PRINT A$;SCORE", ""].join("\n")
+    );
+  });
+
   it("renders numeric math functions with Spectrum spelling", () => {
     expect(compileSource("print abs(x); atn(x); cos(x); exp(x); int(x); sgn(x); sin(x); sqr(x)\n", { filename: "math.mbas", target: "spectrum" })).toBe(
       ["10 PRINT ABS X;ATN X;COS X;EXP X;INT X;SGN X;SIN X;SQR X", ""].join("\n")
@@ -464,6 +470,14 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource('print chr$("A")\n', { filename: "chars.mbas", target: "spectrum" })).toThrow("CHR$ argument must be numeric");
     expect(() => compileSource("print code(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
       "CODE argument must be a string expression"
+    );
+  });
+
+  it("reports invalid STR$ and VAL calls", () => {
+    expect(() => compileSource("print str$()\n", { filename: "convert.mbas", target: "spectrum" })).toThrow("STR$ expects exactly one argument");
+    expect(() => compileSource('print str$("A")\n', { filename: "convert.mbas", target: "spectrum" })).toThrow("STR$ argument must be numeric");
+    expect(() => compileSource("print val(12)\n", { filename: "convert.mbas", target: "spectrum" })).toThrow(
+      "VAL argument must be a string expression"
     );
   });
 

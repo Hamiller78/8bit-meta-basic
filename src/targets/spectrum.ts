@@ -109,7 +109,9 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.rnd, () => "RND"],
     [builtinFunctions.sgn, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.sin, renderSpectrumUnaryNumericFunction],
-    [builtinFunctions.sqr, renderSpectrumUnaryNumericFunction]
+    [builtinFunctions.sqr, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.str, renderSpectrumStr],
+    [builtinFunctions.val, renderSpectrumVal]
   ])
 );
 
@@ -131,6 +133,14 @@ function renderSpectrumChr(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `CODE ${renderSpectrumLenArgument(expression.args[0], options)}`;
+}
+
+function renderSpectrumStr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `STR$ ${renderSpectrumLenArgument(expression.args[0], options)}`;
+}
+
+function renderSpectrumVal(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `VAL ${renderSpectrumLenArgument(expression.args[0], options)}`;
 }
 
 function renderSpectrumUnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

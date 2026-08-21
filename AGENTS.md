@@ -94,6 +94,7 @@ Supported constructs:
 - Constants written as `const name = expression`
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
+- Runtime string/number conversion with `str$(number)` and `val(text$)`
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime random number helper `rnd()`
 - Random number seeding with `randomize` and `randomize seed`
@@ -122,7 +123,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
 
 ## Tokenizer and parser
 
@@ -146,7 +147,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -160,6 +161,7 @@ Supported expression forms:
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
 - Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
 - Runtime character-code function calls `CHR$(code)` and `CODE(text$)`
+- Runtime string/number conversion function calls `STR$(number)` and `VAL(text$)`
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime random number function call `RND()`
 - Runtime timer function call `JIFFIES()`
@@ -232,7 +234,7 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables, or `%`, in which case they are integer numeric variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEN`, `CHR$`, and `CODE`. Integer variable assignment accepts numeric expressions and lowers to `INT(expression)` assignment coercion. Non-integer numeric constants are allowed. Integer variables are not supported as `FOR` loop variables yet. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables, or `%`, in which case they are integer numeric variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, and `VAL`. Integer variable assignment accepts numeric expressions and lowers to `INT(expression)` assignment coercion. Non-integer numeric constants are allowed. Integer variables are not supported as `FOR` loop variables yet. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
 
 Target string-variable lowering:
 
@@ -619,6 +621,7 @@ Coverage currently includes:
 - Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
 - Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
+- Runtime `STR$` and `VAL` lowering, with Spectrum using operator-style `STR$ expression` and `VAL expression`
 - Runtime numeric math function lowering for `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, and `SQR`
 - Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
 - Runtime `KEY_CODE` lowering plus target key constants
@@ -656,8 +659,8 @@ Do not claim support for machines or constructs that are only planned.
 ## Explicitly out of scope unless requested
 
 - CPC or other additional backends
-- Variable declarations, local variables, procedures, or functions
-- Multiple source files, imports, or linking
+- Variable declarations beyond the current implicit scalar variables, arrays, and function locals
+- Imports, modules, exports, namespaces, separate compilation, or linking
 - A type system beyond current limited compile-time checks
 - Variable-length string arrays
 - Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins

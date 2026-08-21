@@ -58,7 +58,7 @@ counter% = 3.7
 
 Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 lowers them to native `%` integer variables and still emits explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
 
-Current string support includes assignment, concatenation, output, `MID$`, `LEN`, `CHR$`, and `CODE`. Keep string values within the portable 255-character limit.
+Current string support includes assignment, concatenation, output, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, and `VAL`. Keep string values within the portable 255-character limit.
 
 ## Arrays
 
@@ -122,6 +122,8 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `len(text$)` | Runtime | Return string length |
 | `chr$(code)` | Runtime | Convert a numeric character code to a one-character string |
 | `code(text$)` | Runtime | Convert the first character of a string to a numeric code |
+| `str$(x)` | Runtime | Convert a number to a string |
+| `val(text$)` | Runtime | Convert a numeric string to a number |
 | `abs(x)` | Runtime | Return absolute value |
 | `atn(x)` | Runtime | Return arctangent |
 | `cos(x)` | Runtime | Return cosine |
@@ -135,6 +137,8 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 
 `CHR$` and `CODE` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` to native `CODE`; Atari and C64 lower it to `ASC`.
+
+`STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari and C64 lower them to `STR$(expression)` and `VAL(expression)`. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
 Math functions lower to the target BASIC function of the same name. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
 
@@ -246,4 +250,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM`, locals, procedures, user functions, imports, multiple source files, variable-length string arrays, exponentiation, general function calls, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, exponentiation, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

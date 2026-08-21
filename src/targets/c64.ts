@@ -102,7 +102,9 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.rnd, () => "RND(1)"],
     [builtinFunctions.sgn, renderC64UnaryNumericFunction],
     [builtinFunctions.sin, renderC64UnaryNumericFunction],
-    [builtinFunctions.sqr, renderC64UnaryNumericFunction]
+    [builtinFunctions.sqr, renderC64UnaryNumericFunction],
+    [builtinFunctions.str, renderC64Str],
+    [builtinFunctions.val, renderC64Val]
   ])
 );
 
@@ -120,6 +122,14 @@ function renderC64Chr(expression: FunctionCallExpression, options: { readonly va
 
 function renderC64Code(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderC64Str(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `STR$(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderC64Val(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `VAL(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderC64UnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

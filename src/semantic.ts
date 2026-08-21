@@ -567,6 +567,32 @@ function foldFunctionCall(
     return { ...expression, name, args: [source] };
   }
 
+  if (name === builtinFunctions.str) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "STR$ expects exactly one argument.");
+    }
+    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+
+    if (isStringExpression(value) || value.kind === "color") {
+      throw new DiagnosticError(expression.args[0].location, "STR$ argument must be numeric.");
+    }
+
+    return { ...expression, name, args: [value] };
+  }
+
+  if (name === builtinFunctions.val) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "VAL expects exactly one argument.");
+    }
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+
+    if (!isStringExpression(source)) {
+      throw new DiagnosticError(expression.args[0].location, "VAL argument must be a string expression.");
+    }
+
+    return { ...expression, name, args: [source] };
+  }
+
   if (name && isNumericRuntimeFunctionName(name)) {
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);

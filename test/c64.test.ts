@@ -200,6 +200,16 @@ describe("C64 compiler", () => {
     ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A")', ""].join("\n"));
   });
 
+  it("renders STR$ and VAL as C64 conversion functions", () => {
+    expect(
+      compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', {
+        filename: "convert.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 VA$=STR$(SC + 10)", "20 SC=VAL(VA$)", "30 PRINT VA$;SC", ""].join("\n"));
+  });
+
   it("renders numeric math functions with C64 spelling", () => {
     expect(
       compileSource("print abs(x); atn(x); cos(x); exp(x); int(x); sgn(x); sin(x); sqr(x)\n", {

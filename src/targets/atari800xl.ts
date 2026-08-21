@@ -479,7 +479,9 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.rnd, () => "RND(0)"],
     [builtinFunctions.sgn, renderAtariUnaryNumericFunction],
     [builtinFunctions.sin, renderAtariUnaryNumericFunction],
-    [builtinFunctions.sqr, renderAtariUnaryNumericFunction]
+    [builtinFunctions.sqr, renderAtariUnaryNumericFunction],
+    [builtinFunctions.str, renderAtariStr],
+    [builtinFunctions.val, renderAtariVal]
   ])
 );
 
@@ -497,6 +499,14 @@ function renderAtariChr(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAtariStr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `STR$(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAtariVal(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `VAL(${renderExpression(expression.args[0], options)})`;
 }
 
 function renderAtariUnaryNumericFunction(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
