@@ -6,6 +6,7 @@ import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
+import { instructionExpressions } from "./instruction-expressions.js";
 import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
@@ -200,48 +201,6 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
 
   allocateSpectrumStringNames(stringNames, map);
   return map;
-}
-
-function instructionExpressions(instruction: Instruction): readonly Expression[] {
-  switch (instruction.kind) {
-    case "print":
-      return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
-    case "let":
-      return [instruction.expression];
-    case "array-let":
-      return [...instruction.indices, instruction.expression];
-    case "read-key":
-      return [];
-    case "for":
-      return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
-    case "if-goto":
-      return [instruction.condition];
-    case "position":
-      return [instruction.row, instruction.column];
-    case "poke":
-      return [instruction.value];
-    case "randomize":
-      return instruction.seed ? [instruction.seed] : [];
-    case "cls":
-    case "border-color":
-    case "text-color":
-    case "screen-background-color":
-    case "cell-text-color":
-    case "cell-background-color":
-    case "paper":
-    case "setcolor":
-    case "print-chr":
-    case "dim-string":
-    case "dim-array":
-    case "label":
-    case "rem":
-    case "goto":
-    case "gosub":
-    case "return":
-    case "next":
-    case "sys":
-      return [];
-  }
 }
 
 function collectSpectrumLoopNames(instructions: readonly Instruction[]): readonly string[] {
