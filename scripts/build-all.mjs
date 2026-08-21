@@ -8,6 +8,7 @@ function parseArgs(argv) {
     profile: "debug",
     allProfiles: false,
     source: "examples/colors.mbas",
+    buildConfigPath: undefined,
     outDir: "build",
     configPath: "scripts/tools.local.json",
     runTools: true
@@ -27,6 +28,11 @@ function parseArgs(argv) {
     }
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--build-config" || arg === "--project") {
+      options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
       continue;
     }
@@ -58,6 +64,9 @@ async function buildAll(options) {
       throw new Error(`Unknown profile "${profile}". Expected one of: ${Object.keys(profiles).join(", ")}.`);
     }
   }
+  if (options.buildConfigPath && options.source !== "examples/colors.mbas") {
+    throw new Error("Specify either --source or --build-config, not both.");
+  }
 
   await buildProject();
 
@@ -67,6 +76,7 @@ async function buildAll(options) {
         target,
         profile,
         source: options.source,
+        buildConfigPath: options.buildConfigPath,
         outDir: options.outDir,
         configPath: options.configPath,
         runBuild: false,

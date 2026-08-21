@@ -1,0 +1,13 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+score = 42
+bonus = 8
+total = addBonus(score, bonus)
+
+ignored = printTitle()
+print "score: "; score
+print "bonus: "; bonus
+print "total: "; total

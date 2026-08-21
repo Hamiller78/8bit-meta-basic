@@ -20,6 +20,10 @@ export interface CompileOptions {
 
 export function compileSource(source: string, options: CompileOptions): string {
   const ast = parseSource(source, options.filename);
+  return compileProgram(ast, options);
+}
+
+export function compileProgram(ast: ReturnType<typeof parseSource>, options: CompileOptions): string {
   const target = getTarget(options.target);
   const readability = options.readability ?? options.comments ?? 2;
   const analyzed = analyzeProgram(ast, targetEnvironments[options.target]);

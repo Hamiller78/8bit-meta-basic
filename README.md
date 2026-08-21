@@ -12,7 +12,7 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 ## Status
 
-This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, structured-control lowering, deterministic line numbering, target-specific rendering, build profiles, and optional hooks for external packaging tools.
+This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, structured-control lowering, named functions with local variables, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, and optional hooks for external packaging tools.
 
 ## Quick start
 
@@ -30,6 +30,32 @@ Compile the example directly during development:
 npm run dev -- examples/colors.mbas --target spectrum
 npm run dev -- examples/colors.mbas --target atari800xl
 npm run dev -- examples/colors.mbas --target c64
+```
+
+Compile an ordered multi-file program through a small JSON build configuration:
+
+```json
+{
+  "files": [
+    "src/main.mbas",
+    "src/game.mbas",
+    "src/ui.mbas"
+  ]
+}
+```
+
+```text
+npm run dev -- --config metabasic.json --target spectrum
+```
+
+Paths in the configuration are resolved relative to the JSON file. The listed files form one compilation unit in the listed order.
+See `examples/multifile/metabasic.json` for a small working example.
+
+The build and launch helper scripts use `--build-config` for Meta-BASIC project files, leaving `--config` for local tool/emulator configuration:
+
+```text
+npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
+npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
 ```
 
 Build artifacts for all targets:
@@ -95,8 +121,9 @@ Spectrum output begins like this:
 
 ## Important limitations
 
-- Only one Meta-BASIC source file is accepted.
-- There are no local variables, procedures, user functions, imports, or general type system yet.
+- Multi-file builds are simple ordered concatenation into one compilation unit; there are no modules, imports, exports, namespaces, or separate compilation.
+- User functions use statically allocated storage and do not support recursion.
+- There is no general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.
 - Plain `.bas` text is always generated. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools.
 - External tools and physical-device procedures are platform-dependent. Consult the running guide for verification status.

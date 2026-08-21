@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { build, loadBuildConfiguration } from "./build-configuration.js";
 import { compileSource, type Target } from "./compiler.js";
 import { formatCause } from "./diagnostics.js";
 import type { ReadabilityLevel } from "./line-numbering.js";
 import { isTargetId } from "./targets/index.js";
 
 interface CliOptions {
-  readonly inputPath: string;
+  readonly inputPath?: string;
+  readonly configPath?: string;
   readonly target: Target;
   readonly readability: ReadabilityLevel;
   readonly outputPath?: string;
@@ -16,12 +18,17 @@ interface CliOptions {
 async function main(argv: readonly string[]): Promise<number> {
   try {
     const options = parseArgs(argv);
-    const source = await readFile(options.inputPath, "utf8");
-    const output = compileSource(source, {
-      filename: options.inputPath,
-      target: options.target,
-      readability: options.readability
-    });
+    const output = options.configPath
+      ? await build(await loadBuildConfiguration(options.configPath), {
+          configPath: options.configPath,
+          target: options.target,
+          readability: options.readability
+        })
+      : compileSource(await readFile(requiredInputPath(options), "utf8"), {
+          filename: requiredInputPath(options),
+          target: options.target,
+          readability: options.readability
+        });
 
     if (options.outputPath) {
       await mkdir(dirname(options.outputPath), { recursive: true });
@@ -39,6 +46,7 @@ async function main(argv: readonly string[]): Promise<number> {
 
 function parseArgs(argv: readonly string[]): CliOptions {
   let inputPath: string | undefined;
+  let configPath: string | undefined;
   let target: Target | undefined;
   let readability: ReadabilityLevel = 2;
   let outputPath: string | undefined;
@@ -79,6 +87,16 @@ function parseArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--config" || arg === "--build-config") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`Missing value for ${arg}.`);
+      }
+      configPath = value;
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       throw new Error(`Unknown option "${arg}".`);
     }
@@ -89,15 +107,27 @@ function parseArgs(argv: readonly string[]): CliOptions {
     inputPath = arg;
   }
 
-  if (!inputPath) {
-    throw new Error("Usage: meta-basic <source.mbas> --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas]");
+  if (!inputPath && !configPath) {
+    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas]");
+  }
+
+  if (inputPath && configPath) {
+    throw new Error("Specify either one source file or --config, not both.");
   }
 
   if (!target) {
     throw new Error("Missing required --target option.");
   }
 
-  return outputPath ? { inputPath, target, readability, outputPath } : { inputPath, target, readability };
+  const parsed: CliOptions = configPath ? { configPath, target, readability } : { inputPath: inputPath ?? "", target, readability };
+  return outputPath ? { ...parsed, outputPath } : parsed;
+}
+
+function requiredInputPath(options: CliOptions): string {
+  if (!options.inputPath) {
+    throw new Error("Internal error: missing source input path.");
+  }
+  return options.inputPath;
 }
 
 function parseReadabilityLevel(value: string, optionName: string): ReadabilityLevel {

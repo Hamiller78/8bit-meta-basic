@@ -1,0 +1,4 @@
+function printTitle()
+    print "multi-file demo"
+    return 0
+end function

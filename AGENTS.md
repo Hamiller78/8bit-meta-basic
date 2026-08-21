@@ -468,7 +468,22 @@ Supported development commands:
 npm run dev -- examples/colors.mbas --target spectrum
 npm run dev -- examples/colors.mbas --target atari800xl
 npm run dev -- examples/colors.mbas --target c64
+npm run dev -- --config metabasic.json --target spectrum
 ```
+
+The CLI also accepts a simple JSON build configuration:
+
+```json
+{
+  "files": [
+    "src/main.mbas",
+    "src/game.mbas",
+    "src/ui.mbas"
+  ]
+}
+```
+
+The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
 
 Target build scripts:
 
@@ -478,10 +493,12 @@ npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
+npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
 npm run build:directory -- --source-dir examples --profile debug
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -498,13 +515,13 @@ Build profiles map to readability levels:
 
 The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `COLORS.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:COLORS.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 
-`scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected source with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+`scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected source or `--build-config` project with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
-`scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected source with the release profile by default, runs the configured Atari packaging tools, and launches the configured emulator. The Atari emulator path and arguments live in the `atari800xl.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+`scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected source or `--build-config` project with the release profile by default, runs the configured Atari packaging tools, and launches the configured emulator. The Atari emulator path and arguments live in the `atari800xl.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
-`scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected source with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+`scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected source or `--build-config` project with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
-`scripts/launch-all.mjs` backs `npm run launch:all`. It launches the selected source for every target whose `emulator.path` is configured in `scripts/tools.local.json`, skipping unconfigured targets. It accepts common launch options such as `--source`, `--profile`, `--out-dir`, `--config`, and `--restart`. Atari uses the tokenized `.BAS` artifact by default; `--atari-artifact atr` can select the ATR artifact instead.
+`scripts/launch-all.mjs` backs `npm run launch:all`. It launches the selected source or `--build-config` project for every target whose `emulator.path` is configured in `scripts/tools.local.json`, skipping unconfigured targets. It accepts common launch options such as `--source`, `--build-config`, `--profile`, `--out-dir`, `--config`, and `--restart`. Atari uses the tokenized `.BAS` artifact by default; `--atari-artifact atr` can select the ATR artifact instead.
 
 `scripts/build-directory.mjs` backs `npm run build:directory`. It finds all `.mbas` files directly inside a selected directory, builds each selected profile and target, and optionally runs configured local conversion tools. It is intentionally non-recursive for now so a single command updates one program collection without accidentally sweeping unrelated folders.
 
@@ -518,6 +535,7 @@ Compiled commands after `npm run build`:
 npm start -- examples/colors.mbas --target spectrum
 npm start -- examples/colors.mbas --target atari800xl
 npm start -- examples/colors.mbas --target c64
+npm start -- --config metabasic.json --target spectrum
 ```
 
 Default output is standard output. Also support:

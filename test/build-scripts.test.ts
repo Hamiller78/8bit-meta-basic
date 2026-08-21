@@ -105,6 +105,14 @@ describe("build scripts", () => {
     ).toEqual(["spectrum", "c64"]);
   });
 
+  it("derives build artifact names from single sources and project configs", async () => {
+    const { programIdentity } = await import("../scripts/build-target.mjs");
+
+    expect(programIdentity(process.cwd(), "examples/colors.mbas").name).toBe("colors");
+    expect(programIdentity(process.cwd(), "examples/colors.mbas", "examples/multifile/metabasic.json").name).toBe("multifile");
+    expect(programIdentity(process.cwd(), "examples/colors.mbas", "examples/demo-build.json").name).toBe("demo-build");
+  });
+
   it("finds all Meta-BASIC sources in one directory", async () => {
     const { findMbasSources } = await import("../scripts/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));

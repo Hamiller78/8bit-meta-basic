@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { build, loadBuildConfiguration } from "../src/build-configuration.js";
 import { compileSource } from "../src/compiler.js";
 
 describe("example programs", () => {
@@ -16,5 +17,14 @@ describe("example programs", () => {
       expect(compileSource(source, { filename: sourcePath, target: "c64", readability: 0 })).not.toHaveLength(0);
       expect(compileSource(source, { filename: sourcePath, target: "atari800xl", readability: 0 })).not.toHaveLength(0);
     }
+  });
+
+  it("compiles the multi-file example build configuration for all targets", async () => {
+    const configPath = "examples/multifile/metabasic.json";
+    const configuration = await loadBuildConfiguration(configPath);
+
+    await expect(build(configuration, { configPath, target: "spectrum", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { configPath, target: "c64", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { configPath, target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
   });
 });

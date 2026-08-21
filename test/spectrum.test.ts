@@ -611,7 +611,9 @@ describe("Spectrum compiler", () => {
     try {
       const sourcePath = join(dir, "program.mbas");
       const outputPath = join(dir, "program.bas");
+      const configPath = join(dir, "metabasic.json");
       await writeFile(sourcePath, 'start:\nprint "OK"\ngoto start\n', "utf8");
+      await writeFile(configPath, JSON.stringify({ files: ["program.mbas"] }), "utf8");
 
       const stdoutRun = await runCli(sourcePath, "--target", "spectrum");
       expect(stdoutRun.stdout).toBe(['10 REM START:', '20 PRINT "OK"', "30 GO TO 10", ""].join("\n"));
@@ -620,6 +622,10 @@ describe("Spectrum compiler", () => {
       const compactRun = await runCli(sourcePath, "--target", "spectrum", "--readability", "0");
       expect(compactRun.stdout).toBe(['10 PRINT "OK"', "20 GO TO 10", ""].join("\n"));
       expect(compactRun.stderr).toBe("");
+
+      const configRun = await runCli("--config", configPath, "--target", "spectrum", "--readability", "0");
+      expect(configRun.stdout).toBe(compactRun.stdout);
+      expect(configRun.stderr).toBe("");
 
       const fileRun = await runCli(sourcePath, "--target", "spectrum", "-o", outputPath);
       expect(fileRun.stdout).toBe("");

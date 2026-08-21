@@ -29,8 +29,7 @@ async function launchAll(options) {
   }
 
   const commonArgs = [
-    "--source",
-    options.source,
+    ...(options.buildConfigPath ? ["--build-config", options.buildConfigPath] : ["--source", options.source]),
     "--profile",
     options.profile,
     "--out-dir",
@@ -76,6 +75,7 @@ function runLaunch(script, args, cwd) {
 function parseArgs(argv) {
   const options = {
     source: defaultSource,
+    buildConfigPath: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -88,6 +88,11 @@ function parseArgs(argv) {
 
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--build-config" || arg === "--project") {
+      options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
       continue;
     }
@@ -117,6 +122,10 @@ function parseArgs(argv) {
     }
 
     throw new Error(`Unknown option "${arg}".`);
+  }
+
+  if (options.buildConfigPath && options.source !== defaultSource) {
+    throw new Error("Specify either --source or --build-config, not both.");
   }
 
   return options;

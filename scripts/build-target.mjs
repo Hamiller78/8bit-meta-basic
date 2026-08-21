@@ -26,6 +26,7 @@ export async function buildTarget(options) {
   const target = options.target;
   const profile = options.profile ?? "debug";
   const source = options.source ?? defaultSource;
+  const buildConfigPath = options.buildConfigPath;
   const outDir = options.outDir ?? defaultOutDir;
   const configPath = options.configPath ?? defaultToolConfig;
   const runBuild = options.runBuild ?? true;
@@ -42,40 +43,44 @@ export async function buildTarget(options) {
     await buildProject({ cwd });
   }
 
-  const sourcePath = resolve(cwd, source);
-  const basicPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".bas");
+  const program = programIdentity(cwd, source, buildConfigPath);
+  const basicPath = outputPathFor(cwd, outDir, profile, target, program.name, ".bas");
   const artifacts = {
     basic: basicPath
   };
   await mkdir(dirname(basicPath), { recursive: true });
 
-  await run(process.execPath, [
-    "dist/cli.js",
-    sourcePath,
-    "--target",
-    target,
-    "--readability",
-    profiles[profile].toString(),
-    "--output",
-    basicPath
-  ], { cwd });
+  await run(
+    process.execPath,
+    [
+      "dist/cli.js",
+      ...(buildConfigPath ? ["--config", program.inputPath] : [program.inputPath]),
+      "--target",
+      target,
+      "--readability",
+      profiles[profile].toString(),
+      "--output",
+      basicPath
+    ],
+    { cwd }
+  );
 
   console.log(`created ${relativeToCwd(cwd, basicPath)}`);
 
   if (target === "atari800xl") {
-    const listingPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".lst");
+    const listingPath = outputPathFor(cwd, outDir, profile, target, program.name, ".lst");
     await writeAtariListing({ basicPath, listingPath });
     artifacts.atariListing = listingPath;
     console.log(`created ${relativeToCwd(cwd, listingPath)}`);
 
-    const diskDirectoryPath = outputPathFor(cwd, outDir, profile, target, sourcePath, ".atr-files");
-    await writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourcePath });
+    const diskDirectoryPath = outputPathFor(cwd, outDir, profile, target, program.name, ".atr-files");
+    await writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourceName: program.name });
     artifacts.atariDiskDirectory = diskDirectoryPath;
     console.log(`created ${relativeToCwd(cwd, diskDirectoryPath)}`);
   }
 
   if (runTools) {
-    await runConfiguredTools({ cwd, configPath, target, profile, sourcePath, artifacts, outDir });
+    await runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir });
   }
 
   return basicPath;
@@ -86,10 +91,10 @@ async function writeAtariListing({ basicPath, listingPath }) {
   await writeFile(listingPath, toAtariListingBytes(text));
 }
 
-async function writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourcePath }) {
+async function writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourceName }) {
   await mkdir(diskDirectoryPath, { recursive: true });
   const listing = await readFile(listingPath);
-  const listingName = toAtariDosFileName(basename(sourcePath, extname(sourcePath)), "LST");
+  const listingName = toAtariDosFileName(sourceName, "LST");
   await writeFile(resolve(diskDirectoryPath, listingName), listing);
 }
 
@@ -124,7 +129,7 @@ export function toAtariListingBytes(text) {
   return Buffer.from(bytes);
 }
 
-async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath, artifacts, outDir }) {
+async function runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir }) {
   const config = await loadToolConfig(resolve(cwd, configPath));
   const tools = normalizeTools(config?.[target]);
 
@@ -139,7 +144,7 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
       continue;
     }
 
-    const outputPath = outputPathFor(cwd, outDir, profile, target, sourcePath, tool.outputExtension ?? ".out");
+    const outputPath = outputPathFor(cwd, outDir, profile, target, program.name, tool.outputExtension ?? ".out");
     await mkdir(dirname(outputPath), { recursive: true });
 
     const inputPath = selectToolInput({ tool, artifacts });
@@ -147,8 +152,8 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
     const replacements = {
       input: toolInputPath,
       output: outputPath,
-      source: sourcePath,
-      sourceName: basename(sourcePath, extname(sourcePath)),
+      source: program.inputPath,
+      sourceName: program.name,
       profile,
       target
     };
@@ -157,21 +162,21 @@ async function runConfiguredTools({ cwd, configPath, target, profile, sourcePath
     artifacts[tool.name] = outputPath;
 
     if (tool.copyToArtifact) {
-      await copyToolOutputToArtifact({ cwd, tool, sourcePath, outputPath, artifacts });
+      await copyToolOutputToArtifact({ cwd, tool, sourceName: program.name, outputPath, artifacts });
     }
 
     console.log(`created ${relativeToCwd(cwd, outputPath)}`);
   }
 }
 
-async function copyToolOutputToArtifact({ cwd, tool, sourcePath, outputPath, artifacts }) {
+async function copyToolOutputToArtifact({ cwd, tool, sourceName, outputPath, artifacts }) {
   const destinationDirectory = artifacts[tool.copyToArtifact];
   if (!destinationDirectory) {
     throw new Error(`Unknown tool copy destination artifact "${tool.copyToArtifact}".`);
   }
 
   const extension = tool.copyExtension ?? tool.outputExtension ?? "OUT";
-  const destinationName = toAtariDosFileName(basename(sourcePath, extname(sourcePath)), extension);
+  const destinationName = toAtariDosFileName(sourceName, extension);
   const destinationPath = resolve(destinationDirectory, destinationName);
   await copyFile(outputPath, destinationPath);
   console.log(`created ${relativeToCwd(cwd, destinationPath)}`);
@@ -228,9 +233,24 @@ function normalizeTools(targetConfig) {
     .map(([name, value]) => ({ name, ...value }));
 }
 
-function outputPathFor(cwd, outDir, profile, target, sourcePath, extension) {
-  const name = basename(sourcePath, extname(sourcePath));
+export function outputPathFor(cwd, outDir, profile, target, name, extension) {
   return resolve(cwd, outDir, profile, target, `${name}${extension}`);
+}
+
+export function programIdentity(cwd, source, buildConfigPath) {
+  const inputPath = resolve(cwd, buildConfigPath ?? source);
+  if (!buildConfigPath) {
+    return {
+      inputPath,
+      name: basename(source, extname(source))
+    };
+  }
+
+  const rawName = basename(buildConfigPath, extname(buildConfigPath));
+  return {
+    inputPath,
+    name: rawName.toLowerCase() === "metabasic" ? basename(dirname(inputPath)) : rawName
+  };
 }
 
 function replacePlaceholders(value, replacements) {
@@ -281,6 +301,7 @@ function parseArgs(argv) {
     profile: "debug",
     allProfiles: false,
     source: defaultSource,
+    buildConfigPath: undefined,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
@@ -301,6 +322,11 @@ function parseArgs(argv) {
     }
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--build-config" || arg === "--project") {
+      options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
       continue;
     }
@@ -333,8 +359,11 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas]"
+      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json]"
     );
+  }
+  if (options.buildConfigPath && options.source !== defaultSource) {
+    throw new Error("Specify either --source or --build-config, not both.");
   }
 
   return options;

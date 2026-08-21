@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { basename, extname, resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
-import { buildTarget } from "./build-target.mjs";
+import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -18,13 +18,15 @@ async function launchC64(options) {
     target: "c64",
     profile: options.profile,
     source: options.source,
+    buildConfigPath: options.buildConfigPath,
     outDir: options.outDir,
     configPath: options.configPath,
     runBuild: true,
     runTools: true
   });
 
-  const artifact = outputPathFor(cwd, options.outDir, options.profile, options.source, ".prg");
+  const program = programIdentity(cwd, options.source, options.buildConfigPath);
+  const artifact = outputPathFor(cwd, options.outDir, options.profile, "c64", program.name, ".prg");
   if (!(await exists(artifact))) {
     throw new Error(`C64 launch artifact not found: ${artifact}. Check that petcat is configured and produced a .prg file.`);
   }
@@ -46,8 +48,8 @@ async function launchC64(options) {
 
   const replacements = {
     artifact,
-    source: resolve(cwd, options.source),
-    sourceName: basename(options.source, extname(options.source)),
+    source: program.inputPath,
+    sourceName: program.name,
     profile: options.profile,
     target: "c64"
   };
@@ -67,6 +69,7 @@ async function launchC64(options) {
 function parseArgs(argv) {
   const options = {
     source: defaultSource,
+    buildConfigPath: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -78,6 +81,11 @@ function parseArgs(argv) {
 
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--build-config" || arg === "--project") {
+      options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
       continue;
     }
@@ -104,6 +112,10 @@ function parseArgs(argv) {
     throw new Error(`Unknown option "${arg}".`);
   }
 
+  if (options.buildConfigPath && options.source !== defaultSource) {
+    throw new Error("Specify either --source or --build-config, not both.");
+  }
+
   return options;
 }
 
@@ -121,11 +133,6 @@ async function loadConfig(configPath) {
   }
 
   return JSON.parse(await readFile(configPath, "utf8"));
-}
-
-function outputPathFor(cwd, outDir, profile, source, extension) {
-  const name = basename(source, extname(source));
-  return resolve(cwd, outDir, profile, "c64", `${name}${extension}`);
 }
 
 function replacePlaceholders(value, replacements) {

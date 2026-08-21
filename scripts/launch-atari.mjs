@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { basename, extname, resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
-import { buildTarget } from "./build-target.mjs";
+import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -24,6 +24,7 @@ async function launchAtari(options) {
     target: "atari800xl",
     profile: options.profile,
     source: options.source,
+    buildConfigPath: options.buildConfigPath,
     outDir: options.outDir,
     configPath: options.configPath,
     runBuild: true,
@@ -54,11 +55,12 @@ async function launchAtari(options) {
     await terminateExistingEmulator(emulatorPath);
   }
 
+  const program = programIdentity(cwd, options.source, options.buildConfigPath);
   const replacements = {
     ...artifacts,
     artifact,
-    source: resolve(cwd, options.source),
-    sourceName: basename(options.source, extname(options.source)),
+    source: program.inputPath,
+    sourceName: program.name,
     profile: options.profile,
     target: "atari800xl"
   };
@@ -79,6 +81,7 @@ async function launchAtari(options) {
 function parseArgs(argv) {
   const options = {
     source: defaultSource,
+    buildConfigPath: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -91,6 +94,11 @@ function parseArgs(argv) {
 
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--build-config" || arg === "--project") {
+      options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
       continue;
     }
@@ -122,6 +130,10 @@ function parseArgs(argv) {
     throw new Error(`Unknown option "${arg}".`);
   }
 
+  if (options.buildConfigPath && options.source !== defaultSource) {
+    throw new Error("Specify either --source or --build-config, not both.");
+  }
+
   return options;
 }
 
@@ -142,17 +154,13 @@ async function loadConfig(configPath) {
 }
 
 function buildArtifacts(cwd, options) {
+  const program = programIdentity(cwd, options.source, options.buildConfigPath);
   return {
-    atr: outputPathFor(cwd, options.outDir, options.profile, options.source, ".atr"),
-    "tokenized-bas": outputPathFor(cwd, options.outDir, options.profile, options.source, ".tokenized.bas"),
-    lst: outputPathFor(cwd, options.outDir, options.profile, options.source, ".lst"),
-    "disk-directory": outputPathFor(cwd, options.outDir, options.profile, options.source, ".atr-files")
+    atr: outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".atr"),
+    "tokenized-bas": outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".tokenized.bas"),
+    lst: outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".lst"),
+    "disk-directory": outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".atr-files")
   };
-}
-
-function outputPathFor(cwd, outDir, profile, source, extension) {
-  const name = basename(source, extname(source));
-  return resolve(cwd, outDir, profile, "atari800xl", `${name}${extension}`);
 }
 
 function replacePlaceholders(value, replacements) {
