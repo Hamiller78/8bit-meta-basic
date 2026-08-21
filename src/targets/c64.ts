@@ -66,6 +66,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} NEXT ${renderVariableName(instruction.variable, variableMap)}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+      case "randomize":
+        return instruction.seed ? `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(${renderExpression(instruction.seed, renderOptions)}))` : `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(0)`;
       case "position":
         throw new Error("Internal error: unexpected position instruction for C64.");
       case "poke":
@@ -96,6 +98,7 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid],
+    [builtinFunctions.rnd, () => "RND(1)"],
     [builtinFunctions.sgn, renderC64UnaryNumericFunction],
     [builtinFunctions.sin, renderC64UnaryNumericFunction],
     [builtinFunctions.sqr, renderC64UnaryNumericFunction]
@@ -156,10 +159,11 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||
       instruction.kind === "read-key" ||
+      instruction.kind === "randomize" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
+      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name;
       if (!seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
         names.push(name);
@@ -228,6 +232,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "randomize":
+      return instruction.seed ? [instruction.seed] : [];
     case "cls":
     case "border-color":
     case "text-color":

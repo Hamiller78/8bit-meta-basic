@@ -409,6 +409,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders RANDOMIZE and RND with Spectrum spelling", () => {
+    expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 RANDOMIZE 123", "20 LET VALUE=RND", "30 RANDOMIZE", "40 PRINT VALUE", ""].join("\n")
+    );
+  });
+
   it("renders non-blocking KEY_CODE and target key constants", () => {
     expect(
       compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {
@@ -477,6 +483,11 @@ describe("Spectrum compiler", () => {
 
   it("reports invalid JIFFIES calls", () => {
     expect(() => compileSource("print jiffies(1)\n", { filename: "jiffies.mbas", target: "spectrum" })).toThrow("JIFFIES expects no arguments");
+  });
+
+  it("reports invalid RANDOMIZE and RND uses", () => {
+    expect(() => compileSource('randomize "seed"\n', { filename: "rnd.mbas", target: "spectrum" })).toThrow("RANDOMIZE seed must be numeric");
+    expect(() => compileSource("print rnd(1)\n", { filename: "rnd.mbas", target: "spectrum" })).toThrow("RND expects no arguments");
   });
 
   it("reports invalid keyboard function calls", () => {

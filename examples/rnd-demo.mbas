@@ -1,0 +1,25 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+print "RND DEMO"
+print "SAME SEED TWICE"
+print "ATARI IGNORES SEED"
+print ""
+
+randomize 1983
+print "FIRST:"
+for roll = 1 to 5
+    die = int(rnd() * 6) + 1
+    print die; " ";
+next roll
+print ""
+
+randomize 1983
+print "SECOND:"
+for roll = 1 to 5
+    die = int(rnd() * 6) + 1
+    print die; " ";
+next roll
+print ""

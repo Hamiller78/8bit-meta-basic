@@ -95,6 +95,8 @@ Supported constructs:
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
+- Runtime random number helper `rnd()`
+- Random number seeding with `randomize` and `randomize seed`
 - Runtime jiffy timer reading with `jiffies()`
 - Non-blocking keyboard polling with `key_code()`
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
@@ -112,6 +114,7 @@ Supported constructs:
 - `screen_text_color colour`
 - `cell_text_color colour`
 - `cell_background_color colour`
+- `randomize` and `randomize seed`
 - Expressions in `IF`, `CONST`, assignments, `FOR`, and `PRINT`
 
 Important source-language rule:
@@ -119,7 +122,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
 
 ## Tokenizer and parser
 
@@ -143,7 +146,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -158,6 +161,7 @@ Supported expression forms:
 - Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
 - Runtime character-code function calls `CHR$(code)` and `CODE(text$)`
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
+- Runtime random number function call `RND()`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
 - Array reads such as `VALUES(0)` and `MESSAGES$(0)`
@@ -363,6 +367,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Reject references to undefined labels.
 - Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
 - Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
+- Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64 `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(0)`, and no Atari output. Lower `RANDOMIZE seed` to Spectrum `RANDOMIZE seed`, C64 generated assignment using `RND(-seed)`, and no Atari output.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.

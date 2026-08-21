@@ -239,6 +239,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders RND and ignores RANDOMIZE on Atari BASIC", () => {
+    expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "atari800xl", readability: 0 })).toBe(
+      ["10 VALUE=RND(0)", "20 PRINT VALUE", ""].join("\n")
+    );
+  });
+
   it("lowers non-blocking KEY_CODE through CH at PEEK(764) and resets consumed keys", () => {
     expect(
       compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {

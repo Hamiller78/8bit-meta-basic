@@ -73,6 +73,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} NEXT ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
+      case "randomize":
+        return instruction.seed ? `${lineNumber} RANDOMIZE ${renderExpression(instruction.seed, renderOptions)}` : `${lineNumber} RANDOMIZE`;
       case "position":
       case "setcolor":
       case "poke":
@@ -103,6 +105,7 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid],
+    [builtinFunctions.rnd, () => "RND"],
     [builtinFunctions.sgn, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.sin, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.sqr, renderSpectrumUnaryNumericFunction]
@@ -217,6 +220,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "randomize":
+      return instruction.seed ? [instruction.seed] : [];
     case "cls":
     case "border-color":
     case "text-color":

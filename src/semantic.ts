@@ -287,6 +287,17 @@ function analyzeStatements(
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope)
         });
         break;
+      case "randomize": {
+        if (!statement.seed) {
+          analyzed.push(statement);
+          break;
+        }
+        analyzed.push({
+          ...statement,
+          seed: requireNumericExpression(foldExpression(statement.seed, constants, inConstantExpression, arrays, functions, scope), "RANDOMIZE seed")
+        });
+        break;
+      }
       case "label":
         analyzed.push(scope ? { ...statement, name: resolveScopedLabel(statement.name, scope) } : statement);
         break;
@@ -523,6 +534,14 @@ function foldFunctionCall(
   if (name === builtinFunctions.keyCode) {
     if (expression.args.length !== 0) {
       throw new DiagnosticError(expression.location, "KEY_CODE expects no arguments.");
+    }
+
+    return { ...expression, name, args: [] };
+  }
+
+  if (name === builtinFunctions.rnd) {
+    if (expression.args.length !== 0) {
+      throw new DiagnosticError(expression.location, "RND expects no arguments.");
     }
 
     return { ...expression, name, args: [] };
@@ -1141,6 +1160,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
       return [...statement.indices, statement.expression];
     case "return":
       return statement.expression ? [statement.expression] : [];
+    case "randomize":
+      return statement.seed ? [statement.seed] : [];
     case "for":
       return [statement.start, statement.limit, ...(statement.step ? [statement.step] : [])];
     case "while":

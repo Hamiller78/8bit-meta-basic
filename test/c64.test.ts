@@ -250,6 +250,12 @@ describe("C64 compiler", () => {
     ).toBe(["10 LA=TI", "20 PRINT 50", ""].join("\n"));
   });
 
+  it("renders RANDOMIZE and RND with C64 RND argument semantics", () => {
+    expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "c64", readability: 0 })).toBe(
+      ["10 MB=RND(-(123))", "20 VA=RND(1)", "30 MB=RND(0)", "40 PRINT VA", ""].join("\n")
+    );
+  });
+
   it("renders non-blocking KEY_CODE through GET and exposes target key constants", () => {
     expect(
       compileSource("keyCode = key_code()\nprint KEY_UP; KEY_A; GAME_UP; GAME_FIRE; keyCode\n", {

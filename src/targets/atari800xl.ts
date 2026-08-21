@@ -79,6 +79,8 @@ export const atari800xlTarget: TargetBackend = {
         });
       } else if (instruction.kind === "cell-text-color" || instruction.kind === "cell-background-color") {
         continue;
+      } else if (instruction.kind === "randomize") {
+        continue;
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
@@ -150,6 +152,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} NEXT ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+      case "randomize":
+        throw new Error("Internal error: unexpected randomize instruction for Atari 800XL.");
       case "position":
         return `${lineNumber} POSITION ${renderExpression(instruction.column, renderOptions)},${renderExpression(instruction.row, renderOptions)}`;
       case "setcolor":
@@ -471,6 +475,7 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid],
+    [builtinFunctions.rnd, () => "RND(0)"],
     [builtinFunctions.sgn, renderAtariUnaryNumericFunction],
     [builtinFunctions.sin, renderAtariUnaryNumericFunction],
     [builtinFunctions.sqr, renderAtariUnaryNumericFunction]
@@ -557,6 +562,8 @@ function instructionExpressions(instruction: Instruction): readonly Expression[]
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "randomize":
+      return instruction.seed ? [instruction.seed] : [];
     case "cls":
     case "border-color":
     case "text-color":

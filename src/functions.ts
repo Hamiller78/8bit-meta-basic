@@ -10,6 +10,7 @@ export const builtinFunctions = {
   keyCode: "KEY_CODE",
   len: "LEN",
   mid: "MID$",
+  rnd: "RND",
   sgn: "SGN",
   sin: "SIN",
   space: "SPACE$",

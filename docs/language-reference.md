@@ -130,12 +130,22 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `sgn(x)` | Runtime | Return sign |
 | `sin(x)` | Runtime | Return sine |
 | `sqr(x)` | Runtime | Return square root |
+| `rnd()` | Runtime | Return the next pseudo-random number in the target's native `0 <= x < 1` range |
 | `jiffies()` | Runtime | Read the target's running tick counter |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 
 `CHR$` and `CODE` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` to native `CODE`; Atari and C64 lower it to `ASC`.
 
 Math functions lower to the target BASIC function of the same name. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
+
+Random numbers use:
+
+```basic
+randomize 1983
+value = rnd()
+```
+
+`randomize` accepts an optional numeric seed. Atari BASIC ignores the seed because its native `RND` facility does not use the same explicit seed model.
 
 `STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
 

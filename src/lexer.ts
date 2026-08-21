@@ -25,6 +25,7 @@ export const keywords = new Set([
   "PRINT_AT",
   "RETURN",
   "REPEAT",
+  "RANDOMIZE",
   "SCREEN_BACKGROUND_COLOR",
   "SCREEN_BORDER_COLOR",
   "SCREEN_TEXT_COLOR",

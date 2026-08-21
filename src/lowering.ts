@@ -29,6 +29,7 @@ export type Instruction =
   | LetInstruction
   | ArrayLetInstruction
   | ReadKeyInstruction
+  | RandomizeInstruction
   | GotoInstruction
   | GosubInstruction
   | ReturnInstruction
@@ -133,6 +134,12 @@ export interface ArrayLetInstruction {
 export interface ReadKeyInstruction {
   readonly kind: "read-key";
   readonly name: string;
+  readonly location: SourceLocation;
+}
+
+export interface RandomizeInstruction {
+  readonly kind: "randomize";
+  readonly seed?: Expression;
   readonly location: SourceLocation;
 }
 
@@ -349,6 +356,13 @@ function lowerStatements(
           name: statement.name,
           indices: statement.indices.map((index) => expandFunctionCalls(index, instructions, context)),
           expression: expandFunctionCalls(statement.expression, instructions, context),
+          location: statement.location
+        });
+        break;
+      case "randomize":
+        instructions.push({
+          kind: "randomize",
+          ...(statement.seed ? { seed: expandFunctionCalls(statement.seed, instructions, context) } : {}),
           location: statement.location
         });
         break;

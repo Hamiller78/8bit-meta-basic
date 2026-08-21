@@ -66,6 +66,7 @@ Constant coordinates must fit these zero-based ranges:
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
 - `KEY_CODE()` uses `INKEY$`; short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter.
+- `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
 
 ## Atari 800XL
 
@@ -81,6 +82,7 @@ Constant coordinates must fit these zero-based ranges:
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter.
+- `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
 - The compiler does not emit `GRAPHICS 0` automatically.
 
 Atari colour values are deterministic approximations and can look different between PAL, NTSC, emulators, and displays.
@@ -95,6 +97,7 @@ Atari colour values are deterministic approximations and can look different betw
 - C64 cell background colour has no direct equivalent and therefore has no effect.
 - `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
+- `RND()` lowers to `RND(1)`; `RANDOMIZE seed` lowers to a generated assignment using `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.

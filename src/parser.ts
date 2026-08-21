@@ -20,6 +20,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["RETURN", (parser, location) => parser.parseReturn(location)],
+  ["RANDOMIZE", (parser, location) => parser.parseRandomize(location)],
   ["LOCAL", (parser, location) => parser.parseLocal(location)],
   ["FUNCTION", (parser, location) => parser.parseFunction(location)],
   ["FOR", (parser, location) => parser.parseFor(location)],
@@ -212,6 +213,17 @@ class Parser {
     const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "return", expression, location };
+  }
+
+  parseRandomize(location: SourceLocation): Statement {
+    if (this.isLineEnd()) {
+      this.expectLineEnd();
+      return { kind: "randomize", location };
+    }
+
+    const seed = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "randomize", seed, location };
   }
 
   parseLocal(location: SourceLocation): Statement {
