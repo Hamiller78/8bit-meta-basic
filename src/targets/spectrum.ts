@@ -65,6 +65,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} RESTORE`;
       case "let":
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
+      case "multi-let":
+        return `${lineNumber} ${instruction.assignments.map((assignment) => `LET ${variableMap.get(assignment.name.toLowerCase()) ?? assignment.name.toUpperCase()}=${renderExpression(assignment.expression, renderOptions)}`).join(":")}`;
       case "dim-array":
         return `${lineNumber} DIM ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.dimensions.join(",")})`;
       case "array-let":

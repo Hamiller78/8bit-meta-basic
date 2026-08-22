@@ -50,6 +50,7 @@ export type Instruction =
   | RestoreInstruction
   | DimArrayInstruction
   | LetInstruction
+  | MultiLetInstruction
   | ArrayLetInstruction
   | ReadKeyInstruction
   | RandomizeInstruction
@@ -154,6 +155,16 @@ export interface LetInstruction {
   readonly kind: "let";
   readonly name: string;
   readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface MultiLetInstruction {
+  readonly kind: "multi-let";
+  readonly assignments: readonly {
+    readonly name: string;
+    readonly expression: Expression;
+    readonly location: SourceLocation;
+  }[];
   readonly location: SourceLocation;
 }
 

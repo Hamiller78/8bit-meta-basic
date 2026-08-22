@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { build, loadBuildConfiguration } from "./build-configuration.js";
-import { compileSource, type Target } from "./compiler.js";
+import { buildDetailed, loadBuildConfiguration } from "./build-configuration.js";
+import { compileSourceDetailed, type Target } from "./compiler.js";
 import { formatCause } from "./diagnostics.js";
 import type { ReadabilityLevel } from "./line-numbering.js";
+import { formatOutputStats } from "./output-stats.js";
 import { isTargetId } from "./targets/index.js";
 
 interface CliOptions {
@@ -19,14 +20,14 @@ interface CliOptions {
 async function main(argv: readonly string[]): Promise<number> {
   try {
     const options = parseArgs(argv);
-    const output = options.configPath
-      ? await build(await loadBuildConfiguration(options.configPath), {
+    const result = options.configPath
+      ? await buildDetailed(await loadBuildConfiguration(options.configPath), {
           configPath: options.configPath,
           target: options.target,
           readability: options.readability,
           testMode: options.testMode
         })
-      : compileSource(await readFile(requiredInputPath(options), "utf8"), {
+      : compileSourceDetailed(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
           target: options.target,
           readability: options.readability,
@@ -35,9 +36,10 @@ async function main(argv: readonly string[]): Promise<number> {
 
     if (options.outputPath) {
       await mkdir(dirname(options.outputPath), { recursive: true });
-      await writeFile(options.outputPath, output, "utf8");
+      await writeFile(options.outputPath, result.output, "utf8");
+      process.stderr.write(`${formatOutputStats(result.stats)}\n`);
     } else {
-      process.stdout.write(output);
+      process.stdout.write(result.output);
     }
 
     return 0;

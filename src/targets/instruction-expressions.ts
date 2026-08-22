@@ -9,6 +9,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return instruction.values;
     case "let":
       return [instruction.expression];
+    case "multi-let":
+      return instruction.assignments.map((assignment) => assignment.expression);
     case "array-let":
       return [...instruction.indices, instruction.expression];
     case "for":

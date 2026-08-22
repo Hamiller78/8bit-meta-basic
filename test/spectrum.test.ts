@@ -725,7 +725,9 @@ describe("Spectrum compiler", () => {
 
       const fileRun = await runCli(sourcePath, "--target", "spectrum", "-o", outputPath);
       expect(fileRun.stdout).toBe("");
-      expect(fileRun.stderr).toBe("");
+      expect(fileRun.stderr).toContain("Transpiler output:");
+      expect(fileRun.stderr).toContain("BASIC lines: 3 (10..30)");
+      expect(fileRun.stderr).toContain("Variables total: 0");
       await expect(readFile(outputPath, "utf8")).resolves.toBe(stdoutRun.stdout);
 
       const invalidPath = join(dir, "invalid.mbas");

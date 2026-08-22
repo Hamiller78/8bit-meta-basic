@@ -53,6 +53,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} RESTORE`;
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
+      case "multi-let":
+        return `${lineNumber} ${instruction.assignments.map((assignment) => `${renderVariableName(assignment.name, variableMap)}=${renderExpression(assignment.expression, renderOptions)}`).join(":")}`;
       case "dim-array":
         return `${lineNumber} DIM ${renderVariableName(instruction.name, variableMap)}(${renderC64ArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
       case "array-let":

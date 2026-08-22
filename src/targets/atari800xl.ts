@@ -147,6 +147,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} RESTORE`;
       case "let":
         return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
+      case "multi-let":
+        return `${lineNumber} ${instruction.assignments.map((assignment) => renderAtariAssignmentBody(assignment, variableMap, renderOptions)).join(":")}`;
       case "dim-array":
         return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${renderAtariArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
       case "array-let":
@@ -197,13 +199,21 @@ function renderAtariAssignment(
   variableMap: ReadonlyMap<string, string>,
   renderOptions: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }
 ): string {
+  return `${lineNumber} ${renderAtariAssignmentBody(instruction, variableMap, renderOptions)}`;
+}
+
+function renderAtariAssignmentBody(
+  instruction: Pick<Extract<Instruction, { kind: "let" }>, "name" | "expression">,
+  variableMap: ReadonlyMap<string, string>,
+  renderOptions: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }
+): string {
   const targetName = variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase();
   const appendExpression = stringSelfAppendRight(instruction.name, instruction.expression);
   if (appendExpression) {
-    return `${lineNumber} ${targetName}(LEN(${targetName})+1)=${renderExpression(appendExpression, renderOptions)}`;
+    return `${targetName}(LEN(${targetName})+1)=${renderExpression(appendExpression, renderOptions)}`;
   }
 
-  return `${lineNumber} ${targetName}=${renderExpression(instruction.expression, renderOptions)}`;
+  return `${targetName}=${renderExpression(instruction.expression, renderOptions)}`;
 }
 
 function renderAtariDataValues(values: readonly Expression[], options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }): string {

@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Program } from "./ast.js";
-import { compileProgram, type CompileOptions } from "./compiler.js";
+import { compileProgramDetailed, type CompileOptions, type CompileResult } from "./compiler.js";
 import { parseSource } from "./parser.js";
 
 export interface BuildConfiguration {
@@ -36,9 +36,13 @@ export async function loadBuildConfiguration(configPath: string): Promise<BuildC
 }
 
 export async function build(configuration: BuildConfiguration, options: BuildOptions): Promise<string> {
+  return (await buildDetailed(configuration, options)).output;
+}
+
+export async function buildDetailed(configuration: BuildConfiguration, options: BuildOptions): Promise<CompileResult> {
   const baseDir = options.baseDir ?? (options.configPath ? dirname(resolve(options.configPath)) : process.cwd());
   const program = await readBuildProgram(configuration, baseDir);
-  return compileProgram(program, {
+  return compileProgramDetailed(program, {
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,
