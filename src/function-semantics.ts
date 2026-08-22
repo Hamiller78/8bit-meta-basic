@@ -291,6 +291,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
       return [statement.color];
     case "print":
       return [...(statement.at ? [statement.at.row, statement.at.column] : []), ...statement.items];
+    case "data":
+      return statement.values;
     case "let":
       return [statement.expression];
     case "array-let":
@@ -310,6 +312,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "label":
     case "goto":
     case "gosub":
+    case "read":
+    case "restore":
     case "local":
     case "function":
       return [];

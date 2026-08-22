@@ -392,6 +392,12 @@ describe("Spectrum compiler", () => {
     ).toBe(['10 DIM M$(3,12)', '20 LET M$(1)="READY"', '30 LET M$(3)="STANDBY"', "40 PRINT M$(1);M$(3)", ""].join("\n"));
   });
 
+  it("renders DATA, READ, and RESTORE for Spectrum", () => {
+    expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "spectrum" })).toBe(
+      ['10 DATA 10,"READY",1', "20 READ SCORE,A$,CONFIRMED", "30 PRINT SCORE;A$;CONFIRMED", "40 RESTORE", "50 READ SCORE", ""].join("\n")
+    );
+  });
+
   it("reports invalid array declarations and constant indexes", () => {
     expect(() => compileSource("dim values$(3)\n", { filename: "arrays.mbas", target: "spectrum" })).toThrow(
       "String arrays require element count and fixed width"
@@ -492,6 +498,19 @@ describe("Spectrum compiler", () => {
 
   it("reports invalid exponentiation operands", () => {
     expect(() => compileSource('print name$ ^ 2\n', { filename: "power.mbas", target: "spectrum" })).toThrow("Operator ^ requires numeric operands");
+  });
+
+  it("reports unsupported DATA and READ forms", () => {
+    expect(() => compileSource("data rnd()\n", { filename: "data.mbas", target: "spectrum" })).toThrow(
+      "DATA values must be compile-time numeric, string, or boolean values"
+    );
+    expect(() => compileSource("restore table\n", { filename: "data.mbas", target: "spectrum" })).toThrow("RESTORE does not support a target yet");
+    expect(() => compileSource("const score = 1\nread score\n", { filename: "data.mbas", target: "spectrum" })).toThrow(
+      'Cannot READ into constant "score"'
+    );
+    expect(() => compileSource("dim values(3)\nread values\n", { filename: "data.mbas", target: "spectrum" })).toThrow(
+      'Cannot READ scalar value into array "values"'
+    );
   });
 
   it("reports invalid integer variable uses", () => {

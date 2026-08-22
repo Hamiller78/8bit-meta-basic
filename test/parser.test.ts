@@ -194,6 +194,16 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses DATA, READ, and bare RESTORE", () => {
+    const program = parseSource('data 10, "READY", true\nread score, status$, confirmed\nrestore\n', "data.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "data", values: [{ kind: "number", value: 10 }, { kind: "string", value: "READY" }, { kind: "boolean", value: true }] },
+      { kind: "read", targets: ["score", "status$", "confirmed"] },
+      { kind: "restore" }
+    ]);
+  });
+
   it("parses fixed-width string arrays", () => {
     const program = parseSource('dim messages$(3, 12)\nmessages$(0) = "READY"\nprint messages$(0)\n', "string-arrays.mbas");
 

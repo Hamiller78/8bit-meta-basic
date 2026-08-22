@@ -245,6 +245,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders DATA, READ, and RESTORE for Atari BASIC", () => {
+    expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "atari800xl" })).toBe(
+      ['10 DATA 10,"READY",1', "20 DIM STATUS$(255)", "30 READ SCORE,STATUS$,CONFIRMED", "40 PRINT SCORE;STATUS$;CONFIRMED", "50 RESTORE", "60 READ SCORE", ""].join("\n")
+    );
+  });
+
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
       ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")

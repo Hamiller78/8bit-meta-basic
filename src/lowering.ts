@@ -26,6 +26,9 @@ export type Instruction =
   | CellBackgroundColorInstruction
   | PaperInstruction
   | PrintInstruction
+  | DataInstruction
+  | ReadInstruction
+  | RestoreInstruction
   | DimArrayInstruction
   | LetInstruction
   | ArrayLetInstruction
@@ -107,6 +110,23 @@ export interface PrintInstruction {
     readonly row: Expression;
     readonly column: Expression;
   };
+  readonly location: SourceLocation;
+}
+
+export interface DataInstruction {
+  readonly kind: "data";
+  readonly values: readonly Expression[];
+  readonly location: SourceLocation;
+}
+
+export interface ReadInstruction {
+  readonly kind: "read";
+  readonly targets: readonly string[];
+  readonly location: SourceLocation;
+}
+
+export interface RestoreInstruction {
+  readonly kind: "restore";
   readonly location: SourceLocation;
 }
 
@@ -347,6 +367,15 @@ function lowerStatements(
             location: statement.location
           });
         }
+        break;
+      case "data":
+        instructions.push({ kind: "data", values: statement.values, location: statement.location });
+        break;
+      case "read":
+        instructions.push({ kind: "read", targets: statement.targets, location: statement.location });
+        break;
+      case "restore":
+        instructions.push({ kind: "restore", location: statement.location });
         break;
       case "let":
         instructions.push({ kind: "let", name: statement.name, expression: expandFunctionCalls(statement.expression, instructions, context), location: statement.location });

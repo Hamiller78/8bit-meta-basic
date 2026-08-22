@@ -83,6 +83,10 @@ export function renderPrintItems(items: readonly Expression[], trailingSemicolon
   return trailingSemicolon ? `${rendered};` : rendered;
 }
 
+export function renderDataValues(values: readonly Expression[], options: ExpressionRenderOptions = {}): string {
+  return values.map((value) => renderExpression(value, options)).join(",");
+}
+
 export function expandPositionedPrints(
   program: LoweredProgram,
   targetName: string,

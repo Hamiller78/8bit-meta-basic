@@ -5,6 +5,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
   switch (instruction.kind) {
     case "print":
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
+    case "data":
+      return instruction.values;
     case "let":
       return [instruction.expression];
     case "array-let":
@@ -20,6 +22,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "randomize":
       return instruction.seed ? [instruction.seed] : [];
     case "read-key":
+    case "read":
+    case "restore":
     case "cls":
     case "border-color":
     case "text-color":

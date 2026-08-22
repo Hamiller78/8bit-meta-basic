@@ -7,7 +7,7 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
-import { expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -56,6 +56,12 @@ export const spectrumTarget: TargetBackend = {
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "data":
+        return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
+      case "read":
+        return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? target.toUpperCase()).join(",")}`;
+      case "restore":
+        return `${lineNumber} RESTORE`;
       case "let":
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
       case "dim-array":
@@ -199,6 +205,14 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       } else {
         collectNumericName(instruction.name, map);
       }
+    } else if (instruction.kind === "read") {
+      for (const target of instruction.targets) {
+        if (isStringVariableName(target)) {
+          collectStringName(target, stringNames, seenStrings);
+        } else {
+          collectNumericName(target, map);
+        }
+      }
     } else if (instruction.kind === "dim-array" || instruction.kind === "array-let") {
       collectNumericName(instruction.name, map);
     } else if (instruction.kind === "for" || instruction.kind === "next") {
@@ -237,6 +251,12 @@ function collectReservedSingleLetterNumericNames(instructions: readonly Instruct
   for (const instruction of instructions) {
     if (instruction.kind === "let" && /^[A-Z]$/i.test(instruction.name)) {
       names.add(instruction.name.toUpperCase());
+    } else if (instruction.kind === "read") {
+      for (const target of instruction.targets) {
+        if (!isStringVariableName(target) && /^[A-Z]$/i.test(target)) {
+          names.add(target.toUpperCase());
+        }
+      }
     } else if ((instruction.kind === "for" || instruction.kind === "next") && /^[A-Z]$/i.test(instruction.variable)) {
       names.add(instruction.variable.toUpperCase());
     }
@@ -520,6 +540,10 @@ function allocateKeyStringTempName(instructions: readonly Instruction[]): string
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
+    } else if (instruction.kind === "read") {
+      for (const target of instruction.targets) {
+        used.add(target.toLowerCase());
+      }
     } else if (instruction.kind === "for" || instruction.kind === "next") {
       used.add(instruction.variable.toLowerCase());
     }

@@ -12,14 +12,17 @@ const statementParsers = new Map<string, StatementParser>([
   ["CELL_TEXT_COLOR", (parser, location) => parser.parseCellTextColor(location)],
   ["CELL_BACKGROUND_COLOR", (parser, location) => parser.parseCellBackgroundColor(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
+  ["DATA", (parser, location) => parser.parseData(location)],
   ["DIM", (parser, location) => parser.parseDim(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
+  ["READ", (parser, location) => parser.parseRead(location)],
   ["TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
   ["GOTO", (parser, location) => parser.parseGoto(location)],
   ["RETURN", (parser, location) => parser.parseReturn(location)],
+  ["RESTORE", (parser, location) => parser.parseRestore(location)],
   ["RANDOMIZE", (parser, location) => parser.parseRandomize(location)],
   ["LOCAL", (parser, location) => parser.parseLocal(location)],
   ["FUNCTION", (parser, location) => parser.parseFunction(location)],
@@ -73,6 +76,41 @@ class Parser {
     const dimensions = this.parseArgumentList("Expected opening parenthesis after array name.");
     this.expectLineEnd();
     return { kind: "dim", name, dimensions, location };
+  }
+
+  parseData(location: SourceLocation): Statement {
+    const values: Expression[] = [];
+    if (this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "DATA requires at least one value.");
+    }
+
+    while (true) {
+      values.push(this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd()));
+      if (!this.matchPunctuation(",")) {
+        break;
+      }
+      this.advance();
+      if (this.isLineEnd()) {
+        throw new DiagnosticError(this.current().location, "DATA requires a value after comma.");
+      }
+    }
+
+    this.expectLineEnd();
+    return { kind: "data", values, location };
+  }
+
+  parseRead(location: SourceLocation): Statement {
+    const targets = this.parseIdentifierSequence("Expected variable name after READ.");
+    this.expectLineEnd();
+    return { kind: "read", targets, location };
+  }
+
+  parseRestore(location: SourceLocation): Statement {
+    if (!this.isLineEnd()) {
+      throw new DiagnosticError(this.current().location, "RESTORE does not support a target yet.");
+    }
+    this.expectLineEnd();
+    return { kind: "restore", location };
   }
 
   parsePrint(location: SourceLocation): PrintStatement {

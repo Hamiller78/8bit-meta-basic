@@ -19,6 +19,9 @@ export type Statement =
   | CellTextColorStatement
   | CellBackgroundColorStatement
   | PrintStatement
+  | DataStatement
+  | ReadStatement
+  | RestoreStatement
   | LetStatement
   | ArrayLetStatement
   | GotoStatement
@@ -99,6 +102,23 @@ export interface CellBackgroundColorStatement {
 export interface PrintAtPosition {
   readonly row: Expression;
   readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface DataStatement {
+  readonly kind: "data";
+  readonly values: readonly Expression[];
+  readonly location: SourceLocation;
+}
+
+export interface ReadStatement {
+  readonly kind: "read";
+  readonly targets: readonly string[];
+  readonly location: SourceLocation;
+}
+
+export interface RestoreStatement {
+  readonly kind: "restore";
   readonly location: SourceLocation;
 }
 

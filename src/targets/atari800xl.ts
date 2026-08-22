@@ -7,7 +7,7 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
-import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -87,6 +87,13 @@ export const atari800xlTarget: TargetBackend = {
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
       } else if (instruction.kind === "let" && isStringVariableName(instruction.name)) {
         pushStringAssignment(instruction);
+      } else if (instruction.kind === "read") {
+        for (const target of instruction.targets) {
+          if (isStringVariableName(target)) {
+            ensureStringDim(target, instruction.location);
+          }
+        }
+        instructions.push(instruction);
       } else if (instruction.kind === "print") {
         const beforePrint: Instruction[] = [];
         const items = instruction.items.map((item) => {
@@ -131,6 +138,12 @@ export const atari800xlTarget: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "data":
+        return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
+      case "read":
+        return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
+      case "restore":
+        return `${lineNumber} RESTORE`;
       case "let":
         return renderAtariAssignment(lineNumber, instruction, variableMap, renderOptions);
       case "dim-array":
@@ -410,6 +423,10 @@ function createTempStringNameAllocator(instructions: readonly Instruction[]): ()
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
+    } else if (instruction.kind === "read") {
+      for (const target of instruction.targets) {
+        used.add(target.toLowerCase());
+      }
     }
     for (const expression of instructionExpressions(instruction)) {
       collectExpressionNames(expression, used);
@@ -531,11 +548,18 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||
       instruction.kind === "read-key" ||
+      instruction.kind === "read" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
-      map.set(name.toLowerCase(), renderAtariVariableName(name));
+      if (instruction.kind === "read") {
+        for (const target of instruction.targets) {
+          map.set(target.toLowerCase(), renderAtariVariableName(target));
+        }
+      } else {
+        const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.name;
+        map.set(name.toLowerCase(), renderAtariVariableName(name));
+      }
     }
     for (const expression of instructionExpressions(instruction)) {
       collectIdentifiers(expression, map);

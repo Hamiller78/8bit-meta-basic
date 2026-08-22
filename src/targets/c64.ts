@@ -7,7 +7,7 @@ import { normalizeLabel } from "../lowering.js";
 import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
-import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -45,6 +45,12 @@ export const c64Target: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "data":
+        return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
+      case "read":
+        return `${lineNumber} READ ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
+      case "restore":
+        return `${lineNumber} RESTORE`;
       case "let":
         return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "dim-array":
@@ -170,14 +176,17 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||
       instruction.kind === "read-key" ||
+      instruction.kind === "read" ||
       instruction.kind === "randomize" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      const name = instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name;
-      if (!seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        names.push(name);
+      const instructionNames = instruction.kind === "read" ? instruction.targets : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
+      for (const name of instructionNames) {
+        if (!seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          names.push(name);
+        }
       }
     }
     for (const expression of instructionExpressions(instruction)) {
@@ -472,6 +481,10 @@ function allocateKeyStringTempName(instructions: readonly Instruction[]): string
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
+    } else if (instruction.kind === "read") {
+      for (const target of instruction.targets) {
+        used.add(target.toLowerCase());
+      }
     } else if (instruction.kind === "for" || instruction.kind === "next") {
       used.add(instruction.variable.toLowerCase());
     }

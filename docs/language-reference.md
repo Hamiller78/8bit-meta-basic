@@ -158,6 +158,23 @@ value = rnd()
 key = key_code()
 ```
 
+## Data streams
+
+`DATA`, `READ`, and bare `RESTORE` provide the classic BASIC data stream:
+
+```basic
+data 10, "READY"
+data 20, "ALERT"
+
+read itemCode, message$
+print itemCode; " "; message$
+
+restore
+read itemCode, message$
+```
+
+`DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
+
 ## Output
 
 `PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline.
@@ -251,4 +268,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

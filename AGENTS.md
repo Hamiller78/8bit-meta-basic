@@ -92,6 +92,9 @@ Supported constructs:
 - Target-provided environment constants `TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND`
 - Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
+- `data` statements containing compile-time numeric, string, or boolean values
+- `read` statements targeting scalar variables
+- Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Runtime string slicing with `mid$(text$, start, length)`
 - Runtime string/number conversion with `str$(number)` and `val(text$)`
@@ -116,7 +119,7 @@ Supported constructs:
 - `cell_text_color colour`
 - `cell_background_color colour`
 - `randomize` and `randomize seed`
-- Expressions in `IF`, `CONST`, assignments, `FOR`, and `PRINT`
+- Expressions in `IF`, `CONST`, assignments, `FOR`, `PRINT`, and `DATA`
 
 Important source-language rule:
 
@@ -124,6 +127,8 @@ Important source-language rule:
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
 Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
+
+`DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
 ## Tokenizer and parser
 
@@ -611,6 +616,7 @@ Coverage currently includes:
 - Assignment to constant diagnostics
 - `TRUE` and `FALSE` lowering
 - Numeric assignment output
+- `DATA`, scalar `READ`, and bare `RESTORE` parsing, target rendering, Atari string `DIM` support for string reads, and diagnostics for unsupported positioned restore or runtime data values
 - Multi-item `PRINT` and trailing semicolons
 - Rejection of source `LET`
 - `GOSUB`/`RETURN` parsing, label resolution, and target spelling
@@ -665,6 +671,7 @@ Do not claim support for machines or constructs that are only planned.
 - Imports, modules, exports, namespaces, separate compilation, or linking
 - A type system beyond current limited compile-time checks
 - Variable-length string arrays
+- Labelled or line-targeted `RESTORE`
 - Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
 - General runtime functions or function calls beyond the currently supported helpers
 - Optimization or minification

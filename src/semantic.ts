@@ -88,6 +88,23 @@ function analyzeStatements(
         constants.set(key, { name: statement.name, value, environment: false });
         break;
       }
+      case "data": {
+        analyzed.push({
+          ...statement,
+          values: statement.values.map((value) => analyzeDataValue(value, constants, arrays, functions, scope))
+        });
+        break;
+      }
+      case "read": {
+        analyzed.push({
+          ...statement,
+          targets: statement.targets.map((target) => analyzeReadTarget(target, statement.location, constants, arrays, scalarNames, scope))
+        });
+        break;
+      }
+      case "restore":
+        analyzed.push(statement);
+        break;
       case "dim": {
         const key = normalizeName(statement.name);
         if (constants.has(key)) {
@@ -326,6 +343,52 @@ function requireNumericExpression(expression: Expression, context: string): Expr
     throw new DiagnosticError(expression.location, `${context} must be numeric.`);
   }
   return expression;
+}
+
+function analyzeDataValue(
+  expression: Expression,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope?: FunctionScope
+): Expression {
+  const folded = foldExpression(expression, constants, true, arrays, functions, scope);
+  if (folded.kind === "number" || folded.kind === "string" || folded.kind === "boolean") {
+    return folded;
+  }
+  if (folded.kind === "color") {
+    throw new DiagnosticError(expression.location, "DATA values cannot be portable colours.");
+  }
+  throw new DiagnosticError(expression.location, "DATA values must be compile-time numeric, string, or boolean values.");
+}
+
+function analyzeReadTarget(
+  target: string,
+  location: Expression["location"],
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  scalarNames: Set<string>,
+  scope?: FunctionScope
+): string {
+  const scopedName = resolveScopedName(target, scope);
+  const isScopedVariable = scope?.variables.has(normalizeName(target)) ?? false;
+  if (!isScopedVariable) {
+    const existing = constants.get(normalizeName(target));
+    if (existing?.environment) {
+      throw new DiagnosticError(location, `Cannot READ into environment constant "${target}".`);
+    }
+    if (existing) {
+      throw new DiagnosticError(location, `Cannot READ into constant "${target}".`);
+    }
+    if (arrays.has(normalizeName(target))) {
+      throw new DiagnosticError(location, `Cannot READ scalar value into array "${target}".`);
+    }
+    if (canonicalFunctionName(target)) {
+      throw new DiagnosticError(location, `Cannot READ into built-in function name "${target}".`);
+    }
+    scalarNames.add(normalizeName(target));
+  }
+  return scopedName;
 }
 
 function requireArrayDimension(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>): number {

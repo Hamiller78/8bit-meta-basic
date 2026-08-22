@@ -260,6 +260,16 @@ describe("C64 compiler", () => {
     ).toBe(['10 DIM ME$(2)', '20 ME$(0)="READY"', '30 ME$(2)="STANDBY"', "40 PRINT ME$(0);ME$(2)", ""].join("\n"));
   });
 
+  it("renders DATA, READ, and RESTORE for C64 BASIC V2", () => {
+    expect(
+      compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', {
+        filename: "data.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 DATA 10,"READY",1', "20 READ SC,V0$,CO", "30 PRINT SC;V0$;CO", "40 RESTORE", "50 READ SC", ""].join("\n"));
+  });
+
   it("renders JIFFIES as the C64 jiffy clock", () => {
     expect(
       compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", {

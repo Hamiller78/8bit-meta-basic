@@ -1,0 +1,20 @@
+screen_border_color BLUE
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+data 10, "READY"
+data 20, "ALERT"
+
+print "DATA DEMO"
+print ""
+
+read itemCode, message$
+print itemCode; " "; message$
+
+read itemCode, message$
+print itemCode; " "; message$
+
+restore
+read itemCode, message$
+print "AGAIN "; itemCode; " "; message$
