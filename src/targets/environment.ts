@@ -155,7 +155,9 @@ function buildEnvironment(
   const constants = new Map<string, EnvironmentConstantValue>([
     ["text_rows", textRows],
     ["text_columns", textColumns],
-    ["jiffies_per_second", jiffiesPerSecond]
+    ["jiffies_per_second", jiffiesPerSecond],
+    ["pi", Math.PI],
+    ["e", Math.E]
   ]);
 
   for (const color of portableColors) {

@@ -14,6 +14,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["CONST", (parser, location) => parser.parseConst(location)],
   ["DATA", (parser, location) => parser.parseData(location)],
   ["DIM", (parser, location) => parser.parseDim(location)],
+  ["END", (parser, location) => parser.parseEnd(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
@@ -252,6 +253,11 @@ class Parser {
     const expression = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "return", expression, location };
+  }
+
+  parseEnd(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    return { kind: "end", location };
   }
 
   parseRandomize(location: SourceLocation): Statement {

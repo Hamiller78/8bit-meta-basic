@@ -115,6 +115,13 @@ export function tokenize(source: string, filename: string): Token[] {
       continue;
     }
 
+    if (char === "'") {
+      while (index < source.length && source[index] !== "\r" && source[index] !== "\n") {
+        advance(source[index]);
+      }
+      continue;
+    }
+
     if (char === "\r" || char === "\n") {
       tokens.push({ kind: "newline", location: location() });
       if (char === "\r" && source[index + 1] === "\n") {
@@ -124,13 +131,6 @@ export function tokenize(source: string, filename: string): Token[] {
       }
       line += 1;
       column = 1;
-      continue;
-    }
-
-    if (char === "'") {
-      while (index < source.length && source[index] !== "\r" && source[index] !== "\n") {
-        advance(source[index]);
-      }
       continue;
     }
 

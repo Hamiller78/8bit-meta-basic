@@ -27,6 +27,7 @@ export type Statement =
   | GotoStatement
   | GosubStatement
   | ReturnStatement
+  | EndStatement
   | RandomizeStatement
   | LocalStatement
   | FunctionStatement
@@ -152,6 +153,11 @@ export interface GosubStatement {
 export interface ReturnStatement {
   readonly kind: "return";
   readonly expression?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface EndStatement {
+  readonly kind: "end";
   readonly location: SourceLocation;
 }
 

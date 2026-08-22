@@ -37,6 +37,7 @@ export type Instruction =
   | GotoInstruction
   | GosubInstruction
   | ReturnInstruction
+  | EndInstruction
   | ForInstruction
   | NextInstruction
   | IfGotoInstruction
@@ -178,6 +179,11 @@ export interface GosubInstruction {
 
 export interface ReturnInstruction {
   readonly kind: "return";
+  readonly location: SourceLocation;
+}
+
+export interface EndInstruction {
+  readonly kind: "end";
   readonly location: SourceLocation;
 }
 
@@ -412,6 +418,9 @@ function lowerStatements(
           });
         }
         instructions.push({ kind: "return", location: statement.location });
+        break;
+      case "end":
+        instructions.push({ kind: "end", location: statement.location });
         break;
       case "for":
         instructions.push({

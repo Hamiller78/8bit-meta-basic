@@ -24,6 +24,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "read-key":
     case "read":
     case "restore":
+    case "end":
     case "cls":
     case "border-color":
     case "text-color":

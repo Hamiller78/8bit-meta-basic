@@ -74,6 +74,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} GO SUB ${resolveLabel(labelLines, instruction.label)}`;
       case "return":
         return `${lineNumber} RETURN`;
+      case "end":
+        return `${lineNumber} STOP`;
       case "for":
         return `${lineNumber} FOR ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}=${renderExpression(instruction.start, renderOptions)} TO ${renderExpression(instruction.limit, renderOptions)}${instruction.step ? ` STEP ${renderExpression(instruction.step, renderOptions)}` : ""}`;
       case "next":
@@ -103,6 +105,7 @@ export function setSpectrumRenderProgram(instructions: readonly Instruction[]): 
 const renderKnownSpectrumFunction = createFunctionRenderer(
   new Map([
     [builtinFunctions.abs, renderSpectrumUnaryNumericFunction],
+    [builtinFunctions.asc, renderSpectrumCode],
     [builtinFunctions.atn, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.chr, renderSpectrumChr],
     [builtinFunctions.code, renderSpectrumCode],
@@ -110,9 +113,11 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.exp, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.int, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
+    [builtinFunctions.left, renderSpectrumLeft],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid],
     [builtinFunctions.rnd, () => "RND"],
+    [builtinFunctions.right, renderSpectrumRight],
     [builtinFunctions.sgn, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.sin, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.sqr, renderSpectrumUnaryNumericFunction],
@@ -161,6 +166,17 @@ function renderSpectrumLen(expression: FunctionCallExpression, options: { readon
 function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
   return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+}
+
+function renderSpectrumLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, length] = expression.args;
+  return `${renderExpression(source, options)}( TO ${renderExpression(length, options)})`;
+}
+
+function renderSpectrumRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, length] = expression.args;
+  const renderedSource = renderExpression(source, options);
+  return `${renderedSource}(LEN ${renderSpectrumLenArgument(source, options)} - ${renderExpression(length, options)} + 1 TO )`;
 }
 
 function renderSpectrumLenArgument(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

@@ -351,8 +351,14 @@ describe("Spectrum compiler", () => {
   });
 
   it("renders CHR$ and CODE as Spectrum character conversion functions", () => {
-    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', { filename: "chars.mbas", target: "spectrum" })).toBe(
-      ['10 LET A$=CHR$ (48 + VALUE)', '20 PRINT A$;CODE "A"', ""].join("\n")
+    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A"); asc("B")\n', { filename: "chars.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$=CHR$ (48 + VALUE)', '20 PRINT A$;CODE "A";CODE "B"', ""].join("\n")
+    );
+  });
+
+  it("renders LEFT$ and RIGHT$ as Spectrum string slicing", () => {
+    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$="HELLO WORLD"', "20 PRINT A$( TO 5);A$(LEN A$ - 5 + 1 TO )", ""].join("\n")
     );
   });
 
@@ -395,6 +401,24 @@ describe("Spectrum compiler", () => {
   it("renders DATA, READ, and RESTORE for Spectrum", () => {
     expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "spectrum" })).toBe(
       ['10 DATA 10,"READY",1', "20 READ SCORE,A$,CONFIRMED", "30 PRINT SCORE;A$;CONFIRMED", "40 RESTORE", "50 READ SCORE", ""].join("\n")
+    );
+  });
+
+  it("renders END as Spectrum STOP", () => {
+    expect(compileSource('print "FIRST"\nend\nprint "NEVER"\n', { filename: "end-print.mbas", target: "spectrum", readability: 0 })).toBe(
+      ['10 PRINT "FIRST"', "20 STOP", '30 PRINT "NEVER"', ""].join("\n")
+    );
+  });
+
+  it("folds PI and E environment constants", () => {
+    expect(compileSource("print pi; e\n", { filename: "constants.mbas", target: "spectrum", readability: 0 })).toBe(
+      [`10 PRINT ${Math.PI};${Math.E}`, ""].join("\n")
+    );
+  });
+
+  it("keeps apostrophe comments everywhere, including after PRINT", () => {
+    expect(compileSource("' ignored\nvalue = 1 ' trailing\nprint value ' trailing print comment\n", { filename: "comments.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 LET VALUE=1", "20 PRINT VALUE", ""].join("\n")
     );
   });
 
@@ -481,6 +505,18 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource("print code(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
       "CODE argument must be a string expression"
     );
+    expect(() => compileSource("print asc(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
+      "ASC argument must be a string expression"
+    );
+  });
+
+  it("reports invalid LEFT$ and RIGHT$ calls", () => {
+    expect(() => compileSource("print left$(1, 2)\n", { filename: "sides.mbas", target: "spectrum" })).toThrow(
+      "LEFT$ first argument must be a string expression"
+    );
+    expect(() => compileSource('print right$("ABC", "2")\n', { filename: "sides.mbas", target: "spectrum" })).toThrow(
+      "RIGHT$ length argument must be numeric"
+    );
   });
 
   it("reports invalid STR$ and VAL calls", () => {
@@ -534,7 +570,6 @@ describe("Spectrum compiler", () => {
   it("reports invalid keyboard function calls", () => {
     expect(() => compileSource("print key_code(1)\n", { filename: "keys.mbas", target: "spectrum" })).toThrow("KEY_CODE expects no arguments");
     expect(() => compileSource("print key$()\n", { filename: "keys.mbas", target: "spectrum" })).toThrow('Unknown function "key$"');
-    expect(() => compileSource("print asc(\"A\")\n", { filename: "keys.mbas", target: "spectrum" })).toThrow('Unknown function "asc"');
   });
 
   it("accepts a constant alias as a CLS colour and rejects invalid colour uses", () => {

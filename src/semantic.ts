@@ -241,6 +241,9 @@ function analyzeStatements(
             : {})
         });
         break;
+      case "end":
+        analyzed.push(statement);
+        break;
       case "if":
         analyzed.push({
           ...statement,
@@ -620,14 +623,14 @@ function foldFunctionCall(
     return { ...expression, name, args: [code] };
   }
 
-  if (name === builtinFunctions.code) {
+  if (name === builtinFunctions.code || name === builtinFunctions.asc) {
     if (expression.args.length !== 1) {
-      throw new DiagnosticError(expression.location, "CODE expects exactly one argument.");
+      throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);
     }
     const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
 
     if (!isStringExpression(source)) {
-      throw new DiagnosticError(expression.args[0].location, "CODE argument must be a string expression.");
+      throw new DiagnosticError(expression.args[0].location, `${name} argument must be a string expression.`);
     }
 
     return { ...expression, name, args: [source] };
@@ -710,6 +713,23 @@ function foldFunctionCall(
     }
 
     return { ...expression, name, args: [source, start, length] };
+  }
+
+  if (name === builtinFunctions.left || name === builtinFunctions.right) {
+    if (expression.args.length !== 2) {
+      throw new DiagnosticError(expression.location, `${name} expects exactly two arguments.`);
+    }
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const length = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope);
+
+    if (!isStringExpression(source)) {
+      throw new DiagnosticError(expression.args[0].location, `${name} first argument must be a string expression.`);
+    }
+    if (isStringExpression(length) || length.kind === "color") {
+      throw new DiagnosticError(expression.args[1].location, `${name} length argument must be numeric.`);
+    }
+
+    return { ...expression, name, args: [source, length] };
   }
 
   if (name === builtinFunctions.len) {

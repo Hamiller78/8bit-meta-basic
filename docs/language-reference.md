@@ -38,6 +38,8 @@ Every target supplies these environment constants:
 
 The compiler also supplies target key constants, portable game-control constants, and portable colour constants. Their target mappings are described in [targets.md](targets.md).
 
+All targets also provide compile-time numeric constants `PI` and `E`.
+
 ## Variables and assignment
 
 Assignment does not use `LET` in Meta-BASIC source:
@@ -58,7 +60,7 @@ counter% = 3.7
 
 Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 lowers them to native `%` integer variables and still emits explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
 
-Current string support includes assignment, concatenation, output, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, and `VAL`. Keep string values within the portable 255-character limit.
+Current string support includes assignment, concatenation, output, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, and `VAL`. Keep string values within the portable 255-character limit.
 
 ## Arrays
 
@@ -120,9 +122,12 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `string$(text$, count)` | Compile time | Repeat a string |
 | `space$(count)` | Compile time | Produce spaces |
 | `mid$(text$, start, length)` | Runtime | Extract a string section |
+| `left$(text$, length)` | Runtime | Extract the left part of a string |
+| `right$(text$, length)` | Runtime | Extract the right part of a string |
 | `len(text$)` | Runtime | Return string length |
 | `chr$(code)` | Runtime | Convert a numeric character code to a one-character string |
 | `code(text$)` | Runtime | Convert the first character of a string to a numeric code |
+| `asc(text$)` | Runtime | Alias-style source spelling for `code(text$)` |
 | `str$(x)` | Runtime | Convert a number to a string |
 | `val(text$)` | Runtime | Convert a numeric string to a number |
 | `abs(x)` | Runtime | Return absolute value |
@@ -137,7 +142,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `jiffies()` | Runtime | Read the target's running tick counter |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 
-`CHR$` and `CODE` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` to native `CODE`; Atari and C64 lower it to `ASC`.
+`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
 
 `STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari and C64 lower them to `STR$(expression)` and `VAL(expression)`. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
@@ -177,7 +182,7 @@ read itemCode, message$
 
 ## Output
 
-`PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline.
+`PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline:
 
 ```basic
 print "SECONDS: "; countdown
@@ -246,6 +251,13 @@ repeat
     count = count - 1
     print count
 until count = 0
+```
+
+`END` terminates program execution:
+
+```basic
+print "DONE"
+end
 ```
 
 ## Screen and colour commands

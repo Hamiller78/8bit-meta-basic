@@ -37,6 +37,7 @@ describe("lexer", () => {
 
     expect(tokens.filter((token) => token.kind === "keyword").map((token) => token.text)).toEqual(["PRINT"]);
     expect(tokens).toContainEqual(expect.objectContaining({ kind: "string", value: "IF THEN ELSE" }));
+    expect(tokens).not.toContainEqual(expect.objectContaining({ kind: "punctuation", text: "'" }));
   });
 
   it("recognizes keywords case-insensitively through the centralized keyword set", () => {

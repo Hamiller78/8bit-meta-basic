@@ -67,6 +67,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} GOSUB ${resolveLabel(labelLines, instruction.label)}`;
       case "return":
         return `${lineNumber} RETURN`;
+      case "end":
+        return `${lineNumber} END`;
       case "for":
         return `${lineNumber} FOR ${renderVariableName(instruction.variable, variableMap)}=${renderExpression(instruction.start, renderOptions)} TO ${renderExpression(instruction.limit, renderOptions)}${instruction.step ? ` STEP ${renderExpression(instruction.step, renderOptions)}` : ""}`;
       case "next":
@@ -96,6 +98,7 @@ export function setC64RenderProgram(instructions: readonly Instruction[]): void 
 const renderKnownC64Function = createFunctionRenderer(
   new Map([
     [builtinFunctions.abs, renderC64UnaryNumericFunction],
+    [builtinFunctions.asc, renderC64Code],
     [builtinFunctions.atn, renderC64UnaryNumericFunction],
     [builtinFunctions.chr, renderC64Chr],
     [builtinFunctions.code, renderC64Code],
@@ -103,9 +106,11 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.exp, renderC64UnaryNumericFunction],
     [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
+    [builtinFunctions.left, renderC64Left],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid],
     [builtinFunctions.rnd, () => "RND(1)"],
+    [builtinFunctions.right, renderC64Right],
     [builtinFunctions.sgn, renderC64UnaryNumericFunction],
     [builtinFunctions.sin, renderC64UnaryNumericFunction],
     [builtinFunctions.sqr, renderC64UnaryNumericFunction],
@@ -148,6 +153,14 @@ function renderC64Len(expression: FunctionCallExpression, options: { readonly va
 
 function renderC64Mid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `MID$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
+}
+
+function renderC64Left(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `LEFT$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
+}
+
+function renderC64Right(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  return `RIGHT$(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
 }
 
 function renderC64ArrayAccess(

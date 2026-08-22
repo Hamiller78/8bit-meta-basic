@@ -190,8 +190,14 @@ describe("Atari 800XL compiler", () => {
   });
 
   it("renders CHR$ and CODE as Atari character conversion functions", () => {
-    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', { filename: "chars.mbas", target: "atari800xl" })).toBe(
-      ['10 DIM DIGIT$(255)', "20 DIGIT$=CHR$(48 + VALUE)", '30 PRINT DIGIT$;ASC("A")', ""].join("\n")
+    expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A"); asc("B")\n', { filename: "chars.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM DIGIT$(255)', "20 DIGIT$=CHR$(48 + VALUE)", '30 PRINT DIGIT$;ASC("A");ASC("B")', ""].join("\n")
+    );
+  });
+
+  it("renders LEFT$ and RIGHT$ as Atari substring ranges", () => {
+    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(1,5);TICKERTEXT$(LEN(TICKERTEXT$) - 5 + 1,LEN(TICKERTEXT$))", ""].join("\n")
     );
   });
 
@@ -249,6 +255,10 @@ describe("Atari 800XL compiler", () => {
     expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "atari800xl" })).toBe(
       ['10 DATA 10,"READY",1', "20 DIM STATUS$(255)", "30 READ SCORE,STATUS$,CONFIRMED", "40 PRINT SCORE;STATUS$;CONFIRMED", "50 RESTORE", "60 READ SCORE", ""].join("\n")
     );
+  });
+
+  it("renders END for Atari BASIC", () => {
+    expect(compileSource('print "DONE"\nend\n', { filename: "end.mbas", target: "atari800xl" })).toBe(['10 PRINT "DONE"', "20 END", ""].join("\n"));
   });
 
   it("renders JIFFIES from the Atari real-time clock", () => {

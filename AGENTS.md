@@ -83,6 +83,7 @@ Supported constructs:
 - `goto label`
 - `gosub label`
 - `return`
+- `end`
 - `for name = start to limit` / `next name`, with optional `step`
 - `while expression` / `wend`
 - `repeat` / `until expression`
@@ -96,7 +97,7 @@ Supported constructs:
 - `read` statements targeting scalar variables
 - Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
-- Runtime string slicing with `mid$(text$, start, length)`
+- Runtime string slicing with `mid$(text$, start, length)`, `left$(text$, length)`, and `right$(text$, length)`
 - Runtime string/number conversion with `str$(number)` and `val(text$)`
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime random number helper `rnd()`
@@ -126,7 +127,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$` is supported as a portable runtime string-slicing helper. `LEN` is supported as a portable runtime string-length helper. `CHR$` and `CODE` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
@@ -152,7 +153,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -164,8 +165,8 @@ Supported expression forms:
 - String literals
 - Identifiers
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
-- Runtime string function calls `MID$(text$, start, length)` and `LEN(text$)`
-- Runtime character-code function calls `CHR$(code)` and `CODE(text$)`
+- Runtime string function calls `MID$(text$, start, length)`, `LEFT$(text$, length)`, `RIGHT$(text$, length)`, and `LEN(text$)`
+- Runtime character-code function calls `CHR$(code)`, `CODE(text$)`, and `ASC(text$)`
 - Runtime string/number conversion function calls `STR$(number)` and `VAL(text$)`
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime random number function call `RND()`
@@ -205,6 +206,8 @@ Selected targets provide read-only, case-insensitive environment constants:
 | Atari 800XL | 24 | 40 | 50 |
 | Commodore 64 | 25 | 40 | 50 |
 
+All targets also provide read-only compile-time numeric constants `PI` and `E`.
+
 Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Direction constants represent each machine's cursor/direction key codes; letter constants such as `KEY_Q`, `KEY_A`, `KEY_O`, and `KEY_P` remain available.
 
 Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum maps these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
@@ -240,7 +243,7 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
-Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables, or `%`, in which case they are integer numeric variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEN`, `CHR$`, `CODE`, `STR$`, and `VAL`. Integer variable assignment accepts numeric expressions and lowers to `INT(expression)` assignment coercion. Non-integer numeric constants are allowed. Integer variables are not supported as `FOR` loop variables yet. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
+Do not add variable declarations or a full type system. Variables first encountered in expressions or assignment targets are runtime numeric variables unless their name ends in `$`, in which case they are runtime string variables, or `%`, in which case they are integer numeric variables. String variables currently support assignment, `PRINT` output, concatenation, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, and `VAL`. Integer variable assignment accepts numeric expressions and lowers to `INT(expression)` assignment coercion. Non-integer numeric constants are allowed. Integer variables are not supported as `FOR` loop variables yet. Keep string values within the portable C64-compatible 255-character practical limit until a more detailed string model is added.
 
 Target string-variable lowering:
 
@@ -314,7 +317,7 @@ Rules:
 - Constant coordinates are range-checked per target.
 - Dynamic coordinates are not range-checked yet.
 
-Out of scope for `PRINT`: comma separators, apostrophe print separators, streams, `INK`, `PAPER`, `COLOR`, and `SETCOLOR`.
+Out of scope for `PRINT`: comma separators, apostrophe newline separators, streams, `INK`, `PAPER`, `COLOR`, and `SETCOLOR`.
 
 ## CLS, border colour, and portable colours
 
@@ -375,6 +378,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Reject references to undefined labels.
 - Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
 - Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
+- Lower `END` to Spectrum `STOP`, Atari `END`, and C64 `END`.
 - Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64 `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(0)`, and no Atari output. Lower `RANDOMIZE seed` to Spectrum `RANDOMIZE seed`, C64 generated assignment using `RND(-seed)`, and no Atari output.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
@@ -625,9 +629,9 @@ Coverage currently includes:
 - String variable tokenization, parsing, assignment, target name mapping, Atari `DIM`, and `PRINT`
 - Integer variable tokenization, assignment coercion, target name mapping, and C64 native `%` output
 - Numeric, integer, and fixed-width string array parsing, declaration diagnostics, constant index range checks, target rendering, string width checks, and integer array assignment coercion
-- Runtime `MID$` lowering to C64 `MID$`, Spectrum slicers, and Atari substrings
+- Runtime `MID$`, `LEFT$`, and `RIGHT$` lowering to C64 string functions, Spectrum slicers, and Atari substrings
 - Runtime `LEN` lowering to each target's string-length function
-- Runtime `CHR$` and `CODE` lowering, with Spectrum using native `CODE` and Atari/C64 using `ASC`
+- Runtime `CHR$`, `CODE`, and `ASC` lowering, with Spectrum using native `CODE` for `CODE`/`ASC` and Atari/C64 using `ASC`
 - Runtime `STR$` and `VAL` lowering, with Spectrum using operator-style `STR$ expression` and `VAL expression`
 - Runtime numeric math function lowering for `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, and `SQR`
 - Runtime exponentiation operator rendering with `^`
@@ -672,7 +676,7 @@ Do not claim support for machines or constructs that are only planned.
 - A type system beyond current limited compile-time checks
 - Variable-length string arrays
 - Labelled or line-targeted `RESTORE`
-- Runtime `LEFT$`, `RIGHT$`, and other string functions beyond the documented built-ins
+- Runtime string functions beyond the documented built-ins
 - General runtime functions or function calls beyond the currently supported helpers
 - Optimization or minification
 - BASIC tokenization or TAP generation

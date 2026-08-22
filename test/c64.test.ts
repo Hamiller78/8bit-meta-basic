@@ -192,12 +192,22 @@ describe("C64 compiler", () => {
 
   it("renders CHR$ and CODE as C64 character conversion functions", () => {
     expect(
-      compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A")\n', {
+      compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A"); asc("B")\n', {
         filename: "chars.mbas",
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A")', ""].join("\n"));
+    ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A");ASC("B")', ""].join("\n"));
+  });
+
+  it("renders LEFT$ and RIGHT$ directly for C64", () => {
+    expect(
+      compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', {
+        filename: "sides.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(['10 V0$="HELLO WORLD"', "20 PRINT LEFT$(V0$,5);RIGHT$(V0$,5)", ""].join("\n"));
   });
 
   it("renders STR$ and VAL as C64 conversion functions", () => {
@@ -268,6 +278,10 @@ describe("C64 compiler", () => {
         readability: 0
       })
     ).toBe(['10 DATA 10,"READY",1', "20 READ SC,V0$,CO", "30 PRINT SC;V0$;CO", "40 RESTORE", "50 READ SC", ""].join("\n"));
+  });
+
+  it("renders END for C64 BASIC V2", () => {
+    expect(compileSource('print "DONE"\nend\n', { filename: "end.mbas", target: "c64", readability: 0 })).toBe(['10 PRINT "DONE"', "20 END", ""].join("\n"));
   });
 
   it("renders JIFFIES as the C64 jiffy clock", () => {

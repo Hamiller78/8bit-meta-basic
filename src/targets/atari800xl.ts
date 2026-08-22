@@ -160,6 +160,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} GOSUB ${resolveLabel(labelLines, instruction.label)}`;
       case "return":
         return `${lineNumber} RETURN`;
+      case "end":
+        return `${lineNumber} END`;
       case "for":
         return `${lineNumber} FOR ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}=${renderExpression(instruction.start, renderOptions)} TO ${renderExpression(instruction.limit, renderOptions)}${instruction.step ? ` STEP ${renderExpression(instruction.step, renderOptions)}` : ""}`;
       case "next":
@@ -484,6 +486,7 @@ function collectExpressionNames(expression: Expression, used: Set<string>): void
 const renderKnownAtariFunction = createFunctionRenderer(
   new Map([
     [builtinFunctions.abs, renderAtariUnaryNumericFunction],
+    [builtinFunctions.asc, renderAtariCode],
     [builtinFunctions.atn, renderAtariUnaryNumericFunction],
     [builtinFunctions.chr, renderAtariChr],
     [builtinFunctions.code, renderAtariCode],
@@ -491,9 +494,11 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.exp, renderAtariUnaryNumericFunction],
     [builtinFunctions.int, renderAtariUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
+    [builtinFunctions.left, renderAtariLeft],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid],
     [builtinFunctions.rnd, () => "RND(0)"],
+    [builtinFunctions.right, renderAtariRight],
     [builtinFunctions.sgn, renderAtariUnaryNumericFunction],
     [builtinFunctions.sin, renderAtariUnaryNumericFunction],
     [builtinFunctions.sqr, renderAtariUnaryNumericFunction],
@@ -537,6 +542,17 @@ function renderAtariLen(expression: FunctionCallExpression, options: { readonly 
 function renderAtariMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
   return `${renderExpression(source, options)}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+}
+
+function renderAtariLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, length] = expression.args;
+  return `${renderExpression(source, options)}(1,${renderExpression(length, options)})`;
+}
+
+function renderAtariRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [source, length] = expression.args;
+  const renderedSource = renderExpression(source, options);
+  return `${renderedSource}(LEN(${renderedSource}) - ${renderExpression(length, options)} + 1,LEN(${renderedSource}))`;
 }
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {

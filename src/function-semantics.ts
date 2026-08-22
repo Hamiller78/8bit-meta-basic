@@ -314,6 +314,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "gosub":
     case "read":
     case "restore":
+    case "end":
     case "local":
     case "function":
       return [];
