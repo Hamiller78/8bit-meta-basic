@@ -2,6 +2,25 @@ import type { Expression, FunctionImplementation, Program, SourceLocation, State
 import { DiagnosticError } from "./diagnostics.js";
 import { collectFunctionImplementations, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
+import {
+  capturedPrintExpression,
+  captureTestColor,
+  lowerAssertBoolean,
+  lowerAssertColor,
+  lowerAssertComparison,
+  lowerAssertPrint,
+  lowerAssertPrintAt,
+  lowerTestRunner,
+  testCellBackgroundColorName,
+  testCellTextColorName,
+  testOutputName,
+  testPrintAtColumnName,
+  testPrintAtOutputName,
+  testPrintAtRowName,
+  testScreenBackgroundColorName,
+  testScreenBorderColorName,
+  testScreenTextColorName
+} from "./test-runner-lowering.js";
 
 export interface LoweredProgram {
   readonly instructions: readonly Instruction[];
@@ -251,32 +270,61 @@ export interface SysInstruction {
   readonly location: SourceLocation;
 }
 
-export function lowerProgram(program: Program): LoweredProgram {
+export interface LowerOptions {
+  readonly testMode?: boolean;
+}
+
+export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
   const userLabels = collectUserLabels(program.statements);
   const generator = internalLabelGenerator(userLabels);
   const functions = collectFunctionImplementations(program.statements);
   const context: FunctionCallLoweringContext = { functions, nextTempId: 1 };
   const instructions: Instruction[] = [];
 
-  const mainStatements = program.statements.filter((statement) => statement.kind !== "function");
+  const mainStatements = program.statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test");
   const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function");
+  const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
 
-  lowerStatements(mainStatements, instructions, generator, context);
+  if (options.testMode) {
+    lowerTestRunner(testStatements, instructions, generator);
+  } else {
+    lowerStatements(mainStatements, instructions, generator, context);
+  }
+
+  if (testStatements.length > 0) {
+    for (const statement of testStatements) {
+      if (!statement.implementation) {
+        throw new DiagnosticError(statement.location, `Internal error: TEST ${statement.name} was not analyzed before lowering.`);
+      }
+      instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
+      lowerStatements(statement.body, instructions, generator, context, statement.implementation, { testMode: true, currentTestName: statement.name, capturePrints: true });
+      if (instructions[instructions.length - 1]?.kind !== "return") {
+        instructions.push({ kind: "return", location: statement.location });
+      }
+    }
+  }
 
   if (functionStatements.length > 0) {
     const endLabel = generator();
-    instructions.push({ kind: "goto", label: endLabel, location: functionStatements[0].location });
+    if (!options.testMode) {
+      instructions.push({ kind: "goto", label: endLabel, location: functionStatements[0].location });
+    }
     for (const statement of functionStatements) {
       if (!statement.implementation) {
         throw new DiagnosticError(statement.location, `Internal error: FUNCTION ${statement.name} was not analyzed before lowering.`);
       }
       instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
-      lowerStatements(statement.body, instructions, generator, context, statement.implementation);
+      lowerStatements(statement.body, instructions, generator, context, statement.implementation, {
+        testMode: options.testMode === true,
+        capturePrints: options.testMode === true
+      });
       if (instructions[instructions.length - 1]?.kind !== "return") {
         instructions.push({ kind: "return", location: statement.location });
       }
     }
-    instructions.push({ kind: "label", name: endLabel, internal: true, location: functionStatements[0].location });
+    if (!options.testMode) {
+      instructions.push({ kind: "label", name: endLabel, internal: true, location: functionStatements[0].location });
+    }
   }
 
   const labels = buildLabelMap(instructions);
@@ -285,18 +333,26 @@ export function lowerProgram(program: Program): LoweredProgram {
   return { instructions, labels };
 }
 
+interface LowerStatementOptions {
+  readonly testMode?: boolean;
+  readonly currentTestName?: string;
+  readonly capturePrints?: boolean;
+}
+
 function lowerStatements(
   statements: readonly Statement[],
   instructions: Instruction[],
   nextInternalLabel: () => string,
   context: FunctionCallLoweringContext,
-  currentFunction?: FunctionImplementation
+  currentFunction?: FunctionImplementation,
+  options: LowerStatementOptions = {}
 ): void {
   for (const statement of statements) {
     switch (statement.kind) {
       case "const":
       case "local":
       case "function":
+      case "test":
         break;
       case "dim":
         instructions.push({
@@ -312,6 +368,14 @@ function lowerStatements(
         });
         break;
       case "cls":
+        if (options.capturePrints && statement.color) {
+          instructions.push({
+            kind: "let",
+            name: testScreenBackgroundColorName,
+            expression: numberExpression(colorNumber(statement.color as Extract<Expression, { kind: "color" }>), statement.location),
+            location: statement.location
+          });
+        }
         instructions.push({
           kind: "cls",
           ...(statement.color ? { color: statement.color as Extract<Expression, { kind: "color" }> } : {}),
@@ -319,6 +383,9 @@ function lowerStatements(
         });
         break;
       case "border-color":
+        if (options.capturePrints) {
+          captureTestColor(instructions, testScreenBorderColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+        }
         instructions.push({
           kind: "border-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
@@ -326,6 +393,9 @@ function lowerStatements(
         });
         break;
       case "text-color":
+        if (options.capturePrints) {
+          captureTestColor(instructions, testScreenTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+        }
         instructions.push({
           kind: "text-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
@@ -333,6 +403,9 @@ function lowerStatements(
         });
         break;
       case "screen-background-color":
+        if (options.capturePrints) {
+          captureTestColor(instructions, testScreenBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+        }
         instructions.push({
           kind: "screen-background-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
@@ -340,6 +413,9 @@ function lowerStatements(
         });
         break;
       case "cell-text-color":
+        if (options.capturePrints) {
+          captureTestColor(instructions, testCellTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+        }
         instructions.push({
           kind: "cell-text-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
@@ -347,6 +423,9 @@ function lowerStatements(
         });
         break;
       case "cell-background-color":
+        if (options.capturePrints) {
+          captureTestColor(instructions, testCellBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+        }
         instructions.push({
           kind: "cell-background-color",
           color: statement.color as Extract<Expression, { kind: "color" }>,
@@ -365,6 +444,26 @@ function lowerStatements(
               }
             : undefined;
           const items = statement.items.map((item) => expandFunctionCalls(item, instructions, context));
+          if (options.capturePrints && at) {
+            instructions.push({ kind: "let", name: testPrintAtRowName, expression: at.row, location: statement.location });
+            instructions.push({ kind: "let", name: testPrintAtColumnName, expression: at.column, location: statement.location });
+            instructions.push({
+              kind: "let",
+              name: testPrintAtOutputName,
+              expression: capturedPrintExpression(items, statement.location),
+              location: statement.location
+            });
+          } else if (options.capturePrints) {
+            instructions.push({
+              kind: "let",
+              name: testOutputName,
+              expression: capturedPrintExpression(items, statement.location),
+              location: statement.location
+            });
+          }
+          if (options.capturePrints) {
+            break;
+          }
           instructions.push({
             kind: "print",
             items,
@@ -373,6 +472,43 @@ function lowerStatements(
             location: statement.location
           });
         }
+        break;
+      case "assert-true":
+        lowerAssertBoolean(statement.actual, true, options.currentTestName, instructions, nextInternalLabel, context, statement.location);
+        break;
+      case "assert-false":
+        lowerAssertBoolean(statement.actual, false, options.currentTestName, instructions, nextInternalLabel, context, statement.location);
+        break;
+      case "assert-eq":
+      case "assert-ne":
+        if (!statement.expected) {
+          throw new DiagnosticError(statement.location, "Internal error: ASSERT_EQ/ASSERT_NE missing expected expression.");
+        }
+        lowerAssertComparison(statement.kind, statement.expected, statement.actual, options.currentTestName, instructions, nextInternalLabel, context, statement.location);
+        break;
+      case "assert-print":
+        lowerAssertPrint(statement.actual, options.currentTestName, instructions, nextInternalLabel, context, statement.location);
+        break;
+      case "assert-printat":
+        if (!statement.row || !statement.column) {
+          throw new DiagnosticError(statement.location, "Internal error: ASSERT_PRINTAT missing row or column expression.");
+        }
+        lowerAssertPrintAt(statement.row, statement.column, statement.actual, options.currentTestName, instructions, nextInternalLabel, context, statement.location);
+        break;
+      case "assert-screen-border-color":
+        lowerAssertColor("ASSERT_SCREEN_BORDER_COLOR", testScreenBorderColorName, statement.actual, options.currentTestName, instructions, nextInternalLabel, statement.location);
+        break;
+      case "assert-screen-background-color":
+        lowerAssertColor("ASSERT_SCREEN_BACKGROUND_COLOR", testScreenBackgroundColorName, statement.actual, options.currentTestName, instructions, nextInternalLabel, statement.location);
+        break;
+      case "assert-screen-text-color":
+        lowerAssertColor("ASSERT_SCREEN_TEXT_COLOR", testScreenTextColorName, statement.actual, options.currentTestName, instructions, nextInternalLabel, statement.location);
+        break;
+      case "assert-cell-text-color":
+        lowerAssertColor("ASSERT_CELL_TEXT_COLOR", testCellTextColorName, statement.actual, options.currentTestName, instructions, nextInternalLabel, statement.location);
+        break;
+      case "assert-cell-background-color":
+        lowerAssertColor("ASSERT_CELL_BACKGROUND_COLOR", testCellBackgroundColorName, statement.actual, options.currentTestName, instructions, nextInternalLabel, statement.location);
         break;
       case "data":
         instructions.push({ kind: "data", values: statement.values, location: statement.location });
@@ -431,7 +567,7 @@ function lowerStatements(
           ...(statement.step ? { step: expandFunctionCalls(statement.step, instructions, context) } : {}),
           location: statement.location
         });
-        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction);
+        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
         instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
         break;
       case "while": {
@@ -443,7 +579,7 @@ function lowerStatements(
         instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: bodyLabel, location: statement.location });
         instructions.push({ kind: "goto", label: endLabel, location: statement.location });
         instructions.push({ kind: "label", name: bodyLabel, internal: true, location: statement.location });
-        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction);
+        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
         instructions.push({ kind: "goto", label: startLabel, location: statement.location });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         break;
@@ -453,7 +589,7 @@ function lowerStatements(
         const endLabel = nextInternalLabel();
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
-        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction);
+        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
         instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: endLabel, location: statement.location });
         instructions.push({ kind: "goto", label: startLabel, location: statement.location });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
@@ -465,15 +601,15 @@ function lowerStatements(
 
         if (statement.elseBranch.length > 0) {
           instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: thenLabel, location: statement.location });
-          lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction);
+          lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
-          lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction);
+          lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
         } else {
           instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: thenLabel, location: statement.location });
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
-          lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction);
+          lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
         }
 
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
@@ -481,6 +617,43 @@ function lowerStatements(
       }
     }
   }
+}
+
+function numberExpression(value: number, location: SourceLocation): Expression {
+  return { kind: "number", value, raw: value.toString(), location };
+}
+
+function colorNumber(color: Extract<Expression, { kind: "color" }>): number {
+  switch (color.color) {
+    case "BLACK":
+      return 0;
+    case "BLUE":
+      return 1;
+    case "RED":
+      return 2;
+    case "MAGENTA":
+      return 3;
+    case "GREEN":
+      return 4;
+    case "CYAN":
+      return 5;
+    case "YELLOW":
+      return 6;
+    case "WHITE":
+      return 7;
+  }
+}
+
+function stringExpression(value: string, location: SourceLocation): Expression {
+  return { kind: "string", value, location };
+}
+
+function identifierExpression(name: string, location: SourceLocation): Expression {
+  return { kind: "identifier", name, location };
+}
+
+function binaryExpression(operator: Extract<Expression, { kind: "binary" }>["operator"], left: Expression, right: Expression, location: SourceLocation): Expression {
+  return { kind: "binary", operator, left, right, location };
 }
 
 function collectUserLabels(statements: readonly Statement[], seen = new Map<string, SourceLocation>()): ReadonlySet<string> {
@@ -502,7 +675,7 @@ function collectUserLabels(statements: readonly Statement[], seen = new Map<stri
       collectUserLabels(statement.body, seen);
     } else if (statement.kind === "while" || statement.kind === "repeat-until") {
       collectUserLabels(statement.body, seen);
-    } else if (statement.kind === "function") {
+    } else if (statement.kind === "function" || statement.kind === "test") {
       collectUserLabels(statement.body, seen);
     }
   }

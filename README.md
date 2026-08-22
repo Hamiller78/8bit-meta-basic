@@ -55,7 +55,14 @@ The build and launch helper scripts use `--build-config` for Meta-BASIC project 
 
 ```text
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
-npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
+npm run launch:all-targets -- --build-config examples/multifile/metabasic.json --restart
+```
+
+For a conventional project folder, use `--project`. A project folder contains sibling `source/` and `tests/` folders. Normal builds compile `source/*.mbas`; test-mode builds compile `source/*.mbas` plus `tests/*.mbas` and generate the automatic test runner:
+
+```text
+npm run build:all-targets -- --project examples/project-demo --profile debug
+npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
 ```
 
 Build artifacts for all targets:
@@ -67,7 +74,7 @@ npm run build:all-targets -- --source examples/narf.mbas --profile release
 Launch every configured emulator for one source:
 
 ```text
-npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
 
 Build profiles select the output readability:

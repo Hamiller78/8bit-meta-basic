@@ -1,9 +1,11 @@
 import type { BinaryOperator, Expression, Program, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import {
+  attachTestImplementations,
   collectFunctionDefinitions,
   containsFunctionReturn,
   createFunctionScope,
+  createTestScope,
   type FunctionDefinition,
   type FunctionScope,
   validateControlFlowBoundaries,
@@ -29,19 +31,24 @@ interface ArrayDefinition {
   readonly location: Expression["location"];
 }
 
-export function analyzeProgram(program: Program, environment: TargetEnvironment): Program {
+export interface AnalyzeOptions {
+  readonly testMode?: boolean;
+}
+
+export function analyzeProgram(program: Program, environment: TargetEnvironment, options: AnalyzeOptions = {}): Program {
   const constants = new Map<string, ConstantDefinition>();
   for (const [key, value] of environment.constants) {
     constants.set(key, { name: key.toUpperCase(), value, environment: true });
   }
   const arrays = new Map<string, ArrayDefinition>();
   const scalarNames = new Set<string>();
-  const functions = collectFunctionDefinitions(program.statements);
+  const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
+  const functions = collectFunctionDefinitions(statements);
   validateFunctionRecursion(functions);
-  validateControlFlowBoundaries(program.statements);
+  validateControlFlowBoundaries(statements);
 
   return {
-    statements: analyzeStatements(program.statements, constants, false, arrays, scalarNames, functions)
+    statements: analyzeStatements(statements, constants, false, arrays, scalarNames, functions, undefined, options.testMode === true)
   };
 }
 
@@ -52,7 +59,8 @@ function analyzeStatements(
   arrays: Map<string, ArrayDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
-  scope?: FunctionScope
+  scope?: FunctionScope,
+  testMode = false
 ): readonly Statement[] {
   const analyzed: Statement[] = [];
 
@@ -69,9 +77,19 @@ function analyzeStatements(
         analyzed.push(analyzeFunction(definition, constants, arrays, scalarNames, functions));
         break;
       }
+      case "test": {
+        if (!testMode) {
+          throw new DiagnosticError(statement.location, "TEST blocks are only valid when testMode is enabled.");
+        }
+        if (scope) {
+          throw new DiagnosticError(statement.location, "Nested TEST declarations are not supported.");
+        }
+        analyzed.push(analyzeTest(statement, constants, arrays, scalarNames, functions, testMode));
+        break;
+      }
       case "local":
         if (!scope) {
-          throw new DiagnosticError(statement.location, "LOCAL can only be used inside a FUNCTION.");
+          throw new DiagnosticError(statement.location, "LOCAL can only be used inside a FUNCTION or TEST.");
         }
         break;
       case "const": {
@@ -248,8 +266,8 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope),
-          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope)
+          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode),
+          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
         });
         break;
       case "for": {
@@ -283,7 +301,7 @@ function analyzeStatements(
           start,
           limit,
           ...(step ? { step } : {}),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
         });
         break;
       }
@@ -291,13 +309,13 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
         });
         break;
       case "repeat-until":
         analyzed.push({
           ...statement,
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope),
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode),
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope)
         });
         break;
@@ -321,6 +339,13 @@ function analyzeStatements(
         break;
       case "return":
         if (scope) {
+          if (scope.kind === "test") {
+            if (statement.expression) {
+              throw new DiagnosticError(statement.location, `RETURN inside TEST ${scope.functionName} cannot return a value.`);
+            }
+            analyzed.push(statement);
+            break;
+          }
           if (!statement.expression) {
             throw new DiagnosticError(statement.location, `RETURN inside FUNCTION ${scope.functionName} requires an expression.`);
           }
@@ -335,6 +360,72 @@ function analyzeStatements(
         }
         analyzed.push(statement);
         break;
+      case "assert-true":
+      case "assert-false": {
+        if (!testMode || scope?.kind !== "test") {
+          throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} can only be used inside a TEST when testMode is enabled.`);
+        }
+        const actual = requireNumericExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
+        analyzed.push({ ...statement, actual });
+        break;
+      }
+      case "assert-eq":
+      case "assert-ne": {
+        if (!testMode || scope?.kind !== "test") {
+          throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} can only be used inside a TEST when testMode is enabled.`);
+        }
+        if (!statement.expected) {
+          throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} requires expected and actual expressions.`);
+        }
+        const expected = rejectColorExpression(foldExpression(statement.expected, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
+        const actual = rejectColorExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
+        if (isStringExpression(expected) !== isStringExpression(actual)) {
+          throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} requires expected and actual expressions of the same type.`);
+        }
+        analyzed.push({ ...statement, expected, actual });
+        break;
+      }
+      case "assert-print": {
+        if (!testMode || scope?.kind !== "test") {
+          throw new DiagnosticError(statement.location, "ASSERT_PRINT can only be used inside a TEST when testMode is enabled.");
+        }
+        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope);
+        if (!isStringExpression(actual)) {
+          throw new DiagnosticError(statement.location, "ASSERT_PRINT requires a string expression.");
+        }
+        analyzed.push({ ...statement, actual });
+        break;
+      }
+      case "assert-printat": {
+        if (!testMode || scope?.kind !== "test") {
+          throw new DiagnosticError(statement.location, "ASSERT_PRINTAT can only be used inside a TEST when testMode is enabled.");
+        }
+        if (!statement.row || !statement.column) {
+          throw new DiagnosticError(statement.location, "ASSERT_PRINTAT requires row, column, and expected text expressions.");
+        }
+        const row = requireNumericExpression(foldExpression(statement.row, constants, inConstantExpression, arrays, functions, scope), "ASSERT_PRINTAT row");
+        const column = requireNumericExpression(foldExpression(statement.column, constants, inConstantExpression, arrays, functions, scope), "ASSERT_PRINTAT column");
+        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope);
+        if (!isStringExpression(actual)) {
+          throw new DiagnosticError(statement.location, "ASSERT_PRINTAT expected text must be a string expression.");
+        }
+        analyzed.push({ ...statement, row, column, actual });
+        break;
+      }
+      case "assert-screen-border-color":
+      case "assert-screen-background-color":
+      case "assert-screen-text-color":
+      case "assert-cell-text-color":
+      case "assert-cell-background-color": {
+        if (!testMode || scope?.kind !== "test") {
+          throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} can only be used inside a TEST when testMode is enabled.`);
+        }
+        analyzed.push({
+          ...statement,
+          actual: analyzeColorExpression(statement.actual, constants, assertDisplayName(statement.kind), arrays, functions, scope)
+        });
+        break;
+      }
     }
   }
 
@@ -970,7 +1061,7 @@ function analyzeFunction(
   functions: ReadonlyMap<string, FunctionDefinition>
 ): Statement {
   const scope = createFunctionScope(definition);
-  const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, scope);
+  const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, scope, false);
   if (!containsFunctionReturn(body)) {
     throw new DiagnosticError(definition.statement.location, `FUNCTION ${definition.name} must contain RETURN expression.`);
   }
@@ -982,10 +1073,54 @@ function analyzeFunction(
   };
 }
 
+function analyzeTest(
+  statement: Extract<Statement, { kind: "test" }>,
+  constants: Map<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  scalarNames: Set<string>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  testMode: boolean
+): Statement {
+  const scope = createTestScope(statement);
+  const body = analyzeStatements(statement.body, constants, false, arrays, scalarNames, functions, scope, testMode);
+  return {
+    ...statement,
+    body,
+    implementation: statement.implementation
+  };
+}
+
 function resolveScopedName(name: string, scope?: FunctionScope): string {
   return scope?.variables.get(normalizeName(name)) ?? name;
 }
 
 function resolveScopedLabel(label: string, scope: FunctionScope): string {
   return scope.labels.get(normalizeName(label)) ?? label;
+}
+
+function assertDisplayName(kind: Extract<Statement, { kind: string }>["kind"]): string {
+  switch (kind) {
+    case "assert-true":
+      return "ASSERT_TRUE";
+    case "assert-false":
+      return "ASSERT_FALSE";
+    case "assert-eq":
+      return "ASSERT_EQ";
+    case "assert-ne":
+      return "ASSERT_NE";
+    case "assert-printat":
+      return "ASSERT_PRINTAT";
+    case "assert-screen-border-color":
+      return "ASSERT_SCREEN_BORDER_COLOR";
+    case "assert-screen-background-color":
+      return "ASSERT_SCREEN_BACKGROUND_COLOR";
+    case "assert-screen-text-color":
+      return "ASSERT_SCREEN_TEXT_COLOR";
+    case "assert-cell-text-color":
+      return "ASSERT_CELL_TEXT_COLOR";
+    case "assert-cell-background-color":
+      return "ASSERT_CELL_BACKGROUND_COLOR";
+    default:
+      return "ASSERT";
+  }
 }

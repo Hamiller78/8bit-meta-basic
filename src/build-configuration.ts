@@ -6,6 +6,7 @@ import { parseSource } from "./parser.js";
 
 export interface BuildConfiguration {
   readonly files: readonly string[];
+  readonly testMode?: boolean;
 }
 
 export interface BuildOptions extends Omit<CompileOptions, "filename"> {
@@ -41,7 +42,8 @@ export async function build(configuration: BuildConfiguration, options: BuildOpt
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,
-    comments: options.comments
+    comments: options.comments,
+    testMode: options.testMode ?? configuration.testMode
   });
 }
 
@@ -62,7 +64,12 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     throw new Error(`Invalid build configuration "${configPath}": "files" must contain at least one source file.`);
   }
 
-  return { files };
+  const testMode = (value as { testMode?: unknown }).testMode;
+  if (testMode !== undefined && typeof testMode !== "boolean") {
+    throw new Error(`Invalid build configuration "${configPath}": "testMode" must be a boolean when present.`);
+  }
+
+  return testMode === undefined ? { files } : { files, testMode };
 }
 
 async function readBuildProgram(configuration: BuildConfiguration, baseDir: string): Promise<Program> {

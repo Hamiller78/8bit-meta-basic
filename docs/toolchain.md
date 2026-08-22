@@ -10,8 +10,12 @@ npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
+npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
+npm run build:all-targets -- --project examples/project-demo --profile debug
+npm run build:all-targets -- --project examples/project-demo --run-tests --profile debug
 npm run build:directory -- --source-dir examples --profile debug
-npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -21,6 +25,33 @@ npm run launch:spectrum -- --source examples/input-demo.mbas --restart
 ```
 
 The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, or `--target c64` to restrict it.
+
+The build and launch scripts accept exactly one program input mode:
+
+- `--source file.mbas` for one file
+- `--build-config metabasic.json` for an explicit ordered file list
+- `--project folder` for a conventional project folder
+
+A project folder contains `source/` and `tests/` side by side:
+
+```text
+project/
+  source/
+    main.mbas
+    math.mbas
+  tests/
+    math-tests.mbas
+```
+
+Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
+
+```text
+npm run build:spectrum -- --project examples/project-demo --profile debug
+npm run build:spectrum -- --project examples/project-demo --run-tests --profile debug
+npm run launch:spectrum -- --project examples/project-demo --run-tests --restart
+```
+
+`--run-tests` also works with `--source`, `--build-config`, `build:directory`, and the target/all launch scripts.
 
 Generated files normally appear below:
 
@@ -71,10 +102,10 @@ Use `--restart` when switching examples to close an existing emulator process be
 To launch every target with an emulator path configured:
 
 ```text
-npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
 
-The all-launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead.
+The all-targets launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead.
 
 ## Spectrum: bas2tap
 

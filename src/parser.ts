@@ -25,8 +25,20 @@ const statementParsers = new Map<string, StatementParser>([
   ["RETURN", (parser, location) => parser.parseReturn(location)],
   ["RESTORE", (parser, location) => parser.parseRestore(location)],
   ["RANDOMIZE", (parser, location) => parser.parseRandomize(location)],
+  ["ASSERT_TRUE", (parser, location) => parser.parseAssertUnary("assert-true", location)],
+  ["ASSERT_FALSE", (parser, location) => parser.parseAssertUnary("assert-false", location)],
+  ["ASSERT_EQ", (parser, location) => parser.parseAssertBinary("assert-eq", location)],
+  ["ASSERT_NE", (parser, location) => parser.parseAssertBinary("assert-ne", location)],
+  ["ASSERT_PRINT", (parser, location) => parser.parseAssertUnary("assert-print", location)],
+  ["ASSERT_PRINTAT", (parser, location) => parser.parseAssertPrintAt(location)],
+  ["ASSERT_SCREEN_BORDER_COLOR", (parser, location) => parser.parseAssertUnary("assert-screen-border-color", location)],
+  ["ASSERT_SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseAssertUnary("assert-screen-background-color", location)],
+  ["ASSERT_SCREEN_TEXT_COLOR", (parser, location) => parser.parseAssertUnary("assert-screen-text-color", location)],
+  ["ASSERT_CELL_TEXT_COLOR", (parser, location) => parser.parseAssertUnary("assert-cell-text-color", location)],
+  ["ASSERT_CELL_BACKGROUND_COLOR", (parser, location) => parser.parseAssertUnary("assert-cell-background-color", location)],
   ["LOCAL", (parser, location) => parser.parseLocal(location)],
   ["FUNCTION", (parser, location) => parser.parseFunction(location)],
+  ["TEST", (parser, location) => parser.parseTest(location)],
   ["FOR", (parser, location) => parser.parseFor(location)],
   ["WHILE", (parser, location) => parser.parseWhile(location)],
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
@@ -287,6 +299,54 @@ class Parser {
     return { kind: "function", name, parameters, body, location };
   }
 
+  parseTest(location: SourceLocation): Statement {
+    const name = this.expectIdentifier("Expected test name after TEST.").text;
+    const parameters = this.parseIdentifierList("Expected empty parentheses after test name.");
+    if (parameters.length > 0) {
+      throw new DiagnosticError(location, "TEST blocks do not take parameters.");
+    }
+    this.expectLineEnd();
+    const body = this.parseBlock("end-test", location);
+    this.expectEndTest();
+    this.expectLineEnd();
+    return { kind: "test", name, body, location };
+  }
+
+  parseAssertUnary(
+    kind:
+      | "assert-true"
+      | "assert-false"
+      | "assert-print"
+      | "assert-screen-border-color"
+      | "assert-screen-background-color"
+      | "assert-screen-text-color"
+      | "assert-cell-text-color"
+      | "assert-cell-background-color",
+    location: SourceLocation
+  ): Statement {
+    const actual = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind, actual, location };
+  }
+
+  parseAssertPrintAt(location: SourceLocation): Statement {
+    const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "ASSERT_PRINTAT requires a comma between row and column expressions.");
+    const column = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "ASSERT_PRINTAT requires a comma between column and expected text expressions.");
+    const actual = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "assert-printat", row, column, actual, location };
+  }
+
+  parseAssertBinary(kind: "assert-eq" | "assert-ne", location: SourceLocation): Statement {
+    const expected = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", `${kind === "assert-eq" ? "ASSERT_EQ" : "ASSERT_NE"} requires a comma between expected and actual expressions.`);
+    const actual = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind, expected, actual, location };
+  }
+
   parseIf(location: SourceLocation): Statement {
     const condition = this.parseExpression(() => this.matchKeyword("THEN"));
     this.expectKeyword("THEN", "Expected THEN after IF condition.");
@@ -349,7 +409,7 @@ class Parser {
   }
 
   private parseBlock(
-    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "next" | "wend" | "until",
+    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "end-test" | "next" | "wend" | "until",
     missingBlockLocation?: SourceLocation
   ): Statement[] {
     const statements: Statement[] = [];
@@ -373,6 +433,9 @@ class Parser {
         if (until === "end-function") {
           throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END FUNCTION for FUNCTION block.");
         }
+        if (until === "end-test") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END TEST for TEST block.");
+        }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
 
@@ -395,6 +458,13 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected END FUNCTION without matching FUNCTION.");
+      }
+
+      if (this.isEndTest()) {
+        if (until === "end-test") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected END TEST without matching TEST.");
       }
 
       if (this.matchKeyword("NEXT")) {
@@ -634,6 +704,11 @@ class Parser {
     this.expectKeyword("FUNCTION", "Expected FUNCTION after END.");
   }
 
+  private expectEndTest(): void {
+    this.expectKeyword("END", "Expected END TEST.");
+    this.expectKeyword("TEST", "Expected TEST after END.");
+  }
+
   private isEndIf(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("ENDIF") || (this.matchKeyword("END") && next?.kind === "keyword" && next.text === "IF");
@@ -642,6 +717,11 @@ class Parser {
   private isEndFunction(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "FUNCTION";
+  }
+
+  private isEndTest(): boolean {
+    const next = this.tokens[this.index + 1];
+    return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "TEST";
   }
 
   private expectIdentifier(message: string): Extract<Token, { kind: "identifier" }> {

@@ -49,6 +49,7 @@ export async function buildDirectory(options) {
           target,
           profile,
           source,
+          testMode: options.testMode === true,
           outDir: options.outDir ?? defaultOutDir,
           configPath: options.configPath ?? defaultToolConfig,
           runBuild: false,
@@ -69,7 +70,8 @@ function parseArgs(argv) {
     targets: [],
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
-    runTools: true
+    runTools: true,
+    testMode: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -106,6 +108,10 @@ function parseArgs(argv) {
     }
     if (arg === "--no-tools") {
       options.runTools = false;
+      continue;
+    }
+    if (arg === "--run-tests") {
+      options.testMode = true;
       continue;
     }
     throw new Error(`Unknown option "${arg}".`);

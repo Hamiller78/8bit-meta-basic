@@ -13,6 +13,7 @@ interface CliOptions {
   readonly target: Target;
   readonly readability: ReadabilityLevel;
   readonly outputPath?: string;
+  readonly testMode?: boolean;
 }
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -22,12 +23,14 @@ async function main(argv: readonly string[]): Promise<number> {
       ? await build(await loadBuildConfiguration(options.configPath), {
           configPath: options.configPath,
           target: options.target,
-          readability: options.readability
+          readability: options.readability,
+          testMode: options.testMode
         })
       : compileSource(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
           target: options.target,
-          readability: options.readability
+          readability: options.readability,
+          testMode: options.testMode
         });
 
     if (options.outputPath) {
@@ -50,6 +53,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   let target: Target | undefined;
   let readability: ReadabilityLevel = 2;
   let outputPath: string | undefined;
+  let testMode = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -87,6 +91,11 @@ function parseArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--run-tests") {
+      testMode = true;
+      continue;
+    }
+
     if (arg === "--config" || arg === "--build-config") {
       const value = argv[index + 1];
       if (!value) {
@@ -108,7 +117,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas]");
+    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests]");
   }
 
   if (inputPath && configPath) {
@@ -119,7 +128,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
     throw new Error("Missing required --target option.");
   }
 
-  const parsed: CliOptions = configPath ? { configPath, target, readability } : { inputPath: inputPath ?? "", target, readability };
+  const parsed: CliOptions = configPath ? { configPath, target, readability, testMode } : { inputPath: inputPath ?? "", target, readability, testMode };
   return outputPath ? { ...parsed, outputPath } : parsed;
 }
 

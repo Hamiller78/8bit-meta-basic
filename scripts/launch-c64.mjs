@@ -19,13 +19,15 @@ async function launchC64(options) {
     profile: options.profile,
     source: options.source,
     buildConfigPath: options.buildConfigPath,
+    projectPath: options.projectPath,
+    testMode: options.testMode,
     outDir: options.outDir,
     configPath: options.configPath,
     runBuild: true,
     runTools: true
   });
 
-  const program = programIdentity(cwd, options.source, options.buildConfigPath);
+  const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
   const artifact = outputPathFor(cwd, options.outDir, options.profile, "c64", program.name, ".prg");
   if (!(await exists(artifact))) {
     throw new Error(`C64 launch artifact not found: ${artifact}. Check that petcat is configured and produced a .prg file.`);
@@ -70,6 +72,8 @@ function parseArgs(argv) {
   const options = {
     source: defaultSource,
     buildConfigPath: undefined,
+    projectPath: undefined,
+    testMode: false,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -84,9 +88,18 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
-    if (arg === "--build-config" || arg === "--project") {
+    if (arg === "--build-config") {
       options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--project") {
+      options.projectPath = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--run-tests") {
+      options.testMode = true;
       continue;
     }
     if (arg === "--profile") {
@@ -112,8 +125,9 @@ function parseArgs(argv) {
     throw new Error(`Unknown option "${arg}".`);
   }
 
-  if (options.buildConfigPath && options.source !== defaultSource) {
-    throw new Error("Specify either --source or --build-config, not both.");
+  const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
+  if (selectedInputs > 1) {
+    throw new Error("Specify only one of --source, --build-config, or --project.");
   }
 
   return options;

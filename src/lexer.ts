@@ -3,6 +3,17 @@ import type { SourceLocation } from "./ast.js";
 
 export const keywords = new Set([
   "AND",
+  "ASSERT_CELL_BACKGROUND_COLOR",
+  "ASSERT_CELL_TEXT_COLOR",
+  "ASSERT_EQ",
+  "ASSERT_FALSE",
+  "ASSERT_NE",
+  "ASSERT_PRINT",
+  "ASSERT_PRINTAT",
+  "ASSERT_SCREEN_BACKGROUND_COLOR",
+  "ASSERT_SCREEN_BORDER_COLOR",
+  "ASSERT_SCREEN_TEXT_COLOR",
+  "ASSERT_TRUE",
   "BORDER_COLOR",
   "CELL_BACKGROUND_COLOR",
   "CELL_TEXT_COLOR",
@@ -38,6 +49,7 @@ export const keywords = new Set([
   "TO",
   "TEXT_COLOR",
   "TRUE",
+  "TEST",
   "UNTIL",
   "WEND",
   "WHILE"

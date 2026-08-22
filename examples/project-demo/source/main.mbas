@@ -1,0 +1,2 @@
+print "PROJECT DEMO"
+print "DOUBLE 4 = "; Double(4)

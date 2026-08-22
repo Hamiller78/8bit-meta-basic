@@ -31,6 +31,8 @@ export type Statement =
   | RandomizeStatement
   | LocalStatement
   | FunctionStatement
+  | TestStatement
+  | AssertStatement
   | ForStatement
   | WhileStatement
   | RepeatUntilStatement
@@ -191,6 +193,36 @@ export interface FunctionStatement {
   readonly parameters: readonly string[];
   readonly body: readonly Statement[];
   readonly implementation?: FunctionImplementation;
+  readonly location: SourceLocation;
+}
+
+export interface TestStatement {
+  readonly kind: "test";
+  readonly name: string;
+  readonly body: readonly Statement[];
+  readonly implementation?: FunctionImplementation;
+  readonly location: SourceLocation;
+}
+
+export type AssertKind =
+  | "assert-true"
+  | "assert-false"
+  | "assert-eq"
+  | "assert-ne"
+  | "assert-print"
+  | "assert-printat"
+  | "assert-screen-border-color"
+  | "assert-screen-background-color"
+  | "assert-screen-text-color"
+  | "assert-cell-text-color"
+  | "assert-cell-background-color";
+
+export interface AssertStatement {
+  readonly kind: AssertKind;
+  readonly row?: Expression;
+  readonly column?: Expression;
+  readonly expected?: Expression;
+  readonly actual: Expression;
   readonly location: SourceLocation;
 }
 

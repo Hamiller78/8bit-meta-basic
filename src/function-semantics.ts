@@ -13,6 +13,7 @@ export interface FunctionDefinition {
 }
 
 export interface FunctionScope {
+  readonly kind: "function" | "test";
   readonly functionName: string;
   readonly returnName: string;
   readonly variables: ReadonlyMap<string, string>;
@@ -35,8 +36,34 @@ export function createFunctionScope(definition: FunctionDefinition): FunctionSco
   }
 
   return {
+    kind: "function",
     functionName: definition.name,
     returnName: definition.implementation.returnName,
+    variables,
+    labels
+  };
+}
+
+export function createTestScope(statement: Extract<Statement, { kind: "test" }>): FunctionScope {
+  if (!statement.implementation) {
+    throw new DiagnosticError(statement.location, `Internal error: TEST ${statement.name} was not analyzed before scoping.`);
+  }
+
+  const variables = new Map<string, string>();
+  for (const local of statement.implementation.locals) {
+    variables.set(normalizeName(local.sourceName), local.storageName);
+  }
+
+  const labels = new Map<string, string>();
+  collectLabels(statement.body, labels);
+  for (const [key, label] of labels) {
+    labels.set(key, functionLabelName(statement.implementation.entryLabel, label));
+  }
+
+  return {
+    kind: "test",
+    functionName: statement.name,
+    returnName: statement.implementation.returnName,
     variables,
     labels
   };
@@ -103,16 +130,51 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
   return functions;
 }
 
+export function attachTestImplementations(statements: readonly Statement[]): readonly Statement[] {
+  let nextId = 1;
+  const seen = new Map<string, SourceLocation>();
+
+  return statements.map((statement) => {
+    if (statement.kind !== "test") {
+      return statement;
+    }
+
+    const key = normalizeName(statement.name);
+    const existing = seen.get(key);
+    if (existing) {
+      throw new DiagnosticError(statement.location, `Duplicate TEST "${statement.name}" first declared at ${existing.filename}:${existing.line}.`);
+    }
+    seen.set(key, statement.location);
+
+    const id = nextId;
+    nextId += 1;
+    const locals = collectLocalNames(statement);
+    validateScopedNames(statement, locals);
+    return {
+      ...statement,
+      implementation: {
+        entryLabel: `MBTEST${id}ENTRY`,
+        returnName: `MBTEST${id}R`,
+        parameters: [],
+        locals: locals.map((local, index) => ({
+          sourceName: local,
+          storageName: testStorageName(id, index + 1, local)
+        }))
+      }
+    };
+  });
+}
+
 export function validateControlFlowBoundaries(statements: readonly Statement[]): void {
-  const topLevelLabels = collectLabels(statements.filter((statement) => statement.kind !== "function"));
+  const topLevelLabels = collectLabels(statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test"));
   const functionLabelSets = statements
-    .filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function")
+    .filter((statement): statement is Extract<Statement, { kind: "function" | "test" }> => statement.kind === "function" || statement.kind === "test")
     .map((statement) => collectLabels(statement.body));
   const allFunctionLabels = mergeLabelSets(functionLabelSets);
-  validateLabelReferences(statements.filter((statement) => statement.kind !== "function"), topLevelLabels, allFunctionLabels);
+  validateLabelReferences(statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test"), topLevelLabels, allFunctionLabels);
 
   for (const statement of statements) {
-    if (statement.kind !== "function") {
+    if (statement.kind !== "function" && statement.kind !== "test") {
       continue;
     }
     const functionLabels = collectLabels(statement.body);
@@ -158,7 +220,7 @@ export function validateFunctionRecursion(functions: ReadonlyMap<string, Functio
   }
 }
 
-function collectLocalNames(statement: Extract<Statement, { kind: "function" }>): readonly string[] {
+function collectLocalNames(statement: Extract<Statement, { kind: "function" | "test" }>): readonly string[] {
   const locals: string[] = [];
   collectLocalsFromStatements(statement.body, locals);
   return locals;
@@ -170,7 +232,7 @@ function collectLocalsFromStatements(statements: readonly Statement[], locals: s
       locals.push(...statement.names);
       continue;
     }
-    if (statement.kind === "function") {
+    if (statement.kind === "function" || statement.kind === "test") {
       continue;
     }
     if (statement.kind === "if") {
@@ -182,9 +244,9 @@ function collectLocalsFromStatements(statements: readonly Statement[], locals: s
   }
 }
 
-function validateScopedNames(statement: Extract<Statement, { kind: "function" }>, locals: readonly string[]): void {
+function validateScopedNames(statement: Extract<Statement, { kind: "function" | "test" }>, locals: readonly string[]): void {
   const seen = new Map<string, SourceLocation>();
-  for (const name of statement.parameters) {
+  for (const name of statement.kind === "function" ? statement.parameters : []) {
     addScopedName(name, statement.location, seen, "parameter");
   }
   for (const name of locals) {
@@ -204,6 +266,11 @@ function addScopedName(name: string, location: SourceLocation, seen: Map<string,
 function storageName(functionId: number, kind: "P" | "L", index: number, sourceName: string): string {
   const suffix = isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
   return `MBF${functionId}${kind}${index}${suffix}`;
+}
+
+function testStorageName(testId: number, index: number, sourceName: string): string {
+  const suffix = isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
+  return `MBTEST${testId}L${index}${suffix}`;
 }
 
 function functionLabelName(entryLabel: string, label: string): string {
@@ -234,6 +301,8 @@ function collectLabels(statements: readonly Statement[], labels = new Map<string
       collectLabels(statement.elseBranch, labels);
     } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       collectLabels(statement.body, labels);
+    } else if (statement.kind === "function" || statement.kind === "test") {
+      collectLabels(statement.body, labels);
     }
   }
   return labels;
@@ -252,6 +321,8 @@ function validateLabelReferences(statements: readonly Statement[], labels: Reado
       validateLabelReferences(statement.thenBranch, labels, forbiddenLabels);
       validateLabelReferences(statement.elseBranch, labels, forbiddenLabels);
     } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      validateLabelReferences(statement.body, labels, forbiddenLabels);
+    } else if (statement.kind === "test") {
       validateLabelReferences(statement.body, labels, forbiddenLabels);
     }
   }
@@ -317,6 +388,18 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "end":
     case "local":
     case "function":
+    case "test":
+    case "assert-true":
+    case "assert-false":
+    case "assert-eq":
+    case "assert-ne":
+    case "assert-print":
+    case "assert-printat":
+    case "assert-screen-border-color":
+    case "assert-screen-background-color":
+    case "assert-screen-text-color":
+    case "assert-cell-text-color":
+    case "assert-cell-background-color":
       return [];
   }
 }

@@ -9,6 +9,8 @@ function parseArgs(argv) {
     allProfiles: false,
     source: "examples/colors.mbas",
     buildConfigPath: undefined,
+    projectPath: undefined,
+    testMode: false,
     outDir: "build",
     configPath: "scripts/tools.local.json",
     runTools: true
@@ -31,9 +33,18 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
-    if (arg === "--build-config" || arg === "--project") {
+    if (arg === "--build-config") {
       options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--project") {
+      options.projectPath = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--run-tests") {
+      options.testMode = true;
       continue;
     }
     if (arg === "--out-dir") {
@@ -64,8 +75,9 @@ async function buildAll(options) {
       throw new Error(`Unknown profile "${profile}". Expected one of: ${Object.keys(profiles).join(", ")}.`);
     }
   }
-  if (options.buildConfigPath && options.source !== "examples/colors.mbas") {
-    throw new Error("Specify either --source or --build-config, not both.");
+  const selectedInputs = [options.source !== "examples/colors.mbas", Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
+  if (selectedInputs > 1) {
+    throw new Error("Specify only one of --source, --build-config, or --project.");
   }
 
   await buildProject();
@@ -77,6 +89,8 @@ async function buildAll(options) {
         profile,
         source: options.source,
         buildConfigPath: options.buildConfigPath,
+        projectPath: options.projectPath,
+        testMode: options.testMode,
         outDir: options.outDir,
         configPath: options.configPath,
         runBuild: false,

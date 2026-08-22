@@ -1,0 +1,3 @@
+function Double(Value)
+    return Value * 2
+end function

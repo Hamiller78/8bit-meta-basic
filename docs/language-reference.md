@@ -198,6 +198,58 @@ print_at warningRow, 0; "SECONDS: "; countdown
 
 The semicolon after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet.
 
+## Test Mode
+
+Builds may enable `testMode` through the compiler options, the CLI `--run-tests` flag, or a build configuration JSON property:
+
+```json
+{
+  "testMode": true,
+  "files": ["tests.mbas"]
+}
+```
+
+Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
+
+```basic
+function Add(Left, Right)
+    return Left + Right
+end function
+
+test AdditionWorks()
+    local Result
+    Result = Add(2, 3)
+    assert_eq 5, Result
+end test
+```
+
+`TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s. Ordinary global variables are not reset automatically between tests.
+
+Supported assertions are:
+
+```basic
+assert_true expression
+assert_false expression
+assert_eq expected, actual
+assert_ne expected, actual
+assert_print expectedText$
+assert_printat row, column, expectedText$
+assert_screen_border_color colour
+assert_screen_background_color colour
+assert_screen_text_color colour
+assert_cell_text_color colour
+assert_cell_background_color colour
+```
+
+Assertions count successes and failures, continue after failure, and failed tests do not prevent later tests from running. The generated summary prints test, pass, fail, assertion, and failure counts.
+
+`ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
+For portable output assertions, prefer string output; numeric formatting still follows the target BASIC conversion rules.
+
+`ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable zero-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory.
+
+Colour assertions compare the latest portable colour command state captured in test mode. `CLS colour` counts as setting the screen background colour. Colour assertion values use portable colour names such as `BLUE` and `WHITE`, not target-specific numeric colour codes.
+
 ## Control flow
 
 ### Conditional blocks
@@ -280,4 +332,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function locals, procedures, imports/modules, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function/test locals, procedures, imports/modules, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

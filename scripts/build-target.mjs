@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { access, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -26,7 +26,9 @@ export async function buildTarget(options) {
   const target = options.target;
   const profile = options.profile ?? "debug";
   const source = options.source ?? defaultSource;
-  const buildConfigPath = options.buildConfigPath;
+  let buildConfigPath = options.buildConfigPath;
+  const projectPath = options.projectPath;
+  const testMode = options.testMode === true;
   const outDir = options.outDir ?? defaultOutDir;
   const configPath = options.configPath ?? defaultToolConfig;
   const runBuild = options.runBuild ?? true;
@@ -43,7 +45,11 @@ export async function buildTarget(options) {
     await buildProject({ cwd });
   }
 
-  const program = programIdentity(cwd, source, buildConfigPath);
+  if (projectPath) {
+    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode });
+  }
+
+  const program = programIdentity(cwd, source, buildConfigPath, projectPath);
   const basicPath = outputPathFor(cwd, outDir, profile, target, program.name, ".bas");
   const artifacts = {
     basic: basicPath
@@ -60,7 +66,8 @@ export async function buildTarget(options) {
       "--readability",
       profiles[profile].toString(),
       "--output",
-      basicPath
+      basicPath,
+      ...(testMode ? ["--run-tests"] : [])
     ],
     { cwd }
   );
@@ -237,7 +244,15 @@ export function outputPathFor(cwd, outDir, profile, target, name, extension) {
   return resolve(cwd, outDir, profile, target, `${name}${extension}`);
 }
 
-export function programIdentity(cwd, source, buildConfigPath) {
+export function programIdentity(cwd, source, buildConfigPath, projectPath) {
+  if (projectPath) {
+    const inputPath = resolve(cwd, buildConfigPath ?? projectPath);
+    return {
+      inputPath,
+      name: basename(resolve(cwd, projectPath))
+    };
+  }
+
   const inputPath = resolve(cwd, buildConfigPath ?? source);
   if (!buildConfigPath) {
     return {
@@ -251,6 +266,43 @@ export function programIdentity(cwd, source, buildConfigPath) {
     inputPath,
     name: rawName.toLowerCase() === "metabasic" ? basename(dirname(inputPath)) : rawName
   };
+}
+
+export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false } = {}) {
+  const projectRoot = resolve(cwd, projectPath);
+  const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
+  const testFiles = testMode ? await findProjectMbasFiles(resolve(projectRoot, "tests")) : [];
+
+  if (sourceFiles.length === 0) {
+    throw new Error(`Project ${projectPath} has no .mbas files in its source folder.`);
+  }
+  if (testMode && testFiles.length === 0) {
+    throw new Error(`Project ${projectPath} has no .mbas files in its tests folder.`);
+  }
+
+  const configDir = resolve(cwd, outDir, ".projects");
+  await mkdir(configDir, { recursive: true });
+  const mode = testMode ? "tests" : "source";
+  const configPath = resolve(configDir, `${basename(projectRoot)}.${mode}.metabasic.json`);
+  await writeFile(configPath, `${JSON.stringify({ testMode, files: [...sourceFiles, ...testFiles] }, null, 2)}\n`, "utf8");
+  return configPath;
+}
+
+async function findProjectMbasFiles(directory) {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".mbas"))
+    .map((entry) => resolve(directory, entry.name))
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function replacePlaceholders(value, replacements) {
@@ -302,6 +354,8 @@ function parseArgs(argv) {
     allProfiles: false,
     source: defaultSource,
     buildConfigPath: undefined,
+    projectPath: undefined,
+    testMode: false,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
@@ -325,9 +379,18 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
-    if (arg === "--build-config" || arg === "--project") {
+    if (arg === "--build-config") {
       options.buildConfigPath = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--project") {
+      options.projectPath = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--run-tests") {
+      options.testMode = true;
       continue;
     }
     if (arg === "--out-dir") {
@@ -359,11 +422,12 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json]"
+      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests]"
     );
   }
-  if (options.buildConfigPath && options.source !== defaultSource) {
-    throw new Error("Specify either --source or --build-config, not both.");
+  const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
+  if (selectedInputs > 1) {
+    throw new Error("Specify only one of --source, --build-config, or --project.");
   }
 
   return options;

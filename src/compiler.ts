@@ -16,6 +16,7 @@ export interface CompileOptions {
   readonly target: Target;
   readonly readability?: ReadabilityLevel;
   readonly comments?: ReadabilityLevel;
+  readonly testMode?: boolean;
 }
 
 export function compileSource(source: string, options: CompileOptions): string {
@@ -26,8 +27,8 @@ export function compileSource(source: string, options: CompileOptions): string {
 export function compileProgram(ast: ReturnType<typeof parseSource>, options: CompileOptions): string {
   const target = getTarget(options.target);
   const readability = options.readability ?? options.comments ?? 2;
-  const analyzed = analyzeProgram(ast, targetEnvironments[options.target]);
-  const lowered = lowerProgram(analyzed);
+  const analyzed = analyzeProgram(ast, targetEnvironments[options.target], { testMode: options.testMode });
+  const lowered = lowerProgram(analyzed, { testMode: options.testMode });
   const targetLowered = target.lower(lowered, readability);
   if (options.target === "spectrum") {
     setSpectrumRenderProgram(targetLowered.instructions);

@@ -1,0 +1,8 @@
+test DoubleWorks()
+    assert_eq 8, Double(4)
+end test
+
+test OutputWorks()
+    print "OUTPUT READY"
+    assert_print "OUTPUT READY"
+end test

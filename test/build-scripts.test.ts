@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -94,7 +94,7 @@ describe("build scripts", () => {
   });
 
   it("finds all configured emulator launch targets", async () => {
-    const { configuredLaunchTargets } = await import("../scripts/launch-all.mjs");
+    const { configuredLaunchTargets } = await import("../scripts/launch-all-targets.mjs");
 
     expect(
       configuredLaunchTargets({
@@ -111,6 +111,29 @@ describe("build scripts", () => {
     expect(programIdentity(process.cwd(), "examples/colors.mbas").name).toBe("colors");
     expect(programIdentity(process.cwd(), "examples/colors.mbas", "examples/multifile/metabasic.json").name).toBe("multifile");
     expect(programIdentity(process.cwd(), "examples/colors.mbas", "examples/demo-build.json").name).toBe("demo-build");
+    expect(programIdentity(process.cwd(), "examples/colors.mbas", undefined, "examples/project-demo").name).toBe("project-demo");
+  });
+
+  it("writes conventional project build configs for source and test mode", async () => {
+    const { writeProjectBuildConfig } = await import("../scripts/build-target.mjs");
+    const dir = await mkdtemp(join(tmpdir(), "mbas-project-"));
+
+    await mkdir(join(dir, "demo", "source"), { recursive: true });
+    await mkdir(join(dir, "demo", "tests"), { recursive: true });
+    await writeFile(join(dir, "demo", "source", "main.mbas"), 'print "MAIN"\n', "utf8");
+    await writeFile(join(dir, "demo", "source", "math.mbas"), "function Double(Value)\nreturn Value * 2\nend function\n", "utf8");
+    await writeFile(join(dir, "demo", "tests", "math-tests.mbas"), "test DoubleWorks()\nassert_eq 8, Double(4)\nend test\n", "utf8");
+
+    const sourceConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build" });
+    const testConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build", testMode: true });
+    const sourceConfig = JSON.parse(await readFile(sourceConfigPath, "utf8"));
+    const testConfig = JSON.parse(await readFile(testConfigPath, "utf8"));
+
+    expect(sourceConfig.testMode).toBe(false);
+    expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
+    expect(testConfig.testMode).toBe(true);
+    expect(testConfig.files).toHaveLength(3);
+    expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
   });
 
   it("finds all Meta-BASIC sources in one directory", async () => {
