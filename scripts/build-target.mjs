@@ -29,6 +29,7 @@ export async function buildTarget(options) {
   let buildConfigPath = options.buildConfigPath;
   const projectPath = options.projectPath;
   const testMode = options.testMode === true;
+  const moduleName = options.moduleName;
   const outDir = options.outDir ?? defaultOutDir;
   const configPath = options.configPath ?? defaultToolConfig;
   const runBuild = options.runBuild ?? true;
@@ -46,7 +47,7 @@ export async function buildTarget(options) {
   }
 
   if (projectPath) {
-    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode });
+    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode, moduleName });
   }
 
   const program = programIdentity(cwd, source, buildConfigPath, projectPath);
@@ -268,24 +269,44 @@ export function programIdentity(cwd, source, buildConfigPath, projectPath) {
   };
 }
 
-export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false } = {}) {
+export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, moduleName } = {}) {
   const projectRoot = resolve(cwd, projectPath);
   const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
-  const testFiles = testMode ? await findProjectMbasFiles(resolve(projectRoot, "tests")) : [];
+  const testFiles = testMode ? filterProjectTestFiles(await findProjectMbasFiles(resolve(projectRoot, "tests")), moduleName) : [];
 
   if (sourceFiles.length === 0) {
     throw new Error(`Project ${projectPath} has no .mbas files in its source folder.`);
   }
   if (testMode && testFiles.length === 0) {
-    throw new Error(`Project ${projectPath} has no .mbas files in its tests folder.`);
+    throw new Error(moduleName ? `Project ${projectPath} has no test file for module "${moduleName}".` : `Project ${projectPath} has no .mbas files in its tests folder.`);
   }
 
   const configDir = resolve(cwd, outDir, ".projects");
   await mkdir(configDir, { recursive: true });
-  const mode = testMode ? "tests" : "source";
+  const mode = testMode ? `${moduleName ? `${safeProjectPart(moduleName)}.` : ""}tests` : "source";
   const configPath = resolve(configDir, `${basename(projectRoot)}.${mode}.metabasic.json`);
   await writeFile(configPath, `${JSON.stringify({ testMode, files: [...sourceFiles, ...testFiles] }, null, 2)}\n`, "utf8");
   return configPath;
+}
+
+export function filterProjectTestFiles(testFiles, moduleName) {
+  if (!moduleName) {
+    return testFiles;
+  }
+
+  const normalized = normalizeModuleName(moduleName);
+  return testFiles.filter((file) => {
+    const name = basename(file, extname(file)).toLowerCase();
+    return name === normalized || name === `${normalized}-tests` || name === `${normalized}.test`;
+  });
+}
+
+function normalizeModuleName(moduleName) {
+  return moduleName.trim().toLowerCase();
+}
+
+function safeProjectPart(value) {
+  return normalizeModuleName(value).replaceAll(/[^a-z0-9_-]/g, "");
 }
 
 async function findProjectMbasFiles(directory) {
@@ -356,6 +377,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    moduleName: undefined,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
@@ -393,6 +415,11 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--module") {
+      options.moduleName = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--out-dir") {
       options.outDir = readValue(argv, index, arg);
       index += 1;
@@ -422,12 +449,15 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests]"
+      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--module name]"
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
   if (selectedInputs > 1) {
     throw new Error("Specify only one of --source, --build-config, or --project.");
+  }
+  if (options.moduleName && (!options.projectPath || !options.testMode)) {
+    throw new Error("--module can only be used with --project and --run-tests.");
   }
 
   return options;

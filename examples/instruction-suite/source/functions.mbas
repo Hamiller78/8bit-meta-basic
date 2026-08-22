@@ -1,0 +1,13 @@
+function AddValues(Left, Right)
+    return Left + Right
+end function
+
+function LocalShadow(Value)
+    local Result
+    Result = Value * 2
+    return Result
+end function
+
+function NestedBonus(Value)
+    return AddValues(LocalShadow(Value), 3)
+end function

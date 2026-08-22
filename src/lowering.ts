@@ -376,6 +376,9 @@ function lowerStatements(
             location: statement.location
           });
         }
+        if (options.capturePrints) {
+          break;
+        }
         instructions.push({
           kind: "cls",
           ...(statement.color ? { color: statement.color as Extract<Expression, { kind: "color" }> } : {}),
@@ -385,6 +388,7 @@ function lowerStatements(
       case "border-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenBorderColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+          break;
         }
         instructions.push({
           kind: "border-color",
@@ -395,6 +399,7 @@ function lowerStatements(
       case "text-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+          break;
         }
         instructions.push({
           kind: "text-color",
@@ -405,6 +410,7 @@ function lowerStatements(
       case "screen-background-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+          break;
         }
         instructions.push({
           kind: "screen-background-color",
@@ -415,6 +421,7 @@ function lowerStatements(
       case "cell-text-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testCellTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+          break;
         }
         instructions.push({
           kind: "cell-text-color",
@@ -425,6 +432,7 @@ function lowerStatements(
       case "cell-background-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testCellBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
+          break;
         }
         instructions.push({
           kind: "cell-background-color",

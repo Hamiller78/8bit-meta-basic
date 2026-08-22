@@ -1,0 +1,13 @@
+test ScreenColours()
+    cls BLUE
+    screen_border_color RED
+    screen_background_color BLACK
+    screen_text_color WHITE
+    cell_text_color YELLOW
+    cell_background_color BLUE
+    assert_screen_background_color BLACK
+    assert_screen_border_color RED
+    assert_screen_text_color WHITE
+    assert_cell_text_color YELLOW
+    assert_cell_background_color BLUE
+end test

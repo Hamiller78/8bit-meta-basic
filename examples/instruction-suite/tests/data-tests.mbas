@@ -1,0 +1,14 @@
+test ReadDataAndRestore()
+    data 10, "TEN"
+    data 20, "TWENTY"
+    read DCode, T$
+    assert_eq 10, DCode
+    assert_eq "TEN", T$
+    read DCode, T$
+    assert_eq 20, DCode
+    assert_eq "TWENTY", T$
+    restore
+    read DCode, T$
+    assert_eq 10, DCode
+    assert_eq "TEN", T$
+end test

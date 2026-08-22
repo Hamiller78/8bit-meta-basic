@@ -34,7 +34,8 @@ export const spectrumTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
     const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
-    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess };
+    const stringArrayWidths = buildSpectrumStringArrayWidths(currentProgramInstructions);
+    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess, stringArrayWidths };
 
     switch (instruction.kind) {
       case "label":
@@ -67,7 +68,7 @@ export const spectrumTarget: TargetBackend = {
       case "dim-array":
         return `${lineNumber} DIM ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.dimensions.join(",")})`;
       case "array-let":
-        return `${lineNumber} LET ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.indices.map((index) => renderSpectrumArrayIndex(index, renderOptions)).join(",")})=${renderExpression(instruction.expression, renderOptions)}`;
+        return `${lineNumber} LET ${renderSpectrumArrayAssignmentTarget(instruction.name, instruction.indices, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "gosub":
@@ -189,8 +190,18 @@ function renderSpectrumLenArgument(expression: Expression, options: { readonly v
 
 function renderSpectrumArrayAccess(
   expression: Extract<Expression, { kind: "array-access" }>,
-  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderSpectrumFunction; readonly arrayRenderer?: typeof renderSpectrumArrayAccess }
+  options: {
+    readonly variableMap?: ReadonlyMap<string, string>;
+    readonly functionRenderer?: typeof renderSpectrumFunction;
+    readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
+    readonly stringArrayWidths?: ReadonlyMap<string, number>;
+  }
 ): string {
+  if (isStringVariableName(expression.name)) {
+    const width = spectrumStringArrayWidth(expression.name, options.stringArrayWidths);
+    return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(expression.indices[0], options)},1 TO ${width})`;
+  }
+
   return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
 }
 
@@ -198,12 +209,56 @@ function renderSpectrumArrayName(name: string, variableMap: ReadonlyMap<string, 
   return variableMap.get(name.toLowerCase()) ?? "A";
 }
 
-function renderSpectrumArrayIndex(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderSpectrumFunction; readonly arrayRenderer?: typeof renderSpectrumArrayAccess }): string {
+function renderSpectrumArrayAssignmentTarget(
+  name: string,
+  indices: readonly Expression[],
+  options: {
+    readonly variableMap?: ReadonlyMap<string, string>;
+    readonly functionRenderer?: typeof renderSpectrumFunction;
+    readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
+    readonly stringArrayWidths?: ReadonlyMap<string, number>;
+  }
+): string {
+  if (isStringVariableName(name)) {
+    const width = spectrumStringArrayWidth(name, options.stringArrayWidths);
+    return `${renderSpectrumArrayName(name, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(indices[0], options)},1 TO ${width})`;
+  }
+
+  return `${renderSpectrumArrayName(name, options.variableMap ?? new Map())}(${indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
+}
+
+function renderSpectrumArrayIndex(
+  expression: Expression,
+  options: {
+    readonly variableMap?: ReadonlyMap<string, string>;
+    readonly functionRenderer?: typeof renderSpectrumFunction;
+    readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
+    readonly stringArrayWidths?: ReadonlyMap<string, number>;
+  }
+): string {
   if (expression.kind === "number") {
     return (expression.value + 1).toString();
   }
 
   return `${renderExpression(expression, options)} + 1`;
+}
+
+function buildSpectrumStringArrayWidths(instructions: readonly Instruction[]): ReadonlyMap<string, number> {
+  const widths = new Map<string, number>();
+  for (const instruction of instructions) {
+    if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+      widths.set(instruction.name.toLowerCase(), instruction.dimensions[1] ?? 1);
+    }
+  }
+  return widths;
+}
+
+function spectrumStringArrayWidth(name: string, widths: ReadonlyMap<string, number> | undefined): number {
+  const width = widths?.get(name.toLowerCase());
+  if (width === undefined) {
+    throw new Error(`Internal error: missing Spectrum string array width for ${name}.`);
+  }
+  return width;
 }
 
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
@@ -456,11 +511,20 @@ function collectStringName(name: string, stringNames: string[], seenStrings: Set
 
 function allocateSpectrumStringNames(names: readonly string[], map: Map<string, string>): void {
   const used = new Set<string>();
+  for (const mappedName of map.values()) {
+    if (/^[A-Z]\$$/.test(mappedName)) {
+      used.add(mappedName);
+    }
+  }
 
   for (const name of names) {
+    const key = name.toLowerCase();
+    if (map.has(key)) {
+      continue;
+    }
     const upper = name.toUpperCase();
     if (/^[A-Z]\$$/.test(upper) && !used.has(upper)) {
-      map.set(name.toLowerCase(), upper);
+      map.set(key, upper);
       used.add(upper);
     }
   }

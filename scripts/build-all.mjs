@@ -11,6 +11,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    moduleName: undefined,
     outDir: "build",
     configPath: "scripts/tools.local.json",
     runTools: true
@@ -47,6 +48,11 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--module") {
+      options.moduleName = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--out-dir") {
       options.outDir = readValue(argv, index, arg);
       index += 1;
@@ -79,6 +85,9 @@ async function buildAll(options) {
   if (selectedInputs > 1) {
     throw new Error("Specify only one of --source, --build-config, or --project.");
   }
+  if (options.moduleName && (!options.projectPath || !options.testMode)) {
+    throw new Error("--module can only be used with --project and --run-tests.");
+  }
 
   await buildProject();
 
@@ -91,6 +100,7 @@ async function buildAll(options) {
         buildConfigPath: options.buildConfigPath,
         projectPath: options.projectPath,
         testMode: options.testMode,
+        moduleName: options.moduleName,
         outDir: options.outDir,
         configPath: options.configPath,
         runBuild: false,

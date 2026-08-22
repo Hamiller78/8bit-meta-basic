@@ -517,12 +517,17 @@ npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
 npm run build:all-targets -- --project examples/project-demo --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --profile debug
+npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
+npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run new:project -- examples/my-game
+npm run new:module -- --project examples/my-game --module scoring
 npm run build:directory -- --source-dir examples --profile debug
 npm run build:all-profiles
 npm run build:spectrum:all-profiles
 npm run launch:all-targets -- --source examples/narf.mbas --restart
 npm run launch:all-targets -- --build-config examples/multifile/metabasic.json --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
+npm run launch:all-targets -- --project examples/project-demo --run-tests --module math --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -539,7 +544,11 @@ Build profiles map to readability levels:
 
 The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `COLORS.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:COLORS.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 
-The build and launch scripts accept exactly one input selector: `--source file.mbas`, `--build-config metabasic.json`, or `--project folder`. A project folder contains sibling `source/` and `tests/` folders. Normal project builds compile direct `.mbas` files in `source/`, sorted by filename. Project test-mode builds compile `source/` followed by `tests/`, with `testMode` enabled. `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and all launch scripts.
+The build and launch scripts accept exactly one input selector: `--source file.mbas`, `--build-config metabasic.json`, or `--project folder`. A project folder contains sibling `source/` and `tests/` folders. Normal project builds compile direct `.mbas` files in `source/`, sorted by filename. Project test-mode builds compile `source/` followed by `tests/`, with `testMode` enabled. `--module name` may be combined with `--project` and `--run-tests` to compile all source modules but include only matching test files such as `tests/name-tests.mbas`, `tests/name.test.mbas`, or `tests/name.mbas`. `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and all launch scripts.
+
+`scripts/scaffold-project.mjs` backs `npm run new:project` and `npm run new:module`. It creates conventional `source/` and `tests/` folders plus starter `.mbas` files, and refuses to overwrite existing files.
+
+`examples/instruction-suite` is a conventional project containing a portable Meta-BASIC instruction-set regression suite. It should compile in test mode for all targets. Use `--module` to run focused slices such as `--module strings` when emulator memory or debugging workflow makes the full suite inconvenient.
 
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
@@ -547,7 +556,7 @@ The build and launch scripts accept exactly one input selector: `--source file.m
 
 `scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
-`scripts/launch-all-targets.mjs` backs `npm run launch:all-targets`. It launches the selected `--source`, `--build-config`, or `--project` input for every target whose `emulator.path` is configured in `scripts/tools.local.json`, skipping unconfigured targets. It accepts common launch options such as `--source`, `--build-config`, `--project`, `--run-tests`, `--profile`, `--out-dir`, `--config`, and `--restart`. Atari uses the tokenized `.BAS` artifact by default; `--atari-artifact atr` can select the ATR artifact instead.
+`scripts/launch-all-targets.mjs` backs `npm run launch:all-targets`. It launches the selected `--source`, `--build-config`, or `--project` input for every target whose `emulator.path` is configured in `scripts/tools.local.json`, skipping unconfigured targets. It accepts common launch options such as `--source`, `--build-config`, `--project`, `--run-tests`, `--module`, `--profile`, `--out-dir`, `--config`, and `--restart`. Atari uses the tokenized `.BAS` artifact by default; `--atari-artifact atr` can select the ATR artifact instead.
 
 `scripts/build-directory.mjs` backs `npm run build:directory`. It finds all `.mbas` files directly inside a selected directory, builds each selected profile and target, and optionally runs configured local conversion tools. It is intentionally non-recursive for now so a single command updates one program collection without accidentally sweeping unrelated folders.
 

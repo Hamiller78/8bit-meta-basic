@@ -1,0 +1,59 @@
+test IfThenElse()
+    Flag = 1
+    if Flag then
+        Result = 10
+    else
+        Result = 20
+    end if
+    assert_eq 10, Result
+end test
+
+test ForNextLoop()
+    Total = 0
+    for Index = 0 to 3
+        Total = Total + Index
+    next Index
+    assert_eq 6, Total
+end test
+
+test ForStepLoop()
+    Total = 0
+    for Index = 6 to 2 step -2
+        Total = Total + Index
+    next Index
+    assert_eq 12, Total
+end test
+
+test WhileWendLoop()
+    Count = 0
+    Total = 0
+    while Count < 4
+        Total = Total + Count
+        Count = Count + 1
+    wend
+    assert_eq 6, Total
+end test
+
+test RepeatUntilLoop()
+    Count = 3
+    Total = 0
+    repeat
+        Total = Total + Count
+        Count = Count - 1
+    until Count = 0
+    assert_eq 6, Total
+end test
+
+test GosubReturn()
+    Value = 0
+    gosub SetValue
+    assert_eq 42, Value
+    goto Done
+
+SetValue:
+    Value = 42
+    return
+
+Done:
+    assert_true Value = 42
+end test

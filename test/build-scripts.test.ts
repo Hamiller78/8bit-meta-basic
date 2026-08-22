@@ -136,6 +136,39 @@ describe("build scripts", () => {
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
   });
 
+  it("filters conventional project tests by module name", async () => {
+    const { writeProjectBuildConfig } = await import("../scripts/build-target.mjs");
+    const dir = await mkdtemp(join(tmpdir(), "mbas-project-module-"));
+
+    await mkdir(join(dir, "demo", "source"), { recursive: true });
+    await mkdir(join(dir, "demo", "tests"), { recursive: true });
+    await writeFile(join(dir, "demo", "source", "main.mbas"), 'print "MAIN"\n', "utf8");
+    await writeFile(join(dir, "demo", "source", "math.mbas"), "function Double(Value)\nreturn Value * 2\nend function\n", "utf8");
+    await writeFile(join(dir, "demo", "tests", "math-tests.mbas"), "test MathWorks()\nassert_true 1\nend test\n", "utf8");
+    await writeFile(join(dir, "demo", "tests", "ui-tests.mbas"), "test UiWorks()\nassert_true 1\nend test\n", "utf8");
+
+    const testConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build", testMode: true, moduleName: "math" });
+    const testConfig = JSON.parse(await readFile(testConfigPath, "utf8"));
+
+    expect(testConfig.files).toHaveLength(3);
+    expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
+    expect(testConfig.files.join("\n")).not.toContain("ui-tests.mbas");
+  });
+
+  it("creates conventional project and module scaffolds without overwriting files", async () => {
+    const { addModule, createProject } = await import("../scripts/scaffold-project.mjs");
+    const dir = await mkdtemp(join(tmpdir(), "mbas-scaffold-"));
+
+    await createProject({ cwd: dir, projectPath: "demo" });
+    await addModule({ cwd: dir, projectPath: "demo", moduleName: "math" });
+
+    expect(await readFile(join(dir, "demo", "source", "main.mbas"), "utf8")).toContain('print "DEMO"');
+    expect(await readFile(join(dir, "demo", "tests", "main-tests.mbas"), "utf8")).toContain("test ProjectStarts()");
+    expect(await readFile(join(dir, "demo", "source", "math.mbas"), "utf8")).toContain("function MathDouble(Value)");
+    expect(await readFile(join(dir, "demo", "tests", "math-tests.mbas"), "utf8")).toContain("test MathDoubleWorks()");
+    await expect(addModule({ cwd: dir, projectPath: "demo", moduleName: "math" })).rejects.toThrow("Refusing to overwrite existing file");
+  });
+
   it("finds all Meta-BASIC sources in one directory", async () => {
     const { findMbasSources } = await import("../scripts/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));

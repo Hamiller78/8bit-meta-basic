@@ -21,6 +21,7 @@ async function launchSpectrum(options) {
     buildConfigPath: options.buildConfigPath,
     projectPath: options.projectPath,
     testMode: options.testMode,
+    moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
     runBuild: true,
@@ -74,6 +75,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -102,6 +104,11 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--module") {
+      options.moduleName = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--profile") {
       options.profile = readValue(argv, index, arg);
       index += 1;
@@ -128,6 +135,9 @@ function parseArgs(argv) {
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
   if (selectedInputs > 1) {
     throw new Error("Specify only one of --source, --build-config, or --project.");
+  }
+  if (options.moduleName && (!options.projectPath || !options.testMode)) {
+    throw new Error("--module can only be used with --project and --run-tests.");
   }
 
   return options;

@@ -1,0 +1,30 @@
+test IntegerVariables()
+    Counter% = 3.7
+    assert_eq 3, Counter%
+    Counter% = Counter% + 2.9
+    assert_eq 5, Counter%
+end test
+
+test NumericArrays()
+    dim Values(3)
+    Values(0) = 2
+    Values(1) = 4
+    Values(2) = Values(0) + Values(1)
+    assert_eq 6, Values(2)
+end test
+
+test IntegerArrays()
+    dim Counts%(2)
+    Counts%(0) = 4.8
+    Counts%(1) = Counts%(0) + 2.2
+    assert_eq 4, Counts%(0)
+    assert_eq 6, Counts%(1)
+end test
+
+test StringArrays()
+    dim M$(2, 8)
+    M$(0) = "READY   "
+    M$(1) = "GO      "
+    assert_eq "READY   ", M$(0)
+    assert_eq "GO      ", M$(1)
+end test

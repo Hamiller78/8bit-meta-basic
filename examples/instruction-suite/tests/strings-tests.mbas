@@ -1,0 +1,35 @@
+test StringAssignmentAndConcat()
+    T$ = "META"
+    T$ = T$ + "-BASIC"
+    assert_eq "META-BASIC", T$
+end test
+
+test StringSlices()
+    T$ = "ABCDEFG"
+    assert_eq "BCD", mid$(T$, 2, 3)
+    assert_eq "ABC", left$(T$, 3)
+    assert_eq "EFG", right$(T$, 3)
+end test
+
+test StringLengthAndCodes()
+    assert_eq 5, len("HELLO")
+    assert_eq "A", chr$(65)
+    assert_eq 65, code("A")
+    assert_eq 65, asc("A")
+end test
+
+test StringNumberConversion()
+    assert_eq 42, val("42")
+    T$ = str$(42)
+    assert_true len(T$) >= 2
+end test
+
+test PrintCapture()
+    print "READY"; " "; "OK"
+    assert_print "READY OK"
+end test
+
+test PrintAtCapture()
+    print_at 2, 3; "HI"
+    assert_printat 2, 3, "HI"
+end test

@@ -1,0 +1,3 @@
+test UiColumnWorks()
+    assert_eq 4, UiColumn(3)
+end test

@@ -395,7 +395,16 @@ describe("Spectrum compiler", () => {
         filename: "string-arrays.mbas",
         target: "spectrum"
       })
-    ).toBe(['10 DIM M$(3,12)', '20 LET M$(1)="READY"', '30 LET M$(3)="STANDBY"', "40 PRINT M$(1);M$(3)", ""].join("\n"));
+    ).toBe(['10 DIM M$(3,12)', '20 LET M$(1,1 TO 12)="READY"', '30 LET M$(3,1 TO 12)="STANDBY"', "40 PRINT M$(1,1 TO 12);M$(3,1 TO 12)", ""].join("\n"));
+  });
+
+  it("keeps Spectrum scalar string variables distinct from string array names", () => {
+    expect(
+      compileSource('temp$=""\nother$=""\ndim messages$(2, 8)\nmessages$(0)="READY   "\ntemp$=messages$(0)\nother$=""\n', {
+        filename: "string-array-conflict.mbas",
+        target: "spectrum"
+      })
+    ).toBe(["10 LET A$=\"\"", "20 LET B$=\"\"", "30 DIM M$(2,8)", '40 LET M$(1,1 TO 8)="READY   "', "50 LET A$=M$(1,1 TO 8)", "60 LET B$=\"\"", ""].join("\n"));
   });
 
   it("renders DATA, READ, and RESTORE for Spectrum", () => {

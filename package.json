@@ -20,6 +20,8 @@
     "launch:all-targets": "node scripts/launch-all-targets.mjs",
     "launch:c64": "node scripts/launch-c64.mjs",
     "launch:spectrum": "node scripts/launch-spectrum.mjs",
+    "new:project": "node scripts/scaffold-project.mjs new-project",
+    "new:module": "node scripts/scaffold-project.mjs new-module",
     "test": "vitest run test",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"

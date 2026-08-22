@@ -306,11 +306,24 @@ function preferredVariableName(name: string): string | undefined {
 
 function nextGeneratedVariableName(name: string, allocated: ReadonlySet<string>, next: () => number): string {
   while (true) {
-    const candidate = `V${next().toString(36).toUpperCase()}${variableTypeSuffix(name)}`;
+    const candidate = `${generatedVariableStem(next())}${variableTypeSuffix(name)}`;
     if (canAllocate(candidate, allocated)) {
       return candidate;
     }
   }
+}
+
+function generatedVariableStem(index: number): string {
+  const secondChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (index < secondChars.length) {
+    return `V${secondChars[index]}`;
+  }
+
+  const firstChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const adjusted = index - secondChars.length;
+  const first = firstChars[Math.floor(adjusted / secondChars.length) % firstChars.length];
+  const second = secondChars[adjusted % secondChars.length];
+  return `${first}${second}`;
 }
 
 function canAllocate(name: string, allocated: ReadonlySet<string>): boolean {

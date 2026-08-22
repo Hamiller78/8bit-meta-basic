@@ -1,5 +1,6 @@
 import type { Expression } from "../ast.js";
 import { builtinFunctions, isStringFunctionName } from "../functions.js";
+import { DiagnosticError } from "../diagnostics.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -7,7 +8,7 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
-import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -139,7 +140,7 @@ export const atari800xlTarget: TargetBackend = {
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "data":
-        return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
+        return `${lineNumber} DATA ${renderAtariDataValues(instruction.values, renderOptions)}`;
       case "read":
         return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
       case "restore":
@@ -203,6 +204,20 @@ function renderAtariAssignment(
   }
 
   return `${lineNumber} ${targetName}=${renderExpression(instruction.expression, renderOptions)}`;
+}
+
+function renderAtariDataValues(values: readonly Expression[], options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }): string {
+  return values
+    .map((value) => {
+      if (value.kind !== "string") {
+        return renderExpression(value, options);
+      }
+      if (value.value.includes(",")) {
+        throw new DiagnosticError(value.location, "Atari BASIC DATA string values cannot contain commas yet.");
+      }
+      return value.value;
+    })
+    .join(",");
 }
 
 function renderAtariArrayAccess(

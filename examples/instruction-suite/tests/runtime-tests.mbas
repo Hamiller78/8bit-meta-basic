@@ -1,0 +1,11 @@
+test RandomNumberRange()
+    randomize 123
+    Value = rnd()
+    assert_true Value >= 0
+    assert_true Value < 1
+end test
+
+test JiffiesRead()
+    Tick = jiffies()
+    assert_true Tick >= 0
+end test

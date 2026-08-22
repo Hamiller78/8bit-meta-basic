@@ -37,8 +37,9 @@ describe("Meta-BASIC test mode", () => {
     expect(output).toContain("BORDER 2");
     expect(output).not.toContain("PAPER 2");
     expect(output).toContain('PRINT "FAILED TESTS:"');
-    expect(output).toContain("IF MBTF1 THEN GO TO");
-    expect(output).toContain("IF MBTF2 THEN GO TO");
+    expect(output).toContain("DIM M(2)");
+    expect(output).toContain("IF M(1) THEN GO TO");
+    expect(output).toContain("IF M(2) THEN GO TO");
     expect(output).toContain('PRINT "Bad"');
   });
 
@@ -145,6 +146,9 @@ describe("Meta-BASIC test mode", () => {
     expect(output).toContain("LET MBTCT=7");
     expect(output).toContain("LET MBTCC=6");
     expect(output).toContain("LET MBTCD=2");
+    expect(output).not.toContain("BORDER 1");
+    expect(output).not.toContain("PAPER 0");
+    expect(output).not.toContain("INK 7");
     expect(output).not.toContain("FAIL Colours");
     expect(count(output, "LET MBASSERT=MBASSERT + 1")).toBe(6);
   });
@@ -158,8 +162,8 @@ describe("Meta-BASIC test mode", () => {
     });
 
     expect(output).toContain("LET MBTCG=1");
-    expect(output).toContain("PAPER 1");
-    expect(output).toContain("CLS");
+    expect(output).not.toContain("PAPER 1");
+    expect(output).not.toContain("CLS");
   });
 
   it("keeps function unit tests concise with direct return assertions", () => {

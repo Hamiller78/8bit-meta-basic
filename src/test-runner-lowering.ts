@@ -20,11 +20,16 @@ const testFailedName = "MBTFAIL";
 const assertionCountName = "MBASSERT";
 const assertionFailedName = "MBFAIL";
 const testStartFailuresName = "MBTF0";
+const failedTestFlagsName = "MBTF";
 const testAssertOkName = "MBTAOK";
+const expectedValueName = "MBAVEX";
+const actualValueName = "MBAVAC";
+const expectedRowName = "MBAVR";
+const expectedColumnName = "MBAVC";
+const expectedTextName = "MBAVT";
 
 export function lowerTestRunner(testStatements: readonly Extract<Statement, { kind: "test" }>[], instructions: Instruction[], nextInternalLabel: () => string): void {
   const location = testStatements[0]?.location ?? { filename: "<test runner>", line: 1 };
-  const failedFlags = testStatements.map((_, index) => `MBTF${index + 1}`);
 
   instructions.push({ kind: "print", items: [stringExpression("META CONTROL PROGRAM (M.C.P.) RUN STARTED", location)], trailingSemicolon: false, location });
   instructions.push({ kind: "let", name: testCountName, expression: numberExpression(0, location), location });
@@ -32,8 +37,8 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
   instructions.push({ kind: "let", name: testFailedName, expression: numberExpression(0, location), location });
   instructions.push({ kind: "let", name: assertionCountName, expression: numberExpression(0, location), location });
   instructions.push({ kind: "let", name: assertionFailedName, expression: numberExpression(0, location), location });
-  for (const failedFlag of failedFlags) {
-    instructions.push({ kind: "let", name: failedFlag, expression: numberExpression(0, location), location });
+  if (testStatements.length > 0) {
+    instructions.push({ kind: "dim-array", name: failedTestFlagsName, dimensions: [testStatements.length], location });
   }
 
   for (const [index, test] of testStatements.entries()) {
@@ -72,7 +77,7 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
       expression: binaryExpression("+", identifierExpression(testFailedName, test.location), numberExpression(1, test.location), test.location),
       location: test.location
     });
-    instructions.push({ kind: "let", name: failedFlags[index] as string, expression: numberExpression(1, test.location), location: test.location });
+    instructions.push({ kind: "array-let", name: failedTestFlagsName, indices: [numberExpression(index, test.location)], expression: numberExpression(1, test.location), location: test.location });
     instructions.push({ kind: "print", items: [stringExpression("FAILED", test.location)], trailingSemicolon: false, location: test.location });
     instructions.push({ kind: "goto", label: afterLabel, location: test.location });
     instructions.push({ kind: "label", name: passedLabel, internal: true, location: test.location });
@@ -93,7 +98,7 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
   instructions.push({ kind: "print", items: [stringExpression("FAILED: ", location), identifierExpression(testFailedName, location)], trailingSemicolon: false, location });
   instructions.push({ kind: "print", items: [stringExpression("ASSERTIONS: ", location), identifierExpression(assertionCountName, location)], trailingSemicolon: false, location });
   instructions.push({ kind: "print", items: [stringExpression("FAILURES: ", location), identifierExpression(assertionFailedName, location)], trailingSemicolon: false, location });
-  emitFailedTestSummary(testStatements, failedFlags, instructions, nextInternalLabel, location);
+  emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location);
   instructions.push({ kind: "end", location });
 }
 
@@ -134,8 +139,8 @@ export function lowerAssertComparison(
   location: SourceLocation
 ): void {
   incrementAssertionCount(instructions, location);
-  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), instructions, context, location);
-  const actualValue = preserveAssertionValue(expandFunctionCalls(actual, instructions, context), instructions, context, location);
+  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
+  const actualValue = preserveAssertionValue(expandFunctionCalls(actual, instructions, context), actualValueName, instructions, location);
   const successLabel = nextInternalLabel();
   const endLabel = nextInternalLabel();
   const operator = kind === "assert-eq" ? "=" : "<>";
@@ -155,7 +160,7 @@ export function lowerAssertPrint(
   location: SourceLocation
 ): void {
   incrementAssertionCount(instructions, location);
-  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), instructions, context, location);
+  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
   const actualValue = identifierExpression(testOutputName, location);
   const successLabel = nextInternalLabel();
   const endLabel = nextInternalLabel();
@@ -177,9 +182,9 @@ export function lowerAssertPrintAt(
   location: SourceLocation
 ): void {
   incrementAssertionCount(instructions, location);
-  const rowValue = preserveAssertionValue(expandFunctionCalls(expectedRow, instructions, context), instructions, context, location);
-  const columnValue = preserveAssertionValue(expandFunctionCalls(expectedColumn, instructions, context), instructions, context, location);
-  const textValue = preserveAssertionValue(expandFunctionCalls(expectedText, instructions, context), instructions, context, location);
+  const rowValue = preserveAssertionValue(expandFunctionCalls(expectedRow, instructions, context), expectedRowName, instructions, location);
+  const columnValue = preserveAssertionValue(expandFunctionCalls(expectedColumn, instructions, context), expectedColumnName, instructions, location);
+  const textValue = preserveAssertionValue(expandFunctionCalls(expectedText, instructions, context), expectedTextName, instructions, location);
   const rowOkLabel = nextInternalLabel();
   const columnOkLabel = nextInternalLabel();
   const textOkLabel = nextInternalLabel();
@@ -266,16 +271,14 @@ function emitAssertionFailure(
   });
 }
 
-function preserveAssertionValue(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, location: SourceLocation): Expression {
-  const name = `MBAV${context.nextTempId}${isStringExpression(expression) ? "$" : ""}`;
-  context.nextTempId += 1;
+function preserveAssertionValue(expression: Expression, baseName: string, instructions: Instruction[], location: SourceLocation): Expression {
+  const name = `${baseName}${isStringExpression(expression) ? "$" : ""}`;
   instructions.push({ kind: "let", name, expression, location });
   return identifierExpression(name, location);
 }
 
 function emitFailedTestSummary(
   testStatements: readonly Extract<Statement, { kind: "test" }>[],
-  failedFlags: readonly string[],
   instructions: Instruction[],
   nextInternalLabel: () => string,
   location: SourceLocation
@@ -294,7 +297,7 @@ function emitFailedTestSummary(
   for (const [index, test] of testStatements.entries()) {
     const printLabel = nextInternalLabel();
     const nextLabel = nextInternalLabel();
-    instructions.push({ kind: "if-goto", condition: identifierExpression(failedFlags[index] as string, test.location), label: printLabel, location: test.location });
+    instructions.push({ kind: "if-goto", condition: arrayAccessExpression(failedTestFlagsName, [numberExpression(index, test.location)], test.location), label: printLabel, location: test.location });
     instructions.push({ kind: "goto", label: nextLabel, location: test.location });
     instructions.push({ kind: "label", name: printLabel, internal: true, location: test.location });
     instructions.push({ kind: "print", items: [stringExpression(test.name, test.location)], trailingSemicolon: false, location: test.location });
@@ -307,7 +310,12 @@ function emitFailedTestSummary(
 function emitFailureBorder(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation): void {
   const failedLabel = nextInternalLabel();
   const doneLabel = nextInternalLabel();
-  instructions.push({ kind: "if-goto", condition: identifierExpression(testFailedName, location), label: failedLabel, location });
+  instructions.push({
+    kind: "if-goto",
+    condition: binaryExpression("<>", identifierExpression(testFailedName, location), numberExpression(0, location), location),
+    label: failedLabel,
+    location
+  });
   instructions.push({ kind: "goto", label: doneLabel, location });
   instructions.push({ kind: "label", name: failedLabel, internal: true, location });
   instructions.push({ kind: "border-color", color: colorExpression("RED", location), location });
@@ -377,6 +385,10 @@ function colorExpression(color: Extract<Expression, { kind: "color" }>["color"],
 
 function identifierExpression(name: string, location: SourceLocation): Expression {
   return { kind: "identifier", name, location };
+}
+
+function arrayAccessExpression(name: string, indices: readonly Expression[], location: SourceLocation): Expression {
+  return { kind: "array-access", name, indices, valueType: "number", location };
 }
 
 function binaryExpression(operator: Extract<Expression, { kind: "binary" }>["operator"], left: Expression, right: Expression, location: SourceLocation): Expression {

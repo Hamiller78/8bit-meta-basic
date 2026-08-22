@@ -48,6 +48,15 @@ describe("C64 compiler", () => {
     ).toBe(["10 FOR RO=10 TO 1 STEP -2", "20 FOR CO=1 TO 2", "30 PRINT RO;CO", "40 NEXT CO", "50 NEXT RO", ""].join("\n"));
   });
 
+  it("allocates more than 36 compact variable names without looping forever", () => {
+    const source = Array.from({ length: 45 }, (_, index) => `generated_value_${index} = ${index}`).join("\n");
+    const output = compileSource(`${source}\n`, { filename: "many-vars.mbas", target: "c64", readability: 0 });
+
+    expect(output).toContain("10 GE=0");
+    expect(output).toContain("370 VZ=36");
+    expect(output).toContain("450 A7=44");
+  });
+
   it("reports invalid FOR loop variables and bounds", () => {
     expect(() => compileSource('for name$ = 1 to 3\nprint name$\nnext name$\n', { filename: "bad-for.mbas", target: "c64" })).toThrow(
       "FOR loop variable must be numeric."

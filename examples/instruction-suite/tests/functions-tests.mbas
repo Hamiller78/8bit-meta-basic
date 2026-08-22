@@ -1,0 +1,22 @@
+test FunctionCallWithVariable()
+    Value = 5
+    assert_eq 8, AddValues(Value, 3)
+end test
+
+test FunctionCallWithConstant()
+    assert_eq 7, AddValues(2, 5)
+end test
+
+test FunctionCallWithExpression()
+    assert_eq 11, AddValues(2 + 3, 3 * 2)
+end test
+
+test LocalVariableShadowing()
+    Result = 99
+    assert_eq 8, LocalShadow(4)
+    assert_eq 99, Result
+end test
+
+test NestedFunctionCall()
+    assert_eq 13, NestedBonus(5)
+end test

@@ -37,7 +37,8 @@ async function launchAll(options) {
     "--config",
     options.configPath,
     ...(options.restart ? ["--restart"] : []),
-    ...(options.testMode ? ["--run-tests"] : [])
+    ...(options.testMode ? ["--run-tests"] : []),
+    ...(options.moduleName ? ["--module", options.moduleName] : [])
   ];
 
   const launches = configured.map(({ target, script }) => {
@@ -79,6 +80,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -106,6 +108,11 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--module") {
+      options.moduleName = readValue(argv, index, arg);
+      index += 1;
       continue;
     }
     if (arg === "--profile") {
@@ -139,6 +146,9 @@ function parseArgs(argv) {
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
   if (selectedInputs > 1) {
     throw new Error("Specify only one of --source, --build-config, or --project.");
+  }
+  if (options.moduleName && (!options.projectPath || !options.testMode)) {
+    throw new Error("--module can only be used with --project and --run-tests.");
   }
 
   return options;

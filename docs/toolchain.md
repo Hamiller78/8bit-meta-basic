@@ -13,6 +13,10 @@ npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
 npm run build:all-targets -- --project examples/project-demo --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --profile debug
+npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
+npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run new:project -- examples/my-game
+npm run new:module -- --project examples/my-game --module scoring
 npm run build:directory -- --source-dir examples --profile debug
 npm run launch:all-targets -- --source examples/narf.mbas --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
@@ -51,7 +55,44 @@ npm run build:spectrum -- --project examples/project-demo --run-tests --profile 
 npm run launch:spectrum -- --project examples/project-demo --run-tests --restart
 ```
 
+To run tests for one module, pass `--module name`. This still compiles all source modules, but includes only matching test files:
+
+```text
+npm run build:spectrum -- --project examples/project-demo --run-tests --module math --profile debug
+npm run launch:spectrum -- --project examples/project-demo --run-tests --module math --restart
+```
+
+Recognized test-file names are `tests/math.mbas`, `tests/math-tests.mbas`, and `tests/math.test.mbas`.
+
 `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and the target/all launch scripts.
+
+## Project scaffolding
+
+Use the scaffolding scripts to create the conventional folder layout:
+
+```text
+npm run new:project -- examples/my-game
+npm run new:module -- --project examples/my-game --module scoring
+```
+
+The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`. Existing files are never overwritten.
+
+## Instruction regression suite
+
+`examples/instruction-suite` is a conventional Meta-BASIC project that tests the portable instruction set using the Meta-BASIC test runner. It is intended for compiler regression checks and emulator/device smoke tests:
+
+```text
+npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run launch:all-targets -- --project examples/instruction-suite --run-tests --restart
+```
+
+For memory-constrained targets or focused debugging, run one module's tests:
+
+```text
+npm run build:spectrum -- --project examples/instruction-suite --run-tests --module strings --profile debug
+```
+
+The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, and jiffies where the behavior is deterministic enough to assert portably.
 
 Generated files normally appear below:
 

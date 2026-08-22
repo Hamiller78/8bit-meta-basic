@@ -62,7 +62,22 @@ For a conventional project folder, use `--project`. A project folder contains si
 
 ```text
 npm run build:all-targets -- --project examples/project-demo --profile debug
+npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
 npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
+```
+
+Scaffold conventional projects and modules with:
+
+```text
+npm run new:project -- examples/my-game
+npm run new:module -- --project examples/my-game --module scoring
+```
+
+The portable instruction-set regression suite lives in `examples/instruction-suite`:
+
+```text
+npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run launch:all-targets -- --project examples/instruction-suite --run-tests --module strings --restart
 ```
 
 Build artifacts for all targets:
