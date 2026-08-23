@@ -40,7 +40,8 @@ async function buildProject(context) {
   output.appendLine("");
 
   try {
-    await run(npmCommand(), args, toolRoot);
+    const npm = npmInvocation(args);
+    await run(npm.command, npm.args, toolRoot);
     vscode.window.showInformationMessage(`MetaBASIC build finished for ${workspaceFolder.name}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -85,8 +86,14 @@ function run(command, args, cwd) {
   });
 }
 
-function npmCommand() {
-  return process.platform === "win32" ? "npm.cmd" : "npm";
+function npmInvocation(args) {
+  if (process.platform === "win32") {
+    return {
+      command: process.env.ComSpec ?? "cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd", ...args]
+    };
+  }
+  return { command: "npm", args };
 }
 
 module.exports = {
