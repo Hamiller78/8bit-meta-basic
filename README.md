@@ -149,6 +149,12 @@ Spectrum output begins like this:
 - [Documentation and software sources](docs/sources.md)
 - [Roadmap](docs/roadmap.md)
 
+## VS Code extension prototype
+
+The first small VS Code extension shell lives in `vscode-extension/`. It registers `*.mbas` files for syntax highlighting and adds `MetaBASIC: Build Project`, which runs the existing project build script for a workspace folder containing `source/` and `tests/`.
+
+See [vscode-extension/README.md](vscode-extension/README.md) for the current development workflow and next steps.
+
 ## Important limitations
 
 - Multi-file builds are simple ordered concatenation into one compilation unit; there are no modules, imports, exports, namespaces, or separate compilation.

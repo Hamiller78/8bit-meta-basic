@@ -1,0 +1,74 @@
+{
+  "name": "metabasic-vscode",
+  "displayName": "8-Bit MetaBASIC",
+  "description": "VS Code support for 8-Bit MetaBASIC projects.",
+  "version": "0.0.1",
+  "publisher": "Torben Kneesch",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:metabasic",
+    "onCommand:metabasic.buildProject"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "metabasic",
+        "aliases": [
+          "8-Bit MetaBASIC",
+          "metabasic"
+        ],
+        "extensions": [
+          ".mbas"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "metabasic",
+        "scopeName": "source.metabasic",
+        "path": "./syntaxes/metabasic.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "metabasic.buildProject",
+        "title": "MetaBASIC: Build Project"
+      }
+    ],
+    "configuration": {
+      "title": "MetaBASIC",
+      "properties": {
+        "metabasic.toolRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the MetaBASIC tool checkout. Leave empty when developing this extension inside the MetaBASIC repository."
+        },
+        "metabasic.profile": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "balanced",
+            "release"
+          ],
+          "default": "debug",
+          "description": "Build profile used by MetaBASIC extension commands."
+        },
+        "metabasic.runExternalTools": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run configured target conversion tools during extension builds."
+        }
+      }
+    }
+  }
+}

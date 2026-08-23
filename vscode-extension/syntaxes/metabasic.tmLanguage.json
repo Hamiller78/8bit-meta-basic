@@ -1,0 +1,121 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MetaBASIC",
+  "scopeName": "source.metabasic",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#labels"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#assertions"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#builtins"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.apostrophe.metabasic",
+          "match": "'[^\\n\\r]*"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.metabasic",
+          "begin": "\"",
+          "end": "\""
+        }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.label.metabasic",
+          "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*):"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.metabasic",
+          "match": "\\b\\d+(?:\\.\\d+)?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.metabasic",
+          "match": "(?i)\\b(?:IF|THEN|ELSE|END\\s+IF|ENDIF|FOR|TO|STEP|NEXT|WHILE|WEND|REPEAT|UNTIL|GOTO|GOSUB|RETURN|FUNCTION|END\\s+FUNCTION|TEST|END\\s+TEST|LOCAL|DIM|DATA|READ|RESTORE|RANDOMIZE|OPEN_DEVICE|PRINT_DEVICE|CLOSE_DEVICE|END)\\b"
+        },
+        {
+          "name": "keyword.other.metabasic",
+          "match": "(?i)\\b(?:CONST|PRINT|PRINT_AT|CLS|BORDER_COLOR|TEXT_COLOR|SCREEN_BORDER_COLOR|SCREEN_BACKGROUND_COLOR|SCREEN_TEXT_COLOR|CELL_TEXT_COLOR|CELL_BACKGROUND_COLOR)\\b"
+        },
+        {
+          "name": "keyword.operator.logical.metabasic",
+          "match": "(?i)\\b(?:AND|OR|NOT)\\b"
+        }
+      ]
+    },
+    "assertions": {
+      "patterns": [
+        {
+          "name": "support.function.assertion.metabasic",
+          "match": "(?i)\\b(?:ASSERT_TRUE|ASSERT_FALSE|ASSERT_EQ|ASSERT_NE|ASSERT_PRINT|ASSERT_PRINTAT|ASSERT_SCREEN_BORDER_COLOR|ASSERT_SCREEN_BACKGROUND_COLOR|ASSERT_SCREEN_TEXT_COLOR|ASSERT_CELL_TEXT_COLOR|ASSERT_CELL_BACKGROUND_COLOR)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.metabasic",
+          "match": "(?i)\\b(?:STRING\\$|SPACE\\$|MID\\$|LEFT\\$|RIGHT\\$|LEN|CHR\\$|CODE|ASC|STR\\$|VAL|ABS|ATN|COS|EXP|INT|SGN|SIN|SQR|RND|JIFFIES|KEY_CODE|DEVICE_AVAILABLE)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.color.metabasic",
+          "match": "(?i)\\b(?:BLACK|BLUE|RED|MAGENTA|GREEN|CYAN|YELLOW|WHITE)\\b"
+        },
+        {
+          "name": "constant.language.metabasic",
+          "match": "(?i)\\b(?:TRUE|FALSE|TEXT_ROWS|TEXT_COLUMNS|JIFFIES_PER_SECOND|PI|E|PRINTER|RS232|KEY_NONE|KEY_UP|KEY_DOWN|KEY_LEFT|KEY_RIGHT|KEY_SPACE|KEY_ENTER|KEY_ESCAPE|KEY_F[1-8]|KEY_[A-Z]|KEY_[0-9]|GAME_UP|GAME_DOWN|GAME_LEFT|GAME_RIGHT|GAME_FIRE)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.metabasic",
+          "match": "<>|<=|>=|=|<|>|\\+|-|\\*|/|\\^"
+        }
+      ]
+    }
+  }
+}
