@@ -1,5 +1,6 @@
 import type { Expression, FunctionImplementation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { builtinFunctions } from "./functions.js";
 import type { Instruction } from "./lowering.js";
 import { normalizeName } from "./symbols.js";
 
@@ -21,6 +22,10 @@ export function collectFunctionImplementations(statements: readonly Statement[])
 export function expandFunctionCalls(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
   switch (expression.kind) {
     case "function-call": {
+      if (expression.name === builtinFunctions.deviceAvailable) {
+        return expandDeviceAvailableCall(expression, instructions, context);
+      }
+
       const implementation = context.functions.get(normalizeName(expression.name));
       const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
       if (!implementation) {
@@ -65,6 +70,32 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
     case "color":
     case "identifier":
       return expression;
+  }
+}
+
+function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "function-call" }>, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
+  if (expression.args.length !== 1) {
+    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");
+  }
+  const [device] = expression.args;
+  if (device.kind !== "identifier") {
+    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER and RS232.");
+  }
+
+  const deviceKind = deviceKindFromName(device.name, expression.location);
+  const tempName = nextTempName(context, "MBDV");
+  instructions.push({ kind: "check-device", name: tempName, device: deviceKind, location: expression.location });
+  return { kind: "identifier", name: tempName, location: expression.location };
+}
+
+function deviceKindFromName(name: string, location: Expression["location"]): "printer" | "rs232" {
+  switch (name.toUpperCase()) {
+    case "PRINTER":
+      return "printer";
+    case "RS232":
+      return "rs232";
+    default:
+      throw new DiagnosticError(location, "DEVICE_AVAILABLE currently supports PRINTER and RS232.");
   }
 }
 

@@ -38,6 +38,71 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("renders printer device output through a C64 logical file", () => {
+    expect(
+      compileSource('open_device TestLog, PRINTER\nprint_device TestLog; "RESULT: "; score;\nclose_device TestLog\n', {
+        filename: "printer.mbas",
+        target: "c64",
+        readability: 2
+      })
+    ).toBe(['10 OPEN 1,4', '20 PRINT#1,"RESULT: ";SCORE;', "30 CLOSE 1", ""].join("\n"));
+  });
+
+  it("renders RS232 device output through C64 device 2", () => {
+    expect(
+      compileSource('open_device SerialLog, RS232\nprint_device SerialLog; "RESULT: "; score\nclose_device SerialLog\n', {
+        filename: "rs232.mbas",
+        target: "c64",
+        readability: 2
+      })
+    ).toBe(['10 OPEN 1,2,0,CHR$(6)', '20 PRINT#1,"RESULT: ";SCORE', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
+  });
+
+  it("lowers C64 printer availability checks through ST", () => {
+    expect(
+      compileSource('available = device_available(PRINTER)\nprint available\n', {
+        filename: "device-available.mbas",
+        target: "c64",
+        readability: 2
+      })
+    ).toBe(["10 OPEN 15,4,15", "20 CLOSE 15", "30 MBT1=-(ST=0)", "40 AVAILABLE=MBT1", "50 PRINT AVAILABLE", ""].join("\n"));
+  });
+
+  it("mirrors the test runner output to the C64 printer when enabled", () => {
+    const output = compileSource("test Smoke()\nassert_true 1\nend test\n", {
+      filename: "printer-tests.mbas",
+      target: "c64",
+      readability: 0,
+      testMode: true,
+      testPrinterOutput: true
+    });
+
+    expect(output).toContain("OPEN 15,4,15");
+    expect(output).toContain("MB=-(ST=0)");
+    expect(output).toContain("OPEN 1,4");
+    expect(output).toContain('PRINT#1,"META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).toContain('PRINT#1,"RUNNING Smoke...";');
+    expect(output).toContain("CLOSE 1");
+  });
+
+  it("mirrors the test runner output to C64 RS232 when selected", () => {
+    const output = compileSource("test Smoke()\nassert_true 1\nend test\n", {
+      filename: "rs232-tests.mbas",
+      target: "c64",
+      readability: 0,
+      testMode: true,
+      testPrinterOutput: true,
+      testOutputDevice: "rs232"
+    });
+
+    expect(output).toContain("MB=1");
+    expect(output).not.toContain("OPEN 15,4,15");
+    expect(output).toContain("OPEN 1,2,0,CHR$(6)");
+    expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
+    expect(output).toContain('PRINT#1,"RUNNING Smoke...";');
+    expect(output).toContain("CLOSE 1");
+  });
+
   it("renders FOR/NEXT with C64 compact variable mapping", () => {
     expect(
       compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {

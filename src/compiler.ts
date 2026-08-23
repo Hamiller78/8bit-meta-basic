@@ -9,6 +9,7 @@ import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { rebuildLabels, renderCheckedLine } from "./targets/target.js";
 import { analyzeBasicOutput, type OutputStats } from "./output-stats.js";
+import type { DeviceKind } from "./ast.js";
 
 export type Target = TargetId;
 
@@ -18,6 +19,8 @@ export interface CompileOptions {
   readonly readability?: ReadabilityLevel;
   readonly comments?: ReadabilityLevel;
   readonly testMode?: boolean;
+  readonly testPrinterOutput?: boolean;
+  readonly testOutputDevice?: DeviceKind;
 }
 
 export interface CompileResult {
@@ -42,7 +45,11 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   const target = getTarget(options.target);
   const readability = options.readability ?? options.comments ?? 2;
   const analyzed = analyzeProgram(ast, targetEnvironments[options.target], { testMode: options.testMode });
-  const lowered = lowerProgram(analyzed, { testMode: options.testMode });
+  const lowered = lowerProgram(analyzed, {
+    testMode: options.testMode,
+    testPrinterOutput: options.testPrinterOutput,
+    testOutputDevice: options.testOutputDevice
+  });
   const targetLowered = compactGeneratedHousekeepingLets(target.lower(lowered, readability));
   if (options.target === "spectrum") {
     setSpectrumRenderProgram(targetLowered.instructions);

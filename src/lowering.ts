@@ -1,4 +1,4 @@
-import type { Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
+import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { collectFunctionImplementations, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
@@ -45,6 +45,12 @@ export type Instruction =
   | CellBackgroundColorInstruction
   | PaperInstruction
   | PrintInstruction
+  | OpenDeviceInstruction
+  | PrintDeviceInstruction
+  | CloseDeviceInstruction
+  | CheckDeviceInstruction
+  | TrapInstruction
+  | WaitRs232TransmitInstruction
   | DataInstruction
   | ReadInstruction
   | RestoreInstruction
@@ -131,6 +137,45 @@ export interface PrintInstruction {
     readonly row: Expression;
     readonly column: Expression;
   };
+  readonly location: SourceLocation;
+}
+
+export interface OpenDeviceInstruction {
+  readonly kind: "open-device";
+  readonly handle: string;
+  readonly device: DeviceKind;
+  readonly location: SourceLocation;
+}
+
+export interface PrintDeviceInstruction {
+  readonly kind: "print-device";
+  readonly handle: string;
+  readonly items: readonly Expression[];
+  readonly trailingSemicolon: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface CloseDeviceInstruction {
+  readonly kind: "close-device";
+  readonly handle: string;
+  readonly location: SourceLocation;
+}
+
+export interface CheckDeviceInstruction {
+  readonly kind: "check-device";
+  readonly name: string;
+  readonly device: DeviceKind;
+  readonly location: SourceLocation;
+}
+
+export interface TrapInstruction {
+  readonly kind: "trap";
+  readonly label?: string;
+  readonly location: SourceLocation;
+}
+
+export interface WaitRs232TransmitInstruction {
+  readonly kind: "wait-rs232-transmit";
   readonly location: SourceLocation;
 }
 
@@ -283,6 +328,8 @@ export interface SysInstruction {
 
 export interface LowerOptions {
   readonly testMode?: boolean;
+  readonly testPrinterOutput?: boolean;
+  readonly testOutputDevice?: DeviceKind;
 }
 
 export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
@@ -297,7 +344,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
 
   if (options.testMode) {
-    lowerTestRunner(testStatements, instructions, generator);
+    lowerTestRunner(testStatements, instructions, generator, { printerOutput: options.testPrinterOutput === true, outputDevice: options.testOutputDevice ?? "printer" });
   } else {
     lowerStatements(mainStatements, instructions, generator, context);
   }
@@ -490,6 +537,27 @@ function lowerStatements(
             ...(at ? { at } : {}),
             location: statement.location
           });
+        }
+        break;
+      case "open-device":
+        if (!options.capturePrints) {
+          instructions.push({ kind: "open-device", handle: statement.handle, device: statement.device, location: statement.location });
+        }
+        break;
+      case "print-device":
+        if (!options.capturePrints) {
+          instructions.push({
+            kind: "print-device",
+            handle: statement.handle,
+            items: statement.items.map((item) => expandFunctionCalls(item, instructions, context)),
+            trailingSemicolon: statement.trailingSemicolon,
+            location: statement.location
+          });
+        }
+        break;
+      case "close-device":
+        if (!options.capturePrints) {
+          instructions.push({ kind: "close-device", handle: statement.handle, location: statement.location });
         }
         break;
       case "assert-true":

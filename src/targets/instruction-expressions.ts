@@ -5,6 +5,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
   switch (instruction.kind) {
     case "print":
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
+    case "print-device":
+      return instruction.items;
     case "data":
       return instruction.values;
     case "let":
@@ -24,6 +26,11 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "randomize":
       return instruction.seed ? [instruction.seed] : [];
     case "read-key":
+    case "check-device":
+    case "trap":
+    case "wait-rs232-transmit":
+    case "open-device":
+    case "close-device":
     case "read":
     case "restore":
     case "end":

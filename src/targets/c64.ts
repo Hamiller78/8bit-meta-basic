@@ -22,7 +22,9 @@ export const c64Target: TargetBackend = {
       { ...instruction, at: undefined }
     ]);
     const withScreenControls = expandScreenControls(expanded);
-    const withKeyboardInput = expandKeyboardInput(withScreenControls);
+    const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls);
+    const withRs232Flush = expandRs232CloseFlush(withDeviceChecks);
+    const withKeyboardInput = expandKeyboardInput(withRs232Flush);
     return readability === 1 ? addCompactVariableComments(withKeyboardInput) : withKeyboardInput;
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
@@ -45,6 +47,22 @@ export const c64Target: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "open-device":
+        if (instruction.handle === "__mb_probe") {
+          return `${lineNumber} OPEN 15,4,15`;
+        }
+        if (instruction.device === "rs232") {
+          return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},2,0,CHR$(6)`;
+        }
+        return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},4`;
+      case "print-device":
+        return `${lineNumber} PRINT#${c64LogicalFileNumber(instruction.handle)},${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "close-device":
+        return `${lineNumber} CLOSE ${c64LogicalFileNumber(instruction.handle)}`;
+      case "check-device":
+        return instruction.device === "rs232"
+          ? `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=1`
+          : `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=-(ST=0)`;
       case "data":
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
@@ -85,6 +103,10 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
+      case "trap":
+        throw new Error("Internal error: unexpected trap instruction for C64.");
+      case "wait-rs232-transmit":
+        return `${lineNumber} IF (PEEK(673) AND 1) THEN GOTO ${lineNumber}`;
       case "sys":
         return `${lineNumber} SYS ${instruction.address}`;
     }
@@ -95,6 +117,66 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function c64LogicalFileNumber(handle: string): number {
+  if (handle === "__mb_probe") {
+    return 15;
+  }
+  return 1 + deviceHandleIndex(handle);
+}
+
+function deviceHandleIndex(handle: string): number {
+  const handles: string[] = [];
+  const seen = new Set<string>();
+  for (const instruction of currentProgramInstructions) {
+    if (instruction.kind !== "open-device" || instruction.handle === "__mb_probe") {
+      continue;
+    }
+    const key = instruction.handle.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      handles.push(key);
+    }
+  }
+  return Math.max(0, handles.indexOf(handle.toLowerCase()));
+}
+
+function expandDeviceAvailabilityChecks(program: LoweredProgram): LoweredProgram {
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "check-device" && instruction.device === "printer") {
+      instructions.push({ kind: "open-device", handle: "__mb_probe", device: instruction.device, location: instruction.location });
+      instructions.push({ kind: "close-device", handle: "__mb_probe", location: instruction.location });
+      instructions.push(instruction);
+    } else {
+      instructions.push(instruction);
+    }
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function expandRs232CloseFlush(program: LoweredProgram): LoweredProgram {
+  const openDevices = new Map<string, "printer" | "rs232">();
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "open-device") {
+      openDevices.set(instruction.handle.toLowerCase(), instruction.device);
+      instructions.push(instruction);
+      continue;
+    }
+    if (instruction.kind === "close-device" && openDevices.get(instruction.handle.toLowerCase()) === "rs232") {
+      instructions.push({ kind: "wait-rs232-transmit", location: instruction.location });
+      instructions.push(instruction);
+      continue;
+    }
+    instructions.push(instruction);
+  }
+
+  return rebuildLabels(program, instructions);
 }
 
 const renderKnownC64Function = createFunctionRenderer(
@@ -191,6 +273,7 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||
       instruction.kind === "read-key" ||
+      instruction.kind === "check-device" ||
       instruction.kind === "read" ||
       instruction.kind === "randomize" ||
       instruction.kind === "for" ||

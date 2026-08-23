@@ -7,6 +7,7 @@ import { formatCause } from "./diagnostics.js";
 import type { ReadabilityLevel } from "./line-numbering.js";
 import { formatOutputStats } from "./output-stats.js";
 import { isTargetId } from "./targets/index.js";
+import type { DeviceKind } from "./ast.js";
 
 interface CliOptions {
   readonly inputPath?: string;
@@ -15,6 +16,8 @@ interface CliOptions {
   readonly readability: ReadabilityLevel;
   readonly outputPath?: string;
   readonly testMode?: boolean;
+  readonly testPrinterOutput?: boolean;
+  readonly testOutputDevice?: DeviceKind;
 }
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -25,13 +28,17 @@ async function main(argv: readonly string[]): Promise<number> {
           configPath: options.configPath,
           target: options.target,
           readability: options.readability,
-          testMode: options.testMode
+          testMode: options.testMode,
+          testPrinterOutput: options.testPrinterOutput,
+          testOutputDevice: options.testOutputDevice
         })
       : compileSourceDetailed(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
           target: options.target,
           readability: options.readability,
-          testMode: options.testMode
+          testMode: options.testMode,
+          testPrinterOutput: options.testPrinterOutput,
+          testOutputDevice: options.testOutputDevice
         });
 
     if (options.outputPath) {
@@ -56,6 +63,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
   let readability: ReadabilityLevel = 2;
   let outputPath: string | undefined;
   let testMode = false;
+  let testPrinterOutput = false;
+  let testOutputDevice: DeviceKind = "printer";
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -98,6 +107,21 @@ function parseArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--printer-output") {
+      testPrinterOutput = true;
+      continue;
+    }
+
+    if (arg === "--test-output-device") {
+      const value = argv[index + 1];
+      if (!value) {
+        throw new Error(`Missing value for ${arg}.`);
+      }
+      testOutputDevice = parseDeviceKind(value);
+      index += 1;
+      continue;
+    }
+
     if (arg === "--config" || arg === "--build-config") {
       const value = argv[index + 1];
       if (!value) {
@@ -119,7 +143,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests]");
+    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device printer|rs232]");
   }
 
   if (inputPath && configPath) {
@@ -130,8 +154,11 @@ function parseArgs(argv: readonly string[]): CliOptions {
     throw new Error("Missing required --target option.");
   }
 
-  const parsed: CliOptions = configPath ? { configPath, target, readability, testMode } : { inputPath: inputPath ?? "", target, readability, testMode };
-  return outputPath ? { ...parsed, outputPath } : parsed;
+  const parsed: CliOptions = configPath
+    ? { configPath, target, readability, testMode, testPrinterOutput }
+    : { inputPath: inputPath ?? "", target, readability, testMode, testPrinterOutput };
+  const parsedWithDevice = { ...parsed, testOutputDevice };
+  return outputPath ? { ...parsedWithDevice, outputPath } : parsedWithDevice;
 }
 
 function requiredInputPath(options: CliOptions): string {
@@ -147,6 +174,14 @@ function parseReadabilityLevel(value: string, optionName: string): ReadabilityLe
   }
 
   throw new Error(`Invalid ${optionName} value "${value}". Expected 0, 1, or 2.`);
+}
+
+function parseDeviceKind(value: string): DeviceKind {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 main(process.argv.slice(2)).then((exitCode) => {

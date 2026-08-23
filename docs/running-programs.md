@@ -37,6 +37,7 @@ Still to verify:
 - Exact menu command for attaching the tape
 - Whether the generated file autoloads or requires `RUN`
 - Procedure on The Spectrum physical device
+- Printer/text-file capture for Meta-BASIC test-runner output using `--printer-output`
 
 ## Atari 800XL with an ATR listing
 
@@ -113,6 +114,24 @@ For an explicit raw tokenized-file launch in Altirra:
 npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --restart
 ```
 
+## Atari 800XL test output capture
+
+Status: **source support and config hooks exist; emulator workflow unverified**.
+
+Meta-BASIC can lower `PRINTER` output to Atari `P:` and `RS232` output to `R:`. The launch configuration includes `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args`, but the Altirra command-line setup for writing either device to a host file still needs to be tested and recorded.
+
+Candidate command once configured:
+
+```text
+npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --restart
+```
+
+or:
+
+```text
+npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+```
+
 ## Commodore 64 emulator
 
 Status: **artifact generation available; exact repeatable procedure still to document**.
@@ -139,6 +158,36 @@ Record during the next test:
 - Exact `petcat` version and command
 - Autostart versus manual load procedure
 - Treatment of quotes, PETSCII symbols, and letter case
+
+## Commodore 64 test output capture in VICE
+
+Status: **verified locally with VICE and a localhost RS-232 capture endpoint**.
+
+Run:
+
+```text
+npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+```
+
+The launch script starts a small local TCP capture helper, passes VICE a dynamic `127.0.0.1:<port>` Serial 1 endpoint, and writes the test-runner output to:
+
+```text
+build/rs232/release/c64/instruction-suite.txt
+```
+
+For other programs, replace `instruction-suite` with the selected source or project name. For other profiles, replace `release` with the selected profile.
+
+VICE settings observed during verification:
+
+- Userport RS232 emulation enabled
+- Userport RS232 device set to Serial 1
+- Baud rate 300
+- Serial 1 displays the dynamic localhost endpoint
+- `IP232` unchecked
+
+ACIA/SwiftLink RS-232 settings are separate from this workflow. C64 BASIC V2 `OPEN 1,2,...` uses the userport RS-232 path configured above.
+
+If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
 
 ## The C64 Mini
 

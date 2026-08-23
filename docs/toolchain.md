@@ -66,6 +66,25 @@ Recognized test-file names are `tests/math.mbas`, `tests/math-tests.mbas`, and `
 
 `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and the target/all launch scripts.
 
+To mirror the generated test-runner log to an emulator device, add `--printer-output`. The default device is `printer`; `--test-output-device rs232` selects serial capture where configured:
+
+```text
+npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+```
+
+The captured host file path is controlled by the emulator block in `scripts/tools.local.json`:
+
+```json
+"printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+"rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt"
+```
+
+For a release C64 run of `examples/instruction-suite`, the RS-232 log is written to:
+
+```text
+build/rs232/release/c64/instruction-suite.txt
+```
+
 ## Project scaffolding
 
 Use the scaffolding scripts to create the conventional folder layout:
@@ -135,6 +154,8 @@ scripts/tools.local.json
 and configure local executable paths. Keep `tools.local.json` out of version control because paths differ per machine.
 
 The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
+
+Device-output launch arguments may also use `{printerOutput}`, `{rs232Output}`, and `{rs232Endpoint}`. `{printerOutput}` and `{rs232Output}` expand to host output files. `{rs232Endpoint}` is a dynamically created `127.0.0.1:<port>` endpoint used by the C64/VICE RS-232 capture workflow.
 
 Each launch script understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured conversion tools, then starts the emulator and exits without waiting for the emulator window.
 
@@ -224,6 +245,38 @@ When another VICE instance is already running:
 ```text
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
 ```
+
+## Commodore 64: test output capture
+
+For test-runner output inspection in VICE, prefer RS-232 capture over the printer path:
+
+```text
+npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+```
+
+The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, and writes received bytes to `build/rs232/<profile>/c64/<source-name>.txt`.
+
+The example VICE arguments are:
+
+```json
+"rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "300", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "300"]
+```
+
+In the VICE GUI this appears under RS232 as Serial 1 set to a localhost port. Leave `IP232` unchecked for this capture helper. The userport RS-232 emulation must be enabled; ACIA/SwiftLink settings are separate from the BASIC `OPEN 1,2,...` path used here.
+
+The older printer capture config remains available, but local VICE printer-to-file behavior can vary by version and settings.
+
+## Spectrum and Atari: test output capture
+
+The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args` hooks for Spectrum and Atari, but the exact emulator workflows are not yet verified by this project.
+
+For Spectrum/Fuse, the example printer config uses Fuse's ZX Printer/text-file options:
+
+```json
+"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
+```
+
+For Atari/Altirra, the source language can emit `OPEN_DEVICE ..., PRINTER` or `OPEN_DEVICE ..., RS232`, lowering to `P:` or `R:` respectively. The launch config currently leaves the emulator arguments empty until a repeatable Altirra printer or serial-to-host-file setup is chosen.
 
 ## Atari 800XL: listing/ATR path
 

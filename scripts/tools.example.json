@@ -11,7 +11,11 @@
     "emulator": {
       "name": "Fuse",
       "path": "",
-      "args": ["-tape", "{artifact}", "-auto-play"]
+      "args": ["-tape", "{artifact}", "-auto-play"],
+      "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+      "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"],
+      "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
+      "rs232Args": []
     }
   },
   "atari800xl": {
@@ -36,6 +40,10 @@
     "emulator": {
       "name": "Altirra",
       "path": "",
+      "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+      "printerArgs": [],
+      "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
+      "rs232Args": [],
       "args": ["{artifact}"],
       "artifactArgs": {
         "atr": ["/disk", "{artifact}"],
@@ -58,7 +66,11 @@
     "emulator": {
       "name": "x64sc",
       "path": "",
-      "args": ["-autostart", "{artifact}", "-autostart-warp"]
+      "args": ["-autostart", "{artifact}", "-autostart-warp"],
+      "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+      "printerArgs": ["-busdevice4", "-devicebackend4", "1", "-prtxtdev1", "{printerOutput}", "-pr4txtdev", "0", "-pr4output", "text", "-pr4drv", "ascii"],
+      "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
+      "rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "300", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "300"]
     }
   }
 }

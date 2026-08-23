@@ -16,8 +16,11 @@ const statementParsers = new Map<string, StatementParser>([
   ["DIM", (parser, location) => parser.parseDim(location)],
   ["END", (parser, location) => parser.parseEnd(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
+  ["CLOSE_DEVICE", (parser, location) => parser.parseCloseDevice(location)],
+  ["OPEN_DEVICE", (parser, location) => parser.parseOpenDevice(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
+  ["PRINT_DEVICE", (parser, location) => parser.parsePrintDevice(location)],
   ["READ", (parser, location) => parser.parseRead(location)],
   ["TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
@@ -127,11 +130,43 @@ class Parser {
   }
 
   parsePrint(location: SourceLocation): PrintStatement {
+    const { items, trailingSemicolon } = this.parsePrintItems("PRINT");
+    this.expectLineEnd();
+    return { kind: "print", items, trailingSemicolon, location };
+  }
+
+  parseOpenDevice(location: SourceLocation): Statement {
+    const handle = this.expectIdentifier("Expected device handle name after OPEN_DEVICE.").text;
+    this.expectPunctuation(",", "Expected comma between OPEN_DEVICE handle and device name.");
+    const device = this.expectIdentifier("Expected device name after OPEN_DEVICE comma.").text;
+    const deviceKind = parseDeviceKind(device);
+    if (!deviceKind) {
+      throw new DiagnosticError(this.current().location, `Unsupported device "${device}". OPEN_DEVICE currently supports PRINTER and RS232.`);
+    }
+    this.expectLineEnd();
+    return { kind: "open-device", handle, device: deviceKind, location };
+  }
+
+  parsePrintDevice(location: SourceLocation): Statement {
+    const handle = this.expectIdentifier("Expected device handle name after PRINT_DEVICE.").text;
+    this.expectPunctuation(";", "Expected semicolon after PRINT_DEVICE handle.");
+    const { items, trailingSemicolon } = this.parsePrintItems("PRINT_DEVICE");
+    this.expectLineEnd();
+    return { kind: "print-device", handle, items, trailingSemicolon, location };
+  }
+
+  parseCloseDevice(location: SourceLocation): Statement {
+    const handle = this.expectIdentifier("Expected device handle name after CLOSE_DEVICE.").text;
+    this.expectLineEnd();
+    return { kind: "close-device", handle, location };
+  }
+
+  private parsePrintItems(commandName: "PRINT" | "PRINT_DEVICE"): Pick<PrintStatement, "items" | "trailingSemicolon"> {
     const items: Expression[] = [];
     let trailingSemicolon = false;
 
     if (this.isLineEnd()) {
-      throw new DiagnosticError(this.current().location, "PRINT requires at least one expression.");
+      throw new DiagnosticError(this.current().location, `${commandName} requires at least one expression.`);
     }
 
     while (!this.isLineEnd()) {
@@ -149,8 +184,7 @@ class Parser {
       break;
     }
 
-    this.expectLineEnd();
-    return { kind: "print", items, trailingSemicolon, location };
+    return { items, trailingSemicolon };
   }
 
   parseCls(location: SourceLocation): Statement {
@@ -809,5 +843,16 @@ function describeToken(token: Token): string {
     case "operator":
     case "punctuation":
       return `"${token.text}"`;
+  }
+}
+
+function parseDeviceKind(device: string): Extract<Statement, { kind: "open-device" }>["device"] | undefined {
+  switch (device.toUpperCase()) {
+    case "PRINTER":
+      return "printer";
+    case "RS232":
+      return "rs232";
+    default:
+      return undefined;
   }
 }

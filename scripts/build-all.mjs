@@ -11,6 +11,8 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testPrinterOutput: false,
+    testOutputDevice: "printer",
     moduleName: undefined,
     outDir: "build",
     configPath: "scripts/tools.local.json",
@@ -46,6 +48,15 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--printer-output") {
+      options.testPrinterOutput = true;
+      continue;
+    }
+    if (arg === "--test-output-device") {
+      options.testOutputDevice = parseDeviceKind(readValue(argv, index, arg));
+      index += 1;
       continue;
     }
     if (arg === "--module") {
@@ -88,6 +99,9 @@ async function buildAll(options) {
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
   }
+  if (options.testPrinterOutput && !options.testMode) {
+    throw new Error("--printer-output can only be used with --run-tests.");
+  }
 
   await buildProject();
 
@@ -100,6 +114,8 @@ async function buildAll(options) {
         buildConfigPath: options.buildConfigPath,
         projectPath: options.projectPath,
         testMode: options.testMode,
+        testPrinterOutput: options.testPrinterOutput,
+        testOutputDevice: options.testOutputDevice,
         moduleName: options.moduleName,
         outDir: options.outDir,
         configPath: options.configPath,
@@ -116,6 +132,14 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
+}
+
+function parseDeviceKind(value) {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 async function main() {

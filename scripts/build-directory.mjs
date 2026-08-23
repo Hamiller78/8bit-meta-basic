@@ -50,6 +50,8 @@ export async function buildDirectory(options) {
           profile,
           source,
           testMode: options.testMode === true,
+          testPrinterOutput: options.testPrinterOutput === true,
+          testOutputDevice: options.testOutputDevice ?? "printer",
           outDir: options.outDir ?? defaultOutDir,
           configPath: options.configPath ?? defaultToolConfig,
           runBuild: false,
@@ -71,7 +73,9 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runTools: true,
-    testMode: false
+    testMode: false,
+    testPrinterOutput: false,
+    testOutputDevice: "printer"
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -114,7 +118,20 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--printer-output") {
+      options.testPrinterOutput = true;
+      continue;
+    }
+    if (arg === "--test-output-device") {
+      options.testOutputDevice = parseDeviceKind(readValue(argv, index, arg));
+      index += 1;
+      continue;
+    }
     throw new Error(`Unknown option "${arg}".`);
+  }
+
+  if (options.testPrinterOutput && !options.testMode) {
+    throw new Error("--printer-output can only be used with --run-tests.");
   }
 
   return options;
@@ -126,6 +143,14 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
+}
+
+function parseDeviceKind(value) {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 async function main() {

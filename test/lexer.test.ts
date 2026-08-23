@@ -42,6 +42,9 @@ describe("lexer", () => {
 
   it("recognizes keywords case-insensitively through the centralized keyword set", () => {
     expect(keywords.has("PRINT")).toBe(true);
+    expect(keywords.has("PRINT_DEVICE")).toBe(true);
+    expect(keywords.has("OPEN_DEVICE")).toBe(true);
+    expect(keywords.has("CLOSE_DEVICE")).toBe(true);
     expect(keywords.has("BORDER_COLOR")).toBe(true);
     expect(keywords.has("PRINT_AT")).toBe(true);
     expect(keywords.has("AND")).toBe(true);

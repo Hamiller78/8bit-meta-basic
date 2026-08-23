@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { access, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { basename, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 
 const defaultSource = "examples/colors.mbas";
@@ -21,6 +22,8 @@ async function launchC64(options) {
     buildConfigPath: options.buildConfigPath,
     projectPath: options.projectPath,
     testMode: options.testMode,
+    testPrinterOutput: options.testPrinterOutput,
+    testOutputDevice: options.testOutputDevice,
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
@@ -54,9 +57,20 @@ async function launchC64(options) {
     source: program.inputPath,
     sourceName: program.name,
     profile: options.profile,
-    target: "c64"
+    target: "c64",
+    printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "c64", "printer"),
+    rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "c64", "rs232"),
+    rs232Endpoint: undefined
   };
-  const args = (emulator.args ?? ["-autostart", "{artifact}"]).map((arg) => replacePlaceholders(arg, replacements));
+  if (options.testPrinterOutput) {
+    await prepareDeviceOutput(options.testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
+  }
+  if (options.testPrinterOutput && options.testOutputDevice === "rs232") {
+    replacements.rs232Endpoint = await startRs232Capture(cwd, replacements.rs232Output, options, emulator, program.name);
+  }
+  const deviceArgs = options.testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
+  const argsTemplate = [...(emulator.args ?? ["-autostart", "{artifact}"]), ...(options.testPrinterOutput ? deviceArgs : [])];
+  const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
   const child = spawn(emulatorPath, args, {
     cwd,
@@ -75,6 +89,8 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testPrinterOutput: false,
+    testOutputDevice: "printer",
     moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
@@ -102,6 +118,15 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--printer-output") {
+      options.testPrinterOutput = true;
+      continue;
+    }
+    if (arg === "--test-output-device") {
+      options.testOutputDevice = parseDeviceKind(readValue(argv, index, arg));
+      index += 1;
       continue;
     }
     if (arg === "--module") {
@@ -139,6 +164,9 @@ function parseArgs(argv) {
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
   }
+  if (options.testPrinterOutput && !options.testMode) {
+    throw new Error("--printer-output can only be used with --run-tests.");
+  }
 
   return options;
 }
@@ -160,7 +188,75 @@ async function loadConfig(configPath) {
 }
 
 function replacePlaceholders(value, replacements) {
-  return value.replaceAll(/\{([A-Za-z]+)\}/g, (match, key) => replacements[key] ?? match);
+  return value.replaceAll(/\{([A-Za-z][A-Za-z0-9-]*)\}/g, (match, key) => replacements[key] ?? match);
+}
+
+function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
+  const template = device === "rs232"
+    ? emulator.rs232OutputPath ?? "build/rs232/{profile}/{target}/{sourceName}.txt"
+    : emulator.printerOutputPath ?? "build/printer/{profile}/{target}/{sourceName}.txt";
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+}
+
+async function prepareDeviceOutput(path) {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, "", "utf8");
+}
+
+async function startRs232Capture(cwd, outputPath, options, emulator, sourceName) {
+  const scriptPath = resolve(cwd, "scripts/rs232-capture.mjs");
+  const readyPath = resolve(
+    cwd,
+    options.outDir,
+    ".rs232-capture",
+    `${options.profile}-c64-${safeName(sourceName)}-${Date.now()}.json`
+  );
+  await mkdir(dirname(readyPath), { recursive: true });
+
+  const child = spawn(process.execPath, [
+    scriptPath,
+    "--output",
+    outputPath,
+    "--port",
+    String(emulator.rs232CapturePort ?? 0),
+    "--ready",
+    readyPath
+  ], {
+    cwd,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true
+  });
+  child.unref();
+
+  const ready = await waitForCaptureReady(readyPath);
+  return `${ready.host}:${ready.port}`;
+}
+
+async function waitForCaptureReady(readyPath) {
+  const deadline = Date.now() + 3000;
+  let lastError;
+  while (Date.now() < deadline) {
+    try {
+      return JSON.parse(await readFile(readyPath, "utf8"));
+    } catch (error) {
+      lastError = error;
+      await sleep(50);
+    }
+  }
+  throw new Error(`RS232 capture endpoint did not start. ${lastError instanceof Error ? lastError.message : ""}`.trim());
+}
+
+function safeName(value) {
+  return value.replaceAll(/[^A-Za-z0-9_-]/g, "");
+}
+
+function parseDeviceKind(value) {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 async function terminateExistingEmulator(emulatorPath) {

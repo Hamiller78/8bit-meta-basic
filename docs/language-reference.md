@@ -141,6 +141,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `rnd()` | Runtime | Return the next pseudo-random number in the target's native `0 <= x < 1` range |
 | `jiffies()` | Runtime | Read the target's running tick counter |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
+| `device_available(device)` | Runtime | Best-effort availability check for `PRINTER` or `RS232` |
 
 `CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
 
@@ -198,6 +199,18 @@ print_at warningRow, 0; "SECONDS: "; countdown
 
 The semicolon after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet.
 
+Device output is available for printer-like logging and emulator capture workflows:
+
+```basic
+if device_available(RS232) then
+    open_device Log, RS232
+    print_device Log; "TEST RESULT: "; 1
+    close_device Log
+end if
+```
+
+Supported device constants are `PRINTER` and `RS232`. Device handles are Meta-BASIC names local to the compilation unit and are lowered to target-specific channel or stream numbers. `PRINT_DEVICE` uses the same semicolon-separated item style as `PRINT`. `DEVICE_AVAILABLE` is a best-effort runtime helper; C64 RS-232 currently reports available because probing the channel can disturb the connection, while printer availability can be checked more directly on some targets.
+
 ## Test Mode
 
 Builds may enable `testMode` through the compiler options, the CLI `--run-tests` flag, or a build configuration JSON property:
@@ -242,6 +255,8 @@ assert_cell_background_color colour
 ```
 
 Assertions count successes and failures, continue after failure, and failed tests do not prevent later tests from running. The generated summary prints test, pass, fail, assertion, and failure counts.
+
+When launched through the helper scripts, `--printer-output` mirrors the test runner's own progress and summary output to a configured device in addition to the screen. Select the device with `--test-output-device printer` or `--test-output-device rs232`. Normal program `PRINT` output remains captured or suppressed according to test-mode assertion behavior; the mirrored output is the runner log, not arbitrary output from the code under test.
 
 `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
 For portable output assertions, prefer string output; numeric formatting still follows the target BASIC conversion rules.

@@ -18,6 +18,9 @@ export type Statement =
   | ScreenBackgroundColorStatement
   | CellTextColorStatement
   | CellBackgroundColorStatement
+  | OpenDeviceStatement
+  | PrintDeviceStatement
+  | CloseDeviceStatement
   | PrintStatement
   | DataStatement
   | ReadStatement
@@ -105,6 +108,29 @@ export interface CellBackgroundColorStatement {
 export interface PrintAtPosition {
   readonly row: Expression;
   readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export type DeviceKind = "printer" | "rs232";
+
+export interface OpenDeviceStatement {
+  readonly kind: "open-device";
+  readonly handle: string;
+  readonly device: DeviceKind;
+  readonly location: SourceLocation;
+}
+
+export interface PrintDeviceStatement {
+  readonly kind: "print-device";
+  readonly handle: string;
+  readonly items: readonly Expression[];
+  readonly trailingSemicolon: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface CloseDeviceStatement {
+  readonly kind: "close-device";
+  readonly handle: string;
   readonly location: SourceLocation;
 }
 

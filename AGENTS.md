@@ -111,6 +111,10 @@ Supported constructs:
 - Numeric and string array assignments written canonically as `name(index) = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
+- `open_device handle, PRINTER` and `open_device handle, RS232`
+- `print_device handle;` followed by one or more expressions separated by semicolons
+- `close_device handle`
+- Runtime device availability checks with `device_available(PRINTER)` and `device_available(RS232)`
 - Test-mode `TEST name()` / `END TEST` blocks
 - Test-mode assertions `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and portable colour assertions
 - `cls` and `cls colour`
@@ -129,7 +133,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER` and `RS232`.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
@@ -157,7 +161,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, and `KEY_CODE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `KEY_CODE`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -176,6 +180,7 @@ Supported expression forms:
 - Runtime random number function call `RND()`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
+- Runtime device availability call `DEVICE_AVAILABLE(PRINTER)` or `DEVICE_AVAILABLE(RS232)`
 - Array reads such as `VALUES(0)` and `MESSAGES$(0)`
 - Parenthesized expressions
 - Unary `-`
@@ -322,6 +327,28 @@ Rules:
 - Dynamic coordinates are not range-checked yet.
 
 Out of scope for `PRINT`: comma separators, apostrophe newline separators, streams, `INK`, `PAPER`, `COLOR`, and `SETCOLOR`.
+
+## Device output
+
+Meta-BASIC supports simple device output for printer and serial logging workflows:
+
+```basic
+if device_available(PRINTER) then
+    open_device Log, PRINTER
+    print_device Log; "READY"
+    close_device Log
+end if
+```
+
+Supported device constants are `PRINTER` and `RS232`. Device handles are source-level names that the compiler lowers to target channel or stream numbers; they must be opened before `PRINT_DEVICE` or `CLOSE_DEVICE`, and duplicate open handles are rejected. `PRINT_DEVICE` uses the same semicolon-separated item list as `PRINT`.
+
+Target lowering:
+
+- Spectrum: `PRINTER` uses stream `#4` opened as `"P"`; `RS232` uses stream `#4` opened as `"t"` for Interface 1 style text serial output. Availability is currently best-effort.
+- Atari 800XL: `PRINTER` opens `P:`; `RS232` opens `R:`. Availability is checked with `TRAP` around an `OPEN` where practical.
+- C64: `PRINTER` uses device 4 and can be probed through the status channel. `RS232` uses device 2/userport RS-232. C64 RS-232 availability currently reports true because probing the RS-232 channel can disturb the connection.
+
+Test-mode launch scripts can mirror the generated test-runner log to a configured device with `--printer-output` and `--test-output-device printer|rs232`. The flag name `--printer-output` is historical; with `--test-output-device rs232` it means "mirror test output to the selected external device".
 
 ## CLS, border colour, and portable colours
 
@@ -528,6 +555,7 @@ npm run launch:all-targets -- --source examples/narf.mbas --restart
 npm run launch:all-targets -- --build-config examples/multifile/metabasic.json --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --module math --restart
+npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -552,7 +580,11 @@ The build and launch scripts accept exactly one input selector: `--source file.m
 
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
+For C64 test-runner capture, prefer `--printer-output --test-output-device rs232`. The launch script starts `scripts/rs232-capture.mjs`, creates a dynamic localhost endpoint, expands `{rs232Endpoint}` in `c64.emulator.rs232Args`, and writes captured bytes to `build/rs232/<profile>/c64/<source-name>.txt`. VICE should show Serial 1 as `127.0.0.1:<port>` with userport RS-232 enabled and `IP232` unchecked. Do not point VICE directly at `{rs232Output}` for RS-232 capture; local file paths in that field may create empty files.
+
 `scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured Atari packaging tools, and launches the configured emulator. The Atari emulator path and arguments live in the `atari800xl.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
+
+Atari and Spectrum launch configs include `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args`, but their exact emulator-to-host-file workflows are not verified yet. Keep the hooks documented and update `docs/running-programs.md` when a repeatable Fuse or Altirra capture path is confirmed.
 
 `scripts/launch-spectrum.mjs` backs `npm run launch:spectrum`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured Spectrum packaging tool, and launches the configured emulator with the generated `.tap`. The Spectrum emulator path and arguments live in the `spectrum.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.tap`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
@@ -655,6 +687,7 @@ Coverage currently includes:
 - Runtime exponentiation operator rendering with `^`
 - Runtime `JIFFIES` lowering to C64 `TI`, Spectrum `FRAMES`, and Atari `RTCLOK`
 - Runtime `KEY_CODE` lowering plus target key constants
+- Device output parsing, semantic validation, target lowering for printer/RS-232, `DEVICE_AVAILABLE`, and C64 RS-232 test-runner capture through a localhost endpoint
 - `PRINT_AT` parsing and malformed coordinate diagnostics
 - Spectrum target `PRINT AT` output
 - Atari `POSITION` expansion

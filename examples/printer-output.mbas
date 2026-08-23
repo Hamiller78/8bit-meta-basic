@@ -1,0 +1,12 @@
+' Printer output demo for emulator printer-to-file setups.
+
+if device_available(PRINTER) then
+    open_device TestLog, PRINTER
+    print_device TestLog; "META-BASIC PRINTER OUTPUT"
+    print_device TestLog; "SCORE: "; 42
+    print_device TestLog; "STATUS: READY"
+    close_device TestLog
+    print "PRINTER DEMO FINISHED"
+else
+    print "PRINTER NOT AVAILABLE"
+end if

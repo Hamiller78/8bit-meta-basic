@@ -28,6 +28,35 @@ describe("parser", () => {
     });
   });
 
+  it("parses printer device output statements", () => {
+    expect(parseSource('open_device TestLog, PRINTER\nprint_device TestLog; "RESULT: "; score;\nclose_device TestLog\n', "printer.mbas")).toMatchObject({
+      statements: [
+        { kind: "open-device", handle: "TestLog", device: "printer" },
+        {
+          kind: "print-device",
+          handle: "TestLog",
+          items: [{ kind: "string", value: "RESULT: " }, { kind: "identifier", name: "score" }],
+          trailingSemicolon: true
+        },
+        { kind: "close-device", handle: "TestLog" }
+      ]
+    });
+  });
+
+  it("parses RS232 device output statements", () => {
+    expect(parseSource('open_device SerialLog, RS232\nprint_device SerialLog; "PING"\nclose_device SerialLog\n', "rs232.mbas")).toMatchObject({
+      statements: [
+        { kind: "open-device", handle: "SerialLog", device: "rs232" },
+        { kind: "print-device", handle: "SerialLog", items: [{ kind: "string", value: "PING" }] },
+        { kind: "close-device", handle: "SerialLog" }
+      ]
+    });
+  });
+
+  it("rejects unsupported portable device names", () => {
+    expect(() => parseSource("open_device Log, MODEM\n", "device.mbas")).toThrow("OPEN_DEVICE currently supports PRINTER and RS232");
+  });
+
   it("parses FUNCTION blocks with parameters, locals, and return expressions", () => {
     expect(parseSource("FUNCTION AddBonus(Score, Bonus)\nLOCAL Result\nResult = Score + Bonus\nRETURN Result\nEND FUNCTION\n", "fn.mbas")).toMatchObject({
       statements: [

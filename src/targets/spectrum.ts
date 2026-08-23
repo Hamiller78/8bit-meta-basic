@@ -57,6 +57,14 @@ export const spectrumTarget: TargetBackend = {
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "open-device":
+        return `${lineNumber} OPEN #${spectrumStreamNumber(instruction.handle, instruction.location)},"${spectrumChannelName(instruction.device)}"`;
+      case "print-device":
+        return `${lineNumber} PRINT #${spectrumStreamNumber(instruction.handle, instruction.location)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "close-device":
+        return `${lineNumber} CLOSE #${spectrumStreamNumber(instruction.handle, instruction.location)}`;
+      case "check-device":
+        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=1`;
       case "data":
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
@@ -93,6 +101,8 @@ export const spectrumTarget: TargetBackend = {
       case "print-chr":
       case "dim-string":
       case "read-key":
+      case "trap":
+      case "wait-rs232-transmit":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
     }
@@ -103,6 +113,35 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setSpectrumRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function spectrumStreamNumber(handle: string, location: Expression["location"]): number {
+  const index = deviceHandleIndex(handle);
+  const stream = 4 + index;
+  if (stream > 15) {
+    throw new Error(`${location.filename}:${location.line}: Spectrum supports only 12 Meta-BASIC device handles at once.`);
+  }
+  return stream;
+}
+
+function spectrumChannelName(device: "printer" | "rs232"): "P" | "t" {
+  return device === "rs232" ? "t" : "P";
+}
+
+function deviceHandleIndex(handle: string): number {
+  const handles: string[] = [];
+  const seen = new Set<string>();
+  for (const instruction of currentProgramInstructions) {
+    if (instruction.kind !== "open-device") {
+      continue;
+    }
+    const key = instruction.handle.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      handles.push(key);
+    }
+  }
+  return Math.max(0, handles.indexOf(handle.toLowerCase()));
 }
 
 const renderKnownSpectrumFunction = createFunctionRenderer(
@@ -272,7 +311,7 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
   allocateSpectrumLoopNames(loopNames, collectReservedSingleLetterNumericNames(instructions), map);
 
   for (const instruction of instructions) {
-    if (instruction.kind === "let") {
+    if (instruction.kind === "let" || instruction.kind === "check-device") {
       if (isStringVariableName(instruction.name)) {
         collectStringName(instruction.name, stringNames, seenStrings);
       } else {

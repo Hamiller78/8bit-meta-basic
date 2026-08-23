@@ -38,6 +38,40 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders printer device output through an Atari IOCB", () => {
+    expect(
+      compileSource('open_device TestLog, PRINTER\nmessage$ = "OK"\nprint_device TestLog; "RESULT: " + message$\nclose_device TestLog\n', {
+        filename: "printer.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(['10 OPEN #1,8,0,"P:"', "20 DIM MESSAGE$(255)", '30 MESSAGE$="OK"', "40 DIM MBTEMP$(255)", '50 MBTEMP$="RESULT: "', "60 MBTEMP$(LEN(MBTEMP$)+1)=MESSAGE$", "70 PRINT #1;MBTEMP$", "80 CLOSE #1", ""].join("\n"));
+  });
+
+  it("renders RS232 device output through the Atari R: handler", () => {
+    expect(
+      compileSource('open_device SerialLog, RS232\nprint_device SerialLog; "RESULT: "; score\nclose_device SerialLog\n', {
+        filename: "rs232.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(['10 OPEN #1,8,0,"R:"', '20 PRINT #1;"RESULT: ";SCORE', "30 CLOSE #1", ""].join("\n"));
+  });
+
+  it("lowers Atari printer availability checks through TRAP", () => {
+    const output = compileSource("available = device_available(PRINTER)\nprint available\n", {
+      filename: "device-available.mbas",
+      target: "atari800xl"
+    });
+
+    expect(output).toContain("10 TRAP ");
+    expect(output).toContain('OPEN #1,8,0,"P:"');
+    expect(output).toContain("CLOSE #1");
+    expect(output).toContain("MBT1=1");
+    expect(output).toContain("MBT1=0");
+    expect(output).toContain("AVAILABLE=MBT1");
+    expect(output).toContain("TRAP 40000");
+    expect(output).toContain("PRINT AVAILABLE");
+  });
+
   it("renders FOR/NEXT with readable Atari variable names", () => {
     expect(
       compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {

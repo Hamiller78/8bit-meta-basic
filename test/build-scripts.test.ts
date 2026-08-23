@@ -84,6 +84,14 @@ describe("build scripts", () => {
     });
   });
 
+  it("configures C64 RS232 capture through a local endpoint", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+
+    expect(config.c64.emulator.rs232OutputPath).toBe("build/rs232/{profile}/{target}/{sourceName}.txt");
+    expect(config.c64.emulator.rs232Args).toContain("{rs232Endpoint}");
+    expect(config.c64.emulator.rs232Args).not.toContain("{rs232Output}");
+  });
+
   it("configures the Spectrum emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
@@ -126,14 +134,18 @@ describe("build scripts", () => {
 
     const sourceConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build" });
     const testConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build", testMode: true });
+    const printerConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build", testMode: true, testPrinterOutput: true, testOutputDevice: "rs232" });
     const sourceConfig = JSON.parse(await readFile(sourceConfigPath, "utf8"));
     const testConfig = JSON.parse(await readFile(testConfigPath, "utf8"));
+    const printerConfig = JSON.parse(await readFile(printerConfigPath, "utf8"));
 
     expect(sourceConfig.testMode).toBe(false);
     expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
     expect(testConfig.testMode).toBe(true);
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
+    expect(printerConfig.testPrinterOutput).toBe(true);
+    expect(printerConfig.testOutputDevice).toBe("rs232");
   });
 
   it("filters conventional project tests by module name", async () => {

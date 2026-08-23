@@ -44,11 +44,12 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   const scalarNames = new Set<string>();
   const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
   const functions = collectFunctionDefinitions(statements);
+  const devices = collectOpenDevices(statements);
   validateFunctionRecursion(functions);
   validateControlFlowBoundaries(statements);
 
   return {
-    statements: analyzeStatements(statements, constants, false, arrays, scalarNames, functions, undefined, options.testMode === true)
+    statements: analyzeStatements(statements, constants, false, arrays, scalarNames, functions, devices, undefined, options.testMode === true)
   };
 }
 
@@ -59,6 +60,7 @@ function analyzeStatements(
   arrays: Map<string, ArrayDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
+  devices: ReadonlySet<string>,
   scope?: FunctionScope,
   testMode = false
 ): readonly Statement[] {
@@ -74,7 +76,7 @@ function analyzeStatements(
         if (!definition) {
           throw new DiagnosticError(statement.location, `Internal error: missing function definition for "${statement.name}".`);
         }
-        analyzed.push(analyzeFunction(definition, constants, arrays, scalarNames, functions));
+        analyzed.push(analyzeFunction(definition, constants, arrays, scalarNames, functions, devices));
         break;
       }
       case "test": {
@@ -84,7 +86,7 @@ function analyzeStatements(
         if (scope) {
           throw new DiagnosticError(statement.location, "Nested TEST declarations are not supported.");
         }
-        analyzed.push(analyzeTest(statement, constants, arrays, scalarNames, functions, testMode));
+        analyzed.push(analyzeTest(statement, constants, arrays, scalarNames, functions, devices, testMode));
         break;
       }
       case "local":
@@ -259,6 +261,20 @@ function analyzeStatements(
             : {})
         });
         break;
+      case "open-device":
+        analyzed.push(statement);
+        break;
+      case "print-device":
+        requireOpenDevice(statement.handle, statement.location, devices, "PRINT_DEVICE");
+        analyzed.push({
+          ...statement,
+          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope), "PRINT_DEVICE"))
+        });
+        break;
+      case "close-device":
+        requireOpenDevice(statement.handle, statement.location, devices, "CLOSE_DEVICE");
+        analyzed.push(statement);
+        break;
       case "end":
         analyzed.push(statement);
         break;
@@ -266,8 +282,8 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode),
-          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
+          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode),
+          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
         });
         break;
       case "for": {
@@ -301,7 +317,7 @@ function analyzeStatements(
           start,
           limit,
           ...(step ? { step } : {}),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
         });
         break;
       }
@@ -309,13 +325,13 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
         });
         break;
       case "repeat-until":
         analyzed.push({
           ...statement,
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, scope, testMode),
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode),
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope)
         });
         break;
@@ -701,6 +717,18 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.deviceAvailable) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");
+    }
+    const [device] = expression.args;
+    if (device.kind !== "identifier" || !isSupportedDeviceName(device.name)) {
+      throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER and RS232.");
+    }
+
+    return { ...expression, name, args: [device] };
+  }
+
   if (name === builtinFunctions.chr) {
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "CHR$ expects exactly one argument.");
@@ -837,6 +865,11 @@ function foldFunctionCall(
   }
 
   throw new DiagnosticError(expression.location, `Unknown function "${expression.name}".`);
+}
+
+function isSupportedDeviceName(name: string): boolean {
+  const upper = name.toUpperCase();
+  return upper === "PRINTER" || upper === "RS232";
 }
 
 function isNumericRuntimeFunctionName(name: string): boolean {
@@ -1053,15 +1086,44 @@ function formatNumber(value: number): string {
   return Number.isInteger(value) ? value.toString() : value.toString();
 }
 
+function collectOpenDevices(statements: readonly Statement[], opened = new Map<string, Statement["location"]>()): ReadonlySet<string> {
+  for (const statement of statements) {
+    if (statement.kind === "open-device") {
+      const key = normalizeName(statement.handle);
+      const existing = opened.get(key);
+      if (existing) {
+        throw new DiagnosticError(statement.location, `Duplicate device handle "${statement.handle}" first opened at ${existing.filename}:${existing.line}.`);
+      }
+      opened.set(key, statement.location);
+    } else if (statement.kind === "if") {
+      collectOpenDevices(statement.thenBranch, opened);
+      collectOpenDevices(statement.elseBranch, opened);
+    } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      collectOpenDevices(statement.body, opened);
+    } else if (statement.kind === "function" || statement.kind === "test") {
+      collectOpenDevices(statement.body, opened);
+    }
+  }
+
+  return new Set(opened.keys());
+}
+
+function requireOpenDevice(handle: string, location: Statement["location"], devices: ReadonlySet<string>, commandName: "PRINT_DEVICE" | "CLOSE_DEVICE"): void {
+  if (!devices.has(normalizeName(handle))) {
+    throw new DiagnosticError(location, `${commandName} uses unknown device handle "${handle}". Open it first with OPEN_DEVICE.`);
+  }
+}
+
 function analyzeFunction(
   definition: FunctionDefinition,
   constants: Map<string, ConstantDefinition>,
   arrays: Map<string, ArrayDefinition>,
   scalarNames: Set<string>,
-  functions: ReadonlyMap<string, FunctionDefinition>
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  devices: ReadonlySet<string>
 ): Statement {
   const scope = createFunctionScope(definition);
-  const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, scope, false);
+  const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, devices, scope, false);
   if (!containsFunctionReturn(body)) {
     throw new DiagnosticError(definition.statement.location, `FUNCTION ${definition.name} must contain RETURN expression.`);
   }
@@ -1079,10 +1141,11 @@ function analyzeTest(
   arrays: Map<string, ArrayDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
+  devices: ReadonlySet<string>,
   testMode: boolean
 ): Statement {
   const scope = createTestScope(statement);
-  const body = analyzeStatements(statement.body, constants, false, arrays, scalarNames, functions, scope, testMode);
+  const body = analyzeStatements(statement.body, constants, false, arrays, scalarNames, functions, devices, scope, testMode);
   return {
     ...statement,
     body,

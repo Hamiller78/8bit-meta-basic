@@ -1,4 +1,4 @@
-import type { Expression, SourceLocation, Statement } from "./ast.js";
+import type { DeviceKind, Expression, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import type { Instruction } from "./lowering.js";
@@ -27,11 +27,28 @@ const actualValueName = "MBAVAC";
 const expectedRowName = "MBAVR";
 const expectedColumnName = "MBAVC";
 const expectedTextName = "MBAVT";
+const printerAvailableName = "MBTPRN";
+const printerHandleName = "MBTPR";
 
-export function lowerTestRunner(testStatements: readonly Extract<Statement, { kind: "test" }>[], instructions: Instruction[], nextInternalLabel: () => string): void {
+export interface TestRunnerLowerOptions {
+  readonly printerOutput?: boolean;
+  readonly outputDevice?: DeviceKind;
+}
+
+export function lowerTestRunner(
+  testStatements: readonly Extract<Statement, { kind: "test" }>[],
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  options: TestRunnerLowerOptions = {}
+): void {
   const location = testStatements[0]?.location ?? { filename: "<test runner>", line: 1 };
+  const outputDevice = options.outputDevice ?? "printer";
 
-  instructions.push({ kind: "print", items: [stringExpression("META CONTROL PROGRAM (M.C.P.) RUN STARTED", location)], trailingSemicolon: false, location });
+  if (options.printerOutput) {
+    openTestDevice(instructions, nextInternalLabel, location, outputDevice);
+  }
+
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("META CONTROL PROGRAM (M.C.P.) RUN STARTED", location)], false, location, options);
   instructions.push({ kind: "let", name: testCountName, expression: numberExpression(0, location), location });
   instructions.push({ kind: "let", name: testPassedName, expression: numberExpression(0, location), location });
   instructions.push({ kind: "let", name: testFailedName, expression: numberExpression(0, location), location });
@@ -57,7 +74,7 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
     instructions.push({ kind: "let", name: testCellTextColorName, expression: numberExpression(-1, test.location), location: test.location });
     instructions.push({ kind: "let", name: testCellBackgroundColorName, expression: numberExpression(-1, test.location), location: test.location });
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
-    instructions.push({ kind: "print", items: [stringExpression(`RUNNING ${test.name}...`, test.location)], trailingSemicolon: true, location: test.location });
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${test.name}...`, test.location)], true, test.location, options);
     instructions.push({ kind: "gosub", label: test.implementation.entryLabel, location: test.location });
     instructions.push({
       kind: "let",
@@ -78,10 +95,10 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
       location: test.location
     });
     instructions.push({ kind: "array-let", name: failedTestFlagsName, indices: [numberExpression(index, test.location)], expression: numberExpression(1, test.location), location: test.location });
-    instructions.push({ kind: "print", items: [stringExpression("FAILED", test.location)], trailingSemicolon: false, location: test.location });
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED", test.location)], false, test.location, options);
     instructions.push({ kind: "goto", label: afterLabel, location: test.location });
     instructions.push({ kind: "label", name: passedLabel, internal: true, location: test.location });
-    instructions.push({ kind: "print", items: [stringExpression("PASSED", test.location)], trailingSemicolon: false, location: test.location });
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("PASSED", test.location)], false, test.location, options);
     instructions.push({
       kind: "let",
       name: testPassedName,
@@ -92,13 +109,16 @@ export function lowerTestRunner(testStatements: readonly Extract<Statement, { ki
   }
 
   emitFailureBorder(instructions, nextInternalLabel, location);
-  instructions.push({ kind: "print", items: [stringExpression("META CONTROL PROGRAM (M.C.P.) RUN FINISHED", location)], trailingSemicolon: false, location });
-  instructions.push({ kind: "print", items: [stringExpression("TESTS: ", location), identifierExpression(testCountName, location)], trailingSemicolon: false, location });
-  instructions.push({ kind: "print", items: [stringExpression("PASSED: ", location), identifierExpression(testPassedName, location)], trailingSemicolon: false, location });
-  instructions.push({ kind: "print", items: [stringExpression("FAILED: ", location), identifierExpression(testFailedName, location)], trailingSemicolon: false, location });
-  instructions.push({ kind: "print", items: [stringExpression("ASSERTIONS: ", location), identifierExpression(assertionCountName, location)], trailingSemicolon: false, location });
-  instructions.push({ kind: "print", items: [stringExpression("FAILURES: ", location), identifierExpression(assertionFailedName, location)], trailingSemicolon: false, location });
-  emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("META CONTROL PROGRAM (M.C.P.) RUN FINISHED", location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("TESTS: ", location), identifierExpression(testCountName, location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("PASSED: ", location), identifierExpression(testPassedName, location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED: ", location), identifierExpression(testFailedName, location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("ASSERTIONS: ", location), identifierExpression(assertionCountName, location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILURES: ", location), identifierExpression(assertionFailedName, location)], false, location, options);
+  emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location, options);
+  if (options.printerOutput) {
+    closeTestDevice(instructions, nextInternalLabel, location);
+  }
   instructions.push({ kind: "end", location });
 }
 
@@ -281,7 +301,8 @@ function emitFailedTestSummary(
   testStatements: readonly Extract<Statement, { kind: "test" }>[],
   instructions: Instruction[],
   nextInternalLabel: () => string,
-  location: SourceLocation
+  location: SourceLocation,
+  options: TestRunnerLowerOptions = {}
 ): void {
   if (testStatements.length === 0) {
     return;
@@ -292,7 +313,7 @@ function emitFailedTestSummary(
   instructions.push({ kind: "if-goto", condition: identifierExpression(testFailedName, location), label: listLabel, location });
   instructions.push({ kind: "goto", label: doneLabel, location });
   instructions.push({ kind: "label", name: listLabel, internal: true, location });
-  instructions.push({ kind: "print", items: [stringExpression("FAILED TESTS:", location)], trailingSemicolon: false, location });
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED TESTS:", location)], false, location, options);
 
   for (const [index, test] of testStatements.entries()) {
     const printLabel = nextInternalLabel();
@@ -300,10 +321,54 @@ function emitFailedTestSummary(
     instructions.push({ kind: "if-goto", condition: arrayAccessExpression(failedTestFlagsName, [numberExpression(index, test.location)], test.location), label: printLabel, location: test.location });
     instructions.push({ kind: "goto", label: nextLabel, location: test.location });
     instructions.push({ kind: "label", name: printLabel, internal: true, location: test.location });
-    instructions.push({ kind: "print", items: [stringExpression(test.name, test.location)], trailingSemicolon: false, location: test.location });
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(test.name, test.location)], false, test.location, options);
     instructions.push({ kind: "label", name: nextLabel, internal: true, location: test.location });
   }
 
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location });
+}
+
+function openTestDevice(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation, device: DeviceKind): void {
+  const openLabel = nextInternalLabel();
+  const doneLabel = nextInternalLabel();
+  instructions.push({ kind: "check-device", name: printerAvailableName, device, location });
+  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: openLabel, location });
+  instructions.push({ kind: "goto", label: doneLabel, location });
+  instructions.push({ kind: "label", name: openLabel, internal: true, location });
+  instructions.push({ kind: "open-device", handle: printerHandleName, device, location });
+  instructions.push({ kind: "let", name: printerAvailableName, expression: numberExpression(1, location), location });
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location });
+}
+
+function closeTestDevice(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation): void {
+  const closeLabel = nextInternalLabel();
+  const doneLabel = nextInternalLabel();
+  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: closeLabel, location });
+  instructions.push({ kind: "goto", label: doneLabel, location });
+  instructions.push({ kind: "label", name: closeLabel, internal: true, location });
+  instructions.push({ kind: "close-device", handle: printerHandleName, location });
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location });
+}
+
+function emitRunnerPrint(
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  items: readonly Expression[],
+  trailingSemicolon: boolean,
+  location: SourceLocation,
+  options: TestRunnerLowerOptions
+): void {
+  instructions.push({ kind: "print", items, trailingSemicolon, location });
+  if (!options.printerOutput) {
+    return;
+  }
+
+  const printLabel = nextInternalLabel();
+  const doneLabel = nextInternalLabel();
+  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: printLabel, location });
+  instructions.push({ kind: "goto", label: doneLabel, location });
+  instructions.push({ kind: "label", name: printLabel, internal: true, location });
+  instructions.push({ kind: "print-device", handle: printerHandleName, items, trailingSemicolon, location });
   instructions.push({ kind: "label", name: doneLabel, internal: true, location });
 }
 

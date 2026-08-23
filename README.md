@@ -80,6 +80,14 @@ npm run build:all-targets -- --project examples/instruction-suite --run-tests --
 npm run launch:all-targets -- --project examples/instruction-suite --run-tests --module strings --restart
 ```
 
+Test runs can also mirror the generated test-runner output to a configured emulator device:
+
+```text
+npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+```
+
+For C64/VICE this starts a small local RS-232 capture endpoint and writes the captured output below `build/rs232/<profile>/c64/`. Spectrum and Atari device-output hooks are documented but still depend on emulator-specific printer or serial setup.
+
 Build artifacts for all targets:
 
 ```text

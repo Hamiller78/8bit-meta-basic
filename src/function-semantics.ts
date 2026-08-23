@@ -362,6 +362,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
       return [statement.color];
     case "print":
       return [...(statement.at ? [statement.at.row, statement.at.column] : []), ...statement.items];
+    case "print-device":
+      return statement.items;
     case "data":
       return statement.values;
     case "let":
@@ -384,6 +386,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "goto":
     case "gosub":
     case "read":
+    case "open-device":
+    case "close-device":
     case "restore":
     case "end":
     case "local":

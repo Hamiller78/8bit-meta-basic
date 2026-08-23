@@ -29,6 +29,8 @@ export async function buildTarget(options) {
   let buildConfigPath = options.buildConfigPath;
   const projectPath = options.projectPath;
   const testMode = options.testMode === true;
+  const testPrinterOutput = options.testPrinterOutput === true;
+  const testOutputDevice = options.testOutputDevice ?? "printer";
   const moduleName = options.moduleName;
   const outDir = options.outDir ?? defaultOutDir;
   const configPath = options.configPath ?? defaultToolConfig;
@@ -47,7 +49,7 @@ export async function buildTarget(options) {
   }
 
   if (projectPath) {
-    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode, moduleName });
+    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode, testPrinterOutput, testOutputDevice, moduleName });
   }
 
   const program = programIdentity(cwd, source, buildConfigPath, projectPath);
@@ -68,7 +70,8 @@ export async function buildTarget(options) {
       profiles[profile].toString(),
       "--output",
       basicPath,
-      ...(testMode ? ["--run-tests"] : [])
+      ...(testMode ? ["--run-tests"] : []),
+      ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : [])
     ],
     { cwd }
   );
@@ -269,7 +272,7 @@ export function programIdentity(cwd, source, buildConfigPath, projectPath) {
   };
 }
 
-export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, moduleName } = {}) {
+export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, testPrinterOutput = false, testOutputDevice = "printer", moduleName } = {}) {
   const projectRoot = resolve(cwd, projectPath);
   const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
   const testFiles = testMode ? filterProjectTestFiles(await findProjectMbasFiles(resolve(projectRoot, "tests")), moduleName) : [];
@@ -285,7 +288,11 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
   await mkdir(configDir, { recursive: true });
   const mode = testMode ? `${moduleName ? `${safeProjectPart(moduleName)}.` : ""}tests` : "source";
   const configPath = resolve(configDir, `${basename(projectRoot)}.${mode}.metabasic.json`);
-  await writeFile(configPath, `${JSON.stringify({ testMode, files: [...sourceFiles, ...testFiles] }, null, 2)}\n`, "utf8");
+  await writeFile(
+    configPath,
+    `${JSON.stringify({ testMode, ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}), files: [...sourceFiles, ...testFiles] }, null, 2)}\n`,
+    "utf8"
+  );
   return configPath;
 }
 
@@ -327,7 +334,7 @@ async function findProjectMbasFiles(directory) {
 }
 
 function replacePlaceholders(value, replacements) {
-  return value.replaceAll(/\{([A-Za-z]+)\}/g, (match, key) => replacements[key] ?? match);
+  return value.replaceAll(/\{([A-Za-z][A-Za-z0-9-]*)\}/g, (match, key) => replacements[key] ?? match);
 }
 
 function resolveMaybe(cwd, path) {
@@ -377,6 +384,8 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testPrinterOutput: false,
+    testOutputDevice: "printer",
     moduleName: undefined,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
@@ -415,6 +424,15 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--printer-output") {
+      options.testPrinterOutput = true;
+      continue;
+    }
+    if (arg === "--test-output-device") {
+      options.testOutputDevice = parseDeviceKind(readValue(argv, index, arg));
+      index += 1;
+      continue;
+    }
     if (arg === "--module") {
       options.moduleName = readValue(argv, index, arg);
       index += 1;
@@ -449,7 +467,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--module name]"
+      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device printer|rs232] [--module name]"
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
@@ -458,6 +476,9 @@ function parseArgs(argv) {
   }
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
+  }
+  if (options.testPrinterOutput && !options.testMode) {
+    throw new Error("--printer-output can only be used with --run-tests.");
   }
 
   return options;
@@ -469,6 +490,14 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
+}
+
+function parseDeviceKind(value) {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 async function main() {

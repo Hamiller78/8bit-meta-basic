@@ -83,6 +83,8 @@ export const atari800xlTarget: TargetBackend = {
         continue;
       } else if (instruction.kind === "randomize") {
         continue;
+      } else if (instruction.kind === "check-device") {
+        instructions.push(...expandAtariDeviceAvailabilityCheck(instruction, allocateInternalLabel));
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
@@ -95,7 +97,7 @@ export const atari800xlTarget: TargetBackend = {
           }
         }
         instructions.push(instruction);
-      } else if (instruction.kind === "print") {
+      } else if (instruction.kind === "print" || instruction.kind === "print-device") {
         const beforePrint: Instruction[] = [];
         const items = instruction.items.map((item) => {
           if (!isStringConcatenation(item)) {
@@ -139,6 +141,14 @@ export const atari800xlTarget: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "open-device":
+        return `${lineNumber} OPEN #${atariIocbNumber(instruction.handle, instruction.location)},8,0,"${atariDeviceSpec(instruction.device)}"`;
+      case "print-device":
+        return `${lineNumber} PRINT #${atariIocbNumber(instruction.handle, instruction.location)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "close-device":
+        return `${lineNumber} CLOSE #${atariIocbNumber(instruction.handle, instruction.location)}`;
+      case "check-device":
+        throw new Error("Internal error: unexpected check-device instruction for Atari 800XL.");
       case "data":
         return `${lineNumber} DATA ${renderAtariDataValues(instruction.values, renderOptions)}`;
       case "read":
@@ -183,6 +193,10 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
+      case "trap":
+        return instruction.label ? `${lineNumber} TRAP ${resolveLabel(labelLines, instruction.label)}` : `${lineNumber} TRAP 40000`;
+      case "wait-rs232-transmit":
+        throw new Error("Internal error: unexpected wait-rs232-transmit instruction for Atari 800XL.");
     }
   }
 };
@@ -191,6 +205,57 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function atariIocbNumber(handle: string, location: Expression["location"]): number {
+  if (handle === "__mb_probe") {
+    return 1;
+  }
+  const iocb = 1 + deviceHandleIndex(handle);
+  if (iocb > 7) {
+    throw new Error(`${location.filename}:${location.line}: Atari 800XL supports only 7 Meta-BASIC device handles at once.`);
+  }
+  return iocb;
+}
+
+function deviceHandleIndex(handle: string): number {
+  const handles: string[] = [];
+  const seen = new Set<string>();
+  for (const instruction of currentProgramInstructions) {
+    if (instruction.kind !== "open-device" || instruction.handle === "__mb_probe") {
+      continue;
+    }
+    const key = instruction.handle.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      handles.push(key);
+    }
+  }
+  return Math.max(0, handles.indexOf(handle.toLowerCase()));
+}
+
+function expandAtariDeviceAvailabilityCheck(
+  instruction: Extract<Instruction, { kind: "check-device" }>,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const failedLabel = allocateInternalLabel();
+  const endLabel = allocateInternalLabel();
+  return [
+    { kind: "trap", label: failedLabel, location: instruction.location },
+    { kind: "open-device", handle: "__mb_probe", device: instruction.device, location: instruction.location },
+    { kind: "close-device", handle: "__mb_probe", location: instruction.location },
+    { kind: "let", name: instruction.name, expression: { kind: "number", value: 1, raw: "1", location: instruction.location }, location: instruction.location },
+    { kind: "trap", location: instruction.location },
+    { kind: "goto", label: endLabel, location: instruction.location },
+    { kind: "label", name: failedLabel, internal: true, location: instruction.location },
+    { kind: "let", name: instruction.name, expression: { kind: "number", value: 0, raw: "0", location: instruction.location }, location: instruction.location },
+    { kind: "trap", location: instruction.location },
+    { kind: "label", name: endLabel, internal: true, location: instruction.location }
+  ];
+}
+
+function atariDeviceSpec(device: "printer" | "rs232"): "P:" | "R:" {
+  return device === "rs232" ? "R:" : "P:";
 }
 
 function renderAtariAssignment(

@@ -1,12 +1,15 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Program } from "./ast.js";
+import type { DeviceKind } from "./ast.js";
 import { compileProgramDetailed, type CompileOptions, type CompileResult } from "./compiler.js";
 import { parseSource } from "./parser.js";
 
 export interface BuildConfiguration {
   readonly files: readonly string[];
   readonly testMode?: boolean;
+  readonly testPrinterOutput?: boolean;
+  readonly testOutputDevice?: DeviceKind;
 }
 
 export interface BuildOptions extends Omit<CompileOptions, "filename"> {
@@ -47,7 +50,9 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
     target: options.target,
     readability: options.readability,
     comments: options.comments,
-    testMode: options.testMode ?? configuration.testMode
+    testMode: options.testMode ?? configuration.testMode,
+    testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
+    testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice
   });
 }
 
@@ -72,8 +77,25 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   if (testMode !== undefined && typeof testMode !== "boolean") {
     throw new Error(`Invalid build configuration "${configPath}": "testMode" must be a boolean when present.`);
   }
+  const testPrinterOutput = (value as { testPrinterOutput?: unknown }).testPrinterOutput;
+  if (testPrinterOutput !== undefined && typeof testPrinterOutput !== "boolean") {
+    throw new Error(`Invalid build configuration "${configPath}": "testPrinterOutput" must be a boolean when present.`);
+  }
+  const testOutputDevice = (value as { testOutputDevice?: unknown }).testOutputDevice;
+  if (testOutputDevice !== undefined && !isDeviceKind(testOutputDevice)) {
+    throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be "printer" or "rs232" when present.`);
+  }
 
-  return testMode === undefined ? { files } : { files, testMode };
+  return {
+    files,
+    ...(testMode !== undefined ? { testMode } : {}),
+    ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
+    ...(testOutputDevice !== undefined ? { testOutputDevice } : {})
+  };
+}
+
+function isDeviceKind(value: unknown): value is DeviceKind {
+  return value === "printer" || value === "rs232";
 }
 
 async function readBuildProgram(configuration: BuildConfiguration, baseDir: string): Promise<Program> {

@@ -5,6 +5,7 @@ export const builtinFunctions = {
   chr: "CHR$",
   code: "CODE",
   cos: "COS",
+  deviceAvailable: "DEVICE_AVAILABLE",
   exp: "EXP",
   int: "INT",
   jiffies: "JIFFIES",

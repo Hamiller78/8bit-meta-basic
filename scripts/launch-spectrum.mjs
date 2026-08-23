@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { access, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { basename, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
@@ -21,6 +21,8 @@ async function launchSpectrum(options) {
     buildConfigPath: options.buildConfigPath,
     projectPath: options.projectPath,
     testMode: options.testMode,
+    testPrinterOutput: options.testPrinterOutput,
+    testOutputDevice: options.testOutputDevice,
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
@@ -54,9 +56,16 @@ async function launchSpectrum(options) {
     source: program.inputPath,
     sourceName: program.name,
     profile: options.profile,
-    target: "spectrum"
+    target: "spectrum",
+    printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "printer"),
+    rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "rs232")
   };
-  const args = (emulator.args ?? ["-tape", "{artifact}", "-auto-play"]).map((arg) => replacePlaceholders(arg, replacements));
+  if (options.testPrinterOutput) {
+    await prepareDeviceOutput(options.testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
+  }
+  const deviceArgs = options.testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
+  const argsTemplate = [...(emulator.args ?? ["-tape", "{artifact}", "-auto-play"]), ...(options.testPrinterOutput ? deviceArgs : [])];
+  const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
   const child = spawn(emulatorPath, args, {
     cwd,
@@ -75,6 +84,8 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testPrinterOutput: false,
+    testOutputDevice: "printer",
     moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
@@ -102,6 +113,15 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--printer-output") {
+      options.testPrinterOutput = true;
+      continue;
+    }
+    if (arg === "--test-output-device") {
+      options.testOutputDevice = parseDeviceKind(readValue(argv, index, arg));
+      index += 1;
       continue;
     }
     if (arg === "--module") {
@@ -139,6 +159,9 @@ function parseArgs(argv) {
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
   }
+  if (options.testPrinterOutput && !options.testMode) {
+    throw new Error("--printer-output can only be used with --run-tests.");
+  }
 
   return options;
 }
@@ -160,7 +183,27 @@ async function loadConfig(configPath) {
 }
 
 function replacePlaceholders(value, replacements) {
-  return value.replaceAll(/\{([A-Za-z]+)\}/g, (match, key) => replacements[key] ?? match);
+  return value.replaceAll(/\{([A-Za-z][A-Za-z0-9-]*)\}/g, (match, key) => replacements[key] ?? match);
+}
+
+function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
+  const template = device === "rs232"
+    ? emulator.rs232OutputPath ?? "build/rs232/{profile}/{target}/{sourceName}.txt"
+    : emulator.printerOutputPath ?? "build/printer/{profile}/{target}/{sourceName}.txt";
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+}
+
+async function prepareDeviceOutput(path) {
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, "", "utf8");
+}
+
+function parseDeviceKind(value) {
+  const normalized = value.toLowerCase();
+  if (normalized === "printer" || normalized === "rs232") {
+    return normalized;
+  }
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
 }
 
 async function terminateExistingEmulator(emulatorPath) {

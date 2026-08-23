@@ -107,6 +107,22 @@ describe("build configuration", () => {
     });
   });
 
+  it("loads printer-output test runner mode from build configuration JSON", async () => {
+    await withTempProject(async (dir) => {
+      const configPath = join(dir, "metabasic.json");
+      await writeFile(configPath, JSON.stringify({ testMode: true, testPrinterOutput: true, testOutputDevice: "rs232", files: ["tests.mbas"] }), "utf8");
+      await writeFile(join(dir, "tests.mbas"), "test Smoke()\nassert_true 1\nend test\n", "utf8");
+
+      const configuration = await loadBuildConfiguration(configPath);
+      const output = await build(configuration, { configPath, target: "c64", readability: 0 });
+
+      expect(configuration.testPrinterOutput).toBe(true);
+      expect(configuration.testOutputDevice).toBe("rs232");
+      expect(output).toContain("OPEN 1,2,0,CHR$(6)");
+      expect(output).toContain('PRINT#1,"META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    });
+  });
+
   it("reports missing and unreadable source paths", async () => {
     await withTempProject(async (dir) => {
       await mkdir(join(dir, "not-a-file"));
@@ -133,6 +149,10 @@ describe("build configuration", () => {
       await expect(loadBuildConfiguration(invalidPath)).rejects.toThrow('"files" must be an array of source file paths');
       await writeFile(join(dir, "bad-test-mode.json"), JSON.stringify({ testMode: "yes", files: ["main.mbas"] }), "utf8");
       await expect(loadBuildConfiguration(join(dir, "bad-test-mode.json"))).rejects.toThrow('"testMode" must be a boolean');
+      await writeFile(join(dir, "bad-printer-output.json"), JSON.stringify({ testPrinterOutput: "yes", files: ["main.mbas"] }), "utf8");
+      await expect(loadBuildConfiguration(join(dir, "bad-printer-output.json"))).rejects.toThrow('"testPrinterOutput" must be a boolean');
+      await writeFile(join(dir, "bad-test-device.json"), JSON.stringify({ testOutputDevice: "modem", files: ["main.mbas"] }), "utf8");
+      await expect(loadBuildConfiguration(join(dir, "bad-test-device.json"))).rejects.toThrow('"testOutputDevice" must be "printer" or "rs232"');
       await expect(loadBuildConfiguration(badJsonPath)).rejects.toThrow("Invalid JSON");
       await expect(loadBuildConfiguration(join(dir, "missing.json"))).rejects.toThrow("Build configuration file not found");
     });

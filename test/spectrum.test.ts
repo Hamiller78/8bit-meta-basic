@@ -231,6 +231,39 @@ describe("Spectrum compiler", () => {
     ).toBe(["10 LET URGENCY=SENSORCOUNT * 2 + ALERTLEVEL", '20 PRINT "SECONDS: ";URGENCY;', ""].join("\n"));
   });
 
+  it("renders printer device output through a Spectrum stream", () => {
+    expect(
+      compileSource('open_device TestLog, PRINTER\nprint_device TestLog; "RESULT: "; score\nclose_device TestLog\n', {
+        filename: "printer.mbas",
+        target: "spectrum"
+      })
+    ).toBe(['10 OPEN #4,"P"', '20 PRINT #4;"RESULT: ";SCORE', "30 CLOSE #4", ""].join("\n"));
+  });
+
+  it("renders RS232 device output through a Spectrum Interface 1 text channel", () => {
+    expect(
+      compileSource('open_device SerialLog, RS232\nprint_device SerialLog; "RESULT: "; score\nclose_device SerialLog\n', {
+        filename: "rs232.mbas",
+        target: "spectrum"
+      })
+    ).toBe(['10 OPEN #4,"t"', '20 PRINT #4;"RESULT: ";SCORE', "30 CLOSE #4", ""].join("\n"));
+  });
+
+  it("lowers Spectrum printer availability checks as a best-effort open stream assumption", () => {
+    expect(
+      compileSource('available = device_available(PRINTER)\nprint available\n', {
+        filename: "device-available.mbas",
+        target: "spectrum"
+      })
+    ).toBe(["10 LET MBT1=1", "20 LET AVAILABLE=MBT1", "30 PRINT AVAILABLE", ""].join("\n"));
+  });
+
+  it("rejects printing to a device handle that was never opened", () => {
+    expect(() => compileSource('print_device TestLog; "RESULT"\n', { filename: "printer.mbas", target: "spectrum" })).toThrow(
+      'PRINT_DEVICE uses unknown device handle "TestLog". Open it first with OPEN_DEVICE.'
+    );
+  });
+
   it("renders positioned output with Spectrum PRINT AT from source PRINT_AT", () => {
     expect(compileSource('print_at 10, 5; "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
       ['10 PRINT AT 10,5;"WARNING";', ""].join("\n")
