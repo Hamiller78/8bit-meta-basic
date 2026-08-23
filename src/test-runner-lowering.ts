@@ -27,8 +27,16 @@ const actualValueName = "MBAVAC";
 const expectedRowName = "MBAVR";
 const expectedColumnName = "MBAVC";
 const expectedTextName = "MBAVT";
+const booleanActualName = "MBAB";
 const printerAvailableName = "MBTPRN";
 const printerHandleName = "MBTPR";
+const assertTrueLabel = "__mb_assert_true";
+const assertFalseLabel = "__mb_assert_false";
+const assertEqNumberLabel = "__mb_assert_eq_num";
+const assertNeNumberLabel = "__mb_assert_ne_num";
+const assertEqStringLabel = "__mb_assert_eq_str";
+const assertNeStringLabel = "__mb_assert_ne_str";
+const assertPrintAtLabel = "__mb_assert_printat";
 
 export interface TestRunnerLowerOptions {
   readonly printerOutput?: boolean;
@@ -43,6 +51,7 @@ export function lowerTestRunner(
 ): void {
   const location = testStatements[0]?.location ?? { filename: "<test runner>", line: 1 };
   const outputDevice = options.outputDevice ?? "printer";
+  const assertionHelpers = collectAssertionHelperRequirements(testStatements);
 
   if (options.printerOutput) {
     openTestDevice(instructions, nextInternalLabel, location, outputDevice);
@@ -111,6 +120,7 @@ export function lowerTestRunner(
   if (options.printerOutput) {
     closeTestDevice(instructions, nextInternalLabel, location);
   }
+  emitAssertionHelpers(instructions, location, assertionHelpers);
   instructions.push({ kind: "end", location });
 }
 
@@ -123,21 +133,9 @@ export function lowerAssertBoolean(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  incrementAssertionCount(instructions, location);
-  const failLabel = nextInternalLabel();
-  const endLabel = nextInternalLabel();
   const condition = expandFunctionCalls(expression, instructions, context);
-  if (expectedTruth) {
-    instructions.push({ kind: "if-goto", condition, label: endLabel, location });
-    emitAssertionFailure(instructions, testName, "ASSERT_TRUE", location);
-    instructions.push({ kind: "goto", label: endLabel, location });
-  } else {
-    instructions.push({ kind: "if-goto", condition, label: failLabel, location });
-    instructions.push({ kind: "goto", label: endLabel, location });
-    instructions.push({ kind: "label", name: failLabel, internal: true, location });
-    emitAssertionFailure(instructions, testName, "ASSERT_FALSE", location);
-  }
-  instructions.push({ kind: "label", name: endLabel, internal: true, location });
+  instructions.push({ kind: "let", name: booleanActualName, expression: condition, location });
+  instructions.push({ kind: "gosub", label: expectedTruth ? assertTrueLabel : assertFalseLabel, location });
 }
 
 export function lowerAssertComparison(
@@ -150,17 +148,21 @@ export function lowerAssertComparison(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  incrementAssertionCount(instructions, location);
-  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
-  const actualValue = preserveAssertionValue(expandFunctionCalls(actual, instructions, context), actualValueName, instructions, location);
-  const successLabel = nextInternalLabel();
-  const endLabel = nextInternalLabel();
-  const operator = kind === "assert-eq" ? "=" : "<>";
-  instructions.push({ kind: "if-goto", condition: binaryExpression(operator, expectedValue, actualValue, location), label: successLabel, location });
-  emitAssertionFailure(instructions, testName, kind === "assert-eq" ? "ASSERT_EQ" : "ASSERT_NE", location, expectedValue, actualValue);
-  instructions.push({ kind: "goto", label: endLabel, location });
-  instructions.push({ kind: "label", name: successLabel, internal: true, location });
-  instructions.push({ kind: "label", name: endLabel, internal: true, location });
+  const stringComparison = isStringExpression(expected) || isStringExpression(actual);
+  preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
+  preserveAssertionValue(expandFunctionCalls(actual, instructions, context), actualValueName, instructions, location);
+  void testName;
+  instructions.push({
+    kind: "gosub",
+    label: stringComparison
+      ? kind === "assert-eq"
+        ? assertEqStringLabel
+        : assertNeStringLabel
+      : kind === "assert-eq"
+        ? assertEqNumberLabel
+        : assertNeNumberLabel,
+    location
+  });
 }
 
 export function lowerAssertPrint(
@@ -171,16 +173,10 @@ export function lowerAssertPrint(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  incrementAssertionCount(instructions, location);
-  const expectedValue = preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
-  const actualValue = identifierExpression(testOutputName, location);
-  const successLabel = nextInternalLabel();
-  const endLabel = nextInternalLabel();
-  instructions.push({ kind: "if-goto", condition: binaryExpression("=", expectedValue, actualValue, location), label: successLabel, location });
-  emitAssertionFailure(instructions, testName, "ASSERT_PRINT", location, expectedValue, actualValue);
-  instructions.push({ kind: "goto", label: endLabel, location });
-  instructions.push({ kind: "label", name: successLabel, internal: true, location });
-  instructions.push({ kind: "label", name: endLabel, internal: true, location });
+  preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
+  instructions.push({ kind: "let", name: `${actualValueName}$`, expression: identifierExpression(testOutputName, location), location });
+  void testName;
+  instructions.push({ kind: "gosub", label: assertEqStringLabel, location });
 }
 
 export function lowerAssertPrintAt(
@@ -193,30 +189,11 @@ export function lowerAssertPrintAt(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  incrementAssertionCount(instructions, location);
-  const rowValue = preserveAssertionValue(expandFunctionCalls(expectedRow, instructions, context), expectedRowName, instructions, location);
-  const columnValue = preserveAssertionValue(expandFunctionCalls(expectedColumn, instructions, context), expectedColumnName, instructions, location);
-  const textValue = preserveAssertionValue(expandFunctionCalls(expectedText, instructions, context), expectedTextName, instructions, location);
-  const rowOkLabel = nextInternalLabel();
-  const columnOkLabel = nextInternalLabel();
-  const textOkLabel = nextInternalLabel();
-  const successLabel = nextInternalLabel();
-  const endLabel = nextInternalLabel();
-  instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(1, location), location });
-  instructions.push({ kind: "if-goto", condition: binaryExpression("=", rowValue, identifierExpression(testPrintAtRowName, location), location), label: rowOkLabel, location });
-  instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
-  instructions.push({ kind: "label", name: rowOkLabel, internal: true, location });
-  instructions.push({ kind: "if-goto", condition: binaryExpression("=", columnValue, identifierExpression(testPrintAtColumnName, location), location), label: columnOkLabel, location });
-  instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
-  instructions.push({ kind: "label", name: columnOkLabel, internal: true, location });
-  instructions.push({ kind: "if-goto", condition: binaryExpression("=", textValue, identifierExpression(testPrintAtOutputName, location), location), label: textOkLabel, location });
-  instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
-  instructions.push({ kind: "label", name: textOkLabel, internal: true, location });
-  instructions.push({ kind: "if-goto", condition: identifierExpression(testAssertOkName, location), label: successLabel, location });
-  emitAssertionFailure(instructions, testName, "ASSERT_PRINTAT", location);
-  instructions.push({ kind: "goto", label: endLabel, location });
-  instructions.push({ kind: "label", name: successLabel, internal: true, location });
-  instructions.push({ kind: "label", name: endLabel, internal: true, location });
+  preserveAssertionValue(expandFunctionCalls(expectedRow, instructions, context), expectedRowName, instructions, location);
+  preserveAssertionValue(expandFunctionCalls(expectedColumn, instructions, context), expectedColumnName, instructions, location);
+  preserveAssertionValue(expandFunctionCalls(expectedText, instructions, context), expectedTextName, instructions, location);
+  void testName;
+  instructions.push({ kind: "gosub", label: assertPrintAtLabel, location });
 }
 
 export function lowerAssertColor(
@@ -231,16 +208,11 @@ export function lowerAssertColor(
   if (expected.kind !== "color") {
     throw new DiagnosticError(location, `Internal error: ${assertionName} expected colour was not resolved before lowering.`);
   }
-  incrementAssertionCount(instructions, location);
-  const expectedValue = numberExpression(colorNumber(expected), location);
-  const actualValue = identifierExpression(stateName, location);
-  const successLabel = nextInternalLabel();
-  const endLabel = nextInternalLabel();
-  instructions.push({ kind: "if-goto", condition: binaryExpression("=", expectedValue, actualValue, location), label: successLabel, location });
-  emitAssertionFailure(instructions, testName, assertionName, location, expectedValue, actualValue);
-  instructions.push({ kind: "goto", label: endLabel, location });
-  instructions.push({ kind: "label", name: successLabel, internal: true, location });
-  instructions.push({ kind: "label", name: endLabel, internal: true, location });
+  instructions.push({ kind: "let", name: expectedValueName, expression: numberExpression(colorNumber(expected), location), location });
+  instructions.push({ kind: "let", name: actualValueName, expression: identifierExpression(stateName, location), location });
+  instructions.push({ kind: "gosub", label: assertEqNumberLabel, location });
+  void assertionName;
+  void testName;
 }
 
 export function capturedPrintExpression(items: readonly Expression[], location: SourceLocation): Expression {
@@ -281,6 +253,124 @@ function emitAssertionFailure(
     expression: binaryExpression("+", identifierExpression(assertionFailedName, location), numberExpression(1, location), location),
     location
   });
+}
+
+function emitAssertionHelpers(instructions: Instruction[], location: SourceLocation, requirements: AssertionHelperRequirements): void {
+  if (!hasAssertionHelperRequirements(requirements)) {
+    return;
+  }
+
+  const afterHelpersLabel = "__mb_assert_helpers_done";
+  const assertTrueOkLabel = "__mb_assert_true_ok";
+  const assertFalseFailLabel = "__mb_assert_false_fail";
+  const assertFalseDoneLabel = "__mb_assert_false_done";
+  const assertEqNumberOkLabel = "__mb_assert_eq_num_ok";
+  const assertNeNumberOkLabel = "__mb_assert_ne_num_ok";
+  const assertEqStringOkLabel = "__mb_assert_eq_str_ok";
+  const assertNeStringOkLabel = "__mb_assert_ne_str_ok";
+  const assertPrintAtRowOkLabel = "__mb_assert_printat_row_ok";
+  const assertPrintAtColumnOkLabel = "__mb_assert_printat_column_ok";
+  const assertPrintAtTextOkLabel = "__mb_assert_printat_text_ok";
+  const assertPrintAtOkLabel = "__mb_assert_printat_ok";
+
+  instructions.push({ kind: "goto", label: afterHelpersLabel, location });
+
+  if (requirements.assertTrue) {
+    instructions.push({ kind: "label", name: assertTrueLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({ kind: "if-goto", condition: identifierExpression(booleanActualName, location), label: assertTrueOkLabel, location });
+    emitAssertionFailure(instructions, undefined, "ASSERT_TRUE", location);
+    instructions.push({ kind: "label", name: assertTrueOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertFalse) {
+    instructions.push({ kind: "label", name: assertFalseLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({ kind: "if-goto", condition: identifierExpression(booleanActualName, location), label: assertFalseFailLabel, location });
+    instructions.push({ kind: "goto", label: assertFalseDoneLabel, location });
+    instructions.push({ kind: "label", name: assertFalseFailLabel, internal: true, location });
+    emitAssertionFailure(instructions, undefined, "ASSERT_FALSE", location);
+    instructions.push({ kind: "label", name: assertFalseDoneLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertEqNumber) {
+    instructions.push({ kind: "label", name: assertEqNumberLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({
+      kind: "if-goto",
+      condition: binaryExpression("=", identifierExpression(expectedValueName, location), identifierExpression(actualValueName, location), location),
+      label: assertEqNumberOkLabel,
+      location
+    });
+    emitAssertionFailure(instructions, undefined, "ASSERT_EQ", location);
+    instructions.push({ kind: "label", name: assertEqNumberOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertNeNumber) {
+    instructions.push({ kind: "label", name: assertNeNumberLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({
+      kind: "if-goto",
+      condition: binaryExpression("<>", identifierExpression(expectedValueName, location), identifierExpression(actualValueName, location), location),
+      label: assertNeNumberOkLabel,
+      location
+    });
+    emitAssertionFailure(instructions, undefined, "ASSERT_NE", location);
+    instructions.push({ kind: "label", name: assertNeNumberOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertEqString) {
+    instructions.push({ kind: "label", name: assertEqStringLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({
+      kind: "if-goto",
+      condition: binaryExpression("=", identifierExpression(`${expectedValueName}$`, location), identifierExpression(`${actualValueName}$`, location), location),
+      label: assertEqStringOkLabel,
+      location
+    });
+    emitAssertionFailure(instructions, undefined, "ASSERT_EQ", location);
+    instructions.push({ kind: "label", name: assertEqStringOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertNeString) {
+    instructions.push({ kind: "label", name: assertNeStringLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({
+      kind: "if-goto",
+      condition: binaryExpression("<>", identifierExpression(`${expectedValueName}$`, location), identifierExpression(`${actualValueName}$`, location), location),
+      label: assertNeStringOkLabel,
+      location
+    });
+    emitAssertionFailure(instructions, undefined, "ASSERT_NE", location);
+    instructions.push({ kind: "label", name: assertNeStringOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  if (requirements.assertPrintAt) {
+    instructions.push({ kind: "label", name: assertPrintAtLabel, internal: true, location });
+    incrementAssertionCount(instructions, location);
+    instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(1, location), location });
+    instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(expectedRowName, location), identifierExpression(testPrintAtRowName, location), location), label: assertPrintAtRowOkLabel, location });
+    instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
+    instructions.push({ kind: "label", name: assertPrintAtRowOkLabel, internal: true, location });
+    instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(expectedColumnName, location), identifierExpression(testPrintAtColumnName, location), location), label: assertPrintAtColumnOkLabel, location });
+    instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
+    instructions.push({ kind: "label", name: assertPrintAtColumnOkLabel, internal: true, location });
+    instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(`${expectedTextName}$`, location), identifierExpression(testPrintAtOutputName, location), location), label: assertPrintAtTextOkLabel, location });
+    instructions.push({ kind: "let", name: testAssertOkName, expression: numberExpression(0, location), location });
+    instructions.push({ kind: "label", name: assertPrintAtTextOkLabel, internal: true, location });
+    instructions.push({ kind: "if-goto", condition: identifierExpression(testAssertOkName, location), label: assertPrintAtOkLabel, location });
+    emitAssertionFailure(instructions, undefined, "ASSERT_PRINTAT", location);
+    instructions.push({ kind: "label", name: assertPrintAtOkLabel, internal: true, location });
+    instructions.push({ kind: "return", location });
+  }
+
+  instructions.push({ kind: "label", name: afterHelpersLabel, internal: true, location });
 }
 
 function preserveAssertionValue(expression: Expression, baseName: string, instructions: Instruction[], location: SourceLocation): Expression {
@@ -357,6 +447,104 @@ interface AssertedCaptureState {
   screenTextColor: boolean;
   cellTextColor: boolean;
   cellBackgroundColor: boolean;
+}
+
+interface AssertionHelperRequirements {
+  assertTrue: boolean;
+  assertFalse: boolean;
+  assertEqNumber: boolean;
+  assertNeNumber: boolean;
+  assertEqString: boolean;
+  assertNeString: boolean;
+  assertPrintAt: boolean;
+}
+
+function collectAssertionHelperRequirements(testStatements: readonly Extract<Statement, { kind: "test" }>[]): AssertionHelperRequirements {
+  const requirements = emptyAssertionHelperRequirements();
+  for (const test of testStatements) {
+    collectStatementAssertionHelperRequirements(test.body, requirements);
+  }
+  return requirements;
+}
+
+function collectStatementAssertionHelperRequirements(statements: readonly Statement[], requirements: AssertionHelperRequirements): AssertionHelperRequirements {
+  for (const statement of statements) {
+    switch (statement.kind) {
+      case "assert-true":
+        requirements.assertTrue = true;
+        break;
+      case "assert-false":
+        requirements.assertFalse = true;
+        break;
+      case "assert-eq":
+        if (!statement.expected) {
+          throw new DiagnosticError(statement.location, "Internal error: ASSERT_EQ missing expected expression before lowering.");
+        }
+        if (isStringExpression(statement.expected) || isStringExpression(statement.actual)) {
+          requirements.assertEqString = true;
+        } else {
+          requirements.assertEqNumber = true;
+        }
+        break;
+      case "assert-ne":
+        if (!statement.expected) {
+          throw new DiagnosticError(statement.location, "Internal error: ASSERT_NE missing expected expression before lowering.");
+        }
+        if (isStringExpression(statement.expected) || isStringExpression(statement.actual)) {
+          requirements.assertNeString = true;
+        } else {
+          requirements.assertNeNumber = true;
+        }
+        break;
+      case "assert-print":
+        requirements.assertEqString = true;
+        break;
+      case "assert-printat":
+        requirements.assertPrintAt = true;
+        break;
+      case "assert-screen-border-color":
+      case "assert-screen-background-color":
+      case "assert-screen-text-color":
+      case "assert-cell-text-color":
+      case "assert-cell-background-color":
+        requirements.assertEqNumber = true;
+        break;
+      case "if":
+        collectStatementAssertionHelperRequirements(statement.thenBranch, requirements);
+        collectStatementAssertionHelperRequirements(statement.elseBranch, requirements);
+        break;
+      case "for":
+      case "while":
+      case "repeat-until":
+        collectStatementAssertionHelperRequirements(statement.body, requirements);
+        break;
+    }
+  }
+  return requirements;
+}
+
+function emptyAssertionHelperRequirements(): AssertionHelperRequirements {
+  return {
+    assertTrue: false,
+    assertFalse: false,
+    assertEqNumber: false,
+    assertNeNumber: false,
+    assertEqString: false,
+    assertNeString: false,
+    assertPrintAt: false
+  };
+}
+
+function hasAssertionHelperRequirements(requirements: AssertionHelperRequirements): boolean {
+  return (
+    requirements.assertTrue ||
+    requirements.assertFalse ||
+    requirements.assertEqNumber ||
+    requirements.assertNeNumber ||
+    requirements.assertEqString ||
+    requirements.assertNeString ||
+    requirements.assertPrintAt
+  );
 }
 
 function collectAssertedCaptureState(statements: readonly Statement[], state: AssertedCaptureState = emptyAssertedCaptureState()): AssertedCaptureState {

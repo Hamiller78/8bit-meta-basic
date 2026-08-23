@@ -322,6 +322,7 @@ const testRuntimeVariables = new Set([
   "MBAVC",
   "MBAVT",
   "MBAVT$",
+  "MBAB",
   "MBTPRN",
   "MBTPR"
 ]);
