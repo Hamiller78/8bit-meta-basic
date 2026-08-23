@@ -37,7 +37,7 @@ describe("build configuration", () => {
       const output = await compileBuildConfiguration({ files: ["main.mbas", "math.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });
 
       expect(output).toContain("GO SUB");
-      expect(output).toContain("LET SCORE=MBT1");
+      expect(output).toContain("LET SCORE=MBF1R");
       expect(output).toContain("LET MBF1R=MBF1P1 + MBF1P2");
     });
   });
@@ -50,7 +50,7 @@ describe("build configuration", () => {
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "outer.mbas", "inner.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });
 
-      expect(output).toContain("LET MBF1R=MBT2 + 1");
+      expect(output).toContain("LET MBF1R=MBT1 + 1");
       expect(output).toContain("LET MBF2R=MBF2P1 * 2");
     });
   });

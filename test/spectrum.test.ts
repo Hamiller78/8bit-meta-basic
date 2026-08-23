@@ -255,7 +255,7 @@ describe("Spectrum compiler", () => {
         filename: "device-available.mbas",
         target: "spectrum"
       })
-    ).toBe(["10 LET MBT1=1", "20 LET AVAILABLE=MBT1", "30 PRINT AVAILABLE", ""].join("\n"));
+    ).toBe(["10 LET AVAILABLE=1", "20 PRINT AVAILABLE", ""].join("\n"));
   });
 
   it("rejects printing to a device handle that was never opened", () => {

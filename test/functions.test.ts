@@ -22,8 +22,9 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("LET MBF1P1=CURRENTSCORE + EXTRA * 3");
     expect(output).toContain("LET MBF1L1=MBF1P1 + MBF1P2");
     expect(output).toContain("LET MBF1R=MBF1L1");
-    expect(output).toContain("LET TOTAL=MBT1");
-    expect(output).toContain("LET OTHER=MBT2");
+    expect(output).toContain("LET TOTAL=MBF1R");
+    expect(output).toContain("LET OTHER=MBF1R");
+    expect(output).not.toContain("LET TOTAL=MBT");
   });
 
   it("does not emit a duplicate RETURN after a function RETURN expression", () => {
@@ -45,10 +46,10 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("LET X=10");
     expect(output).toContain("LET MBF1P1=X");
     expect(output).toContain("LET MBF1L1=MBF1P1 + 1");
-    expect(output).toContain("LET Y=MBT1");
+    expect(output).toContain("LET Y=MBF1R");
   });
 
-  it("allocates distinct local storage for identically named locals in different functions", () => {
+  it("reuses local storage for independent functions with identically named locals", () => {
     const output = compileSource(
       [
         "A = Foo(1)",
@@ -68,7 +69,31 @@ describe("Meta-BASIC functions", () => {
     );
 
     expect(output).toContain("LET MBF1L1=MBF1P1 + 1");
-    expect(output).toContain("LET MBF2L1=MBF2P1 + 2");
+    expect(output).toContain("LET MBF1L1=MBF1P1 + 2");
+  });
+
+  it("keeps caller and callee storage distinct when functions can be active together", () => {
+    const output = compileSource(
+      [
+        "A = Outer(1)",
+        "FUNCTION Outer(Value)",
+        "LOCAL Result",
+        "Result = Inner(Value) + Value",
+        "RETURN Result",
+        "END FUNCTION",
+        "FUNCTION Inner(Value)",
+        "LOCAL Result",
+        "Result = Value + 1",
+        "RETURN Result",
+        "END FUNCTION"
+      ].join("\n"),
+      { filename: "active-storage.mbas", target: "spectrum", readability: 0 }
+    );
+
+    expect(output).toContain("LET MBF1P1=1");
+    expect(output).toContain("LET MBF2P1=MBF1P1");
+    expect(output).toContain("LET MBF2L1=MBF2P1 + 1");
+    expect(output).toContain("LET MBF1L1=MBT1 + MBF1P1");
   });
 
   it("lowers function calls, nested argument calls, and preserved intermediate return values left-to-right", () => {
@@ -92,24 +117,23 @@ describe("Meta-BASIC functions", () => {
         "10 LET A=1",
         "20 LET B=2",
         "30 LET MBF1P1=A",
-        "40 GO SUB 150",
+        "40 GO SUB 140",
         "50 LET MBT1=MBF1R",
-        "60 LET MBF2P1=B",
-        "70 GO SUB 170",
-        "80 LET MBT2=MBF2R",
-        "90 LET MBF3P1=MBT1",
-        "100 LET MBF3P2=MBT2",
-        "110 GO SUB 190",
-        "120 LET MBT3=MBF3R",
-        "130 LET X=MBT3",
-        "140 GO TO 210",
-        "150 LET MBF1R=MBF1P1 + 1",
-        "160 RETURN",
-        "170 LET MBF2R=MBF2P1 + 2",
-        "180 RETURN",
-        "190 LET MBF3R=MBF3P1 * 10 + MBF3P2",
-        "200 RETURN",
-        "210 REM END",
+        "60 LET MBF1P1=B",
+        "70 GO SUB 160",
+        "80 LET MBT2=MBF1R",
+        "90 LET MBF1P1=MBT1",
+        "100 LET MBF1P2=MBT2",
+        "110 GO SUB 180",
+        "120 LET X=MBF1R",
+        "130 GO TO 200",
+        "140 LET MBF1R=MBF1P1 + 1",
+        "150 RETURN",
+        "160 LET MBF1R=MBF1P1 + 2",
+        "170 RETURN",
+        "180 LET MBF1R=MBF1P1 * 10 + MBF1P2",
+        "190 RETURN",
+        "200 REM END",
         ""
       ].join("\n")
     );

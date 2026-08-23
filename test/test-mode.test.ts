@@ -70,7 +70,7 @@ describe("Meta-BASIC test mode", () => {
 
     expect(output).toContain("LET MBF1P1=2");
     expect(output).toContain("LET MBF1P2=3");
-    expect(output).toContain("LET MBTEST1L1=MBT1");
+    expect(output).toContain("LET MBTEST1L1=MBF1R");
     expect(output).toContain("LET MBF1R=MBF1P1 + MBF1P2");
   });
 

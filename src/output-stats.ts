@@ -8,6 +8,18 @@ export interface OutputStats {
   readonly stringVariables: readonly string[];
   readonly numericArrays: readonly string[];
   readonly stringArrays: readonly string[];
+  readonly variableRoles: VariableRoleStats;
+}
+
+export interface VariableRoleStats {
+  readonly userVisible: readonly string[];
+  readonly functionParameters: readonly string[];
+  readonly functionLocals: readonly string[];
+  readonly functionReturns: readonly string[];
+  readonly compilerTemporaries: readonly string[];
+  readonly testLocals: readonly string[];
+  readonly testRuntime: readonly string[];
+  readonly generatedBookkeeping: readonly string[];
 }
 
 export function analyzeBasicOutput(lines: readonly string[], target?: string): OutputStats {
@@ -42,6 +54,8 @@ export function analyzeBasicOutput(lines: readonly string[], target?: string): O
     collectVariables(line, target, numericVariables, stringVariables, numericArrays, stringArrays);
   }
 
+  const allVariables = new Set([...numericVariables, ...stringVariables, ...numericArrays, ...stringArrays]);
+
   return {
     lineCount: lines.length,
     ...(firstLineNumber !== undefined ? { firstLineNumber } : {}),
@@ -51,7 +65,8 @@ export function analyzeBasicOutput(lines: readonly string[], target?: string): O
     numericVariables: sorted(numericVariables),
     stringVariables: sorted(stringVariables),
     numericArrays: sorted(numericArrays),
-    stringArrays: sorted(stringArrays)
+    stringArrays: sorted(stringArrays),
+    variableRoles: classifyVariableRoles(allVariables)
   };
 }
 
@@ -69,8 +84,62 @@ export function formatOutputStats(stats: OutputStats): string {
     `    Numeric scalars: ${stats.numericVariables.length}${formatNames(stats.numericVariables)}`,
     `    String scalars: ${stats.stringVariables.length}${formatNames(stats.stringVariables)}`,
     `    Numeric arrays: ${stats.numericArrays.length}${formatNames(stats.numericArrays)}`,
-    `    String arrays: ${stats.stringArrays.length}${formatNames(stats.stringArrays)}`
+    `    String arrays: ${stats.stringArrays.length}${formatNames(stats.stringArrays)}`,
+    "  Variable roles:",
+    `    User-visible globals/arrays: ${stats.variableRoles.userVisible.length}${formatNames(stats.variableRoles.userVisible)}`,
+    `    FUNCTION parameters: ${stats.variableRoles.functionParameters.length}${formatNames(stats.variableRoles.functionParameters)}`,
+    `    FUNCTION locals: ${stats.variableRoles.functionLocals.length}${formatNames(stats.variableRoles.functionLocals)}`,
+    `    FUNCTION returns: ${stats.variableRoles.functionReturns.length}${formatNames(stats.variableRoles.functionReturns)}`,
+    `    Compiler temporaries: ${stats.variableRoles.compilerTemporaries.length}${formatNames(stats.variableRoles.compilerTemporaries)}`,
+    `    TEST locals: ${stats.variableRoles.testLocals.length}${formatNames(stats.variableRoles.testLocals)}`,
+    `    TEST runtime: ${stats.variableRoles.testRuntime.length}${formatNames(stats.variableRoles.testRuntime)}`,
+    `    Other generated bookkeeping: ${stats.variableRoles.generatedBookkeeping.length}${formatNames(stats.variableRoles.generatedBookkeeping)}`
   ].join("\n");
+}
+
+function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
+  const roles = {
+    userVisible: new Set<string>(),
+    functionParameters: new Set<string>(),
+    functionLocals: new Set<string>(),
+    functionReturns: new Set<string>(),
+    compilerTemporaries: new Set<string>(),
+    testLocals: new Set<string>(),
+    testRuntime: new Set<string>(),
+    generatedBookkeeping: new Set<string>()
+  };
+
+  for (const name of names) {
+    const base = baseName(name);
+    if (/^MBF\d+P\d+$/i.test(base)) {
+      roles.functionParameters.add(name);
+    } else if (/^MBF\d+L\d+$/i.test(base)) {
+      roles.functionLocals.add(name);
+    } else if (/^MBF\d+R$/i.test(base)) {
+      roles.functionReturns.add(name);
+    } else if (/^MBT\d+$/i.test(base)) {
+      roles.compilerTemporaries.add(name);
+    } else if (/^MBTEST\d+L\d+$/i.test(base)) {
+      roles.testLocals.add(name);
+    } else if (testRuntimeVariables.has(name) || testRuntimeVariables.has(base)) {
+      roles.testRuntime.add(name);
+    } else if (/^MB[A-Z0-9]*/i.test(base)) {
+      roles.generatedBookkeeping.add(name);
+    } else {
+      roles.userVisible.add(name);
+    }
+  }
+
+  return {
+    userVisible: sorted(roles.userVisible),
+    functionParameters: sorted(roles.functionParameters),
+    functionLocals: sorted(roles.functionLocals),
+    functionReturns: sorted(roles.functionReturns),
+    compilerTemporaries: sorted(roles.compilerTemporaries),
+    testLocals: sorted(roles.testLocals),
+    testRuntime: sorted(roles.testRuntime),
+    generatedBookkeeping: sorted(roles.generatedBookkeeping)
+  };
 }
 
 function collectVariables(
@@ -226,3 +295,33 @@ const ignoredCallNames = new Set([
 ]);
 
 const variableNamePattern = /\b[A-Z][A-Z0-9]*(?:[%$])?(?![A-Z0-9])/gi;
+
+const testRuntimeVariables = new Set([
+  "MBTOUT$",
+  "MBTPOUT$",
+  "MBTPROW",
+  "MBTPCOL",
+  "MBTCB",
+  "MBTCG",
+  "MBTCT",
+  "MBTCC",
+  "MBTCD",
+  "MBTESTS",
+  "MBTPASS",
+  "MBTFAIL",
+  "MBASSERT",
+  "MBFAIL",
+  "MBTF0",
+  "MBTF",
+  "MBTAOK",
+  "MBAVEX",
+  "MBAVEX$",
+  "MBAVAC",
+  "MBAVAC$",
+  "MBAVR",
+  "MBAVC",
+  "MBAVT",
+  "MBAVT$",
+  "MBTPRN",
+  "MBTPR"
+]);

@@ -65,9 +65,8 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("10 TRAP ");
     expect(output).toContain('OPEN #1,8,0,"P:"');
     expect(output).toContain("CLOSE #1");
-    expect(output).toContain("MBT1=1");
-    expect(output).toContain("MBT1=0");
-    expect(output).toContain("AVAILABLE=MBT1");
+    expect(output).toContain("AVAILABLE=1");
+    expect(output).toContain("AVAILABLE=0");
     expect(output).toContain("TRAP 40000");
     expect(output).toContain("PRINT AVAILABLE");
   });

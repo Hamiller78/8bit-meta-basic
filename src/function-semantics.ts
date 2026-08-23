@@ -20,6 +20,15 @@ export interface FunctionScope {
   readonly labels: ReadonlyMap<string, string>;
 }
 
+interface PendingFunctionDefinition {
+  readonly id: number;
+  readonly name: string;
+  readonly key: string;
+  readonly valueType: "number" | "string";
+  readonly locals: readonly string[];
+  readonly statement: Extract<Statement, { kind: "function" }>;
+}
+
 export function createFunctionScope(definition: FunctionDefinition): FunctionScope {
   const variables = new Map<string, string>();
   for (const parameter of definition.implementation.parameters) {
@@ -85,7 +94,8 @@ export function containsFunctionReturn(statements: readonly Statement[]): boolea
 }
 
 export function collectFunctionDefinitions(statements: readonly Statement[]): ReadonlyMap<string, FunctionDefinition> {
-  const functions = new Map<string, FunctionDefinition>();
+  const pending: PendingFunctionDefinition[] = [];
+  const provisional = new Map<string, FunctionDefinition>();
   let nextId = 1;
 
   for (const statement of statements) {
@@ -97,7 +107,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
     if (canonicalFunctionName(statement.name)) {
       throw new DiagnosticError(statement.location, `Cannot declare FUNCTION "${statement.name}" with the same name as a built-in function.`);
     }
-    if (functions.has(key)) {
+    if (provisional.has(key)) {
       throw new DiagnosticError(statement.location, `Duplicate FUNCTION "${statement.name}".`);
     }
 
@@ -105,25 +115,34 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
     nextId += 1;
     const locals = collectLocalNames(statement);
     validateScopedNames(statement, locals);
-    const implementation: FunctionImplementation = {
-      entryLabel: `MBF${id}ENTRY`,
-      returnName: `MBF${id}R${isStringVariableName(statement.name) ? "$" : ""}`,
-      parameters: statement.parameters.map((parameter, index) => ({
-        sourceName: parameter,
-        storageName: storageName(id, "P", index + 1, parameter)
-      })),
-      locals: locals.map((local, index) => ({
-        sourceName: local,
-        storageName: storageName(id, "L", index + 1, local)
-      }))
-    };
-
-    functions.set(key, {
+    const pendingDefinition = {
+      id,
       name: statement.name,
       key,
       valueType: isStringVariableName(statement.name) ? "string" : "number",
-      implementation,
+      locals,
       statement
+    } satisfies PendingFunctionDefinition;
+    pending.push(pendingDefinition);
+    provisional.set(key, {
+      name: pendingDefinition.name,
+      key,
+      valueType: pendingDefinition.valueType,
+      implementation: uniqueFunctionImplementation(pendingDefinition),
+      statement
+    });
+  }
+
+  const graph = buildFunctionCallGraph(provisional);
+  const implementations = allocateFunctionStorage(pending, graph);
+  const functions = new Map<string, FunctionDefinition>();
+  for (const definition of pending) {
+    functions.set(definition.key, {
+      name: definition.name,
+      key: definition.key,
+      valueType: definition.valueType,
+      implementation: implementations.get(definition.key) ?? uniqueFunctionImplementation(definition),
+      statement: definition.statement
     });
   }
 
@@ -158,11 +177,112 @@ export function attachTestImplementations(statements: readonly Statement[]): rea
         parameters: [],
         locals: locals.map((local, index) => ({
           sourceName: local,
-          storageName: testStorageName(id, index + 1, local)
+          storageName: testStorageName(index + 1, local)
         }))
       }
     };
   });
+}
+
+function uniqueFunctionImplementation(definition: PendingFunctionDefinition): FunctionImplementation {
+  return {
+    entryLabel: `MBF${definition.id}ENTRY`,
+    returnName: storageName(definition.id, "R", 0, definition.name),
+    parameters: definition.statement.parameters.map((parameter, index) => ({
+      sourceName: parameter,
+      storageName: storageName(definition.id, "P", index + 1, parameter)
+    })),
+    locals: definition.locals.map((local, index) => ({
+      sourceName: local,
+      storageName: storageName(definition.id, "L", index + 1, local)
+    }))
+  };
+}
+
+function buildFunctionCallGraph(functions: ReadonlyMap<string, FunctionDefinition>): ReadonlyMap<string, readonly string[]> {
+  const graph = new Map<string, readonly string[]>();
+  for (const [key, definition] of functions) {
+    const calls = new Set<string>();
+    collectFunctionCallsFromStatements(definition.statement.body, functions, calls);
+    graph.set(key, [...calls]);
+  }
+  return graph;
+}
+
+function allocateFunctionStorage(
+  definitions: readonly PendingFunctionDefinition[],
+  graph: ReadonlyMap<string, readonly string[]>
+): ReadonlyMap<string, FunctionImplementation> {
+  const reachability = buildReachability(definitions, graph);
+  const allocator = createStaticStorageAllocator(reachability);
+  const implementations = new Map<string, FunctionImplementation>();
+
+  for (const definition of definitions) {
+    implementations.set(definition.key, {
+      entryLabel: `MBF${definition.id}ENTRY`,
+      returnName: allocator.allocate(definition.key, "R", 0, definition.name),
+      parameters: definition.statement.parameters.map((parameter, index) => ({
+        sourceName: parameter,
+        storageName: allocator.allocate(definition.key, "P", index + 1, parameter)
+      })),
+      locals: definition.locals.map((local, index) => ({
+        sourceName: local,
+        storageName: allocator.allocate(definition.key, "L", index + 1, local)
+      }))
+    });
+  }
+
+  return implementations;
+}
+
+function buildReachability(
+  definitions: readonly PendingFunctionDefinition[],
+  graph: ReadonlyMap<string, readonly string[]>
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const reachability = new Map<string, ReadonlySet<string>>();
+  for (const definition of definitions) {
+    const seen = new Set<string>();
+    const visit = (key: string): void => {
+      for (const next of graph.get(key) ?? []) {
+        if (seen.has(next)) {
+          continue;
+        }
+        seen.add(next);
+        visit(next);
+      }
+    };
+    visit(definition.key);
+    reachability.set(definition.key, seen);
+  }
+  return reachability;
+}
+
+function createStaticStorageAllocator(reachability: ReadonlyMap<string, ReadonlySet<string>>) {
+  const slots = new Map<string, Map<number, string[]>>();
+
+  return {
+    allocate(functionKey: string, kind: "P" | "L" | "R", index: number, sourceName: string): string {
+      const suffix = storageSuffix(sourceName);
+      const poolKey = `${kind}:${index}:${suffix}`;
+      let pool = slots.get(poolKey);
+      if (!pool) {
+        pool = new Map<number, string[]>();
+        slots.set(poolKey, pool);
+      }
+
+      for (let slot = 1; ; slot += 1) {
+        const owners = pool.get(slot) ?? [];
+        if (owners.every((owner) => !functionsCanBeActiveTogether(functionKey, owner, reachability))) {
+          pool.set(slot, [...owners, functionKey]);
+          return storageName(slot, kind, index, sourceName);
+        }
+      }
+    }
+  };
+}
+
+function functionsCanBeActiveTogether(left: string, right: string, reachability: ReadonlyMap<string, ReadonlySet<string>>): boolean {
+  return left === right || (reachability.get(left)?.has(right) ?? false) || (reachability.get(right)?.has(left) ?? false);
 }
 
 export function validateControlFlowBoundaries(statements: readonly Statement[]): void {
@@ -263,14 +383,18 @@ function addScopedName(name: string, location: SourceLocation, seen: Map<string,
   seen.set(key, location);
 }
 
-function storageName(functionId: number, kind: "P" | "L", index: number, sourceName: string): string {
-  const suffix = isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
-  return `MBF${functionId}${kind}${index}${suffix}`;
+function storageName(functionId: number, kind: "P" | "L" | "R", index: number, sourceName: string): string {
+  const suffix = storageSuffix(sourceName);
+  return kind === "R" ? `MBF${functionId}R${suffix}` : `MBF${functionId}${kind}${index}${suffix}`;
 }
 
-function testStorageName(testId: number, index: number, sourceName: string): string {
-  const suffix = isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
-  return `MBTEST${testId}L${index}${suffix}`;
+function testStorageName(index: number, sourceName: string): string {
+  const suffix = storageSuffix(sourceName);
+  return `MBTEST1L${index}${suffix}`;
+}
+
+function storageSuffix(sourceName: string): string {
+  return isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
 }
 
 function functionLabelName(entryLabel: string, label: string): string {

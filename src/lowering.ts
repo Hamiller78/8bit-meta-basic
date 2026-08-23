@@ -1,6 +1,6 @@
 import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
-import { collectFunctionImplementations, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
+import { collectFunctionImplementations, expandFunctionCallIntoDestination, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
 import {
   capturedPrintExpression,
@@ -607,7 +607,9 @@ function lowerStatements(
         instructions.push({ kind: "restore", location: statement.location });
         break;
       case "let":
-        instructions.push({ kind: "let", name: statement.name, expression: expandFunctionCalls(statement.expression, instructions, context), location: statement.location });
+        if (!expandFunctionCallIntoDestination(statement.expression, statement.name, instructions, context)) {
+          instructions.push({ kind: "let", name: statement.name, expression: expandFunctionCalls(statement.expression, instructions, context), location: statement.location });
+        }
         break;
       case "array-let":
         instructions.push({
@@ -633,12 +635,14 @@ function lowerStatements(
         break;
       case "return":
         if (currentFunction && statement.expression) {
-          instructions.push({
-            kind: "let",
-            name: currentFunction.returnName,
-            expression: expandFunctionCalls(statement.expression, instructions, context),
-            location: statement.location
-          });
+          if (!expandFunctionCallIntoDestination(statement.expression, currentFunction.returnName, instructions, context)) {
+            instructions.push({
+              kind: "let",
+              name: currentFunction.returnName,
+              expression: expandFunctionCalls(statement.expression, instructions, context),
+              location: statement.location
+            });
+          }
         }
         instructions.push({ kind: "return", location: statement.location });
         break;

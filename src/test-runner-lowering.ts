@@ -64,15 +64,7 @@ export function lowerTestRunner(
     }
     const passedLabel = nextInternalLabel();
     const afterLabel = nextInternalLabel();
-    instructions.push({ kind: "let", name: testOutputName, expression: stringExpression("", test.location), location: test.location });
-    instructions.push({ kind: "let", name: testPrintAtOutputName, expression: stringExpression("", test.location), location: test.location });
-    instructions.push({ kind: "let", name: testPrintAtRowName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testPrintAtColumnName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testScreenBorderColorName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testScreenBackgroundColorName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testScreenTextColorName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testCellTextColorName, expression: numberExpression(-1, test.location), location: test.location });
-    instructions.push({ kind: "let", name: testCellBackgroundColorName, expression: numberExpression(-1, test.location), location: test.location });
+    instructions.push(...testCaptureResetLets(test));
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
     emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${test.name}...`, test.location)], true, test.location, options);
     instructions.push({ kind: "gosub", label: test.implementation.entryLabel, location: test.location });
@@ -326,6 +318,95 @@ function emitFailedTestSummary(
   }
 
   instructions.push({ kind: "label", name: doneLabel, internal: true, location });
+}
+
+function testCaptureResetLets(test: Extract<Statement, { kind: "test" }>): Instruction[] {
+  const state = collectAssertedCaptureState(test.body);
+  const instructions: Instruction[] = [];
+  if (state.print) {
+    instructions.push({ kind: "let", name: testOutputName, expression: stringExpression("", test.location), location: test.location });
+  }
+  if (state.printAt) {
+    instructions.push({ kind: "let", name: testPrintAtOutputName, expression: stringExpression("", test.location), location: test.location });
+    instructions.push({ kind: "let", name: testPrintAtRowName, expression: numberExpression(-1, test.location), location: test.location });
+    instructions.push({ kind: "let", name: testPrintAtColumnName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  if (state.screenBorderColor) {
+    instructions.push({ kind: "let", name: testScreenBorderColorName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  if (state.screenBackgroundColor) {
+    instructions.push({ kind: "let", name: testScreenBackgroundColorName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  if (state.screenTextColor) {
+    instructions.push({ kind: "let", name: testScreenTextColorName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  if (state.cellTextColor) {
+    instructions.push({ kind: "let", name: testCellTextColorName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  if (state.cellBackgroundColor) {
+    instructions.push({ kind: "let", name: testCellBackgroundColorName, expression: numberExpression(-1, test.location), location: test.location });
+  }
+  return instructions;
+}
+
+interface AssertedCaptureState {
+  print: boolean;
+  printAt: boolean;
+  screenBorderColor: boolean;
+  screenBackgroundColor: boolean;
+  screenTextColor: boolean;
+  cellTextColor: boolean;
+  cellBackgroundColor: boolean;
+}
+
+function collectAssertedCaptureState(statements: readonly Statement[], state: AssertedCaptureState = emptyAssertedCaptureState()): AssertedCaptureState {
+  for (const statement of statements) {
+    switch (statement.kind) {
+      case "assert-print":
+        state.print = true;
+        break;
+      case "assert-printat":
+        state.printAt = true;
+        break;
+      case "assert-screen-border-color":
+        state.screenBorderColor = true;
+        break;
+      case "assert-screen-background-color":
+        state.screenBackgroundColor = true;
+        break;
+      case "assert-screen-text-color":
+        state.screenTextColor = true;
+        break;
+      case "assert-cell-text-color":
+        state.cellTextColor = true;
+        break;
+      case "assert-cell-background-color":
+        state.cellBackgroundColor = true;
+        break;
+      case "if":
+        collectAssertedCaptureState(statement.thenBranch, state);
+        collectAssertedCaptureState(statement.elseBranch, state);
+        break;
+      case "for":
+      case "while":
+      case "repeat-until":
+        collectAssertedCaptureState(statement.body, state);
+        break;
+    }
+  }
+  return state;
+}
+
+function emptyAssertedCaptureState(): AssertedCaptureState {
+  return {
+    print: false,
+    printAt: false,
+    screenBorderColor: false,
+    screenBackgroundColor: false,
+    screenTextColor: false,
+    cellTextColor: false,
+    cellBackgroundColor: false
+  };
 }
 
 function openTestDevice(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation, device: DeviceKind): void {

@@ -73,6 +73,48 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
   }
 }
 
+export function expandFunctionCallIntoDestination(
+  expression: Expression,
+  destinationName: string,
+  instructions: Instruction[],
+  context: FunctionCallLoweringContext
+): boolean {
+  if (expression.kind !== "function-call") {
+    return false;
+  }
+
+  if (expression.name === builtinFunctions.deviceAvailable) {
+    expandDeviceAvailableCallIntoDestination(expression, destinationName, instructions);
+    return true;
+  }
+
+  const implementation = context.functions.get(normalizeName(expression.name));
+  if (!implementation) {
+    return false;
+  }
+
+  const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+  if (args.length !== implementation.parameters.length) {
+    throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
+  }
+  for (let index = 0; index < args.length; index += 1) {
+    instructions.push({
+      kind: "let",
+      name: implementation.parameters[index].storageName,
+      expression: args[index],
+      location: expression.location
+    });
+  }
+  instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
+  instructions.push({
+    kind: "let",
+    name: destinationName,
+    expression: { kind: "identifier", name: implementation.returnName, location: expression.location },
+    location: expression.location
+  });
+  return true;
+}
+
 function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "function-call" }>, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
   if (expression.args.length !== 1) {
     throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");
@@ -86,6 +128,19 @@ function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "func
   const tempName = nextTempName(context, "MBDV");
   instructions.push({ kind: "check-device", name: tempName, device: deviceKind, location: expression.location });
   return { kind: "identifier", name: tempName, location: expression.location };
+}
+
+function expandDeviceAvailableCallIntoDestination(expression: Extract<Expression, { kind: "function-call" }>, destinationName: string, instructions: Instruction[]): void {
+  if (expression.args.length !== 1) {
+    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");
+  }
+  const [device] = expression.args;
+  if (device.kind !== "identifier") {
+    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER and RS232.");
+  }
+
+  const deviceKind = deviceKindFromName(device.name, expression.location);
+  instructions.push({ kind: "check-device", name: destinationName, device: deviceKind, location: expression.location });
 }
 
 function deviceKindFromName(name: string, location: Expression["location"]): "printer" | "rs232" {

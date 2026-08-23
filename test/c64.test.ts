@@ -65,7 +65,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(["10 OPEN 15,4,15", "20 CLOSE 15", "30 MBT1=-(ST=0)", "40 AVAILABLE=MBT1", "50 PRINT AVAILABLE", ""].join("\n"));
+    ).toBe(["10 OPEN 15,4,15", "20 CLOSE 15", "30 AVAILABLE=-(ST=0)", "40 PRINT AVAILABLE", ""].join("\n"));
   });
 
   it("mirrors the test runner output to the C64 printer when enabled", () => {
