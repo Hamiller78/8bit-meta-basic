@@ -5,17 +5,58 @@ const vscode = require("vscode");
 
 const output = vscode.window.createOutputChannel("MetaBASIC");
 
+const targetChoices = [
+  { label: "ZX Spectrum", value: "spectrum", launchScript: "launch:spectrum" },
+  { label: "Atari 800XL", value: "atari800xl", launchScript: "launch:atari" },
+  { label: "Commodore 64", value: "c64", launchScript: "launch:c64" }
+];
+
 function activate(context) {
   context.subscriptions.push(output);
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildProject", () => buildProject(context)));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildProject", () => runProjectCommand(context, { action: "Build Project", script: "build:all-targets", skipExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTarget", () => buildTarget(context, { skipExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployProject", () => runProjectCommand(context, { action: "Deploy Project", script: "build:all-targets", forceExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployTarget", () => buildTarget(context, { action: "Deploy", forceExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTests", () => runProjectCommand(context, { action: "Build Tests", script: "build:all-targets", testMode: true, skipExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchProject", () => runProjectCommand(context, { action: "Launch Project", script: "launch:all-targets", launch: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchTarget", () => launchTarget(context)));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchTests", () => runProjectCommand(context, { action: "Launch Tests", script: "launch:all-targets", launch: true, testMode: true })));
 }
 
 function deactivate() {}
 
-async function buildProject(context) {
+async function buildTarget(context, options = {}) {
+  const target = await pickTarget();
+  if (!target) {
+    return;
+  }
+  await runProjectCommand(context, {
+    action: `${options.action ?? "Build"} ${target.label}`,
+    script: "build:target",
+    target: target.value,
+    skipExternalTools: options.skipExternalTools,
+    forceExternalTools: options.forceExternalTools
+  });
+}
+
+async function launchTarget(context) {
+  const target = await pickTarget();
+  if (!target) {
+    return;
+  }
+  await runProjectCommand(context, { action: `Launch ${target.label}`, script: target.launchScript, launch: true });
+}
+
+async function pickTarget() {
+  return vscode.window.showQuickPick(targetChoices, {
+    placeHolder: "Select a MetaBASIC target"
+  });
+}
+
+async function runProjectCommand(context, options) {
   const workspaceFolder = pickWorkspaceFolder();
   if (!workspaceFolder) {
-    vscode.window.showErrorMessage("Open a MetaBASIC project folder before building.");
+    vscode.window.showErrorMessage("Open a MetaBASIC project folder before running MetaBASIC commands.");
     return;
   }
 
@@ -27,26 +68,48 @@ async function buildProject(context) {
 
   const config = vscode.workspace.getConfiguration("metabasic", workspaceFolder.uri);
   const profile = config.get("profile", "debug");
-  const runExternalTools = config.get("runExternalTools", true);
-  const args = ["run", "build:all-targets", "--", "--project", workspaceFolder.uri.fsPath, "--profile", profile];
-  if (!runExternalTools) {
-    args.push("--no-tools");
-  }
+  const args = npmScriptArgs(options, workspaceFolder.uri.fsPath, config, profile);
 
   output.clear();
   output.show(true);
-  output.appendLine(`MetaBASIC: building ${workspaceFolder.name} (${profile})`);
+  output.appendLine(`MetaBASIC: ${options.action} (${workspaceFolder.name}, ${profile})`);
+  output.appendLine(`Project: ${workspaceFolder.uri.fsPath}`);
   output.appendLine(`Tools: ${toolRoot}`);
   output.appendLine("");
 
   try {
     const npm = npmInvocation(args);
     await run(npm.command, npm.args, toolRoot);
-    vscode.window.showInformationMessage(`MetaBASIC build finished for ${workspaceFolder.name}.`);
+    vscode.window.showInformationMessage(`MetaBASIC ${options.action.toLowerCase()} finished for ${workspaceFolder.name}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`MetaBASIC build failed: ${message}`);
+    vscode.window.showErrorMessage(`MetaBASIC ${options.action.toLowerCase()} failed: ${message}`);
   }
+}
+
+function npmScriptArgs(options, projectPath, config, profile) {
+  const args = ["run", options.script, "--"];
+  if (options.target) {
+    args.push(options.target);
+  }
+  args.push("--project", projectPath, "--profile", profile, "--out-dir", path.join(projectPath, "build"));
+
+  if (options.testMode) {
+    args.push("--run-tests");
+    if (config.get("mirrorTestOutput", false)) {
+      args.push("--printer-output", "--test-output-device", config.get("testOutputDevice", "printer"));
+    }
+  }
+
+  if (options.launch && config.get("restartEmulators", true)) {
+    args.push("--restart");
+  }
+
+  if (!options.launch && !options.forceExternalTools && (options.skipExternalTools || !config.get("runExternalTools", true))) {
+    args.push("--no-tools");
+  }
+
+  return args;
 }
 
 function pickWorkspaceFolder() {
@@ -70,7 +133,7 @@ function resolveToolRoot(context) {
 
 function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
-    output.appendLine(`> ${command} ${args.join(" ")}`);
+    output.appendLine(`> ${formatCommand(command, args)}`);
     const child = cp.spawn(command, args, { cwd, shell: false });
 
     child.stdout.on("data", (chunk) => output.append(chunk.toString()));
@@ -84,6 +147,10 @@ function run(command, args, cwd) {
       reject(new Error(signal ? `${command} terminated with signal ${signal}` : `${command} exited with code ${code}`));
     });
   });
+}
+
+function formatCommand(command, args) {
+  return [command, ...args].map((part) => (/\s/.test(part) ? `"${part}"` : part)).join(" ");
 }
 
 function npmInvocation(args) {

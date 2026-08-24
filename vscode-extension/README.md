@@ -6,12 +6,34 @@ Implemented so far:
 
 - Registers `*.mbas` files as the `metabasic` language.
 - Adds basic TextMate syntax highlighting.
-- Adds the command `MetaBASIC: Build Project`.
-- Runs the existing repository script:
+- Adds commands that call the existing build and launch scripts through a dedicated `MetaBASIC` output channel.
+
+Current commands:
+
+- `MetaBASIC: Build Project`
+- `MetaBASIC: Build Target...`
+- `MetaBASIC: Deploy Project`
+- `MetaBASIC: Deploy Target...`
+- `MetaBASIC: Build Tests`
+- `MetaBASIC: Launch Project`
+- `MetaBASIC: Launch Target...`
+- `MetaBASIC: Launch Tests`
+
+For example, `MetaBASIC: Build Project` runs a compiler-only build:
 
 ```text
-npm run build:all-targets -- --project <workspace-folder> --profile <profile>
+npm run build:all-targets -- --project <workspace-folder> --profile <profile> --out-dir <workspace-folder>/build --no-tools
 ```
+
+`MetaBASIC: Deploy Project` runs the same build without `--no-tools`, so configured tools such as `bas2tap`, `petcat`, or the Atari tokenizer can create emulator/device artifacts.
+
+Build artifacts are written below the open project folder, for example:
+
+```text
+<workspace-folder>/build/debug/spectrum/<project-name>.bas
+```
+
+`MetaBASIC: Launch Tests` runs the equivalent launch script with `--run-tests`, and can optionally mirror test output to the configured printer or RS-232 device.
 
 ## Try It During Development
 
@@ -39,10 +61,12 @@ By default the extension assumes it is being developed inside this repository an
 - `metabasic.toolRoot`: path to the MetaBASIC tool checkout.
 - `metabasic.profile`: `debug`, `balanced`, or `release`.
 - `metabasic.runExternalTools`: whether configured converter tools should run during builds.
+- `metabasic.restartEmulators`: whether launch commands pass `--restart`.
+- `metabasic.mirrorTestOutput`: whether launch test commands pass `--printer-output`.
+- `metabasic.testOutputDevice`: `printer` or `rs232` when mirrored test output is enabled.
 
 ## Next Milestones
 
-- Add commands for test runs and emulator launch.
 - Add problem matchers or diagnostics for compiler errors.
 - Add snippets for common MetaBASIC structures.
 - Package the compiler tools with the extension instead of depending on a local checkout.

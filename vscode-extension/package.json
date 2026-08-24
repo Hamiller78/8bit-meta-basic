@@ -15,7 +15,14 @@
   ],
   "activationEvents": [
     "onLanguage:metabasic",
-    "onCommand:metabasic.buildProject"
+    "onCommand:metabasic.buildProject",
+    "onCommand:metabasic.buildTarget",
+    "onCommand:metabasic.deployProject",
+    "onCommand:metabasic.deployTarget",
+    "onCommand:metabasic.buildTests",
+    "onCommand:metabasic.launchProject",
+    "onCommand:metabasic.launchTarget",
+    "onCommand:metabasic.launchTests"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -43,6 +50,34 @@
       {
         "command": "metabasic.buildProject",
         "title": "MetaBASIC: Build Project"
+      },
+      {
+        "command": "metabasic.buildTarget",
+        "title": "MetaBASIC: Build Target..."
+      },
+      {
+        "command": "metabasic.deployProject",
+        "title": "MetaBASIC: Deploy Project"
+      },
+      {
+        "command": "metabasic.deployTarget",
+        "title": "MetaBASIC: Deploy Target..."
+      },
+      {
+        "command": "metabasic.buildTests",
+        "title": "MetaBASIC: Build Tests"
+      },
+      {
+        "command": "metabasic.launchProject",
+        "title": "MetaBASIC: Launch Project"
+      },
+      {
+        "command": "metabasic.launchTarget",
+        "title": "MetaBASIC: Launch Target..."
+      },
+      {
+        "command": "metabasic.launchTests",
+        "title": "MetaBASIC: Launch Tests"
       }
     ],
     "configuration": {
@@ -66,7 +101,26 @@
         "metabasic.runExternalTools": {
           "type": "boolean",
           "default": true,
-          "description": "Run configured target conversion tools during extension builds."
+          "description": "Compatibility setting from the first prototype. Prefer the explicit Deploy commands when converter tools should run."
+        },
+        "metabasic.restartEmulators": {
+          "type": "boolean",
+          "default": true,
+          "description": "Restart a configured emulator before launch commands."
+        },
+        "metabasic.mirrorTestOutput": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mirror generated test-runner output to the configured target device during launch test commands."
+        },
+        "metabasic.testOutputDevice": {
+          "type": "string",
+          "enum": [
+            "printer",
+            "rs232"
+          ],
+          "default": "printer",
+          "description": "External device used when mirrorTestOutput is enabled."
         }
       }
     }
