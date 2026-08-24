@@ -1,4 +1,6 @@
 import type { Expression } from "../ast.js";
+import type { DeviceKind } from "../devices.js";
+import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
@@ -48,6 +50,7 @@ export const c64Target: TargetBackend = {
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "open-device":
+        rejectC64SharedDrive(instruction.device, instruction.location);
         if (instruction.handle === "__mb_probe") {
           return `${lineNumber} OPEN 15,4,15`;
         }
@@ -60,6 +63,7 @@ export const c64Target: TargetBackend = {
       case "close-device":
         return `${lineNumber} CLOSE ${c64LogicalFileNumber(instruction.handle)}`;
       case "check-device":
+        rejectC64SharedDrive(instruction.device, instruction.location);
         return instruction.device === "rs232"
           ? `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=1`
           : `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=-(ST=0)`;
@@ -159,7 +163,7 @@ function expandDeviceAvailabilityChecks(program: LoweredProgram): LoweredProgram
 }
 
 function expandRs232CloseFlush(program: LoweredProgram): LoweredProgram {
-  const openDevices = new Map<string, "printer" | "text-printer" | "rs232">();
+  const openDevices = new Map<string, DeviceKind>();
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
@@ -177,6 +181,12 @@ function expandRs232CloseFlush(program: LoweredProgram): LoweredProgram {
   }
 
   return rebuildLabels(program, instructions);
+}
+
+function rejectC64SharedDrive(device: DeviceKind, location: Expression["location"]): void {
+  if (device === "shared-drive") {
+    throw new DiagnosticError(location, "SHARED_DRIVE is currently supported only by the Atari 800XL target.");
+  }
 }
 
 const renderKnownC64Function = createFunctionRenderer(

@@ -115,14 +115,16 @@
         },
         "metabasic.testOutputDevice": {
           "type": "string",
-          "enum": [
-            "printer",
-            "text-printer",
-            "rs232"
-          ],
-          "default": "printer",
-          "description": "External device used when mirrorTestOutput is enabled."
-        }
+            "enum": [
+              "target-default",
+              "printer",
+              "text-printer",
+              "shared-drive",
+              "rs232"
+            ],
+            "default": "target-default",
+            "description": "External device used when mirrorTestOutput is enabled. target-default lets each launcher choose its configured target transport."
+          }
       }
     }
   }

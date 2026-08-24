@@ -1,4 +1,5 @@
 import type { Expression } from "../ast.js";
+import type { DeviceKind } from "../devices.js";
 import { builtinFunctions, isStringFunctionName } from "../functions.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { resolveLabel } from "../line-numbering.js";
@@ -254,8 +255,16 @@ function expandAtariDeviceAvailabilityCheck(
   ];
 }
 
-function atariDeviceSpec(device: "printer" | "text-printer" | "rs232"): "P:" | "R:" {
-  return device === "rs232" ? "R:" : "P:";
+function atariDeviceSpec(device: DeviceKind): "P:" | "R:" | "H6:MCP.TXT" {
+  switch (device) {
+    case "rs232":
+      return "R:";
+    case "shared-drive":
+      return "H6:MCP.TXT";
+    case "printer":
+    case "text-printer":
+      return "P:";
+  }
 }
 
 function renderAtariAssignment(

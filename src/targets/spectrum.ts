@@ -1,4 +1,6 @@
 import type { Expression } from "../ast.js";
+import type { DeviceKind } from "../devices.js";
+import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
@@ -58,6 +60,7 @@ export const spectrumTarget: TargetBackend = {
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "open-device":
+        rejectSpectrumSharedDrive(instruction.device, instruction.location);
         if (instruction.device === "text-printer") {
           return `${lineNumber} REM OPEN TEXT_PRINTER`;
         }
@@ -73,6 +76,7 @@ export const spectrumTarget: TargetBackend = {
         }
         return `${lineNumber} CLOSE #${spectrumStreamNumber(instruction.handle, instruction.location)}`;
       case "check-device":
+        rejectSpectrumSharedDrive(instruction.device, instruction.location);
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=1`;
       case "data":
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
@@ -133,17 +137,24 @@ function spectrumStreamNumber(handle: string, location: Expression["location"]):
   return stream;
 }
 
-function spectrumChannelName(device: "printer" | "text-printer" | "rs232"): "P" | "t" {
+function spectrumChannelName(device: DeviceKind): "P" | "t" {
+  rejectSpectrumSharedDrive(device, currentProgramInstructions[0]?.location ?? { filename: "<generated>", line: 1 });
   return device === "rs232" ? "t" : "P";
 }
 
-function deviceForHandle(handle: string): "printer" | "text-printer" | "rs232" | undefined {
+function deviceForHandle(handle: string): DeviceKind | undefined {
   for (const instruction of currentProgramInstructions) {
     if (instruction.kind === "open-device" && instruction.handle.toLowerCase() === handle.toLowerCase()) {
       return instruction.device;
     }
   }
   return undefined;
+}
+
+function rejectSpectrumSharedDrive(device: DeviceKind, location: Expression["location"]): void {
+  if (device === "shared-drive") {
+    throw new DiagnosticError(location, "SHARED_DRIVE is currently supported only by the Atari 800XL target.");
+  }
 }
 
 function deviceHandleIndex(handle: string): number {

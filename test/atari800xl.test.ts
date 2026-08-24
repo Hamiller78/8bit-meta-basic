@@ -56,6 +56,15 @@ describe("Atari 800XL compiler", () => {
     ).toBe(['10 OPEN #1,8,0,"R:"', '20 PRINT #1;"RESULT: ";SCORE', "30 CLOSE #1", ""].join("\n"));
   });
 
+  it("renders shared drive output through Altirra's translated H: host device", () => {
+    expect(
+      compileSource('open_device TestLog, SHARED_DRIVE\nprint_device TestLog; "RESULT: "; score\nclose_device TestLog\n', {
+        filename: "shared-drive.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(['10 OPEN #1,8,0,"H6:MCP.TXT"', '20 PRINT #1;"RESULT: ";SCORE', "30 CLOSE #1", ""].join("\n"));
+  });
+
   it("lowers Atari printer availability checks through TRAP", () => {
     const output = compileSource("available = device_available(PRINTER)\nprint available\n", {
       filename: "device-available.mbas",

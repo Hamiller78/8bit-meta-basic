@@ -1,6 +1,7 @@
 export const deviceDefinitions = [
   { kind: "printer", sourceName: "PRINTER", cliName: "printer" },
   { kind: "text-printer", sourceName: "TEXT_PRINTER", cliName: "text-printer" },
+  { kind: "shared-drive", sourceName: "SHARED_DRIVE", cliName: "shared-drive" },
   { kind: "rs232", sourceName: "RS232", cliName: "rs232" }
 ] as const;
 

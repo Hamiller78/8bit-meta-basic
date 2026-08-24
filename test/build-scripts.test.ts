@@ -67,6 +67,9 @@ describe("build scripts", () => {
     });
     expect(config.atari800xl.emulator).toMatchObject({
       name: "Altirra",
+      testOutputDevice: "shared-drive",
+      sharedDrivePath: "build/altirra_drive",
+      sharedDriveOutputPath: "build/altirra_drive/MCP.TXT",
       args: ["{artifact}"],
       artifactArgs: {
         atr: ["/disk", "{artifact}"],
@@ -80,6 +83,7 @@ describe("build scripts", () => {
 
     expect(config.c64.emulator).toMatchObject({
       name: "x64sc",
+      testOutputDevice: "rs232",
       args: ["-autostart", "{artifact}", "-autostart-warp"]
     });
   });
@@ -97,6 +101,7 @@ describe("build scripts", () => {
 
     expect(config.spectrum.emulator).toMatchObject({
       name: "Fuse",
+      testOutputDevice: "text-printer",
       args: ["-tape", "{artifact}", "-auto-play"]
     });
   });

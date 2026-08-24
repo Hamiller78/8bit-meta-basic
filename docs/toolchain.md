@@ -66,11 +66,11 @@ Recognized test-file names are `tests/math.mbas`, `tests/math-tests.mbas`, and `
 
 `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and the target/all launch scripts.
 
-To mirror the generated test-runner log to an emulator device, add `--printer-output`. The default device is `printer`; `--test-output-device text-printer` selects the Spectrum `LPRINT`/ZX Printer text-capture path, and `--test-output-device rs232` selects serial capture where configured:
+To mirror the generated test-runner log to an emulator device, add `--printer-output`. Launch scripts default to the currently verified transport for each target: Spectrum uses `text-printer`, Atari uses `shared-drive`, and C64 uses `rs232`. You can override this with `--test-output-device printer`, `--test-output-device text-printer`, `--test-output-device shared-drive`, or `--test-output-device rs232`:
 
 ```text
-npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
-npm run launch:spectrum -- --project examples/instruction-suite --run-tests --printer-output --test-output-device text-printer --restart
+npm run launch:all-targets -- --project examples/instruction-suite --run-tests --printer-output --restart
+npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device shared-drive --restart
 ```
 
 The captured host file path is controlled by the emulator block in `scripts/tools.local.json`:
@@ -279,7 +279,7 @@ For Spectrum/Fuse, use `--test-output-device text-printer` for host text capture
 
 The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO MCP"`, launched with ZX Printer text output enabled. The host file was updated while Fuse was still running. The older Spectrum `PRINTER` stream path (`OPEN #...,"P"` plus `PRINT #...`) did not produce text output in that experiment.
 
-For Atari/Altirra, the source language can emit `OPEN_DEVICE ..., PRINTER` or `OPEN_DEVICE ..., RS232`, lowering to `P:` or `R:` respectively. The launch config currently leaves the emulator arguments empty until a repeatable Altirra printer or serial-to-host-file setup is chosen.
+For Atari/Altirra, the source language can emit `OPEN_DEVICE ..., PRINTER`, `OPEN_DEVICE ..., RS232`, or `OPEN_DEVICE ..., SHARED_DRIVE`, lowering to `P:`, `R:`, or `H6:MCP.TXT` respectively. `SHARED_DRIVE` is the verified test-runner capture path: configure Altirra's Host device (H:) in the test profile to map H1/H6 to the configured `sharedDrivePath`, leave the device writable, and use `--printer-output --test-output-device shared-drive`. The launcher clears the configured `sharedDriveOutputPath` before starting the emulator.
 
 ## Atari 800XL: listing/ATR path
 

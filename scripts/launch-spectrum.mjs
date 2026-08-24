@@ -11,9 +11,13 @@ const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
+const defaultTestOutputDevice = "text-printer";
 
 async function launchSpectrum(options) {
   const cwd = options.cwd ?? process.cwd();
+  const config = await loadConfig(resolve(cwd, options.configPath));
+  const emulator = config?.spectrum?.emulator;
+  const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
 
   await buildTarget({
     target: "spectrum",
@@ -23,7 +27,7 @@ async function launchSpectrum(options) {
     projectPath: options.projectPath,
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
-    testOutputDevice: options.testOutputDevice,
+    testOutputDevice,
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
@@ -37,8 +41,6 @@ async function launchSpectrum(options) {
     throw new Error(`Spectrum launch artifact not found: ${artifact}. Check that bas2tap is configured and produced a .tap file.`);
   }
 
-  const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.spectrum?.emulator;
   if (!emulator?.path) {
     throw new Error(`No Spectrum emulator path configured. Add spectrum.emulator.path to ${options.configPath}.`);
   }
@@ -62,9 +64,9 @@ async function launchSpectrum(options) {
     rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "rs232")
   };
   if (options.testPrinterOutput) {
-    await prepareDeviceOutput(options.testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
+    await prepareDeviceOutput(testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
   }
-  const deviceArgs = options.testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
+  const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
   const argsTemplate = [...(emulator.args ?? ["-tape", "{artifact}", "-auto-play"]), ...(options.testPrinterOutput ? deviceArgs : [])];
   const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
@@ -86,7 +88,7 @@ function parseArgs(argv) {
     projectPath: undefined,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer",
+    testOutputDevice: undefined,
     moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
@@ -173,6 +175,10 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
+}
+
+function configuredTestOutputDevice(emulator, fallback) {
+  return emulator?.testOutputDevice ? parseDeviceKind(emulator.testOutputDevice, "emulator.testOutputDevice") : fallback;
 }
 
 async function loadConfig(configPath) {

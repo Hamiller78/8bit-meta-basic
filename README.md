@@ -83,10 +83,11 @@ npm run launch:all-targets -- --project examples/instruction-suite --run-tests -
 Test runs can also mirror the generated test-runner output to a configured emulator device:
 
 ```text
+npm run launch:all-targets -- --project examples/instruction-suite --run-tests --printer-output --restart
 npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 ```
 
-For C64/VICE this starts a small local RS-232 capture endpoint and writes the captured output below `build/rs232/<profile>/c64/`. Spectrum and Atari device-output hooks are documented but still depend on emulator-specific printer or serial setup.
+The launch scripts default to the verified capture transport for each target: Spectrum uses `TEXT_PRINTER`/Fuse ZX Printer text output, Atari uses `SHARED_DRIVE`/Altirra H: output below `build/altirra_drive/`, and C64 uses a small local RS-232 capture endpoint below `build/rs232/<profile>/c64/`.
 
 Build artifacts for all targets:
 

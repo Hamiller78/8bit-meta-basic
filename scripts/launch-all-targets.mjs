@@ -40,7 +40,7 @@ async function launchAll(options) {
     ...(options.restart ? ["--restart"] : []),
     ...(options.testMode ? ["--run-tests"] : []),
     ...(options.testPrinterOutput ? ["--printer-output"] : []),
-    ...(options.testPrinterOutput ? ["--test-output-device", options.testOutputDevice] : []),
+    ...(options.testPrinterOutput && options.testOutputDevice ? ["--test-output-device", options.testOutputDevice] : []),
     ...(options.moduleName ? ["--module", options.moduleName] : [])
   ];
 
@@ -84,7 +84,7 @@ function parseArgs(argv) {
     projectPath: undefined,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer",
+    testOutputDevice: undefined,
     moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,

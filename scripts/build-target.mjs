@@ -16,6 +16,11 @@ export const profiles = {
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultToolConfig = "scripts/tools.local.json";
+const defaultTestOutputDevices = {
+  spectrum: "text-printer",
+  atari800xl: "shared-drive",
+  c64: "rs232"
+};
 
 export async function buildProject({ cwd = process.cwd() } = {}) {
   const npm = npmCommand();
@@ -31,7 +36,7 @@ export async function buildTarget(options) {
   const projectPath = options.projectPath;
   const testMode = options.testMode === true;
   const testPrinterOutput = options.testPrinterOutput === true;
-  const testOutputDevice = options.testOutputDevice ?? "printer";
+  const testOutputDevice = options.testOutputDevice ?? defaultTestOutputDevices[target] ?? "printer";
   const moduleName = options.moduleName;
   const outDir = options.outDir ?? defaultOutDir;
   const configPath = options.configPath ?? defaultToolConfig;
@@ -386,7 +391,7 @@ function parseArgs(argv) {
     projectPath: undefined,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer",
+    testOutputDevice: undefined,
     moduleName: undefined,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,

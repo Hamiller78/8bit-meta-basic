@@ -152,7 +152,7 @@ describe("build configuration", () => {
       await writeFile(join(dir, "bad-printer-output.json"), JSON.stringify({ testPrinterOutput: "yes", files: ["main.mbas"] }), "utf8");
       await expect(loadBuildConfiguration(join(dir, "bad-printer-output.json"))).rejects.toThrow('"testPrinterOutput" must be a boolean');
       await writeFile(join(dir, "bad-test-device.json"), JSON.stringify({ testOutputDevice: "modem", files: ["main.mbas"] }), "utf8");
-      await expect(loadBuildConfiguration(join(dir, "bad-test-device.json"))).rejects.toThrow('"testOutputDevice" must be "printer", "text-printer", or "rs232"');
+      await expect(loadBuildConfiguration(join(dir, "bad-test-device.json"))).rejects.toThrow('"testOutputDevice" must be "printer", "text-printer", "shared-drive", or "rs232"');
       await expect(loadBuildConfiguration(badJsonPath)).rejects.toThrow("Invalid JSON");
       await expect(loadBuildConfiguration(join(dir, "missing.json"))).rejects.toThrow("Build configuration file not found");
     });

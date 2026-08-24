@@ -63,8 +63,18 @@ describe("parser", () => {
     });
   });
 
+  it("parses shared drive device output statements", () => {
+    expect(parseSource('open_device TestLog, SHARED_DRIVE\nprint_device TestLog; "PING"\nclose_device TestLog\n', "shared-drive.mbas")).toMatchObject({
+      statements: [
+        { kind: "open-device", handle: "TestLog", device: "shared-drive" },
+        { kind: "print-device", handle: "TestLog", items: [{ kind: "string", value: "PING" }] },
+        { kind: "close-device", handle: "TestLog" }
+      ]
+    });
+  });
+
   it("rejects unsupported portable device names", () => {
-    expect(() => parseSource("open_device Log, MODEM\n", "device.mbas")).toThrow("OPEN_DEVICE currently supports PRINTER, TEXT_PRINTER, and RS232");
+    expect(() => parseSource("open_device Log, MODEM\n", "device.mbas")).toThrow("OPEN_DEVICE currently supports PRINTER, TEXT_PRINTER, SHARED_DRIVE, and RS232");
   });
 
   it("parses FUNCTION blocks with parameters, locals, and return expressions", () => {

@@ -103,12 +103,16 @@ function npmScriptArgs(options, projectPath, config, profile) {
   }
   args.push("--project", projectPath, "--profile", profile, "--out-dir", path.join(projectPath, "build"));
 
-  if (options.testMode) {
-    args.push("--run-tests");
-    if (config.get("mirrorTestOutput", false)) {
-      args.push("--printer-output", "--test-output-device", config.get("testOutputDevice", "printer"));
+    if (options.testMode) {
+      args.push("--run-tests");
+      if (config.get("mirrorTestOutput", false)) {
+        args.push("--printer-output");
+        const testOutputDevice = config.get("testOutputDevice", "target-default");
+        if (testOutputDevice !== "target-default") {
+          args.push("--test-output-device", testOutputDevice);
+        }
+      }
     }
-  }
 
   if (options.launch && config.get("restartEmulators", true)) {
     args.push("--restart");

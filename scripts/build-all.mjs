@@ -13,7 +13,7 @@ function parseArgs(argv) {
     projectPath: undefined,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer",
+    testOutputDevice: undefined,
     moduleName: undefined,
     outDir: "build",
     configPath: "scripts/tools.local.json",

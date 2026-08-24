@@ -12,9 +12,13 @@ const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
+const defaultTestOutputDevice = "rs232";
 
 async function launchC64(options) {
   const cwd = options.cwd ?? process.cwd();
+  const config = await loadConfig(resolve(cwd, options.configPath));
+  const emulator = config?.c64?.emulator;
+  const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
 
   await buildTarget({
     target: "c64",
@@ -24,7 +28,7 @@ async function launchC64(options) {
     projectPath: options.projectPath,
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
-    testOutputDevice: options.testOutputDevice,
+    testOutputDevice,
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
@@ -38,8 +42,6 @@ async function launchC64(options) {
     throw new Error(`C64 launch artifact not found: ${artifact}. Check that petcat is configured and produced a .prg file.`);
   }
 
-  const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.c64?.emulator;
   if (!emulator?.path) {
     throw new Error(`No C64 emulator path configured. Add c64.emulator.path to ${options.configPath}.`);
   }
@@ -64,12 +66,12 @@ async function launchC64(options) {
     rs232Endpoint: undefined
   };
   if (options.testPrinterOutput) {
-    await prepareDeviceOutput(options.testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
+    await prepareDeviceOutput(testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
   }
-  if (options.testPrinterOutput && options.testOutputDevice === "rs232") {
+  if (options.testPrinterOutput && testOutputDevice === "rs232") {
     replacements.rs232Endpoint = await startRs232Capture(cwd, replacements.rs232Output, options, emulator, program.name);
   }
-  const deviceArgs = options.testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
+  const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
   const argsTemplate = [...(emulator.args ?? ["-autostart", "{artifact}"]), ...(options.testPrinterOutput ? deviceArgs : [])];
   const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
@@ -91,7 +93,7 @@ function parseArgs(argv) {
     projectPath: undefined,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer",
+    testOutputDevice: undefined,
     moduleName: undefined,
     profile: defaultProfile,
     outDir: defaultOutDir,
@@ -178,6 +180,10 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
+}
+
+function configuredTestOutputDevice(emulator, fallback) {
+  return emulator?.testOutputDevice ? parseDeviceKind(emulator.testOutputDevice, "emulator.testOutputDevice") : fallback;
 }
 
 async function loadConfig(configPath) {

@@ -49,6 +49,8 @@ For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
 npm run launch:spectrum -- --project examples/instruction-suite --run-tests --printer-output --test-output-device text-printer --restart
 ```
 
+If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64.
+
 The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
 
 ```json
@@ -147,19 +149,28 @@ npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --r
 
 ## Atari 800XL test output capture
 
-Status: **source support and config hooks exist; emulator workflow unverified**.
+Status: **minimal Altirra H: host-device path verified locally**.
 
-Meta-BASIC can lower `PRINTER` output to Atari `P:` and `RS232` output to `R:`. The launch configuration includes `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args`, but the Altirra command-line setup for writing either device to a host file still needs to be tested and recorded.
+Meta-BASIC can lower `PRINTER` output to Atari `P:`, `RS232` output to `R:`, and `SHARED_DRIVE` output to Altirra's H: host-device file `H6:MCP.TXT`.
 
-Candidate command once configured:
+For test-runner capture, configure Altirra's `Testrunner` profile with a writable Host device (H:) whose H1/H6 path points at:
+
+```text
+C:\Users\Knees\source\repos\8bit-meta-basic\build\altirra_drive\
+```
+
+The launcher clears `build/altirra_drive/MCP.TXT` before starting Altirra, and the generated Atari test runner writes to `H6:MCP.TXT` so line endings become readable on the host.
+
+Shared-drive capture:
 
 ```text
 npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --restart
 ```
 
-or:
+Printer and serial hooks remain available for experiments:
 
 ```text
+npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device printer --restart
 npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 ```
 

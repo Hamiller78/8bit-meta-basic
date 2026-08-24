@@ -52,7 +52,7 @@ export async function buildDirectory(options) {
           source,
           testMode: options.testMode === true,
           testPrinterOutput: options.testPrinterOutput === true,
-          testOutputDevice: options.testOutputDevice ?? "printer",
+          testOutputDevice: options.testOutputDevice,
           outDir: options.outDir ?? defaultOutDir,
           configPath: options.configPath ?? defaultToolConfig,
           runBuild: false,
@@ -76,7 +76,7 @@ function parseArgs(argv) {
     runTools: true,
     testMode: false,
     testPrinterOutput: false,
-    testOutputDevice: "printer"
+    testOutputDevice: undefined
   };
 
   for (let index = 0; index < argv.length; index += 1) {
