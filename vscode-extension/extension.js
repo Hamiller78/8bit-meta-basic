@@ -4,6 +4,7 @@ const path = require("node:path");
 const vscode = require("vscode");
 
 const output = vscode.window.createOutputChannel("MetaBASIC");
+const diagnostics = vscode.languages.createDiagnosticCollection("metabasic");
 
 const targetChoices = [
   { label: "ZX Spectrum", value: "spectrum", launchScript: "launch:spectrum" },
@@ -13,6 +14,7 @@ const targetChoices = [
 
 function activate(context) {
   context.subscriptions.push(output);
+  context.subscriptions.push(diagnostics);
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildProject", () => runProjectCommand(context, { action: "Build Project", script: "build:all-targets", skipExternalTools: true })));
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTarget", () => buildTarget(context, { skipExternalTools: true })));
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployProject", () => runProjectCommand(context, { action: "Deploy Project", script: "build:all-targets", forceExternalTools: true })));
@@ -76,6 +78,7 @@ async function runProjectCommand(context, options) {
   output.appendLine(`Project: ${workspaceFolder.uri.fsPath}`);
   output.appendLine(`Tools: ${toolRoot}`);
   output.appendLine("");
+  clearWorkspaceDiagnostics(workspaceFolder);
 
   try {
     const npm = npmInvocation(args);
@@ -83,6 +86,11 @@ async function runProjectCommand(context, options) {
     vscode.window.showInformationMessage(`MetaBASIC ${options.action.toLowerCase()} finished for ${workspaceFolder.name}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const foundDiagnostics = updateDiagnosticsFromTranscript(workspaceFolder, getTranscript(error));
+    if (foundDiagnostics > 0) {
+      output.appendLine("");
+      output.appendLine(`Found ${foundDiagnostics} diagnostic${foundDiagnostics === 1 ? "" : "s"}. See the Problems panel.`);
+    }
     vscode.window.showErrorMessage(`MetaBASIC ${options.action.toLowerCase()} failed: ${message}`);
   }
 }
@@ -133,20 +141,103 @@ function resolveToolRoot(context) {
 
 function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
+    let transcript = "";
     output.appendLine(`> ${formatCommand(command, args)}`);
     const child = cp.spawn(command, args, { cwd, shell: false });
 
-    child.stdout.on("data", (chunk) => output.append(chunk.toString()));
-    child.stderr.on("data", (chunk) => output.append(chunk.toString()));
-    child.on("error", reject);
+    child.stdout.on("data", (chunk) => {
+      const text = chunk.toString();
+      transcript += text;
+      output.append(text);
+    });
+    child.stderr.on("data", (chunk) => {
+      const text = chunk.toString();
+      transcript += text;
+      output.append(text);
+    });
+    child.on("error", (error) => {
+      error.transcript = transcript;
+      reject(error);
+    });
     child.on("exit", (code, signal) => {
       if (code === 0) {
-        resolve();
+        resolve(transcript);
         return;
       }
-      reject(new Error(signal ? `${command} terminated with signal ${signal}` : `${command} exited with code ${code}`));
+      const error = new Error(signal ? `${command} terminated with signal ${signal}` : `${command} exited with code ${code}`);
+      error.transcript = transcript;
+      reject(error);
     });
   });
+}
+
+function clearWorkspaceDiagnostics(workspaceFolder) {
+  const root = normalizePath(workspaceFolder.uri.fsPath);
+  const urisToDelete = [];
+  diagnostics.forEach((uri) => {
+    if (normalizePath(uri.fsPath).startsWith(root)) {
+      urisToDelete.push(uri);
+    }
+  });
+  for (const uri of urisToDelete) {
+    diagnostics.delete(uri);
+  }
+}
+
+function updateDiagnosticsFromTranscript(workspaceFolder, transcript) {
+  const grouped = new Map();
+  for (const line of transcript.split(/\r?\n/)) {
+    const parsed = parseDiagnosticLine(line, workspaceFolder.uri.fsPath);
+    if (!parsed) {
+      continue;
+    }
+    const items = grouped.get(parsed.uri.toString()) ?? { uri: parsed.uri, diagnostics: [] };
+    items.diagnostics.push(parsed.diagnostic);
+    grouped.set(parsed.uri.toString(), items);
+  }
+
+  for (const { uri, diagnostics: fileDiagnostics } of grouped.values()) {
+    diagnostics.set(uri, fileDiagnostics);
+  }
+
+  const count = [...grouped.values()].reduce((sum, item) => sum + item.diagnostics.length, 0);
+  if (count === 0) {
+    output.appendLine("");
+    output.appendLine("No MetaBASIC source diagnostics were recognized in the command output.");
+  }
+  return count;
+}
+
+function parseDiagnosticLine(line, projectPath) {
+  const cleaned = stripAnsi(line).trim();
+  const match = /^(.+?\.mbas):(\d+)(?::(\d+))?:\s+(.+)$/i.exec(cleaned);
+  if (!match) {
+    return undefined;
+  }
+
+  const filename = match[1];
+  const lineNumber = Math.max(0, Number(match[2]) - 1);
+  const columnNumber = match[3] ? Math.max(0, Number(match[3]) - 1) : 0;
+  const uri = vscode.Uri.file(path.isAbsolute(filename) ? filename : path.resolve(projectPath, filename));
+  const range = new vscode.Range(lineNumber, columnNumber, lineNumber, columnNumber + 1);
+  const diagnostic = new vscode.Diagnostic(range, match[4], vscode.DiagnosticSeverity.Error);
+  diagnostic.source = "MetaBASIC";
+  return { uri, diagnostic };
+}
+
+function getTranscript(error) {
+  if (error && typeof error === "object" && typeof error.transcript === "string") {
+    return error.transcript;
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function normalizePath(value) {
+  return path.resolve(value).toLowerCase();
+}
+
+function stripAnsi(value) {
+  return value.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
 }
 
 function formatCommand(command, args) {

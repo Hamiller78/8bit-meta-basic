@@ -619,37 +619,37 @@ describe("Spectrum compiler", () => {
       ["10 PAPER 2", "20 CLS", ""].join("\n")
     );
     expect(() => compileSource("const TEXT_ROWS = 1\n", { filename: "redeclare.mbas", target: "spectrum" })).toThrow(
-      'redeclare.mbas:1: Cannot redeclare environment constant "TEXT_ROWS"'
+      'redeclare.mbas:1:1: Cannot redeclare environment constant "TEXT_ROWS"'
     );
     expect(() => compileSource("text_columns = 1\n", { filename: "assign.mbas", target: "spectrum" })).toThrow(
-      'assign.mbas:1: Cannot assign to environment constant "text_columns"'
+      'Cannot assign to environment constant "text_columns"'
     );
     expect(() => compileSource("cls 1\n", { filename: "badcolor.mbas", target: "spectrum" })).toThrow(
-      "badcolor.mbas:1: CLS colour must be a compile-time portable colour"
+      "CLS colour must be a compile-time portable colour"
     );
     expect(() => compileSource("cls runtimeColour\n", { filename: "runtimecolor.mbas", target: "spectrum" })).toThrow(
-      'runtimecolor.mbas:1: Unknown constant "runtimeColour"'
+      'Unknown constant "runtimeColour"'
     );
     expect(() => compileSource("border_color 1\n", { filename: "badborder.mbas", target: "spectrum" })).toThrow(
-      "badborder.mbas:1: BORDER_COLOR colour must be a compile-time portable colour"
+      "BORDER_COLOR colour must be a compile-time portable colour"
     );
   });
 
   it("reports constant and assignment diagnostics", () => {
     expect(() => compileSource("const a = 1\nconst A = 2\n", { filename: "dupconst.mbas", target: "spectrum" })).toThrow(
-      'dupconst.mbas:2: Duplicate constant "A"'
+      'dupconst.mbas:2:1: Duplicate constant "A"'
     );
     expect(() => compileSource("const a = missing + 1\n", { filename: "unknownconst.mbas", target: "spectrum" })).toThrow(
-      'unknownconst.mbas:1: Unknown constant "missing"'
+      'Unknown constant "missing"'
     );
     expect(() => compileSource("const a = 1\nA = 2\n", { filename: "assignconst.mbas", target: "spectrum" })).toThrow(
-      'assignconst.mbas:2: Cannot assign to constant "A"'
+      'Cannot assign to constant "A"'
     );
     expect(() => compileSource("const a = 1 / 0\n", { filename: "zero.mbas", target: "spectrum" })).toThrow(
-      "zero.mbas:1: Division by zero"
+      "Division by zero"
     );
     expect(() => compileSource('const a = "x" - "y"\n', { filename: "types.mbas", target: "spectrum" })).toThrow(
-      "types.mbas:1: Operator - requires numeric operands"
+      "Operator - requires numeric operands"
     );
   });
 
@@ -724,13 +724,13 @@ describe("Spectrum compiler", () => {
 
   it("reports duplicate labels", () => {
     expect(() => compileSource("again:\nAgain:\n", { filename: "dup.mbas", target: "spectrum" })).toThrow(
-      'dup.mbas:2: Duplicate label "Again"'
+      'dup.mbas:2:1: Duplicate label "Again"'
     );
   });
 
   it("reports undefined labels", () => {
     expect(() => compileSource("goto missing\n", { filename: "undef.mbas", target: "spectrum" })).toThrow(
-      'undef.mbas:1: Undefined label "missing"'
+      'undef.mbas:1:1: Undefined label "missing"'
     );
   });
 

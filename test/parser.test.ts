@@ -313,7 +313,7 @@ describe("parser", () => {
 
   it("does not accept LET as assignment syntax", () => {
     expect(() => parseSource("let urgency = 1\n", "legacy-let.mbas")).toThrow(
-      'legacy-let.mbas:1: Unsupported or invalid syntax near "let"'
+      'legacy-let.mbas:1:1: Unsupported or invalid syntax near "let"'
     );
   });
 
@@ -334,10 +334,10 @@ describe("parser", () => {
   });
 
   it("reports malformed PRINT_AT coordinates and separator", () => {
-    expect(() => parseSource('print_at ,5; "NO"\n', "row.mbas")).toThrow("row.mbas:1: PRINT_AT requires a row expression");
-    expect(() => parseSource('print_at 1 5; "NO"\n', "comma.mbas")).toThrow("comma.mbas:1: Expected comma between PRINT_AT row and column");
-    expect(() => parseSource('print_at 1,; "NO"\n', "column.mbas")).toThrow("column.mbas:1: PRINT_AT requires a column expression");
-    expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("separator.mbas:1: Expected semicolon after PRINT_AT column");
+    expect(() => parseSource('print_at ,5; "NO"\n', "row.mbas")).toThrow("PRINT_AT requires a row expression");
+    expect(() => parseSource('print_at 1 5; "NO"\n', "comma.mbas")).toThrow("Expected comma between PRINT_AT row and column");
+    expect(() => parseSource('print_at 1,; "NO"\n', "column.mbas")).toThrow("PRINT_AT requires a column expression");
+    expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("Expected semicolon after PRINT_AT column");
   });
 
   it("parses CLS and global/cell colour commands", () => {
@@ -360,24 +360,24 @@ describe("parser", () => {
   });
 
   it("reports missing BORDER_COLOR colour", () => {
-    expect(() => parseSource("border_color\n", "border.mbas")).toThrow("border.mbas:1: BORDER_COLOR requires a colour expression");
+    expect(() => parseSource("border_color\n", "border.mbas")).toThrow("BORDER_COLOR requires a colour expression");
   });
 
   it("reports missing TEXT_COLOR colour", () => {
-    expect(() => parseSource("text_color\n", "text.mbas")).toThrow("text.mbas:1: TEXT_COLOR requires a colour expression");
+    expect(() => parseSource("text_color\n", "text.mbas")).toThrow("TEXT_COLOR requires a colour expression");
   });
 
   it("rejects PRINTAT and the former PRINT AT spelling", () => {
-    expect(() => parseSource('printat 1,2; "NO"\n', "printat.mbas")).toThrow('printat.mbas:1: Unsupported or invalid syntax near "printat"');
-    expect(() => parseSource('print at 1,2; "NO"\n', "print-at.mbas")).toThrow('print-at.mbas:1: Expected end of line, found "1"');
+    expect(() => parseSource('printat 1,2; "NO"\n', "printat.mbas")).toThrow('Unsupported or invalid syntax near "printat"');
+    expect(() => parseSource('print at 1,2; "NO"\n', "print-at.mbas")).toThrow('Expected end of line, found "1"');
   });
 
   it("reports a missing END IF with the IF source line", () => {
-    expect(() => parseSource("if confirmed then\n", "broken.mbas")).toThrow("broken.mbas:1: Missing END IF");
+    expect(() => parseSource("if confirmed then\n", "broken.mbas")).toThrow("broken.mbas:1:1: Missing END IF");
   });
 
   it("reports an unexpected ELSE", () => {
-    expect(() => parseSource("else\n", "broken.mbas")).toThrow("broken.mbas:1: Unexpected ELSE");
+    expect(() => parseSource("else\n", "broken.mbas")).toThrow("broken.mbas:1:1: Unexpected ELSE");
   });
 
   it("reports comparison chaining with a rewrite hint", () => {
@@ -387,7 +387,7 @@ describe("parser", () => {
   });
 
   it("reports missing operands and unmatched parentheses", () => {
-    expect(() => parseSource("a = 1 +\n", "operand.mbas")).toThrow("operand.mbas:1: Missing expression operand");
-    expect(() => parseSource("a = (1 + 2\n", "paren.mbas")).toThrow("paren.mbas:1: Expected closing parenthesis");
+    expect(() => parseSource("a = 1 +\n", "operand.mbas")).toThrow("operand.mbas:1:8: Missing expression operand");
+    expect(() => parseSource("a = (1 + 2\n", "paren.mbas")).toThrow("Expected closing parenthesis");
   });
 });

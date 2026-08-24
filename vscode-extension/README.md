@@ -7,6 +7,7 @@ Implemented so far:
 - Registers `*.mbas` files as the `metabasic` language.
 - Adds basic TextMate syntax highlighting.
 - Adds commands that call the existing build and launch scripts through a dedicated `MetaBASIC` output channel.
+- Turns compiler errors in `file:line:column: message` format into VS Code Problems diagnostics.
 
 Current commands:
 
@@ -34,6 +35,8 @@ Build artifacts are written below the open project folder, for example:
 ```
 
 `MetaBASIC: Launch Tests` runs the equivalent launch script with `--run-tests`, and can optionally mirror test output to the configured printer or RS-232 device.
+
+When a build command fails because of a MetaBASIC source error, the extension parses compiler output and adds entries to VS Code's Problems panel. Selecting a problem jumps to the reported `.mbas` source location.
 
 ## Try It During Development
 
@@ -67,6 +70,5 @@ By default the extension assumes it is being developed inside this repository an
 
 ## Next Milestones
 
-- Add problem matchers or diagnostics for compiler errors.
 - Add snippets for common MetaBASIC structures.
 - Package the compiler tools with the extension instead of depending on a local checkout.
