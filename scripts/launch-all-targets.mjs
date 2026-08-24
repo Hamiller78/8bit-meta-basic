@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parseDeviceKind } from "./device-options.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -176,14 +177,6 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
-}
-
-function parseDeviceKind(value) {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function loadConfig(configPath) {

@@ -4,10 +4,10 @@ import { dirname } from "node:path";
 import { buildDetailed, loadBuildConfiguration } from "./build-configuration.js";
 import { compileSourceDetailed, type Target } from "./compiler.js";
 import { formatCause } from "./diagnostics.js";
+import { deviceCliUsage, requireDeviceKind, type DeviceKind } from "./devices.js";
 import type { ReadabilityLevel } from "./line-numbering.js";
 import { formatOutputStats } from "./output-stats.js";
 import { isTargetId } from "./targets/index.js";
-import type { DeviceKind } from "./ast.js";
 
 interface CliOptions {
   readonly inputPath?: string;
@@ -117,7 +117,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
       if (!value) {
         throw new Error(`Missing value for ${arg}.`);
       }
-      testOutputDevice = parseDeviceKind(value);
+      testOutputDevice = requireDeviceKind(value);
       index += 1;
       continue;
     }
@@ -143,7 +143,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device printer|text-printer|rs232]");
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}]`);
   }
 
   if (inputPath && configPath) {
@@ -174,14 +174,6 @@ function parseReadabilityLevel(value: string, optionName: string): ReadabilityLe
   }
 
   throw new Error(`Invalid ${optionName} value "${value}". Expected 0, 1, or 2.`);
-}
-
-function parseDeviceKind(value: string): DeviceKind {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 main(process.argv.slice(2)).then((exitCode) => {

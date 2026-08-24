@@ -1,5 +1,6 @@
 import type { Expression, FunctionImplementation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { deviceSourceList, parseSourceDeviceName, type DeviceKind } from "./devices.js";
 import { builtinFunctions } from "./functions.js";
 import type { Instruction } from "./lowering.js";
 import { normalizeName } from "./symbols.js";
@@ -121,7 +122,7 @@ function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "func
   }
   const [device] = expression.args;
   if (device.kind !== "identifier") {
-    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER, TEXT_PRINTER, and RS232.");
+    throw new DiagnosticError(expression.location, `DEVICE_AVAILABLE currently supports ${deviceSourceList}.`);
   }
 
   const deviceKind = deviceKindFromName(device.name, expression.location);
@@ -136,24 +137,19 @@ function expandDeviceAvailableCallIntoDestination(expression: Extract<Expression
   }
   const [device] = expression.args;
   if (device.kind !== "identifier") {
-    throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER, TEXT_PRINTER, and RS232.");
+    throw new DiagnosticError(expression.location, `DEVICE_AVAILABLE currently supports ${deviceSourceList}.`);
   }
 
   const deviceKind = deviceKindFromName(device.name, expression.location);
   instructions.push({ kind: "check-device", name: destinationName, device: deviceKind, location: expression.location });
 }
 
-function deviceKindFromName(name: string, location: Expression["location"]): "printer" | "text-printer" | "rs232" {
-  switch (name.toUpperCase()) {
-    case "PRINTER":
-      return "printer";
-    case "TEXT_PRINTER":
-      return "text-printer";
-    case "RS232":
-      return "rs232";
-    default:
-      throw new DiagnosticError(location, "DEVICE_AVAILABLE currently supports PRINTER, TEXT_PRINTER, and RS232.");
+function deviceKindFromName(name: string, location: Expression["location"]): DeviceKind {
+  const device = parseSourceDeviceName(name);
+  if (!device) {
+    throw new DiagnosticError(location, `DEVICE_AVAILABLE currently supports ${deviceSourceList}.`);
   }
+  return device;
 }
 
 function nextTempName(context: FunctionCallLoweringContext, returnName: string): string {

@@ -5,6 +5,7 @@ import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
+import { parseDeviceKind } from "./device-options.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -196,14 +197,6 @@ function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
 async function prepareDeviceOutput(path) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, "", "utf8");
-}
-
-function parseDeviceKind(value) {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function terminateExistingEmulator(emulatorPath) {

@@ -1,5 +1,6 @@
 import type { BinaryOperator, Expression, PrintStatement, Program, SourceLocation, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { deviceSourceList, parseSourceDeviceName } from "./devices.js";
 import { tokenize, type Token } from "./lexer.js";
 
 type StatementParser = (parser: Parser, location: SourceLocation) => Statement | "block-delimiter";
@@ -139,9 +140,9 @@ class Parser {
     const handle = this.expectIdentifier("Expected device handle name after OPEN_DEVICE.").text;
     this.expectPunctuation(",", "Expected comma between OPEN_DEVICE handle and device name.");
     const device = this.expectIdentifier("Expected device name after OPEN_DEVICE comma.").text;
-    const deviceKind = parseDeviceKind(device);
+    const deviceKind = parseSourceDeviceName(device);
     if (!deviceKind) {
-      throw new DiagnosticError(this.current().location, `Unsupported device "${device}". OPEN_DEVICE currently supports PRINTER, TEXT_PRINTER, and RS232.`);
+      throw new DiagnosticError(this.current().location, `Unsupported device "${device}". OPEN_DEVICE currently supports ${deviceSourceList}.`);
     }
     this.expectLineEnd();
     return { kind: "open-device", handle, device: deviceKind, location };
@@ -843,18 +844,5 @@ function describeToken(token: Token): string {
     case "operator":
     case "punctuation":
       return `"${token.text}"`;
-  }
-}
-
-function parseDeviceKind(device: string): Extract<Statement, { kind: "open-device" }>["device"] | undefined {
-  switch (device.toUpperCase()) {
-    case "PRINTER":
-      return "printer";
-    case "TEXT_PRINTER":
-      return "text-printer";
-    case "RS232":
-      return "rs232";
-    default:
-      return undefined;
   }
 }

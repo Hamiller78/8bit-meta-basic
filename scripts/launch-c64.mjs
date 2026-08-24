@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
+import { parseDeviceKind } from "./device-options.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -249,14 +250,6 @@ async function waitForCaptureReady(readyPath) {
 
 function safeName(value) {
   return value.replaceAll(/[^A-Za-z0-9_-]/g, "");
-}
-
-function parseDeviceKind(value) {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function terminateExistingEmulator(emulatorPath) {

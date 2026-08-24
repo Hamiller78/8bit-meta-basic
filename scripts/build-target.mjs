@@ -4,6 +4,7 @@ import { constants } from "node:fs";
 import { basename, dirname, extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
+import { deviceKindUsage, parseDeviceKind } from "./device-options.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64"];
 export const profiles = {
@@ -467,7 +468,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      "Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device printer|text-printer|rs232] [--module name]"
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
@@ -490,14 +491,6 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
-}
-
-function parseDeviceKind(value) {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function main() {

@@ -3,6 +3,7 @@ import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { buildProject, buildTarget, profiles, targets } from "./build-target.mjs";
+import { parseDeviceKind } from "./device-options.mjs";
 
 const defaultSourceDir = "examples";
 const defaultOutDir = "build";
@@ -143,14 +144,6 @@ function readValue(argv, index, option) {
     throw new Error(`Missing value for ${option}.`);
   }
   return value;
-}
-
-function parseDeviceKind(value) {
-  const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
-    return normalized;
-  }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function main() {

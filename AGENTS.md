@@ -111,10 +111,10 @@ Supported constructs:
 - Numeric and string array assignments written canonically as `name(index) = expression`
 - `print` containing one or more expressions separated by semicolons
 - `print_at row, column;` followed by one or more expressions separated by semicolons
-- `open_device handle, PRINTER` and `open_device handle, RS232`
+- `open_device handle, PRINTER`, `open_device handle, TEXT_PRINTER`, and `open_device handle, RS232`
 - `print_device handle;` followed by one or more expressions separated by semicolons
 - `close_device handle`
-- Runtime device availability checks with `device_available(PRINTER)` and `device_available(RS232)`
+- Runtime device availability checks with `device_available(PRINTER)`, `device_available(TEXT_PRINTER)`, and `device_available(RS232)`
 - Test-mode `TEST name()` / `END TEST` blocks
 - Test-mode assertions `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and portable colour assertions
 - `cls` and `cls colour`
@@ -133,7 +133,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER` and `RS232`.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, and `RS232`.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
@@ -180,7 +180,7 @@ Supported expression forms:
 - Runtime random number function call `RND()`
 - Runtime timer function call `JIFFIES()`
 - Runtime keyboard function call `KEY_CODE()`
-- Runtime device availability call `DEVICE_AVAILABLE(PRINTER)` or `DEVICE_AVAILABLE(RS232)`
+- Runtime device availability call `DEVICE_AVAILABLE(PRINTER)`, `DEVICE_AVAILABLE(TEXT_PRINTER)`, or `DEVICE_AVAILABLE(RS232)`
 - Array reads such as `VALUES(0)` and `MESSAGES$(0)`
 - Parenthesized expressions
 - Unary `-`

@@ -1,3 +1,6 @@
+import type { DeviceKind } from "./devices.js";
+export type { DeviceKind } from "./devices.js";
+
 export interface SourceLocation {
   readonly filename: string;
   readonly line: number;
@@ -110,8 +113,6 @@ export interface PrintAtPosition {
   readonly column: Expression;
   readonly location: SourceLocation;
 }
-
-export type DeviceKind = "printer" | "text-printer" | "rs232";
 
 export interface OpenDeviceStatement {
   readonly kind: "open-device";

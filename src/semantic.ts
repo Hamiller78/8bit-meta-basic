@@ -1,5 +1,6 @@
 import type { BinaryOperator, Expression, Program, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
+import { deviceSourceList, isSourceDeviceName } from "./devices.js";
 import {
   attachTestImplementations,
   collectFunctionDefinitions,
@@ -723,7 +724,7 @@ function foldFunctionCall(
     }
     const [device] = expression.args;
     if (device.kind !== "identifier" || !isSupportedDeviceName(device.name)) {
-      throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE currently supports PRINTER, TEXT_PRINTER, and RS232.");
+      throw new DiagnosticError(expression.location, `DEVICE_AVAILABLE currently supports ${deviceSourceList}.`);
     }
 
     return { ...expression, name, args: [device] };
@@ -868,8 +869,7 @@ function foldFunctionCall(
 }
 
 function isSupportedDeviceName(name: string): boolean {
-  const upper = name.toUpperCase();
-  return upper === "PRINTER" || upper === "TEXT_PRINTER" || upper === "RS232";
+  return isSourceDeviceName(name);
 }
 
 function isNumericRuntimeFunctionName(name: string): boolean {

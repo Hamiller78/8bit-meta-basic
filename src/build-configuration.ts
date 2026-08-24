@@ -1,8 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Program } from "./ast.js";
-import type { DeviceKind } from "./ast.js";
 import { compileProgramDetailed, type CompileOptions, type CompileResult } from "./compiler.js";
+import { deviceCliList, isDeviceKind, type DeviceKind } from "./devices.js";
 import { parseSource } from "./parser.js";
 
 export interface BuildConfiguration {
@@ -83,7 +83,7 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   }
   const testOutputDevice = (value as { testOutputDevice?: unknown }).testOutputDevice;
   if (testOutputDevice !== undefined && !isDeviceKind(testOutputDevice)) {
-    throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be "printer", "text-printer", or "rs232" when present.`);
+    throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be ${deviceCliList} when present.`);
   }
 
   return {
@@ -92,10 +92,6 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
     ...(testOutputDevice !== undefined ? { testOutputDevice } : {})
   };
-}
-
-function isDeviceKind(value: unknown): value is DeviceKind {
-  return value === "printer" || value === "text-printer" || value === "rs232";
 }
 
 async function readBuildProgram(configuration: BuildConfiguration, baseDir: string): Promise<Program> {
