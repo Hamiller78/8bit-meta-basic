@@ -143,7 +143,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device printer|rs232]");
+    throw new Error("Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device printer|text-printer|rs232]");
   }
 
   if (inputPath && configPath) {
@@ -178,10 +178,10 @@ function parseReadabilityLevel(value: string, optionName: string): ReadabilityLe
 
 function parseDeviceKind(value: string): DeviceKind {
   const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "rs232") {
+  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
     return normalized;
   }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 main(process.argv.slice(2)).then((exitCode) => {

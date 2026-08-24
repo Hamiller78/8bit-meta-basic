@@ -141,7 +141,7 @@ class Parser {
     const device = this.expectIdentifier("Expected device name after OPEN_DEVICE comma.").text;
     const deviceKind = parseDeviceKind(device);
     if (!deviceKind) {
-      throw new DiagnosticError(this.current().location, `Unsupported device "${device}". OPEN_DEVICE currently supports PRINTER and RS232.`);
+      throw new DiagnosticError(this.current().location, `Unsupported device "${device}". OPEN_DEVICE currently supports PRINTER, TEXT_PRINTER, and RS232.`);
     }
     this.expectLineEnd();
     return { kind: "open-device", handle, device: deviceKind, location };
@@ -850,6 +850,8 @@ function parseDeviceKind(device: string): Extract<Statement, { kind: "open-devic
   switch (device.toUpperCase()) {
     case "PRINTER":
       return "printer";
+    case "TEXT_PRINTER":
+      return "text-printer";
     case "RS232":
       return "rs232";
     default:

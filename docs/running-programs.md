@@ -37,7 +37,38 @@ Still to verify:
 - Exact menu command for attaching the tape
 - Whether the generated file autoloads or requires `RUN`
 - Procedure on The Spectrum physical device
-- Printer/text-file capture for Meta-BASIC test-runner output using `--printer-output`
+- Full project test-runner capture using `--printer-output`
+
+## ZX Spectrum test output capture with Fuse
+
+Status: **minimal path verified locally with Fuse**.
+
+For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
+
+```text
+npm run launch:spectrum -- --project examples/instruction-suite --run-tests --printer-output --test-output-device text-printer --restart
+```
+
+The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
+
+```json
+"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
+```
+
+Captured output is written to:
+
+```text
+build/printer/<profile>/spectrum/<source-name>.txt
+```
+
+The minimal verified experiment was:
+
+```basic
+10 LPRINT "HELLO MCP"
+20 GO TO 20
+```
+
+with Fuse launched as a 48K Spectrum and ZX Printer text output enabled. The host text file became visible while Fuse was still running. The Interface 1 RS-232 path was not usable on this Windows/Fuse setup because the receive-file option raised a "Not yet implemented on Win32" dialog, and the transmit path did not produce reliable live output.
 
 ## Atari 800XL with an ATR listing
 

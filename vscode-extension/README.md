@@ -66,7 +66,7 @@ By default the extension assumes it is being developed inside this repository an
 - `metabasic.runExternalTools`: whether configured converter tools should run during builds.
 - `metabasic.restartEmulators`: whether launch commands pass `--restart`.
 - `metabasic.mirrorTestOutput`: whether launch test commands pass `--printer-output`.
-- `metabasic.testOutputDevice`: `printer` or `rs232` when mirrored test output is enabled.
+- `metabasic.testOutputDevice`: `printer`, `text-printer`, or `rs232` when mirrored test output is enabled.
 
 ## Next Milestones
 

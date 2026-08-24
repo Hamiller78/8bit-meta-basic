@@ -62,6 +62,7 @@ Constant coordinates must fit these zero-based ranges:
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`.
 - `PRINT_AT` maps directly to `PRINT AT`.
+- `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
 - `KEY_CODE()` uses `INKEY$`; short taps can be missed while the program is busy.
@@ -75,6 +76,7 @@ Constant coordinates must fit these zero-based ranges:
 - `PRINT_AT` reverses portable `row, column` into Atari's `POSITION column,row`.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
+- `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
 - Fixed-width string arrays render as one backing Atari string. For example, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`.
@@ -95,6 +97,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
+- `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
 - `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `RND()` lowers to `RND(1)`; `RANDOMIZE seed` lowers to a generated assignment using `RND(-seed)`.

@@ -340,15 +340,15 @@ if device_available(PRINTER) then
 end if
 ```
 
-Supported device constants are `PRINTER` and `RS232`. Device handles are source-level names that the compiler lowers to target channel or stream numbers; they must be opened before `PRINT_DEVICE` or `CLOSE_DEVICE`, and duplicate open handles are rejected. `PRINT_DEVICE` uses the same semicolon-separated item list as `PRINT`.
+Supported device constants are `PRINTER`, `TEXT_PRINTER`, and `RS232`. Device handles are source-level names that the compiler lowers to target channel or stream numbers; they must be opened before `PRINT_DEVICE` or `CLOSE_DEVICE`, and duplicate open handles are rejected. `PRINT_DEVICE` uses the same semicolon-separated item list as `PRINT`.
 
 Target lowering:
 
-- Spectrum: `PRINTER` uses stream `#4` opened as `"P"`; `RS232` uses stream `#4` opened as `"t"` for Interface 1 style text serial output. Availability is currently best-effort.
-- Atari 800XL: `PRINTER` opens `P:`; `RS232` opens `R:`. Availability is checked with `TRAP` around an `OPEN` where practical.
-- C64: `PRINTER` uses device 4 and can be probed through the status channel. `RS232` uses device 2/userport RS-232. C64 RS-232 availability currently reports true because probing the RS-232 channel can disturb the connection.
+- Spectrum: `PRINTER` uses stream `#4` opened as `"P"`; `TEXT_PRINTER` lowers `PRINT_DEVICE` to `LPRINT` for Fuse ZX Printer text capture; `RS232` uses stream `#4` opened as `"t"` for Interface 1 style text serial output. Availability is currently best-effort.
+- Atari 800XL: `PRINTER` and `TEXT_PRINTER` open `P:`; `RS232` opens `R:`. Availability is checked with `TRAP` around an `OPEN` where practical.
+- C64: `PRINTER` and `TEXT_PRINTER` use device 4 and can be probed through the status channel. `RS232` uses device 2/userport RS-232. C64 RS-232 availability currently reports true because probing the RS-232 channel can disturb the connection.
 
-Test-mode launch scripts can mirror the generated test-runner log to a configured device with `--printer-output` and `--test-output-device printer|rs232`. The flag name `--printer-output` is historical; with `--test-output-device rs232` it means "mirror test output to the selected external device".
+Test-mode launch scripts can mirror the generated test-runner log to a configured device with `--printer-output` and `--test-output-device printer|text-printer|rs232`. The flag name `--printer-output` is historical; with `--test-output-device rs232` it means "mirror test output to the selected external device".
 
 ## CLS, border colour, and portable colours
 

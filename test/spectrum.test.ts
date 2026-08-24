@@ -249,6 +249,30 @@ describe("Spectrum compiler", () => {
     ).toBe(['10 OPEN #4,"t"', '20 PRINT #4;"RESULT: ";SCORE', "30 CLOSE #4", ""].join("\n"));
   });
 
+  it("renders text printer device output through Spectrum LPRINT", () => {
+    expect(
+      compileSource('open_device TestLog, TEXT_PRINTER\nprint_device TestLog; "RESULT: "; score\nclose_device TestLog\n', {
+        filename: "text-printer.mbas",
+        target: "spectrum",
+        readability: 0
+      })
+    ).toBe(['10 REM OPEN TEXT_PRINTER', '20 LPRINT "RESULT: ";SCORE', "30 REM CLOSE TEXT_PRINTER", ""].join("\n"));
+  });
+
+  it("mirrors the Spectrum test runner output through LPRINT when text-printer is selected", () => {
+    const output = compileSource("test Smoke()\nassert_true 1\nend test\n", {
+      filename: "text-printer-tests.mbas",
+      target: "spectrum",
+      readability: 0,
+      testMode: true,
+      testPrinterOutput: true,
+      testOutputDevice: "text-printer"
+    });
+
+    expect(output).toContain('LPRINT "META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).not.toContain("PRINT #");
+  });
+
   it("lowers Spectrum printer availability checks as a best-effort open stream assumption", () => {
     expect(
       compileSource('available = device_available(PRINTER)\nprint available\n', {

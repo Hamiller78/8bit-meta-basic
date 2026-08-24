@@ -53,8 +53,18 @@ describe("parser", () => {
     });
   });
 
+  it("parses text printer device output statements", () => {
+    expect(parseSource('open_device TestLog, TEXT_PRINTER\nprint_device TestLog; "PING"\nclose_device TestLog\n', "text-printer.mbas")).toMatchObject({
+      statements: [
+        { kind: "open-device", handle: "TestLog", device: "text-printer" },
+        { kind: "print-device", handle: "TestLog", items: [{ kind: "string", value: "PING" }] },
+        { kind: "close-device", handle: "TestLog" }
+      ]
+    });
+  });
+
   it("rejects unsupported portable device names", () => {
-    expect(() => parseSource("open_device Log, MODEM\n", "device.mbas")).toThrow("OPEN_DEVICE currently supports PRINTER and RS232");
+    expect(() => parseSource("open_device Log, MODEM\n", "device.mbas")).toThrow("OPEN_DEVICE currently supports PRINTER, TEXT_PRINTER, and RS232");
   });
 
   it("parses FUNCTION blocks with parameters, locals, and return expressions", () => {

@@ -111,7 +111,7 @@ export interface PrintAtPosition {
   readonly location: SourceLocation;
 }
 
-export type DeviceKind = "printer" | "rs232";
+export type DeviceKind = "printer" | "text-printer" | "rs232";
 
 export interface OpenDeviceStatement {
   readonly kind: "open-device";

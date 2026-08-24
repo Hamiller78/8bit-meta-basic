@@ -117,6 +117,7 @@
           "type": "string",
           "enum": [
             "printer",
+            "text-printer",
             "rs232"
           ],
           "default": "printer",

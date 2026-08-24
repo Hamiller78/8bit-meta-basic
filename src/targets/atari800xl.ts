@@ -254,7 +254,7 @@ function expandAtariDeviceAvailabilityCheck(
   ];
 }
 
-function atariDeviceSpec(device: "printer" | "rs232"): "P:" | "R:" {
+function atariDeviceSpec(device: "printer" | "text-printer" | "rs232"): "P:" | "R:" {
   return device === "rs232" ? "R:" : "P:";
 }
 

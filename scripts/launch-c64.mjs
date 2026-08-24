@@ -253,10 +253,10 @@ function safeName(value) {
 
 function parseDeviceKind(value) {
   const normalized = value.toLowerCase();
-  if (normalized === "printer" || normalized === "rs232") {
+  if (normalized === "printer" || normalized === "text-printer" || normalized === "rs232") {
     return normalized;
   }
-  throw new Error(`Invalid --test-output-device value "${value}". Expected printer or rs232.`);
+  throw new Error(`Invalid --test-output-device value "${value}". Expected printer, text-printer, or rs232.`);
 }
 
 async function terminateExistingEmulator(emulatorPath) {

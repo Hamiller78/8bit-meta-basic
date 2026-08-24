@@ -83,7 +83,7 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   }
   const testOutputDevice = (value as { testOutputDevice?: unknown }).testOutputDevice;
   if (testOutputDevice !== undefined && !isDeviceKind(testOutputDevice)) {
-    throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be "printer" or "rs232" when present.`);
+    throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be "printer", "text-printer", or "rs232" when present.`);
   }
 
   return {
@@ -95,7 +95,7 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
 }
 
 function isDeviceKind(value: unknown): value is DeviceKind {
-  return value === "printer" || value === "rs232";
+  return value === "printer" || value === "text-printer" || value === "rs232";
 }
 
 async function readBuildProgram(configuration: BuildConfiguration, baseDir: string): Promise<Program> {

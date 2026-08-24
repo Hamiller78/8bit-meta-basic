@@ -66,10 +66,11 @@ Recognized test-file names are `tests/math.mbas`, `tests/math-tests.mbas`, and `
 
 `--run-tests` also works with `--source`, `--build-config`, `build:directory`, and the target/all launch scripts.
 
-To mirror the generated test-runner log to an emulator device, add `--printer-output`. The default device is `printer`; `--test-output-device rs232` selects serial capture where configured:
+To mirror the generated test-runner log to an emulator device, add `--printer-output`. The default device is `printer`; `--test-output-device text-printer` selects the Spectrum `LPRINT`/ZX Printer text-capture path, and `--test-output-device rs232` selects serial capture where configured:
 
 ```text
 npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run launch:spectrum -- --project examples/instruction-suite --run-tests --printer-output --test-output-device text-printer --restart
 ```
 
 The captured host file path is controlled by the emulator block in `scripts/tools.local.json`:
@@ -270,11 +271,13 @@ The older printer capture config remains available, but local VICE printer-to-fi
 
 The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args` hooks for Spectrum and Atari, but the exact emulator workflows are not yet verified by this project.
 
-For Spectrum/Fuse, the example printer config uses Fuse's ZX Printer/text-file options:
+For Spectrum/Fuse, use `--test-output-device text-printer` for host text capture. The Spectrum backend then emits `LPRINT`, and the example printer config uses Fuse's ZX Printer/text-file options:
 
 ```json
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
 ```
+
+The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO MCP"`, launched with ZX Printer text output enabled. The host file was updated while Fuse was still running. The older Spectrum `PRINTER` stream path (`OPEN #...,"P"` plus `PRINT #...`) did not produce text output in that experiment.
 
 For Atari/Altirra, the source language can emit `OPEN_DEVICE ..., PRINTER` or `OPEN_DEVICE ..., RS232`, lowering to `P:` or `R:` respectively. The launch config currently leaves the emulator arguments empty until a repeatable Altirra printer or serial-to-host-file setup is chosen.
 

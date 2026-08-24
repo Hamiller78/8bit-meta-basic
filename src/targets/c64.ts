@@ -146,7 +146,7 @@ function expandDeviceAvailabilityChecks(program: LoweredProgram): LoweredProgram
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
-    if (instruction.kind === "check-device" && instruction.device === "printer") {
+    if (instruction.kind === "check-device" && (instruction.device === "printer" || instruction.device === "text-printer")) {
       instructions.push({ kind: "open-device", handle: "__mb_probe", device: instruction.device, location: instruction.location });
       instructions.push({ kind: "close-device", handle: "__mb_probe", location: instruction.location });
       instructions.push(instruction);
@@ -159,7 +159,7 @@ function expandDeviceAvailabilityChecks(program: LoweredProgram): LoweredProgram
 }
 
 function expandRs232CloseFlush(program: LoweredProgram): LoweredProgram {
-  const openDevices = new Map<string, "printer" | "rs232">();
+  const openDevices = new Map<string, "printer" | "text-printer" | "rs232">();
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {

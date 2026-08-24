@@ -58,10 +58,19 @@ export const spectrumTarget: TargetBackend = {
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "open-device":
+        if (instruction.device === "text-printer") {
+          return `${lineNumber} REM OPEN TEXT_PRINTER`;
+        }
         return `${lineNumber} OPEN #${spectrumStreamNumber(instruction.handle, instruction.location)},"${spectrumChannelName(instruction.device)}"`;
       case "print-device":
+        if (deviceForHandle(instruction.handle) === "text-printer") {
+          return `${lineNumber} LPRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+        }
         return `${lineNumber} PRINT #${spectrumStreamNumber(instruction.handle, instruction.location)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "close-device":
+        if (deviceForHandle(instruction.handle) === "text-printer") {
+          return `${lineNumber} REM CLOSE TEXT_PRINTER`;
+        }
         return `${lineNumber} CLOSE #${spectrumStreamNumber(instruction.handle, instruction.location)}`;
       case "check-device":
         return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=1`;
@@ -124,8 +133,17 @@ function spectrumStreamNumber(handle: string, location: Expression["location"]):
   return stream;
 }
 
-function spectrumChannelName(device: "printer" | "rs232"): "P" | "t" {
+function spectrumChannelName(device: "printer" | "text-printer" | "rs232"): "P" | "t" {
   return device === "rs232" ? "t" : "P";
+}
+
+function deviceForHandle(handle: string): "printer" | "text-printer" | "rs232" | undefined {
+  for (const instruction of currentProgramInstructions) {
+    if (instruction.kind === "open-device" && instruction.handle.toLowerCase() === handle.toLowerCase()) {
+      return instruction.device;
+    }
+  }
+  return undefined;
 }
 
 function deviceHandleIndex(handle: string): number {
