@@ -12,6 +12,11 @@ Record emulator/device version, host operating system, target video mode, and re
 
 Status: **partly verified**.
 
+Configuration split:
+
+- JSON: set the `bas2tap` path, Fuse executable path, tape launch arguments, optional `testArgs`, and test-output file arguments in `scripts/tools.local.json`.
+- Manual: install Fuse and `bas2tap`; choose a 48K-compatible model if your Fuse default differs; decide whether your local Fuse needs `-auto-play` or already starts loaded tapes automatically.
+
 1. Build the Spectrum `.tap` using the configured `bas2tap` integration.
 2. Start Fuse with a Spectrum model compatible with the program.
 3. At the Sinclair prompt, enter:
@@ -61,6 +66,8 @@ The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch 
 When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this runs Fuse at `500%` speed. Normal Spectrum launches do not receive this speed override.
 `{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere so Fuse does not grow the default `printout.pbm` ZX Printer bitmap file while the text capture is active.
 
+Manual Fuse printer setup is not required for this path when the launcher arguments are configured as above. Keep `--zxprinter`; without it, the verified 48K text-file capture did not produce output. The `--graphicsfile {nullDevice}` part is what prevents the unwanted bitmap printout file.
+
 Captured output is written to:
 
 ```text
@@ -79,6 +86,11 @@ with Fuse launched as a 48K Spectrum and ZX Printer text output enabled. The hos
 ## Atari 800XL with an ATR listing
 
 Status: **current documented project workflow; emulator details need a clean repeat test**.
+
+Configuration split:
+
+- JSON: set `basicParser`, `dir2atr`, Altirra executable path, artifact launch arguments, and shared-drive output paths in `scripts/tools.local.json`.
+- Manual: install Altirra and the Atari packaging tools; if using test capture, create or select an Altirra profile with a writable H: host device pointing at the configured shared-drive folder.
 
 The launch helper can build the selected program and run the tokenized `.BAS` in Altirra:
 
@@ -165,6 +177,8 @@ C:\Users\Knees\source\repos\8bit-meta-basic\build\altirra_drive\
 
 The launcher clears `build/altirra_drive/MCP.TXT` before starting Altirra, and the generated Atari test runner writes to `H6:MCP.TXT` so line endings become readable on the host.
 
+This H: mapping is currently a manual Altirra setting. The JSON config only tells the launcher which host folder and output filename to prepare; it does not create the emulator profile or change Altirra's GUI settings.
+
 Shared-drive capture:
 
 ```text
@@ -181,6 +195,11 @@ npm run launch:atari -- --project examples/instruction-suite --run-tests --print
 ## Commodore 64 emulator
 
 Status: **artifact generation available; exact repeatable procedure still to document**.
+
+Configuration split:
+
+- JSON: set `petcat`, VICE executable path, autostart arguments, and optional printer/RS-232 capture arguments in `scripts/tools.local.json`.
+- Manual: install VICE; use `--restart` when changing programs if you want the launcher to replace an existing VICE window.
 
 1. Build and launch with:
 
@@ -232,6 +251,8 @@ VICE settings observed during verification:
 - `IP232` unchecked
 
 ACIA/SwiftLink RS-232 settings are separate from this workflow. C64 BASIC V2 `OPEN 1,2,...` uses the userport RS-232 path configured above.
+
+The launcher supplies the dynamic localhost endpoint through `rs232Args`. In normal use you do not need to type that port into VICE yourself; the GUI is only useful for checking that the placeholder was expanded correctly.
 
 If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
 

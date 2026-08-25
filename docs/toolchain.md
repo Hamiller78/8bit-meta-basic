@@ -157,6 +157,7 @@ and configure local executable paths. Keep `tools.local.json` out of version con
 The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
 
 Device-output launch arguments may also use `{printerOutput}`, `{rs232Output}`, and `{rs232Endpoint}`. `{printerOutput}` and `{rs232Output}` expand to host output files. `{rs232Endpoint}` is a dynamically created `127.0.0.1:<port>` endpoint used by the C64/VICE RS-232 capture workflow.
+Spectrum printer launch arguments may also use `{nullDevice}`, which expands to `NUL` on Windows and `/dev/null` elsewhere. Atari shared-drive settings use `sharedDrivePath` and `sharedDriveOutputPath`.
 
 Each launch script understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured conversion tools, then starts the emulator and exits without waiting for the emulator window.
 
@@ -169,6 +170,18 @@ npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
 
 The all-targets launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead.
+
+## Configuration Boundary
+
+Use `scripts/tools.local.json` for values the scripts can pass to external tools:
+
+| Area | Put in JSON | Do manually |
+| --- | --- | --- |
+| Spectrum/Fuse | `bas2tap` path, Fuse path, tape launch args, test speed args, printer text-file args and output path | Install Fuse and `bas2tap`; choose the desired Spectrum model if your local Fuse default is not 48K; keep or remove `-auto-play` depending on your Fuse setup |
+| Atari/Altirra | `basicParser` path, `dir2atr` path, Altirra path, artifact launch args, shared-drive host folder and output file | Install/configure Altirra; set up a writable H: host device in the profile used for tests; optionally disable pause-when-not-focused for faster test runs |
+| C64/VICE | `petcat` path, VICE path, autostart args, RS-232 capture args and output path | Install VICE; verify userport RS-232 is enabled when inspecting the GUI; leave `IP232` unchecked for the local capture helper |
+
+The committed `scripts/tools.example.json` documents the expected shape. The local copy is intentionally machine-specific and should not be committed.
 
 ## Spectrum: bas2tap
 

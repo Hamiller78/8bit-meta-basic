@@ -144,6 +144,7 @@ Spectrum output begins like this:
 ## Documentation
 
 - [Language reference](docs/language-reference.md)
+- [Architecture](docs/architecture.md)
 - [Target machines and generated output](docs/targets.md)
 - [Build and external-tool pipeline](docs/toolchain.md)
 - [Running programs on emulators and retro devices](docs/running-programs.md)
