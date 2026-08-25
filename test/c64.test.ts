@@ -86,8 +86,10 @@ describe("C64 compiler", () => {
     expect(output).toContain("OPEN 15,4,15");
     expect(output).toContain("MB=-(ST=0)");
     expect(output).toContain("OPEN 1,4");
-    expect(output).toContain('PRINT#1,"META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
-    expect(output).toContain('PRINT#1,"RUNNING Smoke...";');
+    expect(output).toContain('MB$="META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).toContain('MB$="RUNNING Smoke..."');
+    expect(output).toContain("PRINT#1,MB$");
+    expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
   });
 
@@ -105,7 +107,8 @@ describe("C64 compiler", () => {
     expect(output).not.toContain("OPEN 15,4,15");
     expect(output).toContain("OPEN 1,2,0,CHR$(10)");
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
-    expect(output).toContain('PRINT#1,"RUNNING Smoke...";');
+    expect(output).toContain('MB$="RUNNING Smoke..."');
+    expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
   });
 

@@ -269,7 +269,9 @@ describe("Spectrum compiler", () => {
       testOutputDevice: "text-printer"
     });
 
-    expect(output).toContain('LPRINT "META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).toContain('LET A$="META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).toContain("LPRINT A$");
+    expect(output).toContain("LPRINT A$;");
     expect(output).toContain("POKE 23692,255");
     expect(output).not.toContain("PRINT #");
   });

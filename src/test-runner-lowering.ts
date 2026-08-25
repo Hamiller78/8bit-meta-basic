@@ -30,6 +30,7 @@ const expectedTextName = "MBAVT";
 const booleanActualName = "MBAB";
 const printerAvailableName = "MBTPRN";
 const printerHandleName = "MBTPR";
+const runnerMessageName = "MBTMSG$";
 const assertTrueLabel = "__mb_assert_true";
 const assertFalseLabel = "__mb_assert_false";
 const assertEqNumberLabel = "__mb_assert_eq_num";
@@ -37,6 +38,8 @@ const assertNeNumberLabel = "__mb_assert_ne_num";
 const assertEqStringLabel = "__mb_assert_eq_str";
 const assertNeStringLabel = "__mb_assert_ne_str";
 const assertPrintAtLabel = "__mb_assert_printat";
+const runnerPrintLineLabel = "__mb_runner_print_line";
+const runnerPrintInlineLabel = "__mb_runner_print_inline";
 
 export interface TestRunnerLowerOptions {
   readonly printerOutput?: boolean;
@@ -119,6 +122,7 @@ export function lowerTestRunner(
   emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location, options);
   if (options.printerOutput) {
     closeTestDevice(instructions, nextInternalLabel, location);
+    emitRunnerPrintHelpers(instructions, nextInternalLabel, location);
   }
   emitAssertionHelpers(instructions, location, assertionHelpers);
   instructions.push({ kind: "end", location });
@@ -598,23 +602,17 @@ function emptyAssertedCaptureState(): AssertedCaptureState {
 }
 
 function openTestDevice(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation, device: DeviceKind): void {
-  const openLabel = nextInternalLabel();
   const doneLabel = nextInternalLabel();
   instructions.push({ kind: "check-device", name: printerAvailableName, device, location });
-  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: openLabel, location });
-  instructions.push({ kind: "goto", label: doneLabel, location });
-  instructions.push({ kind: "label", name: openLabel, internal: true, location });
+  instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(printerAvailableName, location), numberExpression(0, location), location), label: doneLabel, location });
   instructions.push({ kind: "open-device", handle: printerHandleName, device, location });
   instructions.push({ kind: "let", name: printerAvailableName, expression: numberExpression(1, location), location });
   instructions.push({ kind: "label", name: doneLabel, internal: true, location });
 }
 
 function closeTestDevice(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation): void {
-  const closeLabel = nextInternalLabel();
   const doneLabel = nextInternalLabel();
-  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: closeLabel, location });
-  instructions.push({ kind: "goto", label: doneLabel, location });
-  instructions.push({ kind: "label", name: closeLabel, internal: true, location });
+  instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(printerAvailableName, location), numberExpression(0, location), location), label: doneLabel, location });
   instructions.push({ kind: "close-device", handle: printerHandleName, location });
   instructions.push({ kind: "label", name: doneLabel, internal: true, location });
 }
@@ -627,19 +625,40 @@ function emitRunnerPrint(
   location: SourceLocation,
   options: TestRunnerLowerOptions
 ): void {
-  instructions.push({ kind: "suppress-scroll-prompt", location });
-  instructions.push({ kind: "print", items, trailingSemicolon, location });
   if (!options.printerOutput) {
+    instructions.push({ kind: "suppress-scroll-prompt", location });
+    instructions.push({ kind: "print", items, trailingSemicolon, location });
     return;
   }
 
-  const printLabel = nextInternalLabel();
-  const doneLabel = nextInternalLabel();
-  instructions.push({ kind: "if-goto", condition: identifierExpression(printerAvailableName, location), label: printLabel, location });
-  instructions.push({ kind: "goto", label: doneLabel, location });
-  instructions.push({ kind: "label", name: printLabel, internal: true, location });
-  instructions.push({ kind: "print-device", handle: printerHandleName, items, trailingSemicolon, location });
-  instructions.push({ kind: "label", name: doneLabel, internal: true, location });
+  void nextInternalLabel;
+  instructions.push({ kind: "let", name: runnerMessageName, expression: capturedPrintExpression(items, location), location });
+  instructions.push({ kind: "gosub", label: trailingSemicolon ? runnerPrintInlineLabel : runnerPrintLineLabel, location });
+}
+
+function emitRunnerPrintHelpers(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation): void {
+  const afterHelpersLabel = nextInternalLabel();
+  instructions.push({ kind: "goto", label: afterHelpersLabel, location });
+  emitRunnerPrintHelper(instructions, nextInternalLabel, location, runnerPrintLineLabel, false);
+  emitRunnerPrintHelper(instructions, nextInternalLabel, location, runnerPrintInlineLabel, true);
+  instructions.push({ kind: "label", name: afterHelpersLabel, internal: true, location });
+}
+
+function emitRunnerPrintHelper(
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  location: SourceLocation,
+  label: string,
+  trailingSemicolon: boolean
+): void {
+  const screenLabel = nextInternalLabel();
+  instructions.push({ kind: "label", name: label, internal: true, location });
+  instructions.push({ kind: "suppress-scroll-prompt", location });
+  instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(printerAvailableName, location), numberExpression(0, location), location), label: screenLabel, location });
+  instructions.push({ kind: "print-device", handle: printerHandleName, items: [identifierExpression(runnerMessageName, location)], trailingSemicolon, location });
+  instructions.push({ kind: "label", name: screenLabel, internal: true, location });
+  instructions.push({ kind: "print", items: [identifierExpression(runnerMessageName, location)], trailingSemicolon, location });
+  instructions.push({ kind: "return", location });
 }
 
 function emitFailureBorder(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation): void {
