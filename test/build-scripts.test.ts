@@ -103,13 +103,14 @@ describe("build scripts", () => {
       name: "Fuse",
       testOutputDevice: "text-printer",
       args: ["-tape", "{artifact}", "-auto-play"],
-      testArgs: ["--speed", "500"]
+      testArgs: ["--speed", "500"],
+      printerArgs: ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
     });
   });
 
   it("adds Fuse speed-up arguments for Spectrum test launches only", async () => {
     const { spectrumEmulatorArgsTemplate } = await import("../scripts/launch-spectrum.mjs");
-    const emulator = { args: ["-tape", "{artifact}"], printerArgs: ["--textfile", "{printerOutput}"] };
+    const emulator = { args: ["-tape", "{artifact}"], printerArgs: ["--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"] };
 
     expect(spectrumEmulatorArgsTemplate(emulator, { testMode: false, testPrinterOutput: false })).toEqual(["-tape", "{artifact}"]);
     expect(spectrumEmulatorArgsTemplate(emulator, { testMode: true, testPrinterOutput: true, deviceArgs: emulator.printerArgs })).toEqual([
@@ -118,7 +119,9 @@ describe("build scripts", () => {
       "--speed",
       "500",
       "--textfile",
-      "{printerOutput}"
+      "{printerOutput}",
+      "--graphicsfile",
+      "{nullDevice}"
     ]);
   });
 

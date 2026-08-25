@@ -60,6 +60,7 @@ async function launchSpectrum(options) {
     sourceName: program.name,
     profile: options.profile,
     target: "spectrum",
+    nullDevice: process.platform === "win32" ? "NUL" : "/dev/null",
     printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "printer"),
     rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "rs232")
   };

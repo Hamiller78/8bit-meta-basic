@@ -55,10 +55,11 @@ The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch 
 
 ```json
 "testArgs": ["--speed", "500"],
-"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
+"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
 ```
 
 When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this runs Fuse at `500%` speed. Normal Spectrum launches do not receive this speed override.
+`{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere so Fuse does not grow the default `printout.pbm` ZX Printer bitmap file while the text capture is active.
 
 Captured output is written to:
 

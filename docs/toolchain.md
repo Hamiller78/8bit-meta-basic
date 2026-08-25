@@ -270,16 +270,17 @@ The older printer capture config remains available, but local VICE printer-to-fi
 
 ## Spectrum and Atari: test output capture
 
-The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args` hooks for Spectrum and Atari, but the exact emulator workflows are not yet verified by this project.
+The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232OutputPath`, and `rs232Args` hooks for Spectrum and Atari.
 
 For Spectrum/Fuse, use `--test-output-device text-printer` for host text capture. The Spectrum backend then emits `LPRINT`, and the example printer config uses Fuse's ZX Printer/text-file options:
 
 ```json
 "testArgs": ["--speed", "500"],
-"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
+"printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
 ```
 
 Spectrum test launches append `testArgs` automatically when `--run-tests` is active; the default is Fuse `--speed 500`. Normal Spectrum launches keep the configured `args` only.
+`{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere, which prevents Fuse from appending ZX Printer bitmap data to the default `printout.pbm` while still writing OCR-style text to `{printerOutput}`.
 
 The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO MCP"`, launched with ZX Printer text output enabled. The host file was updated while Fuse was still running. The older Spectrum `PRINTER` stream path (`OPEN #...,"P"` plus `PRINT #...`) did not produce text output in that experiment.
 

@@ -15,7 +15,7 @@
       "args": ["-tape", "{artifact}", "-auto-play"],
       "testArgs": ["--speed", "500"],
       "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
-      "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"],
+      "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"],
       "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
       "rs232Args": []
     }
