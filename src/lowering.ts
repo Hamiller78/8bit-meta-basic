@@ -43,6 +43,7 @@ export type Instruction =
   | ScreenBackgroundColorInstruction
   | CellTextColorInstruction
   | CellBackgroundColorInstruction
+  | SuppressScrollPromptInstruction
   | PaperInstruction
   | PrintInstruction
   | OpenDeviceInstruction
@@ -120,6 +121,11 @@ export interface CellTextColorInstruction {
 export interface CellBackgroundColorInstruction {
   readonly kind: "cell-background-color";
   readonly color: Extract<Expression, { kind: "color" }>;
+  readonly location: SourceLocation;
+}
+
+export interface SuppressScrollPromptInstruction {
+  readonly kind: "suppress-scroll-prompt";
   readonly location: SourceLocation;
 }
 
@@ -497,6 +503,11 @@ function lowerStatements(
           color: statement.color as Extract<Expression, { kind: "color" }>,
           location: statement.location
         });
+        break;
+      case "suppress-scroll-prompt":
+        if (!options.capturePrints) {
+          instructions.push({ kind: "suppress-scroll-prompt", location: statement.location });
+        }
         break;
       case "label":
         instructions.push({ kind: "label", name: statement.name, internal: false, location: statement.location });

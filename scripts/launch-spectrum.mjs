@@ -67,7 +67,11 @@ async function launchSpectrum(options) {
     await prepareDeviceOutput(testOutputDevice === "rs232" ? replacements.rs232Output : replacements.printerOutput);
   }
   const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
-  const argsTemplate = [...(emulator.args ?? ["-tape", "{artifact}", "-auto-play"]), ...(options.testPrinterOutput ? deviceArgs : [])];
+  const argsTemplate = spectrumEmulatorArgsTemplate(emulator, {
+    testMode: options.testMode,
+    testPrinterOutput: options.testPrinterOutput,
+    deviceArgs
+  });
   const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
   const child = spawn(emulatorPath, args, {
@@ -79,6 +83,13 @@ async function launchSpectrum(options) {
   child.unref();
 
   console.log(`launched ${emulator.name ?? "Spectrum emulator"} with ${relativeToCwd(cwd, artifact)}`);
+}
+
+export function spectrumEmulatorArgsTemplate(emulator = {}, options = {}) {
+  const baseArgs = emulator.args ?? ["-tape", "{artifact}", "-auto-play"];
+  const testArgs = options.testMode ? emulator.testArgs ?? ["--speed", "500"] : [];
+  const deviceArgs = options.testPrinterOutput ? options.deviceArgs ?? [] : [];
+  return [...baseArgs, ...testArgs, ...deviceArgs];
 }
 
 function parseArgs(argv) {

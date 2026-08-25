@@ -82,6 +82,8 @@ export const atari800xlTarget: TargetBackend = {
         });
       } else if (instruction.kind === "cell-text-color" || instruction.kind === "cell-background-color") {
         continue;
+      } else if (instruction.kind === "suppress-scroll-prompt") {
+        continue;
       } else if (instruction.kind === "randomize") {
         continue;
       } else if (instruction.kind === "check-device") {
@@ -138,6 +140,7 @@ export const atari800xlTarget: TargetBackend = {
       case "screen-background-color":
       case "cell-text-color":
       case "cell-background-color":
+      case "suppress-scroll-prompt":
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":

@@ -55,6 +55,8 @@ export const spectrumTarget: TargetBackend = {
       case "text-color":
       case "cell-text-color":
         return `${lineNumber} INK ${spectrumColorCodes[instruction.color.color]}`;
+      case "suppress-scroll-prompt":
+        return `${lineNumber} POKE 23692,255`;
       case "print":
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`

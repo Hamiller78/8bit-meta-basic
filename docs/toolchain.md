@@ -190,7 +190,8 @@ Configure Fuse in `scripts/tools.local.json`:
   "emulator": {
   "name": "Fuse",
   "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
-  "args": ["-tape", "{artifact}", "-auto-play"]
+  "args": ["-tape", "{artifact}", "-auto-play"],
+  "testArgs": ["--speed", "500"]
 }
 ```
 
@@ -274,8 +275,11 @@ The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232Ou
 For Spectrum/Fuse, use `--test-output-device text-printer` for host text capture. The Spectrum backend then emits `LPRINT`, and the example printer config uses Fuse's ZX Printer/text-file options:
 
 ```json
+"testArgs": ["--speed", "500"],
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
 ```
+
+Spectrum test launches append `testArgs` automatically when `--run-tests` is active; the default is Fuse `--speed 500`. Normal Spectrum launches keep the configured `args` only.
 
 The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO MCP"`, launched with ZX Printer text output enabled. The host file was updated while Fuse was still running. The older Spectrum `PRINTER` stream path (`OPEN #...,"P"` plus `PRINT #...`) did not produce text output in that experiment.
 

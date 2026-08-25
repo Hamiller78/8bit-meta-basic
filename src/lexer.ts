@@ -46,6 +46,7 @@ export const keywords = new Set([
   "SCREEN_BACKGROUND_COLOR",
   "SCREEN_BORDER_COLOR",
   "SCREEN_TEXT_COLOR",
+  "SUPPRESS_SCROLL_PROMPT",
   "NEXT",
   "STEP",
   "THEN",

@@ -44,6 +44,7 @@ export const c64Target: TargetBackend = {
       case "screen-background-color":
       case "cell-text-color":
       case "cell-background-color":
+      case "suppress-scroll-prompt":
       case "paper":
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
@@ -511,7 +512,7 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         },
         location: instruction.location
       });
-    } else if (instruction.kind === "cell-background-color") {
+    } else if (instruction.kind === "cell-background-color" || instruction.kind === "suppress-scroll-prompt") {
       continue;
     } else {
       instructions.push(instruction);

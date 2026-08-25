@@ -66,6 +66,7 @@ Constant coordinates must fit these zero-based ranges:
 - `SHARED_DRIVE` is not supported on Spectrum.
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
+- `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
 - `KEY_CODE()` uses `INKEY$`; short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
@@ -84,6 +85,7 @@ Constant coordinates must fit these zero-based ranges:
 - Fixed-width string arrays render as one backing Atari string. For example, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
+- `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter.
 - `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
@@ -99,6 +101,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
+- `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
 - `SHARED_DRIVE` is not supported on C64.
 - `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.

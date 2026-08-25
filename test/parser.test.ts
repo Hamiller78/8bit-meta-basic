@@ -379,6 +379,11 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses SUPPRESS_SCROLL_PROMPT as a no-argument screen command", () => {
+    expect(parseSource("suppress_scroll_prompt\n", "screen.mbas").statements).toMatchObject([{ kind: "suppress-scroll-prompt" }]);
+    expect(() => parseSource("suppress_scroll_prompt 1\n", "screen.mbas")).toThrow('Expected end of line, found "1"');
+  });
+
   it("reports missing BORDER_COLOR colour", () => {
     expect(() => parseSource("border_color\n", "border.mbas")).toThrow("BORDER_COLOR requires a colour expression");
   });

@@ -183,6 +183,9 @@ function analyzeStatements(
         analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CELL_BACKGROUND_COLOR", arrays, functions, scope) });
         break;
       }
+      case "suppress-scroll-prompt":
+        analyzed.push(statement);
+        break;
       case "let": {
         const targetName = resolveScopedName(statement.name, scope);
         const isScopedVariable = scope?.variables.has(normalizeName(statement.name)) ?? false;

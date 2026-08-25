@@ -73,7 +73,7 @@
         },
         {
           "name": "keyword.other.metabasic",
-          "match": "(?i)\\b(?:CONST|PRINT|PRINT_AT|CLS|BORDER_COLOR|TEXT_COLOR|SCREEN_BORDER_COLOR|SCREEN_BACKGROUND_COLOR|SCREEN_TEXT_COLOR|CELL_TEXT_COLOR|CELL_BACKGROUND_COLOR)\\b"
+          "match": "(?i)\\b(?:CONST|PRINT|PRINT_AT|CLS|BORDER_COLOR|TEXT_COLOR|SCREEN_BORDER_COLOR|SCREEN_BACKGROUND_COLOR|SCREEN_TEXT_COLOR|CELL_TEXT_COLOR|CELL_BACKGROUND_COLOR|SUPPRESS_SCROLL_PROMPT)\\b"
         },
         {
           "name": "keyword.operator.logical.metabasic",

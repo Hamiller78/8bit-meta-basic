@@ -29,6 +29,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["RETURN", (parser, location) => parser.parseReturn(location)],
   ["RESTORE", (parser, location) => parser.parseRestore(location)],
   ["RANDOMIZE", (parser, location) => parser.parseRandomize(location)],
+  ["SUPPRESS_SCROLL_PROMPT", (parser, location) => parser.parseSuppressScrollPrompt(location)],
   ["ASSERT_TRUE", (parser, location) => parser.parseAssertUnary("assert-true", location)],
   ["ASSERT_FALSE", (parser, location) => parser.parseAssertUnary("assert-false", location)],
   ["ASSERT_EQ", (parser, location) => parser.parseAssertBinary("assert-eq", location)],
@@ -242,6 +243,11 @@ class Parser {
     const color = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "cell-background-color", color, location };
+  }
+
+  parseSuppressScrollPrompt(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    return { kind: "suppress-scroll-prompt", location };
   }
 
   parsePrintAtStatement(location: SourceLocation): Statement {

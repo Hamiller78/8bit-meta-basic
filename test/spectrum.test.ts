@@ -270,7 +270,14 @@ describe("Spectrum compiler", () => {
     });
 
     expect(output).toContain('LPRINT "META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
+    expect(output).toContain("POKE 23692,255");
     expect(output).not.toContain("PRINT #");
+  });
+
+  it("renders SUPPRESS_SCROLL_PROMPT as a Spectrum scroll counter refresh", () => {
+    expect(compileSource('suppress_scroll_prompt\nprint "OK"\n', { filename: "scroll.mbas", target: "spectrum", readability: 0 })).toBe(
+      ['10 POKE 23692,255', '20 PRINT "OK"', ""].join("\n")
+    );
   });
 
   it("lowers Spectrum printer availability checks as a best-effort open stream assumption", () => {

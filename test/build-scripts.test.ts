@@ -102,8 +102,24 @@ describe("build scripts", () => {
     expect(config.spectrum.emulator).toMatchObject({
       name: "Fuse",
       testOutputDevice: "text-printer",
-      args: ["-tape", "{artifact}", "-auto-play"]
+      args: ["-tape", "{artifact}", "-auto-play"],
+      testArgs: ["--speed", "500"]
     });
+  });
+
+  it("adds Fuse speed-up arguments for Spectrum test launches only", async () => {
+    const { spectrumEmulatorArgsTemplate } = await import("../scripts/launch-spectrum.mjs");
+    const emulator = { args: ["-tape", "{artifact}"], printerArgs: ["--textfile", "{printerOutput}"] };
+
+    expect(spectrumEmulatorArgsTemplate(emulator, { testMode: false, testPrinterOutput: false })).toEqual(["-tape", "{artifact}"]);
+    expect(spectrumEmulatorArgsTemplate(emulator, { testMode: true, testPrinterOutput: true, deviceArgs: emulator.printerArgs })).toEqual([
+      "-tape",
+      "{artifact}",
+      "--speed",
+      "500",
+      "--textfile",
+      "{printerOutput}"
+    ]);
   });
 
   it("finds all configured emulator launch targets", async () => {

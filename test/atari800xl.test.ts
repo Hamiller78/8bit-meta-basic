@@ -8,6 +8,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("ignores SUPPRESS_SCROLL_PROMPT because Atari has no Spectrum scroll prompt", () => {
+    expect(compileSource('suppress_scroll_prompt\nprint "OK"\n', { filename: "scroll.mbas", target: "atari800xl", readability: 0 })).toBe(
+      ['10 PRINT "OK"', ""].join("\n")
+    );
+  });
+
   it("reports Atari constant coordinate ranges", () => {
     expect(() => compileSource('print_at 24, 0; "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
       "Atari 800XL PRINT_AT row coordinate 24 is outside the supported range 0..23"

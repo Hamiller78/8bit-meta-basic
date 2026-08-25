@@ -627,6 +627,7 @@ function emitRunnerPrint(
   location: SourceLocation,
   options: TestRunnerLowerOptions
 ): void {
+  instructions.push({ kind: "suppress-scroll-prompt", location });
   instructions.push({ kind: "print", items, trailingSemicolon, location });
   if (!options.printerOutput) {
     return;

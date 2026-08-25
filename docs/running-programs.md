@@ -54,8 +54,11 @@ If no explicit `--test-output-device` is passed to a launch script, the helper u
 The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
 
 ```json
+"testArgs": ["--speed", "500"],
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}"]
 ```
+
+When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this runs Fuse at `500%` speed. Normal Spectrum launches do not receive this speed override.
 
 Captured output is written to:
 

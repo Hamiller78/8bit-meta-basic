@@ -512,6 +512,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "read":
     case "open-device":
     case "close-device":
+    case "suppress-scroll-prompt":
     case "restore":
     case "end":
     case "local":

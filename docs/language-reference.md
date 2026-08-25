@@ -345,11 +345,14 @@ screen_background_color BLACK
 screen_text_color WHITE
 cell_text_color YELLOW
 cell_background_color BLUE
+suppress_scroll_prompt
 ```
 
 `border_color` is a compatibility spelling for `screen_border_color`; `text_color` is a compatibility spelling for `screen_text_color`.
 
 Cell colours may have no effect on targets without the corresponding per-cell feature. This is deliberate rather than an attempt to simulate the feature with a large runtime.
+
+`suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL or C64.
 
 ## Current omissions
 
