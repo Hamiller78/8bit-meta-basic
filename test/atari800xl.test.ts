@@ -315,6 +315,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders FREE_MEMORY through Atari BASIC FRE", () => {
+    expect(compileSource("memoryLeft = free_memory()\nprint memoryLeft\n", { filename: "memory.mbas", target: "atari800xl" })).toBe(
+      ["10 MEMORYLEFT=FRE(0)", "20 PRINT MEMORYLEFT", ""].join("\n")
+    );
+  });
+
   it("renders RND and ignores RANDOMIZE on Atari BASIC", () => {
     expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "atari800xl", readability: 0 })).toBe(
       ["10 VALUE=RND(0)", "20 PRINT VALUE", ""].join("\n")

@@ -201,6 +201,7 @@ describe("Meta-BASIC test mode", () => {
     expect(testOutput).toContain('PRINT "FAILED: ";MBTFAIL');
     expect(testOutput).toContain('PRINT "ASSERTIONS: ";MBASSERT');
     expect(testOutput).toContain('PRINT "FAILURES: ";MBFAIL');
+    expect(testOutput).toContain('PRINT "FREE MEMORY: ";(65536 - USR 7962)');
     expect(count(testOutput, "LET MBASSERT=MBASSERT + 1")).toBe(2);
 
     const normalOutput = compileSource('print "OK"\n', { filename: "normal.mbas", target: "spectrum", readability: 0 });

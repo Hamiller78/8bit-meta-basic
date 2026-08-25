@@ -524,6 +524,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders FREE_MEMORY through the Spectrum ROM free-memory routine", () => {
+    expect(compileSource("memoryLeft = free_memory()\nprint memoryLeft\n", { filename: "memory.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 LET MEMORYLEFT=(65536 - USR 7962)", "20 PRINT MEMORYLEFT", ""].join("\n")
+    );
+  });
+
   it("renders RANDOMIZE and RND with Spectrum spelling", () => {
     expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "spectrum", readability: 0 })).toBe(
       ["10 RANDOMIZE 123", "20 LET VALUE=RND", "30 RANDOMIZE", "40 PRINT VALUE", ""].join("\n")
@@ -635,6 +641,7 @@ describe("Spectrum compiler", () => {
 
   it("reports invalid JIFFIES calls", () => {
     expect(() => compileSource("print jiffies(1)\n", { filename: "jiffies.mbas", target: "spectrum" })).toThrow("JIFFIES expects no arguments");
+    expect(() => compileSource("print free_memory(1)\n", { filename: "memory.mbas", target: "spectrum" })).toThrow("FREE_MEMORY expects no arguments");
   });
 
   it("reports invalid RANDOMIZE and RND uses", () => {

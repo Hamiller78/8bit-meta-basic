@@ -103,6 +103,7 @@ Supported constructs:
 - Runtime random number helper `rnd()`
 - Random number seeding with `randomize` and `randomize seed`
 - Runtime jiffy timer reading with `jiffies()`
+- Runtime free BASIC memory reading with `free_memory()`
 - Non-blocking keyboard polling with `key_code()`
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Numeric assignments written canonically as `name = expression`
@@ -134,7 +135,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `FREE_MEMORY` is supported as a portable runtime free BASIC memory helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
@@ -162,7 +163,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `KEY_CODE`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `FREE_MEMORY`, `KEY_CODE`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -180,6 +181,7 @@ Supported expression forms:
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
 - Runtime random number function call `RND()`
 - Runtime timer function call `JIFFIES()`
+- Runtime free BASIC memory function call `FREE_MEMORY()`
 - Runtime keyboard function call `KEY_CODE()`
 - Runtime device availability call `DEVICE_AVAILABLE(PRINTER)`, `DEVICE_AVAILABLE(TEXT_PRINTER)`, `DEVICE_AVAILABLE(SHARED_DRIVE)`, or `DEVICE_AVAILABLE(RS232)`
 - Array reads such as `VALUES(0)` and `MESSAGES$(0)`
@@ -416,6 +418,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
 - Lower `END` to Spectrum `STOP`, Atari `END`, and C64 `END`.
 - Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64 `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(0)`, and no Atari output. Lower `RANDOMIZE seed` to Spectrum `RANDOMIZE seed`, C64 generated assignment using `RND(-seed)`, and no Atari output.
+- Lower `FREE_MEMORY()` to Spectrum `65536 - USR 7962`, Atari `FRE(0)`, and C64 `FRE(0) - (FRE(0) < 0) * 65536`.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.

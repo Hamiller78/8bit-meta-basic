@@ -69,6 +69,7 @@ Constant coordinates must fit these zero-based ranges:
 - `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
 - `KEY_CODE()` uses `INKEY$`; short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter.
+- `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
 
 ## Atari 800XL
@@ -88,6 +89,7 @@ Constant coordinates must fit these zero-based ranges:
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter.
+- `FREE_MEMORY()` lowers to native `FRE(0)`.
 - `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
 - The compiler does not emit `GRAPHICS 0` automatically.
 
@@ -106,6 +108,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `SHARED_DRIVE` is not supported on C64.
 - `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
+- `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
 - `RND()` lowers to `RND(1)`; `RANDOMIZE seed` lowers to a generated assignment using `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.

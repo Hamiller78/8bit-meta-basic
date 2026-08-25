@@ -377,6 +377,12 @@ describe("C64 compiler", () => {
     ).toBe(["10 LA=TI", "20 PRINT 50", ""].join("\n"));
   });
 
+  it("renders FREE_MEMORY with the C64 FRE signed-result correction", () => {
+    expect(compileSource("memoryLeft = free_memory()\nprint memoryLeft\n", { filename: "memory.mbas", target: "c64", readability: 0 })).toBe(
+      ["10 ME=FRE(0) - (FRE(0) < 0) * 65536", "20 PRINT ME", ""].join("\n")
+    );
+  });
+
   it("renders RANDOMIZE and RND with C64 RND argument semantics", () => {
     expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "c64", readability: 0 })).toBe(
       ["10 MB=RND(-(123))", "20 VA=RND(1)", "30 MB=RND(0)", "40 PRINT VA", ""].join("\n")

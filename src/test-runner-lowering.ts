@@ -1,6 +1,7 @@
 import type { DeviceKind, Expression, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
+import { builtinFunctions } from "./functions.js";
 import type { Instruction } from "./lowering.js";
 import { isStringVariableName } from "./variables.js";
 
@@ -119,6 +120,7 @@ export function lowerTestRunner(
   emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED: ", location), identifierExpression(testFailedName, location)], false, location, options);
   emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("ASSERTIONS: ", location), identifierExpression(assertionCountName, location)], false, location, options);
   emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILURES: ", location), identifierExpression(assertionFailedName, location)], false, location, options);
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FREE MEMORY: ", location), freeMemoryExpression(location)], false, location, options);
   emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location, options);
   if (options.printerOutput) {
     closeTestDevice(instructions, nextInternalLabel, location);
@@ -743,6 +745,10 @@ function identifierExpression(name: string, location: SourceLocation): Expressio
 
 function arrayAccessExpression(name: string, indices: readonly Expression[], location: SourceLocation): Expression {
   return { kind: "array-access", name, indices, valueType: "number", location };
+}
+
+function freeMemoryExpression(location: SourceLocation): Expression {
+  return { kind: "function-call", name: builtinFunctions.freeMemory, args: [], valueType: "number", location };
 }
 
 function binaryExpression(operator: Extract<Expression, { kind: "binary" }>["operator"], left: Expression, right: Expression, location: SourceLocation): Expression {

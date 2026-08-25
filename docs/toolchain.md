@@ -112,7 +112,7 @@ For memory-constrained targets or focused debugging, run one module's tests:
 npm run build:spectrum -- --project examples/instruction-suite --run-tests --module strings --profile debug
 ```
 
-The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, and jiffies where the behavior is deterministic enough to assert portably.
+The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
 
 Generated files normally appear below:
 

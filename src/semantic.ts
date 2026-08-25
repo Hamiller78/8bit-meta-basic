@@ -705,6 +705,14 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.freeMemory) {
+    if (expression.args.length !== 0) {
+      throw new DiagnosticError(expression.location, "FREE_MEMORY expects no arguments.");
+    }
+
+    return { ...expression, name, args: [] };
+  }
+
   if (name === builtinFunctions.keyCode) {
     if (expression.args.length !== 0) {
       throw new DiagnosticError(expression.location, "KEY_CODE expects no arguments.");

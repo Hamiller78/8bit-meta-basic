@@ -280,6 +280,7 @@ const ignoredCallNames = new Set([
   "CODE",
   "COS",
   "EXP",
+  "FRE",
   "INT",
   "LEFT",
   "LEN",
@@ -291,6 +292,7 @@ const ignoredCallNames = new Set([
   "SIN",
   "SQR",
   "STR",
+  "USR",
   "VAL"
 ]);
 

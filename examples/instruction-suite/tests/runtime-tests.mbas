@@ -9,3 +9,8 @@ test JiffiesRead()
     Tick = jiffies()
     assert_true Tick >= 0
 end test
+
+test FreeMemoryRead()
+    MemoryLeft = free_memory()
+    assert_true MemoryLeft > 0
+end test

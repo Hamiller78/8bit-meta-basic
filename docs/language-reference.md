@@ -140,6 +140,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `sqr(x)` | Runtime | Return square root |
 | `rnd()` | Runtime | Return the next pseudo-random number in the target's native `0 <= x < 1` range |
 | `jiffies()` | Runtime | Read the target's running tick counter |
+| `free_memory()` | Runtime | Return the target's current free BASIC memory in bytes |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
@@ -148,6 +149,8 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 `STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari and C64 lower them to `STR$(expression)` and `VAL(expression)`. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
 Math functions lower to the target BASIC function of the same name. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
+
+`FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, and Spectrum uses the 48K ROM free-memory routine.
 
 Random numbers use:
 
@@ -260,7 +263,7 @@ assert_cell_text_color colour
 assert_cell_background_color colour
 ```
 
-Assertions count successes and failures, continue after failure, and failed tests do not prevent later tests from running. The generated summary prints test, pass, fail, assertion, and failure counts.
+Assertions count successes and failures, continue after failure, and failed tests do not prevent later tests from running. The generated summary prints test, pass, fail, assertion, failure, and free-memory counts.
 
 When launched through the helper scripts, `--printer-output` mirrors the test runner's own progress and summary output to a configured device in addition to the screen. Select the device with `--test-output-device printer`, `--test-output-device text-printer`, `--test-output-device shared-drive`, or `--test-output-device rs232`. If no device is passed to a launch script, each target chooses its configured default. Normal program `PRINT` output remains captured or suppressed according to test-mode assertion behavior; the mirrored output is the runner log, not arbitrary output from the code under test.
 

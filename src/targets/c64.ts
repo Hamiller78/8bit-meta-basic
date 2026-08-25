@@ -199,6 +199,7 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.code, renderC64Code],
     [builtinFunctions.cos, renderC64UnaryNumericFunction],
     [builtinFunctions.exp, renderC64UnaryNumericFunction],
+    [builtinFunctions.freeMemory, () => "FRE(0) - (FRE(0) < 0) * 65536"],
     [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.left, renderC64Left],
