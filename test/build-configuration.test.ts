@@ -118,7 +118,7 @@ describe("build configuration", () => {
 
       expect(configuration.testPrinterOutput).toBe(true);
       expect(configuration.testOutputDevice).toBe("rs232");
-      expect(output).toContain("OPEN 1,2,0,CHR$(6)");
+      expect(output).toContain("OPEN 1,2,0,CHR$(10)");
       expect(output).toContain('PRINT#1,"META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
     });
   });

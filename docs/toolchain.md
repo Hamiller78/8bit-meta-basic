@@ -261,7 +261,7 @@ The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `1
 The example VICE arguments are:
 
 ```json
-"rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "300", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "300"]
+"rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
 ```
 
 In the VICE GUI this appears under RS232 as Serial 1 set to a localhost port. Leave `IP232` unchecked for this capture helper. The userport RS-232 emulation must be enabled; ACIA/SwiftLink settings are separate from the BASIC `OPEN 1,2,...` path used here.

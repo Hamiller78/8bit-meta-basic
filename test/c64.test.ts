@@ -61,7 +61,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(['10 OPEN 1,2,0,CHR$(6)', '20 PRINT#1,"RESULT: ";SCORE', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
+    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";SCORE', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
   });
 
   it("lowers C64 printer availability checks through ST", () => {
@@ -103,7 +103,7 @@ describe("C64 compiler", () => {
 
     expect(output).toContain("MB=1");
     expect(output).not.toContain("OPEN 15,4,15");
-    expect(output).toContain("OPEN 1,2,0,CHR$(6)");
+    expect(output).toContain("OPEN 1,2,0,CHR$(10)");
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
     expect(output).toContain('PRINT#1,"RUNNING Smoke...";');
     expect(output).toContain("CLOSE 1");

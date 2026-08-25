@@ -56,7 +56,7 @@ export const c64Target: TargetBackend = {
           return `${lineNumber} OPEN 15,4,15`;
         }
         if (instruction.device === "rs232") {
-          return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},2,0,CHR$(6)`;
+          return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},2,0,CHR$(10)`;
         }
         return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},4`;
       case "print-device":

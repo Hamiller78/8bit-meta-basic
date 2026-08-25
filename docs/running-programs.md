@@ -226,7 +226,7 @@ VICE settings observed during verification:
 
 - Userport RS232 emulation enabled
 - Userport RS232 device set to Serial 1
-- Baud rate 300
+- Baud rate 2400
 - Serial 1 displays the dynamic localhost endpoint
 - `IP232` unchecked
 

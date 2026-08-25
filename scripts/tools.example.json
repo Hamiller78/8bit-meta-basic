@@ -77,7 +77,7 @@
       "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
       "printerArgs": ["-busdevice4", "-devicebackend4", "1", "-prtxtdev1", "{printerOutput}", "-pr4txtdev", "0", "-pr4output", "text", "-pr4drv", "ascii"],
       "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
-      "rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "300", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "300"]
+      "rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
     }
   }
 }
