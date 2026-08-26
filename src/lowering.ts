@@ -1,6 +1,6 @@
 import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
-import { collectFunctionImplementations, expandFunctionCallIntoDestination, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
+import { collectFunctionImplementations, expandFunctionCallForSideEffect, expandFunctionCallIntoDestination, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
 import {
   capturedPrintExpression,
@@ -630,6 +630,9 @@ function lowerStatements(
           expression: expandFunctionCalls(statement.expression, instructions, context),
           location: statement.location
         });
+        break;
+      case "function-call-statement":
+        expandFunctionCallForSideEffect(statement.expression, instructions, context);
         break;
       case "randomize":
         instructions.push({

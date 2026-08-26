@@ -280,6 +280,15 @@ describe("parser", () => {
     ]);
   });
 
+  it("parses standalone function calls distinctly from array assignments", () => {
+    const program = parseSource("DrawHeader()\nSetLevel(3)\n", "calls.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "function-call-statement", expression: { kind: "function-call", name: "DrawHeader", args: [] } },
+      { kind: "function-call-statement", expression: { kind: "function-call", name: "SetLevel", args: [{ kind: "number", value: 3 }] } }
+    ]);
+  });
+
   it("parses parentheses as expression grouping", () => {
     const program = parseSource("total = (a + b) * 2\n", "group.mbas");
     expect(program.statements).toMatchObject([

@@ -271,6 +271,18 @@ class Parser {
     return { kind: "array-let", name, indices, expression, location };
   }
 
+  parseCallOrArrayAssignment(location: SourceLocation, name: string): Statement {
+    const args = this.parseArgumentList("Expected opening parenthesis after name.");
+    if (this.matchPunctuation("=")) {
+      this.advance();
+      const expression = this.parseExpressionUntilLine();
+      this.expectLineEnd();
+      return { kind: "array-let", name, indices: args, expression, location };
+    }
+    this.expectLineEnd();
+    return { kind: "function-call-statement", expression: { kind: "function-call", name, args, location }, location };
+  }
+
   private parsePrintAt(commandName: "PRINT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
     const location = this.current().location;
     if (this.matchPunctuation(",")) {
@@ -551,7 +563,7 @@ class Parser {
 
     if (token.kind === "identifier" && this.nextIsPunctuation("(")) {
       this.advance();
-      return this.parseArrayAssignment(token.location, token.text);
+      return this.parseCallOrArrayAssignment(token.location, token.text);
     }
 
     if (token.kind === "keyword") {

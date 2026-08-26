@@ -494,6 +494,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
       return [statement.expression];
     case "array-let":
       return [...statement.indices, statement.expression];
+    case "function-call-statement":
+      return [statement.expression];
     case "return":
       return statement.expression ? [statement.expression] : [];
     case "randomize":

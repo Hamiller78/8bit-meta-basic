@@ -116,6 +116,31 @@ export function expandFunctionCallIntoDestination(
   return true;
 }
 
+export function expandFunctionCallForSideEffect(
+  expression: Extract<Expression, { kind: "function-call" }>,
+  instructions: Instruction[],
+  context: FunctionCallLoweringContext
+): void {
+  const implementation = context.functions.get(normalizeName(expression.name));
+  if (!implementation) {
+    throw new DiagnosticError(expression.location, `Unknown FUNCTION "${expression.name}".`);
+  }
+
+  const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+  if (args.length !== implementation.parameters.length) {
+    throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
+  }
+  for (let index = 0; index < args.length; index += 1) {
+    instructions.push({
+      kind: "let",
+      name: implementation.parameters[index].storageName,
+      expression: args[index],
+      location: expression.location
+    });
+  }
+  instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
+}
+
 function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "function-call" }>, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
   if (expression.args.length !== 1) {
     throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");

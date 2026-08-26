@@ -184,6 +184,28 @@ read itemCode, message$
 
 `DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
 
+## User-defined functions
+
+Functions may have parameters, local variables, side effects, and return values:
+
+```basic
+function AddBonus(Score, Bonus)
+    local Result
+    Result = Score + Bonus
+    return Result
+end function
+
+Total = AddBonus(CurrentScore, 10)
+```
+
+Use a function call in an expression when the return value matters. A user-defined function may also be called as a standalone statement when only its side effects matter:
+
+```basic
+DrawHeader()
+```
+
+The standalone form lowers to the generated `GOSUB` call and discards the return value. Built-in functions and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
+
 ## Output
 
 `PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline:

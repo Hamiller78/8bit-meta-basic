@@ -31,6 +31,7 @@ export type Statement =
   | RestoreStatement
   | LetStatement
   | ArrayLetStatement
+  | FunctionCallStatement
   | GotoStatement
   | GosubStatement
   | ReturnStatement
@@ -170,6 +171,12 @@ export interface ArrayLetStatement {
   readonly name: string;
   readonly indices: readonly Expression[];
   readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface FunctionCallStatement {
+  readonly kind: "function-call-statement";
+  readonly expression: FunctionCallExpression;
   readonly location: SourceLocation;
 }
 

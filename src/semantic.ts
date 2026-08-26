@@ -250,6 +250,14 @@ function analyzeStatements(
         });
         break;
       }
+      case "function-call-statement": {
+        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope);
+        if (expression.kind !== "function-call" || canonicalFunctionName(expression.name)) {
+          throw new DiagnosticError(statement.location, "Standalone calls are supported only for user-defined FUNCTIONs.");
+        }
+        analyzed.push({ ...statement, expression });
+        break;
+      }
       case "print":
         analyzed.push({
           ...statement,

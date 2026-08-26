@@ -139,6 +139,35 @@ describe("Meta-BASIC functions", () => {
     );
   });
 
+  it("lowers standalone function calls and discards their return values", () => {
+    const source = [
+      "DrawHeader()",
+      "SetLevel(3)",
+      "FUNCTION DrawHeader()",
+      "PRINT \"HEADER\"",
+      "RETURN 0",
+      "END FUNCTION",
+      "FUNCTION SetLevel(Level)",
+      "PRINT Level",
+      "RETURN Level",
+      "END FUNCTION"
+    ].join("\n");
+
+    const output = compileSource(source, { filename: "standalone-call.mbas", target: "spectrum", readability: 0 });
+
+    expect(output).toContain("GO SUB");
+    expect(output).toContain("LET MBF1P1=3");
+    expect(output).toContain('PRINT "HEADER"');
+    expect(output).toContain("PRINT MBF1P1");
+    expect(output).not.toContain("LET MBT");
+  });
+
+  it("rejects standalone array reads with a function-call-specific diagnostic", () => {
+    expect(() => compileSource("DIM Values(3)\nValues(0)\n", { filename: "bare-array.mbas", target: "spectrum" })).toThrow(
+      "Standalone calls are supported only for user-defined FUNCTIONs."
+    );
+  });
+
   it("rejects direct recursion", () => {
     expect(() =>
       compileSource("X = Foo(1)\nFUNCTION Foo(Value)\nRETURN Foo(Value)\nEND FUNCTION\n", { filename: "direct.mbas", target: "spectrum" })

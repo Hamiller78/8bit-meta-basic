@@ -84,6 +84,7 @@ Supported constructs:
 - `gosub label`
 - `return`
 - `end`
+- Standalone user-defined function calls such as `DrawHeader()`, with the return value discarded
 - `for name = start to limit` / `next name`, with optional `step`
 - `while expression` / `wend`
 - `repeat` / `until expression`
