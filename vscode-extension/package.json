@@ -3,7 +3,7 @@
   "displayName": "8-Bit MetaBASIC",
   "description": "VS Code support for 8-Bit MetaBASIC projects.",
   "version": "0.0.1",
-  "publisher": "Torben Kneesch",
+  "publisher": "torben-kneesch",
   "private": true,
   "type": "commonjs",
   "engines": {
