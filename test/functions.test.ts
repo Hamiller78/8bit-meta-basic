@@ -162,6 +162,27 @@ describe("Meta-BASIC functions", () => {
     expect(output).not.toContain("LET MBT");
   });
 
+  it("allows standalone function calls without a return value", () => {
+    const source = [
+      "DrawHeader()",
+      "FUNCTION DrawHeader()",
+      "PRINT \"HEADER\"",
+      "END FUNCTION"
+    ].join("\n");
+
+    const output = compileSource(source, { filename: "procedure-style.mbas", target: "spectrum", readability: 0 });
+
+    expect(output).toContain("GO SUB");
+    expect(output).toContain('PRINT "HEADER"');
+    expect(output).toContain("RETURN");
+  });
+
+  it("rejects using a function without a return value inside an expression", () => {
+    expect(() =>
+      compileSource("X = DrawHeader()\nFUNCTION DrawHeader()\nPRINT \"HEADER\"\nEND FUNCTION\n", { filename: "procedure-expression.mbas", target: "spectrum" })
+    ).toThrow("FUNCTION DrawHeader does not return a value and can only be called as a statement.");
+  });
+
   it("rejects standalone array reads with a function-call-specific diagnostic", () => {
     expect(() => compileSource("DIM Values(3)\nValues(0)\n", { filename: "bare-array.mbas", target: "spectrum" })).toThrow(
       "Standalone calls are supported only for user-defined FUNCTIONs."

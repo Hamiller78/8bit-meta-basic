@@ -22,7 +22,7 @@ Line numbers normally begin at 10 in increments of 10. The compiler switches to 
 Meta-BASIC:
 
 ```basic
-print_at 10, 5; "WARNING"
+print_at 10, 5, "WARNING"
 ```
 
 Spectrum:

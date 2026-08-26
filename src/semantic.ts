@@ -4,7 +4,6 @@ import { deviceSourceList, isSourceDeviceName } from "./devices.js";
 import {
   attachTestImplementations,
   collectFunctionDefinitions,
-  containsFunctionReturn,
   createFunctionScope,
   createTestScope,
   type FunctionDefinition,
@@ -251,10 +250,25 @@ function analyzeStatements(
         break;
       }
       case "function-call-statement": {
-        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope);
-        if (expression.kind !== "function-call" || canonicalFunctionName(expression.name)) {
+        if (canonicalFunctionName(statement.expression.name) || arrays.has(normalizeName(statement.expression.name))) {
           throw new DiagnosticError(statement.location, "Standalone calls are supported only for user-defined FUNCTIONs.");
         }
+        const definition = functions.get(normalizeName(statement.expression.name));
+        if (!definition) {
+          throw new DiagnosticError(statement.location, `Unknown FUNCTION "${statement.expression.name}".`);
+        }
+        if (statement.expression.args.length !== definition.implementation.parameters.length) {
+          throw new DiagnosticError(
+            statement.expression.location,
+            `FUNCTION ${definition.name} expects ${definition.implementation.parameters.length} argument${definition.implementation.parameters.length === 1 ? "" : "s"}.`
+          );
+        }
+        const expression = {
+          ...statement.expression,
+          name: definition.name,
+          valueType: definition.valueType,
+          args: statement.expression.args.map((arg) => foldExpression(arg, constants, inConstantExpression, arrays, functions, scope))
+        } satisfies Extract<Expression, { kind: "function-call" }>;
         analyzed.push({ ...statement, expression });
         break;
       }
@@ -679,6 +693,9 @@ function foldFunctionCall(
   if (!name) {
     const functionDefinition = functions.get(normalizeName(expression.name));
     if (functionDefinition) {
+      if (!functionDefinition.returnsValue) {
+        throw new DiagnosticError(expression.location, `FUNCTION ${functionDefinition.name} does not return a value and can only be called as a statement.`);
+      }
       if (expression.args.length !== functionDefinition.implementation.parameters.length) {
         throw new DiagnosticError(
           expression.location,
@@ -1143,9 +1160,6 @@ function analyzeFunction(
 ): Statement {
   const scope = createFunctionScope(definition);
   const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, devices, scope, false);
-  if (!containsFunctionReturn(body)) {
-    throw new DiagnosticError(definition.statement.location, `FUNCTION ${definition.name} must contain RETURN expression.`);
-  }
   return {
     ...definition.statement,
     parameters: definition.statement.parameters,

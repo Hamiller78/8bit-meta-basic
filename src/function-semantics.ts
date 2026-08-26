@@ -8,6 +8,7 @@ export interface FunctionDefinition {
   readonly name: string;
   readonly key: string;
   readonly valueType: "number" | "string";
+  readonly returnsValue: boolean;
   readonly implementation: FunctionImplementation;
   readonly statement: Extract<Statement, { kind: "function" }>;
 }
@@ -25,6 +26,7 @@ interface PendingFunctionDefinition {
   readonly name: string;
   readonly key: string;
   readonly valueType: "number" | "string";
+  readonly returnsValue: boolean;
   readonly locals: readonly string[];
   readonly statement: Extract<Statement, { kind: "function" }>;
 }
@@ -120,6 +122,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
       name: statement.name,
       key,
       valueType: isStringVariableName(statement.name) ? "string" : "number",
+      returnsValue: containsFunctionReturn(statement.body),
       locals,
       statement
     } satisfies PendingFunctionDefinition;
@@ -128,6 +131,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
       name: pendingDefinition.name,
       key,
       valueType: pendingDefinition.valueType,
+      returnsValue: pendingDefinition.returnsValue,
       implementation: uniqueFunctionImplementation(pendingDefinition),
       statement
     });
@@ -141,6 +145,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
       name: definition.name,
       key: definition.key,
       valueType: definition.valueType,
+      returnsValue: definition.returnsValue,
       implementation: implementations.get(definition.key) ?? uniqueFunctionImplementation(definition),
       statement: definition.statement
     });

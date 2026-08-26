@@ -30,6 +30,6 @@ test PrintCapture()
 end test
 
 test PrintAtCapture()
-    print_at 2, 3; "HI"
+    print_at 2, 3, "HI"
     assert_printat 2, 3, "HI"
 end test

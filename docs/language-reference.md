@@ -204,7 +204,7 @@ Use a function call in an expression when the return value matters. A user-defin
 DrawHeader()
 ```
 
-The standalone form lowers to the generated `GOSUB` call and discards the return value. Built-in functions and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
+The standalone form lowers to the generated `GOSUB` call and discards the return value. A function used only as a standalone side-effect helper does not need a `RETURN expression`; the generated BASIC subroutine returns at `END FUNCTION`. Built-in functions and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
 
 ## Output
 
@@ -218,11 +218,11 @@ print "WAIT";
 Portable positioned output uses zero-based `row, column` coordinates:
 
 ```basic
-print_at 10, 5; "WARNING"
-print_at warningRow, 0; "SECONDS: "; countdown
+print_at 10, 5, "WARNING"
+print_at warningRow, 0, "SECONDS: "; countdown
 ```
 
-The semicolon after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet.
+The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet.
 
 Device output is available for printer-like logging and emulator capture workflows:
 

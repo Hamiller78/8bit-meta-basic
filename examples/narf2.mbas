@@ -1,0 +1,21 @@
+screen_border_color BLACK
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+printCentered(5, "Nuclear Attack")
+printCentered(7, "Reaction Failsafe")
+printCentered(9, "(N.A.R.F.)")
+
+printCentered(12, "Connecting to NORAD...")
+
+stoptime = jiffies() + 500
+while jiffies() < stoptime
+wend
+
+end
+
+function printCentered(row, text$)
+    column = (TEXT_COLUMNS - len(text$)) / 2 + 1
+    print_at row, column, text$
+end function

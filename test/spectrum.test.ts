@@ -298,16 +298,16 @@ describe("Spectrum compiler", () => {
   });
 
   it("renders positioned output with Spectrum PRINT AT from source PRINT_AT", () => {
-    expect(compileSource('print_at 10, 5; "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
+    expect(compileSource('print_at 10, 5, "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
       ['10 PRINT AT 10,5;"WARNING";', ""].join("\n")
     );
   });
 
   it("reports Spectrum constant coordinate ranges", () => {
-    expect(() => compileSource('print_at 22, 0; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+    expect(() => compileSource('print_at 22, 0, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
       "Spectrum PRINT_AT row coordinate 22 is outside the supported range 0..21"
     );
-    expect(() => compileSource('print_at 0, 32; "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+    expect(() => compileSource('print_at 0, 32, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
       "Spectrum PRINT_AT column coordinate 32 is outside the supported range 0..31"
     );
   });
@@ -327,7 +327,7 @@ describe("Spectrum compiler", () => {
 
   it("uses Spectrum environment constants and case-insensitive lookup", () => {
     expect(
-      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1; "EDGE"\n', {
+      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1, "EDGE"\n', {
         filename: "env.mbas",
         target: "spectrum"
       })
@@ -734,10 +734,10 @@ describe("Spectrum compiler", () => {
       "cell_text_color YELLOW",
       "cell_background_color BLUE",
       "print ruleLine$",
-      'print_at 2, titleColumn; "META-BASIC COLOURS"',
+      'print_at 2, titleColumn, "META-BASIC COLOURS"',
       "",
       "screen_text_color CYAN",
-      'print_at messageRow, 0; "PRINT AND PRINT_AT"',
+      'print_at messageRow, 0, "PRINT AND PRINT_AT"',
       "",
       "screen_text_color WHITE",
       "print ruleLine$"

@@ -110,7 +110,7 @@ describe("Meta-BASIC test mode", () => {
 
   it("captures logical PRINT_AT output for ASSERT_PRINTAT", () => {
     const output = compileSource(
-      ['test PositionedOutput()', 'print_at 2, 3; "HI"', 'assert_printat 2, 3, "HI"', 'assert_printat 2, 4, "NO"', "end test"].join("\n"),
+      ['test PositionedOutput()', 'print_at 2, 3, "HI"', 'assert_printat 2, 3, "HI"', 'assert_printat 2, 4, "NO"', "end test"].join("\n"),
       { filename: "printat.mbas", target: "spectrum", readability: 0, testMode: true }
     );
 

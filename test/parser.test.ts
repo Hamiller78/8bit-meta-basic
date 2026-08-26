@@ -347,7 +347,7 @@ describe("parser", () => {
   });
 
   it("parses PRINT_AT as positioned output in the AST", () => {
-    const program = parseSource('print_at warningRow, 5 + x; "WARNING"; x\n', "print-at.mbas");
+    const program = parseSource('print_at warningRow, 5 + x, "WARNING"; x\n', "print-at.mbas");
 
     expect(program.statements).toMatchObject([
       {
@@ -363,10 +363,11 @@ describe("parser", () => {
   });
 
   it("reports malformed PRINT_AT coordinates and separator", () => {
-    expect(() => parseSource('print_at ,5; "NO"\n', "row.mbas")).toThrow("PRINT_AT requires a row expression");
-    expect(() => parseSource('print_at 1 5; "NO"\n', "comma.mbas")).toThrow("Expected comma between PRINT_AT row and column");
-    expect(() => parseSource('print_at 1,; "NO"\n', "column.mbas")).toThrow("PRINT_AT requires a column expression");
-    expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("Expected semicolon after PRINT_AT column");
+    expect(() => parseSource('print_at ,5, "NO"\n', "row.mbas")).toThrow("PRINT_AT requires a row expression");
+    expect(() => parseSource('print_at 1 5, "NO"\n', "comma.mbas")).toThrow("Expected comma between PRINT_AT row and column");
+    expect(() => parseSource('print_at 1,, "NO"\n', "column.mbas")).toThrow("PRINT_AT requires a column expression");
+    expect(() => parseSource('print_at 1,5 "NO"\n', "separator.mbas")).toThrow("Expected comma after PRINT_AT column");
+    expect(() => parseSource('print_at 1,5; "NO"\n', "old-separator.mbas")).toThrow("Expected comma after PRINT_AT column");
   });
 
   it("parses CLS and global/cell colour commands", () => {

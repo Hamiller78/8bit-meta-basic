@@ -163,7 +163,7 @@ class Parser {
     return { kind: "close-device", handle, location };
   }
 
-  private parsePrintItems(commandName: "PRINT" | "PRINT_DEVICE"): Pick<PrintStatement, "items" | "trailingSemicolon"> {
+  private parsePrintItems(commandName: "PRINT" | "PRINT_AT" | "PRINT_DEVICE"): Pick<PrintStatement, "items" | "trailingSemicolon"> {
     const items: Expression[] = [];
     let trailingSemicolon = false;
 
@@ -252,8 +252,9 @@ class Parser {
 
   parsePrintAtStatement(location: SourceLocation): Statement {
     const at = this.parsePrintAt("PRINT_AT");
-    const print = this.parsePrint(location);
-    return { ...print, at, location };
+    const { items, trailingSemicolon } = this.parsePrintItems("PRINT_AT");
+    this.expectLineEnd();
+    return { kind: "print", items, trailingSemicolon, at, location };
   }
 
   parseAssignment(location: SourceLocation, name: string): Statement {
@@ -290,11 +291,11 @@ class Parser {
     }
     const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
     this.expectPunctuation(",", `Expected comma between ${commandName} row and column.`);
-    if (this.matchPunctuation(";")) {
+    if (this.matchPunctuation(",") || this.matchPunctuation(";") || this.isLineEnd()) {
       throw new DiagnosticError(this.current().location, `${commandName} requires a column expression after the comma.`);
     }
-    const column = this.parseExpression(() => this.matchPunctuation(";") || this.isLineEnd());
-    this.expectPunctuation(";", `Expected semicolon after ${commandName} column.`);
+    const column = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", `Expected comma after ${commandName} column.`);
     return { row, column, location };
   }
 

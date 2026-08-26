@@ -67,7 +67,7 @@ start:
     urgency = sensorCount * 2 + alertLevel
 
     if confirmed and urgency >= 4 then
-        print_at warningRow, 5; "ATTACK CONFIRMED"
+        print_at warningRow, 5, "ATTACK CONFIRMED"
     else
         print "AWAITING SECOND SOURCE AT ROW "; warningRow
     end if
@@ -84,7 +84,7 @@ Supported constructs:
 - `gosub label`
 - `return`
 - `end`
-- Standalone user-defined function calls such as `DrawHeader()`, with the return value discarded
+- Standalone user-defined function calls such as `DrawHeader()`, with the return value discarded; such side-effect helper functions may omit `RETURN expression`
 - `for name = start to limit` / `next name`, with optional `step`
 - `while expression` / `wend`
 - `repeat` / `until expression`
@@ -112,7 +112,7 @@ Supported constructs:
 - String assignments written canonically as `name$ = expression`
 - Numeric and string array assignments written canonically as `name(index) = expression`
 - `print` containing one or more expressions separated by semicolons
-- `print_at row, column;` followed by one or more expressions separated by semicolons
+- `print_at row, column,` followed by one or more expressions separated by semicolons
 - `open_device handle, PRINTER`, `open_device handle, TEXT_PRINTER`, `open_device handle, SHARED_DRIVE`, and `open_device handle, RS232`
 - `print_device handle;` followed by one or more expressions separated by semicolons
 - `close_device handle`
@@ -316,14 +316,14 @@ A trailing semicolon remains significant and suppresses the newline.
 Portable positioned output is supported with the canonical `PRINT_AT` source spelling:
 
 ```basic
-print_at 10, 5; "WARNING"
-print_at warningRow, 0; "SECONDS: "; countdown
+print_at 10, 5, "WARNING"
+print_at warningRow, 0, "SECONDS: "; countdown
 ```
 
 Rules:
 
 - Coordinates are written in portable order `row, column` and are zero-based.
-- A semicolon after the column expression is required.
+- A comma after the column expression is required.
 - The row and column are full numeric expressions.
 - Positioned output is represented explicitly in the target-independent AST.
 - Target lowering may expand one positioned print into multiple BASIC statements.

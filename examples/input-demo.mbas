@@ -11,8 +11,8 @@ screen_background_color BLACK
 cls
 screen_text_color WHITE
 
-print_at 0, 0; "META-BASIC INPUT DEMO";
-print_at 1, 0; "MOVE TARGET WITH GAME KEYS";
+print_at 0, 0, "META-BASIC INPUT DEMO";
+print_at 1, 0, "MOVE TARGET WITH GAME KEYS";
 
 loop:
     key = key_code()
@@ -41,12 +41,12 @@ loop:
         end if
     end if
 
-    print_at coordinateRow, 0; clearLine$;
-    print_at coordinateRow, 0; "X="; x; " Y="; y;
+    print_at coordinateRow, 0, clearLine$;
+    print_at coordinateRow, 0, "X="; x; " Y="; y;
 
     if key = KEY_ENTER or key = GAME_FIRE then
-        print_at statusRow, 0; clearLine$;
-        print_at statusRow, 0; "Target coordinates set to "; x; ","; y;
+        print_at statusRow, 0, clearLine$;
+        print_at statusRow, 0, "Target coordinates set to "; x; ","; y;
     end if
 
     goto loop
