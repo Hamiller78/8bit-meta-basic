@@ -22,6 +22,7 @@
     "launch:spectrum": "node scripts/launch-spectrum.mjs",
     "new:project": "node scripts/scaffold-project.mjs new-project",
     "new:module": "node scripts/scaffold-project.mjs new-module",
+    "prepare:vscode-extension": "npm run build && node scripts/package-vscode-extension.mjs",
     "test": "vitest run test",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"

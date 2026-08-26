@@ -86,7 +86,12 @@
         "metabasic.toolRoot": {
           "type": "string",
           "default": "",
-          "description": "Path to the MetaBASIC tool checkout. Leave empty when developing this extension inside the MetaBASIC repository."
+          "description": "Optional path to a MetaBASIC tool checkout. Leave empty to use the tools bundled with the extension."
+        },
+        "metabasic.toolConfig": {
+          "type": "string",
+          "default": "",
+          "description": "Optional path to local converter/emulator configuration JSON. Relative paths are resolved from the open MetaBASIC project folder. If empty, metabasic-tools.json in the project folder is used when present."
         },
         "metabasic.profile": {
           "type": "string",

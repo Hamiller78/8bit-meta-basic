@@ -17,6 +17,7 @@ function parseArgs(argv) {
     moduleName: undefined,
     outDir: "build",
     configPath: "scripts/tools.local.json",
+    runBuild: true,
     runTools: true
   };
 
@@ -75,6 +76,10 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--skip-build") {
+      options.runBuild = false;
+      continue;
+    }
     if (arg === "--no-tools") {
       options.runTools = false;
       continue;
@@ -104,7 +109,9 @@ async function buildAll(options) {
     throw new Error("--printer-output can only be used with --run-tests.");
   }
 
-  await buildProject();
+  if (options.runBuild) {
+    await buildProject();
+  }
 
   for (const profile of selectedProfiles) {
     for (const target of targets) {

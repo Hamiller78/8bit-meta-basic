@@ -8,6 +8,7 @@ Implemented so far:
 - Adds basic TextMate syntax highlighting.
 - Adds commands that call the existing build and launch scripts through a dedicated `MetaBASIC` output channel.
 - Turns compiler errors in `file:line:column: message` format into VS Code Problems diagnostics.
+- Includes the compiled MetaBASIC compiler and helper scripts when packaged as a `.vsix`.
 
 Current commands:
 
@@ -51,7 +52,7 @@ tests/
 
 4. Run `MetaBASIC: Build Project` from the command palette.
 
-By default the extension assumes it is being developed inside this repository and uses the parent folder as the MetaBASIC tool checkout. If you run it from elsewhere, set:
+Packaged `.vsix` builds use the bundled compiler tools by default. If you want to test against a local checkout instead, set:
 
 ```json
 {
@@ -59,9 +60,12 @@ By default the extension assumes it is being developed inside this repository an
 }
 ```
 
+Converter and emulator paths are still local machine configuration. Put them in `metabasic-tools.json` in the open project folder, or point `metabasic.toolConfig` at another JSON file using the same shape as `scripts/tools.example.json`.
+
 ## Settings
 
-- `metabasic.toolRoot`: path to the MetaBASIC tool checkout.
+- `metabasic.toolRoot`: optional path to a MetaBASIC tool checkout. Leave empty to use bundled tools.
+- `metabasic.toolConfig`: optional converter/emulator configuration JSON path. Relative paths are resolved from the open project folder. If empty, `metabasic-tools.json` in the project folder is used when present.
 - `metabasic.profile`: `debug`, `balanced`, or `release`.
 - `metabasic.runExternalTools`: whether configured converter tools should run during builds.
 - `metabasic.restartEmulators`: whether launch commands pass `--restart`.

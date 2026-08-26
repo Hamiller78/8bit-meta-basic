@@ -37,7 +37,7 @@ async function launchAtari(options) {
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
-    runBuild: true,
+    runBuild: options.runBuild,
     runTools: true
   });
 
@@ -107,6 +107,7 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     artifact: "tokenized-bas",
+    runBuild: true,
     restart: false
   };
 
@@ -164,6 +165,10 @@ function parseArgs(argv) {
     if (arg === "--artifact") {
       options.artifact = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--skip-build") {
+      options.runBuild = false;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

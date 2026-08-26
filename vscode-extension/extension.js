@@ -8,22 +8,22 @@ const output = vscode.window.createOutputChannel("MetaBASIC");
 const diagnostics = createMetaBasicDiagnostics(output);
 
 const targetChoices = [
-  { label: "ZX Spectrum", value: "spectrum", launchScript: "launch:spectrum" },
-  { label: "Atari 800XL", value: "atari800xl", launchScript: "launch:atari" },
-  { label: "Commodore 64", value: "c64", launchScript: "launch:c64" }
+  { label: "ZX Spectrum", value: "spectrum", launchScript: "scripts/launch-spectrum.mjs" },
+  { label: "Atari 800XL", value: "atari800xl", launchScript: "scripts/launch-atari.mjs" },
+  { label: "Commodore 64", value: "c64", launchScript: "scripts/launch-c64.mjs" }
 ];
 
 function activate(context) {
   context.subscriptions.push(output);
   context.subscriptions.push(diagnostics);
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildProject", () => runProjectCommand(context, { action: "Build Project", script: "build:all-targets", skipExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildProject", () => runProjectCommand(context, { action: "Build Project", script: "scripts/build-all.mjs", skipExternalTools: true })));
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTarget", () => buildTarget(context, { skipExternalTools: true })));
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployProject", () => runProjectCommand(context, { action: "Deploy Project", script: "build:all-targets", forceExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployProject", () => runProjectCommand(context, { action: "Deploy Project", script: "scripts/build-all.mjs", forceExternalTools: true })));
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.deployTarget", () => buildTarget(context, { action: "Deploy", forceExternalTools: true })));
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTests", () => runProjectCommand(context, { action: "Build Tests", script: "build:all-targets", testMode: true, skipExternalTools: true })));
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchProject", () => runProjectCommand(context, { action: "Launch Project", script: "launch:all-targets", launch: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.buildTests", () => runProjectCommand(context, { action: "Build Tests", script: "scripts/build-all.mjs", testMode: true, skipExternalTools: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchProject", () => runProjectCommand(context, { action: "Launch Project", script: "scripts/launch-all-targets.mjs", launch: true })));
   context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchTarget", () => launchTarget(context)));
-  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchTests", () => runProjectCommand(context, { action: "Launch Tests", script: "launch:all-targets", launch: true, testMode: true })));
+  context.subscriptions.push(vscode.commands.registerCommand("metabasic.launchTests", () => runProjectCommand(context, { action: "Launch Tests", script: "scripts/launch-all-targets.mjs", launch: true, testMode: true })));
 }
 
 function deactivate() {}
@@ -35,7 +35,7 @@ async function buildTarget(context, options = {}) {
   }
   await runProjectCommand(context, {
     action: `${options.action ?? "Build"} ${target.label}`,
-    script: "build:target",
+    script: "scripts/build-target.mjs",
     target: target.value,
     skipExternalTools: options.skipExternalTools,
     forceExternalTools: options.forceExternalTools
@@ -64,14 +64,14 @@ async function runProjectCommand(context, options) {
   }
 
   const toolRoot = resolveToolRoot(context);
-  if (!fs.existsSync(path.join(toolRoot, "scripts", "build-all.mjs"))) {
-    vscode.window.showErrorMessage(`MetaBASIC tools were not found at ${toolRoot}. Set metabasic.toolRoot to your tool checkout.`);
+  if (!fs.existsSync(path.join(toolRoot, "scripts", "build-all.mjs")) || !fs.existsSync(path.join(toolRoot, "dist", "cli.js"))) {
+    vscode.window.showErrorMessage(`MetaBASIC tools were not found at ${toolRoot}. Reinstall the extension or set metabasic.toolRoot to a tool checkout.`);
     return;
   }
 
   const config = vscode.workspace.getConfiguration("metabasic", workspaceFolder.uri);
   const profile = config.get("profile", "debug");
-  const args = npmScriptArgs(options, workspaceFolder.uri.fsPath, config, profile);
+  const invocation = toolInvocation(options, workspaceFolder.uri.fsPath, config, profile, toolRoot);
 
   output.clear();
   output.show(true);
@@ -82,8 +82,7 @@ async function runProjectCommand(context, options) {
   diagnostics.clearWorkspace(workspaceFolder);
 
   try {
-    const npm = npmInvocation(args);
-    await run(npm.command, npm.args, toolRoot);
+    await run(invocation.command, invocation.args, toolRoot);
     vscode.window.showInformationMessage(`MetaBASIC ${options.action.toLowerCase()} finished for ${workspaceFolder.name}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -96,23 +95,28 @@ async function runProjectCommand(context, options) {
   }
 }
 
-function npmScriptArgs(options, projectPath, config, profile) {
-  const args = ["run", options.script, "--"];
+function toolInvocation(options, projectPath, config, profile, toolRoot) {
+  const args = [path.join(toolRoot, options.script)];
   if (options.target) {
     args.push(options.target);
   }
   args.push("--project", projectPath, "--profile", profile, "--out-dir", path.join(projectPath, "build"));
+  args.push("--skip-build");
+  const toolConfig = resolveToolConfig(projectPath, config);
+  if (toolConfig) {
+    args.push("--config", toolConfig);
+  }
 
-    if (options.testMode) {
-      args.push("--run-tests");
-      if (config.get("mirrorTestOutput", false)) {
-        args.push("--printer-output");
-        const testOutputDevice = config.get("testOutputDevice", "target-default");
-        if (testOutputDevice !== "target-default") {
-          args.push("--test-output-device", testOutputDevice);
-        }
+  if (options.testMode) {
+    args.push("--run-tests");
+    if (config.get("mirrorTestOutput", false)) {
+      args.push("--printer-output");
+      const testOutputDevice = config.get("testOutputDevice", "target-default");
+      if (testOutputDevice !== "target-default") {
+        args.push("--test-output-device", testOutputDevice);
       }
     }
+  }
 
   if (options.launch && config.get("restartEmulators", true)) {
     args.push("--restart");
@@ -122,7 +126,17 @@ function npmScriptArgs(options, projectPath, config, profile) {
     args.push("--no-tools");
   }
 
-  return args;
+  return { command: process.execPath, args };
+}
+
+function resolveToolConfig(projectPath, config) {
+  const configured = config.get("toolConfig", "").trim();
+  if (configured.length > 0) {
+    return path.isAbsolute(configured) ? configured : path.join(projectPath, configured);
+  }
+
+  const projectConfig = path.join(projectPath, "metabasic-tools.json");
+  return fs.existsSync(projectConfig) ? projectConfig : undefined;
 }
 
 function pickWorkspaceFolder() {
@@ -140,6 +154,10 @@ function resolveToolRoot(context) {
   const configured = vscode.workspace.getConfiguration("metabasic").get("toolRoot", "").trim();
   if (configured.length > 0) {
     return configured;
+  }
+  const bundled = path.join(context.extensionPath, "tools");
+  if (fs.existsSync(path.join(bundled, "scripts", "build-all.mjs"))) {
+    return bundled;
   }
   return path.resolve(context.extensionPath, "..");
 }
@@ -185,16 +203,6 @@ function getTranscript(error) {
 
 function formatCommand(command, args) {
   return [command, ...args].map((part) => (/\s/.test(part) ? `"${part}"` : part)).join(" ");
-}
-
-function npmInvocation(args) {
-  if (process.platform === "win32") {
-    return {
-      command: process.env.ComSpec ?? "cmd.exe",
-      args: ["/d", "/s", "/c", "npm.cmd", ...args]
-    };
-  }
-  return { command: "npm", args };
 }
 
 module.exports = {

@@ -32,7 +32,7 @@ async function launchC64(options) {
     moduleName: options.moduleName,
     outDir: options.outDir,
     configPath: options.configPath,
-    runBuild: true,
+    runBuild: options.runBuild,
     runTools: true
   });
 
@@ -98,6 +98,7 @@ function parseArgs(argv) {
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
+    runBuild: true,
     restart: false
   };
 
@@ -150,6 +151,10 @@ function parseArgs(argv) {
     if (arg === "--config") {
       options.configPath = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--skip-build") {
+      options.runBuild = false;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

@@ -41,7 +41,8 @@ async function launchAll(options) {
     ...(options.testMode ? ["--run-tests"] : []),
     ...(options.testPrinterOutput ? ["--printer-output"] : []),
     ...(options.testPrinterOutput && options.testOutputDevice ? ["--test-output-device", options.testOutputDevice] : []),
-    ...(options.moduleName ? ["--module", options.moduleName] : [])
+    ...(options.moduleName ? ["--module", options.moduleName] : []),
+    ...(options.runBuild ? [] : ["--skip-build"])
   ];
 
   const launches = configured.map(({ target, script }) => {
@@ -90,6 +91,7 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     atariArtifact: undefined,
+    runBuild: true,
     restart: false
   };
 
@@ -147,6 +149,10 @@ function parseArgs(argv) {
     if (arg === "--atari-artifact") {
       options.atariArtifact = readValue(argv, index, arg);
       index += 1;
+      continue;
+    }
+    if (arg === "--skip-build") {
+      options.runBuild = false;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {
