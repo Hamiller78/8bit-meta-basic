@@ -114,7 +114,7 @@ Atari colour values are deterministic approximations and can look different betw
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 
-Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`.
+Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`. Readable mode also shortens names containing C64 BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer can reject names that look harmless in Meta-BASIC source.
 
 ## Readability
 

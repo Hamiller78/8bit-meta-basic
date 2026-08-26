@@ -317,7 +317,7 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
     for (const name of names) {
       const key = significantName(name);
       const group = groups.get(key) ?? [];
-      if (group.length === 1 && !reservedNames.has(key.slice(0, 2))) {
+      if (group.length === 1 && canUseReadableVariableName(name, allocated)) {
         map.set(name.toLowerCase(), name.toUpperCase());
         allocated.add(key);
       }
@@ -392,8 +392,84 @@ function significantName(name: string): string {
 
 const reservedNames = new Set(["TO", "IF", "GO", "ON", "OR", "AN", "NO", "PR", "PO", "SY", "RE", "ST", "TH", "TI"]);
 
+const c64TokenSubstrings = [
+  "END",
+  "FOR",
+  "NEXT",
+  "DATA",
+  "INPUT",
+  "DIM",
+  "READ",
+  "LET",
+  "GOTO",
+  "RUN",
+  "IF",
+  "RESTORE",
+  "GOSUB",
+  "RETURN",
+  "REM",
+  "STOP",
+  "ON",
+  "WAIT",
+  "LOAD",
+  "SAVE",
+  "VERIFY",
+  "DEF",
+  "POKE",
+  "PRINT",
+  "CONT",
+  "LIST",
+  "CLR",
+  "CMD",
+  "SYS",
+  "OPEN",
+  "CLOSE",
+  "GET",
+  "NEW",
+  "TAB",
+  "TO",
+  "FN",
+  "SPC",
+  "THEN",
+  "NOT",
+  "STEP",
+  "AND",
+  "OR",
+  "SGN",
+  "INT",
+  "ABS",
+  "USR",
+  "FRE",
+  "POS",
+  "SQR",
+  "RND",
+  "LOG",
+  "EXP",
+  "COS",
+  "SIN",
+  "TAN",
+  "ATN",
+  "PEEK",
+  "LEN",
+  "STR",
+  "VAL",
+  "ASC",
+  "CHR",
+  "LEFT",
+  "RIGHT",
+  "MID",
+  "GO",
+  "TI",
+  "ST"
+];
+
+function canUseReadableVariableName(name: string, allocated: ReadonlySet<string>): boolean {
+  const clean = cleanC64VariableName(name);
+  return clean.length > 0 && !allocated.has(significantName(name)) && !reservedNames.has(significantName(name).slice(0, 2)) && !containsC64TokenSubstring(clean);
+}
+
 function preferredVariableName(name: string): string | undefined {
-  const clean = name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  const clean = cleanC64VariableName(name);
   if (clean.length === 0) {
     return undefined;
   }
@@ -425,7 +501,15 @@ function generatedVariableStem(index: number): string {
 
 function canAllocate(name: string, allocated: ReadonlySet<string>): boolean {
   const key = significantName(name);
-  return !allocated.has(key) && !reservedNames.has(key.slice(0, 2));
+  return !allocated.has(key) && !reservedNames.has(key.slice(0, 2)) && !containsC64TokenSubstring(cleanC64VariableName(name));
+}
+
+function cleanC64VariableName(name: string): string {
+  return name.toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+}
+
+function containsC64TokenSubstring(cleanName: string): boolean {
+  return c64TokenSubstrings.some((token) => cleanName.includes(token));
 }
 
 function variableTypeSuffix(name: string): "" | "$" | "%" {

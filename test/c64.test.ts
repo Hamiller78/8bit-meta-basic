@@ -51,7 +51,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(['10 OPEN 1,4', '20 PRINT#1,"RESULT: ";SCORE;', "30 CLOSE 1", ""].join("\n"));
+    ).toBe(['10 OPEN 1,4', '20 PRINT#1,"RESULT: ";SC;', "30 CLOSE 1", ""].join("\n"));
   });
 
   it("renders RS232 device output through C64 device 2", () => {
@@ -61,7 +61,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";SCORE', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
+    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";SC', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
   });
 
   it("lowers C64 printer availability checks through ST", () => {
@@ -212,6 +212,16 @@ describe("C64 compiler", () => {
         target: "c64"
       })
     ).toBe(["10 SE=1", "20 V0=SE + 1", "30 PRINT SE;V0", ""].join("\n"));
+  });
+
+  it("shortens readable C64 variable names containing BASIC token substrings", () => {
+    expect(
+      compileSource("memoryLeft = free_memory()\nmemorsy = memoryLeft + 1\ngift = memorsy + 1\ntotal = gift + 1\nprint memoryLeft; memorsy; gift; total\n", {
+        filename: "token-names.mbas",
+        target: "c64",
+        readability: 2
+      })
+    ).toBe(["10 ME=FRE(0) - (FRE(0) < 0) * 65536", "20 V0=ME + 1", "30 GI=V0 + 1", "40 V1=GI + 1", "50 PRINT ME;V0;GI;V1", ""].join("\n"));
   });
 
   it("uses compact C64 variable names when readability is low", () => {

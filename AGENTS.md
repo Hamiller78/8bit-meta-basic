@@ -508,7 +508,7 @@ PRINT ...
 - At readability `1`, allocate compact generated variable names deterministically and comment the first explicit assignment for each variable with its source name.
 - At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
 - Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
-- Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Constants are substituted and require no runtime variable name.
+- Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Avoid readable C64 variable names containing BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer may reject them inside a variable name. Constants are substituted and require no runtime variable name.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 - Render fixed-width string arrays as native string arrays and omit the fixed width from C64 `DIM`.
 
