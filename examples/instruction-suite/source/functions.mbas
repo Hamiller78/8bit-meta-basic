@@ -11,3 +11,15 @@ end function
 function NestedBonus(Value)
     return AddValues(LocalShadow(Value), 3)
 end function
+
+function StoreProcedureValue(Value)
+    ProcedureResult = Value
+    if Value > 0 then
+        return
+    end if
+    ProcedureResult = 99
+end function
+
+function StoreImplicitProcedureValue(Value)
+    ProcedureResult = Value + 1
+end function

@@ -20,3 +20,15 @@ end test
 test NestedFunctionCall()
     assert_eq 13, NestedBonus(5)
 end test
+
+test ProcedureFunctionBareReturn()
+    ProcedureResult = 0
+    StoreProcedureValue(7)
+    assert_eq 7, ProcedureResult
+end test
+
+test ProcedureFunctionImplicitReturn()
+    ProcedureResult = 0
+    StoreImplicitProcedureValue(8)
+    assert_eq 9, ProcedureResult
+end test

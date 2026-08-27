@@ -177,6 +177,51 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("RETURN");
   });
 
+  it("allows bare RETURN inside functions that never return a value", () => {
+    const source = [
+      "DrawHeader()",
+      "FUNCTION DrawHeader()",
+      "IF 1 THEN",
+      "RETURN",
+      "END IF",
+      "PRINT \"HEADER\"",
+      "END FUNCTION"
+    ].join("\n");
+
+    const output = compileSource(source, { filename: "procedure-return.mbas", target: "spectrum", readability: 0 });
+
+    expect(output).toContain("GO SUB");
+    expect(output).toContain("RETURN");
+    expect(output).toContain('PRINT "HEADER"');
+  });
+
+  it("allows multiple RETURN expressions inside value-returning functions", () => {
+    const source = [
+      "X = Clamp(Value)",
+      "FUNCTION Clamp(Value)",
+      "IF Value < 0 THEN",
+      "RETURN 0",
+      "END IF",
+      "RETURN Value",
+      "END FUNCTION"
+    ].join("\n");
+
+    const output = compileSource(source, { filename: "value-return.mbas", target: "spectrum", readability: 0 });
+
+    expect(output).toContain("LET MBF1R=0");
+    expect(output).toContain("LET MBF1R=MBF1P1");
+  });
+
+  it("rejects mixing bare RETURN and RETURN expression inside one function", () => {
+    expect(() =>
+      compileSource("Draw()\nFUNCTION Draw()\nRETURN\nRETURN 1\nEND FUNCTION\n", { filename: "mixed-return.mbas", target: "spectrum" })
+    ).toThrow("FUNCTION Draw cannot mix RETURN with and without an expression.");
+
+    expect(() =>
+      compileSource("X = Pick(1)\nFUNCTION Pick(Value)\nRETURN Value\nRETURN\nEND FUNCTION\n", { filename: "mixed-return.mbas", target: "spectrum" })
+    ).toThrow("FUNCTION Pick cannot mix RETURN with and without an expression.");
+  });
+
   it("rejects using a function without a return value inside an expression", () => {
     expect(() =>
       compileSource("X = DrawHeader()\nFUNCTION DrawHeader()\nPRINT \"HEADER\"\nEND FUNCTION\n", { filename: "procedure-expression.mbas", target: "spectrum" })

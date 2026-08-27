@@ -17,6 +17,7 @@ export interface FunctionScope {
   readonly kind: "function" | "test";
   readonly functionName: string;
   readonly returnName: string;
+  readonly returnsValue: boolean;
   readonly variables: ReadonlyMap<string, string>;
   readonly labels: ReadonlyMap<string, string>;
 }
@@ -50,6 +51,7 @@ export function createFunctionScope(definition: FunctionDefinition): FunctionSco
     kind: "function",
     functionName: definition.name,
     returnName: definition.implementation.returnName,
+    returnsValue: definition.returnsValue,
     variables,
     labels
   };
@@ -75,6 +77,7 @@ export function createTestScope(statement: Extract<Statement, { kind: "test" }>)
     kind: "test",
     functionName: statement.name,
     returnName: statement.implementation.returnName,
+    returnsValue: false,
     variables,
     labels
   };
@@ -90,6 +93,21 @@ export function containsFunctionReturn(statements: readonly Statement[]): boolea
     }
     if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       return containsFunctionReturn(statement.body);
+    }
+    return false;
+  });
+}
+
+export function containsBareFunctionReturn(statements: readonly Statement[]): boolean {
+  return statements.some((statement) => {
+    if (statement.kind === "return" && !statement.expression) {
+      return true;
+    }
+    if (statement.kind === "if") {
+      return containsBareFunctionReturn(statement.thenBranch) || containsBareFunctionReturn(statement.elseBranch);
+    }
+    if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      return containsBareFunctionReturn(statement.body);
     }
     return false;
   });
@@ -117,12 +135,16 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
     nextId += 1;
     const locals = collectLocalNames(statement);
     validateScopedNames(statement, locals);
+    const returnsValue = containsFunctionReturn(statement.body);
+    if (returnsValue && containsBareFunctionReturn(statement.body)) {
+      throw new DiagnosticError(statement.location, `FUNCTION ${statement.name} cannot mix RETURN with and without an expression.`);
+    }
     const pendingDefinition = {
       id,
       name: statement.name,
       key,
       valueType: isStringVariableName(statement.name) ? "string" : "number",
-      returnsValue: containsFunctionReturn(statement.body),
+      returnsValue,
       locals,
       statement
     } satisfies PendingFunctionDefinition;

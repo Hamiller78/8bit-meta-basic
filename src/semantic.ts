@@ -399,8 +399,15 @@ function analyzeStatements(
             analyzed.push(statement);
             break;
           }
+          if (scope.returnsValue && !statement.expression) {
+            throw new DiagnosticError(statement.location, `RETURN inside FUNCTION ${scope.functionName} requires an expression because the function returns a value.`);
+          }
+          if (!scope.returnsValue && statement.expression) {
+            throw new DiagnosticError(statement.location, `RETURN inside FUNCTION ${scope.functionName} cannot return a value because the function has no return value.`);
+          }
           if (!statement.expression) {
-            throw new DiagnosticError(statement.location, `RETURN inside FUNCTION ${scope.functionName} requires an expression.`);
+            analyzed.push(statement);
+            break;
           }
           analyzed.push({
             ...statement,
