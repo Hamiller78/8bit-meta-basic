@@ -193,6 +193,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("lowers MOD through portable INT arithmetic", () => {
+    expect(compileSource("wrapped = x mod 4\nprint 10 mod 3\n", { filename: "mod.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 LET WRAPPED=(X) - INT((X) / (4)) * (4)", "20 PRINT 1", ""].join("\n")
+    );
+  });
+
   it("evaluates constants, substitutes them, and folds constant subexpressions", () => {
     expect(
       compileSource(
@@ -405,8 +411,8 @@ describe("Spectrum compiler", () => {
   });
 
   it("renders MID$ as Spectrum string slicing", () => {
-    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5)\n', { filename: "mid.mbas", target: "spectrum" })).toBe(
-      ['10 LET A$="HELLO WORLD"', "20 PRINT A$(2 TO 2 + 5 - 1)", ""].join("\n")
+    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5); mid$(tickerText$, 7)\n', { filename: "mid.mbas", target: "spectrum" })).toBe(
+      ['10 LET A$="HELLO WORLD"', "20 PRINT A$(2 TO 2 + 5 - 1);A$(7 TO )", ""].join("\n")
     );
   });
 
@@ -453,6 +459,26 @@ describe("Spectrum compiler", () => {
         target: "spectrum"
       })
     ).toBe(["10 DIM V(3)", "20 DIM C(3)", "30 LET V(1)=1.5", "40 LET V(3)=4.5", "50 LET C(3)=INT (V(3))", "60 PRINT V(1);C(3)", ""].join("\n"));
+  });
+
+  it("does not impose an artificial ten-element array limit", () => {
+    expect(
+      compileSource('dim values(42)\ndim counters%(42)\ndim messages$(42, 12)\nvalues(41)=1\ncounters%(41)=values(41)\nmessages$(41)="READY"\nprint values(41); counters%(41); messages$(41)\n', {
+        filename: "large-arrays.mbas",
+        target: "spectrum"
+      })
+    ).toBe(
+      [
+        "10 DIM V(42)",
+        "20 DIM C(42)",
+        "30 DIM M$(42,12)",
+        "40 LET V(42)=1",
+        "50 LET C(42)=INT (V(42))",
+        '60 LET M$(42,1 TO 12)="READY"',
+        "70 PRINT V(42);C(42);M$(42,1 TO 12)",
+        ""
+      ].join("\n")
+    );
   });
 
   it("renders fixed-width string arrays using Spectrum string arrays", () => {
@@ -567,6 +593,7 @@ describe("Spectrum compiler", () => {
   });
 
   it("reports invalid MID$ calls", () => {
+    expect(() => compileSource('print mid$("ABC")\n', { filename: "mid.mbas", target: "spectrum" })).toThrow("MID$ expects two or three arguments");
     expect(() => compileSource('print mid$(1, 2, 3)\n', { filename: "mid.mbas", target: "spectrum" })).toThrow(
       "MID$ first argument must be a string expression"
     );
@@ -688,8 +715,14 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource("const a = 1 / 0\n", { filename: "zero.mbas", target: "spectrum" })).toThrow(
       "Division by zero"
     );
+    expect(() => compileSource("const a = 1 mod 0\n", { filename: "zero-mod.mbas", target: "spectrum" })).toThrow(
+      "Modulo by zero"
+    );
     expect(() => compileSource('const a = "x" - "y"\n', { filename: "types.mbas", target: "spectrum" })).toThrow(
       "Operator - requires numeric operands"
+    );
+    expect(() => compileSource('x = "x" mod "y"\n', { filename: "mod-types.mbas", target: "spectrum" })).toThrow(
+      "Operator MOD requires numeric operands"
     );
   });
 

@@ -40,6 +40,7 @@ export type Statement =
   | LocalStatement
   | FunctionStatement
   | TestStatement
+  | GlobalsStatement
   | AssertStatement
   | ForStatement
   | WhileStatement
@@ -163,6 +164,7 @@ export interface LetStatement {
   readonly kind: "let";
   readonly name: string;
   readonly expression: Expression;
+  readonly sourceName?: string;
   readonly location: SourceLocation;
 }
 
@@ -241,6 +243,12 @@ export interface TestStatement {
   readonly name: string;
   readonly body: readonly Statement[];
   readonly implementation?: FunctionImplementation;
+  readonly location: SourceLocation;
+}
+
+export interface GlobalsStatement {
+  readonly kind: "globals";
+  readonly body: readonly Statement[];
   readonly location: SourceLocation;
 }
 
@@ -379,4 +387,4 @@ export interface BinaryExpression {
 }
 
 export type UnaryOperator = "-" | "NOT";
-export type BinaryOperator = "+" | "-" | "*" | "/" | "^" | "=" | "<>" | "<" | "<=" | ">" | ">=" | "AND" | "OR";
+export type BinaryOperator = "+" | "-" | "*" | "/" | "MOD" | "^" | "=" | "<>" | "<" | "<=" | ">" | ">=" | "AND" | "OR";

@@ -226,8 +226,8 @@ describe("Atari 800XL compiler", () => {
   });
 
   it("renders MID$ as Atari string slicing", () => {
-    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5)\n', { filename: "mid.mbas", target: "atari800xl" })).toBe(
-      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(2,2 + 5 - 1)", ""].join("\n")
+    expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5); mid$(tickerText$, 7)\n', { filename: "mid.mbas", target: "atari800xl" })).toBe(
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(2,2 + 5 - 1);TICKERTEXT$(7,LEN(TICKERTEXT$))", ""].join("\n")
     );
   });
 
@@ -264,6 +264,12 @@ describe("Atari 800XL compiler", () => {
   it("renders exponentiation with Atari spelling", () => {
     expect(compileSource("power = base ^ exponent * 3\nnegativePower = -base ^ exponent\n", { filename: "power.mbas", target: "atari800xl" })).toBe(
       ["10 POWER=BASE ^ EXPONENT * 3", "20 NEGATIVEPOWER=-(BASE ^ EXPONENT)", ""].join("\n")
+    );
+  });
+
+  it("lowers MOD through portable INT arithmetic", () => {
+    expect(compileSource("wrapped = x mod 4\nprint 10 mod 3\n", { filename: "mod.mbas", target: "atari800xl" })).toBe(
+      ["10 WRAPPED=(X) - INT((X) / (4)) * (4)", "20 PRINT 1", ""].join("\n")
     );
   });
 

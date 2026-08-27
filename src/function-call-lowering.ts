@@ -78,14 +78,15 @@ export function expandFunctionCallIntoDestination(
   expression: Expression,
   destinationName: string,
   instructions: Instruction[],
-  context: FunctionCallLoweringContext
+  context: FunctionCallLoweringContext,
+  sourceName?: string
 ): boolean {
   if (expression.kind !== "function-call") {
     return false;
   }
 
   if (expression.name === builtinFunctions.deviceAvailable) {
-    expandDeviceAvailableCallIntoDestination(expression, destinationName, instructions);
+    expandDeviceAvailableCallIntoDestination(expression, destinationName, instructions, sourceName);
     return true;
   }
 
@@ -111,6 +112,7 @@ export function expandFunctionCallIntoDestination(
     kind: "let",
     name: destinationName,
     expression: { kind: "identifier", name: implementation.returnName, location: expression.location },
+    ...(sourceName ? { sourceName } : {}),
     location: expression.location
   });
   return true;
@@ -156,7 +158,12 @@ function expandDeviceAvailableCall(expression: Extract<Expression, { kind: "func
   return { kind: "identifier", name: tempName, location: expression.location };
 }
 
-function expandDeviceAvailableCallIntoDestination(expression: Extract<Expression, { kind: "function-call" }>, destinationName: string, instructions: Instruction[]): void {
+function expandDeviceAvailableCallIntoDestination(
+  expression: Extract<Expression, { kind: "function-call" }>,
+  destinationName: string,
+  instructions: Instruction[],
+  sourceName?: string
+): void {
   if (expression.args.length !== 1) {
     throw new DiagnosticError(expression.location, "DEVICE_AVAILABLE expects exactly one argument.");
   }
@@ -166,7 +173,7 @@ function expandDeviceAvailableCallIntoDestination(expression: Extract<Expression
   }
 
   const deviceKind = deviceKindFromName(device.name, expression.location);
-  instructions.push({ kind: "check-device", name: destinationName, device: deviceKind, location: expression.location });
+  instructions.push({ kind: "check-device", name: destinationName, device: deviceKind, ...(sourceName ? { sourceName } : {}), location: expression.location });
 }
 
 function deviceKindFromName(name: string, location: Expression["location"]): DeviceKind {

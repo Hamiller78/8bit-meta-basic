@@ -171,6 +171,7 @@ export interface CheckDeviceInstruction {
   readonly kind: "check-device";
   readonly name: string;
   readonly device: DeviceKind;
+  readonly sourceName?: string;
   readonly location: SourceLocation;
 }
 
@@ -206,6 +207,7 @@ export interface LetInstruction {
   readonly kind: "let";
   readonly name: string;
   readonly expression: Expression;
+  readonly sourceName?: string;
   readonly location: SourceLocation;
 }
 
@@ -345,12 +347,21 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const context: FunctionCallLoweringContext = { functions, nextTempId: 1 };
   const instructions: Instruction[] = [];
 
-  const mainStatements = program.statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test");
+  const mainStatements = program.statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test" && statement.kind !== "globals");
   const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function");
   const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
+  const globalsStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
 
   if (options.testMode) {
-    lowerTestRunner(testStatements, instructions, generator, { printerOutput: options.testPrinterOutput === true, outputDevice: options.testOutputDevice ?? "printer" });
+    const globalResetInstructions: Instruction[] = [];
+    for (const statement of globalsStatements) {
+      lowerStatements(statement.body, globalResetInstructions, generator, context);
+    }
+    lowerTestRunner(testStatements, instructions, generator, {
+      printerOutput: options.testPrinterOutput === true,
+      outputDevice: options.testOutputDevice ?? "printer",
+      globalResetInstructions
+    });
   } else {
     lowerStatements(mainStatements, instructions, generator, context);
   }
@@ -417,6 +428,7 @@ function lowerStatements(
       case "local":
       case "function":
       case "test":
+      case "globals":
         break;
       case "dim":
         instructions.push({
@@ -618,8 +630,14 @@ function lowerStatements(
         instructions.push({ kind: "restore", location: statement.location });
         break;
       case "let":
-        if (!expandFunctionCallIntoDestination(statement.expression, statement.name, instructions, context)) {
-          instructions.push({ kind: "let", name: statement.name, expression: expandFunctionCalls(statement.expression, instructions, context), location: statement.location });
+        if (!expandFunctionCallIntoDestination(statement.expression, statement.name, instructions, context, statement.sourceName)) {
+          instructions.push({
+            kind: "let",
+            name: statement.name,
+            expression: expandFunctionCalls(statement.expression, instructions, context),
+            ...(statement.sourceName ? { sourceName: statement.sourceName } : {}),
+            location: statement.location
+          });
         }
         break;
       case "array-let":

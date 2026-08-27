@@ -105,13 +105,13 @@ Supported operators, from highest to lowest precedence:
 
 1. `^`
 2. Unary `-` and `NOT`
-3. `*` and `/`
+3. `*`, `/`, and `MOD`
 4. `+` and `-`
 5. `=`, `<>`, `<`, `<=`, `>`, and `>=`
 6. `AND`
 7. `OR`
 
-Binary operators are left-associative. `^` renders to the native target exponentiation operator; target-specific numeric precision and domain quirks remain visible. Spectrum BASIC rejects negative bases for exponentiation at runtime, so avoid expressions such as `(-x) ^ 2` in portable programs for now. Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
+Binary operators are left-associative. `MOD` lowers portably to `A - INT(A / B) * B`; for now, avoid side-effecting operands such as `RND()` because the naive runtime rendering may evaluate operands more than once. `^` renders to the native target exponentiation operator; target-specific numeric precision and domain quirks remain visible. Spectrum BASIC rejects negative bases for exponentiation at runtime, so avoid expressions such as `(-x) ^ 2` in portable programs for now. Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
 
 Meta-BASIC treats zero as false and every nonzero numeric value as true. Target lowering preserves these logical semantics despite differences between the original BASIC implementations.
 
@@ -122,6 +122,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `string$(text$, count)` | Compile time | Repeat a string |
 | `space$(count)` | Compile time | Produce spaces |
 | `mid$(text$, start, length)` | Runtime | Extract a string section |
+| `mid$(text$, start)` | Runtime | Extract from a position through the end of the string |
 | `left$(text$, length)` | Runtime | Extract the left part of a string |
 | `right$(text$, length)` | Runtime | Extract the right part of a string |
 | `len(text$)` | Runtime | Return string length |
@@ -260,6 +261,11 @@ function Add(Left, Right)
     return Left + Right
 end function
 
+globals
+    CurrentScore = 0
+    PlayerName$ = "READY"
+end globals
+
 test AdditionWorks()
     local Result
     Result = Add(2, 3)
@@ -267,7 +273,9 @@ test AdditionWorks()
 end test
 ```
 
-`TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s. Ordinary global variables are not reset automatically between tests.
+`GLOBALS` blocks may contain assignment statements. The generated test runner replays those assignments before each test, so shared global fixture variables return to their declared initial values. This is explicit on purpose: globals outside a `GLOBALS` block are left alone.
+
+`TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s.
 
 Supported assertions are:
 

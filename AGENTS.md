@@ -98,7 +98,7 @@ Supported constructs:
 - `read` statements targeting scalar variables
 - Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
-- Runtime string slicing with `mid$(text$, start, length)`, `left$(text$, length)`, and `right$(text$, length)`
+- Runtime string slicing with `mid$(text$, start, length)`, `mid$(text$, start)`, `left$(text$, length)`, and `right$(text$, length)`
 - Runtime string/number conversion with `str$(number)` and `val(text$)`
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
 - Runtime random number helper `rnd()`
@@ -118,6 +118,7 @@ Supported constructs:
 - `close_device handle`
 - Runtime device availability checks with `device_available(PRINTER)`, `device_available(TEXT_PRINTER)`, `device_available(SHARED_DRIVE)`, and `device_available(RS232)`
 - Test-mode `TEST name()` / `END TEST` blocks
+- Test-mode `GLOBALS` / `END GLOBALS` fixture blocks
 - Test-mode assertions `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and portable colour assertions
 - `cls` and `cls colour`
 - `border_color colour`
@@ -140,7 +141,7 @@ Keywords and symbol lookup are case-insensitive. Preserve the source spelling of
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
-Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `TEST` and `ASSERT_*` constructs and emit no test runner, counters, output capture, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable zero-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
+Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable zero-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
 
 ## Tokenizer and parser
 
@@ -176,7 +177,7 @@ Supported expression forms:
 - String literals
 - Identifiers
 - Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
-- Runtime string function calls `MID$(text$, start, length)`, `LEFT$(text$, length)`, `RIGHT$(text$, length)`, and `LEN(text$)`
+- Runtime string function calls `MID$(text$, start, length)`, `MID$(text$, start)`, `LEFT$(text$, length)`, `RIGHT$(text$, length)`, and `LEN(text$)`
 - Runtime character-code function calls `CHR$(code)`, `CODE(text$)`, and `ASC(text$)`
 - Runtime string/number conversion function calls `STR$(number)` and `VAL(text$)`
 - Runtime numeric function calls `ABS(x)`, `ATN(x)`, `COS(x)`, `EXP(x)`, `INT(x)`, `SGN(x)`, `SIN(x)`, and `SQR(x)`
@@ -189,7 +190,7 @@ Supported expression forms:
 - Parenthesized expressions
 - Unary `-`
 - Unary `NOT`
-- Arithmetic `+`, `-`, `*`, `/`, `^`
+- Arithmetic `+`, `-`, `*`, `/`, `MOD`, `^`
 - Comparisons `=`, `<>`, `<`, `<=`, `>`, `>=`
 - Logical `AND`, `OR`
 - Boolean literals `TRUE` and `FALSE`
@@ -199,13 +200,13 @@ Precedence from highest to lowest:
 1. Parentheses and primary expressions
 2. `^`
 3. Unary `-`, `NOT`
-4. `*`, `/`
+4. `*`, `/`, `MOD`
 5. `+`, `-`
 6. `=`, `<>`, `<`, `<=`, `>`, `>=`
 7. `AND`
 8. `OR`
 
-Binary operators are left-associative. `^` is implemented naively for now and renders to the native target exponentiation operator; target-specific precedence quirks may still need additional lowering after emulator testing. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
+Binary operators are left-associative. `^` is implemented naively for now and renders to the native target exponentiation operator; target-specific precedence quirks may still need additional lowering after emulator testing. `MOD` lowers portably to `A - INT(A / B) * B`; avoid side-effecting operands such as `RND()` for now because the naive rendering may evaluate operands more than once. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
 
 ## Constants and semantic analysis
 
@@ -231,7 +232,7 @@ Implemented requirements:
 - Constant references are case-insensitive.
 - Duplicate constant names are rejected, including names differing only by case.
 - Unknown constants in constant declarations are rejected.
-- Arithmetic, comparison, logical, unary, parenthesized, numeric, string, boolean, `STRING$`, and `SPACE$` constant expressions are evaluated where meaningful.
+- Arithmetic, comparison, logical, unary, parenthesized, numeric, string, boolean, `STRING$`, and `SPACE$` constant expressions are evaluated where meaningful, including `MOD`.
 - Invalid combinations such as subtracting strings are rejected.
 - Constants are substituted into runtime expressions and constant subexpressions are folded.
 - Division by zero in a constant expression is a compile-time diagnostic.
@@ -252,7 +253,7 @@ Assignments produce the same target-independent assignment node regardless of ba
 
 - Spectrum: `LET name=expression`
 - Atari 800XL: `name=expression`
-- C64: `NAME=expression` in readable mode, or compact generated names in low-readability mode
+- C64: deterministic compact target names, with inline source-name comments in readable modes
 
 Constants cannot be assigned to. A name already declared as a constant must produce a clear diagnostic when used as an assignment target.
 
@@ -262,13 +263,13 @@ Target string-variable lowering:
 
 - Spectrum maps Meta-BASIC string variable names deterministically to single-letter string variables such as `A$`, `B$`, and `C$`.
 - Atari 800XL emits `DIM NAME$(255)` before the first assignment to each string variable and lowers string concatenation into Atari substring assignments, using a temporary string buffer when needed to preserve Meta-BASIC expression semantics.
-- C64 preserves readable string names at readability `2` where safe, and uses deterministic compact string names at lower readability levels.
+- C64 uses deterministic compact string names in all readability modes and emits inline source-name comments in readable modes.
 
 Target integer-variable lowering:
 
 - Spectrum maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
 - Atari 800XL maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
-- C64 preserves native `%` integer variables where safe, uses deterministic compact `%` names at lower readability levels, and coerces assignments with `INT`.
+- C64 preserves native `%` integer variable storage but uses deterministic compact `%` names in all readability modes and coerces assignments with `INT`.
 
 ## Arrays
 
@@ -443,7 +444,7 @@ Default is `2`.
 Meaning:
 
 - `0`: compact output. Do not emit label `REM` lines. Targets may use compact runtime variable names.
-- `1`: emit `REM` lines for labels written in Meta-BASIC source. For C64 output, use compact generated variable names and emit `REM Vn=ORIGINALNAME` comments at the first explicit assignment for each variable.
+- `1`: emit `REM` lines for labels written in Meta-BASIC source. For C64 output, use compact generated variable names and append `: REM ORIGINALNAME` at the first explicit assignment for each source variable.
 - `2`: emit `REM` lines for source labels and generated internal labels, and use readable variable names where the target can do so safely.
 
 `--comments 0|1|2` is still accepted as a compatibility alias for the old label-comment option, but new documentation and tests should prefer `--readability`.
@@ -505,11 +506,11 @@ PRINT ...
 
 - Constant coordinates must satisfy row `0..24` and column `0..39`.
 - Commodore BASIC V2 distinguishes variable names by only their first two significant characters. The C64 backend must use deterministic target-lowering name mapping so distinct Meta-BASIC variables never silently alias.
-- At readability `2`, preserve readable uppercase names where safely possible.
-- At readability `1`, allocate compact generated variable names deterministically and comment the first explicit assignment for each variable with its source name.
+- At readability `2`, allocate compact generated variable names deterministically and append inline comments to the first explicit assignment for each source variable.
+- At readability `1`, allocate compact generated variable names deterministically and append inline comments to the first explicit assignment for each source variable.
 - At readability `0`, allocate compact generated variable names deterministically without those variable-name comments.
 - Compact C64 variable mapping should prefer mnemonic names based on the source name's first significant characters, falling back to generated names only when needed to avoid aliases or keywords.
-- Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Avoid readable C64 variable names containing BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer may reject them inside a variable name. Constants are substituted and require no runtime variable name.
+- Avoid generated names that conflict with BASIC keywords or system variables such as `TI`/`TI$`. Do not emit long readable C64 variable names, because the native tokenizer may reject names containing BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`. Constants are substituted and require no runtime variable name.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 - Render fixed-width string arrays as native string arrays and omit the fixed width from C64 `DIM`.
 

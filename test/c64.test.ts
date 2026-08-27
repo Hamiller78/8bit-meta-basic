@@ -71,7 +71,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(["10 OPEN 15,4,15", "20 CLOSE 15", "30 AVAILABLE=-(ST=0)", "40 PRINT AVAILABLE", ""].join("\n"));
+    ).toBe(["10 OPEN 15,4,15", "20 CLOSE 15", "30 AV=-(ST=0): REM AVAILABLE", "40 PRINT AV", ""].join("\n"));
   });
 
   it("mirrors the test runner output to the C64 printer when enabled", () => {
@@ -211,17 +211,26 @@ describe("C64 compiler", () => {
         filename: "aliases.mbas",
         target: "c64"
       })
-    ).toBe(["10 SE=1", "20 V0=SE + 1", "30 PRINT SE;V0", ""].join("\n"));
+    ).toBe(["10 SE=1: REM SENSORCOUNT", "20 V0=SE + 1: REM SENSORSTATE", "30 PRINT SE;V0", ""].join("\n"));
   });
 
-  it("shortens readable C64 variable names containing BASIC token substrings", () => {
+  it("uses compact C64 variable names with inline source comments in readable output", () => {
     expect(
       compileSource("memoryLeft = free_memory()\nmemorsy = memoryLeft + 1\ngift = memorsy + 1\ntotal = gift + 1\nprint memoryLeft; memorsy; gift; total\n", {
         filename: "token-names.mbas",
         target: "c64",
         readability: 2
       })
-    ).toBe(["10 ME=FRE(0) - (FRE(0) < 0) * 65536", "20 V0=ME + 1", "30 GI=V0 + 1", "40 V1=GI + 1", "50 PRINT ME;V0;GI;V1", ""].join("\n"));
+    ).toBe(
+      [
+        "10 ME=FRE(0) - (FRE(0) < 0) * 65536: REM MEMORYLEFT",
+        "20 V0=ME + 1: REM MEMORSY",
+        "30 GI=V0 + 1: REM GIFT",
+        "40 V1=GI + 1: REM TOTAL",
+        "50 PRINT ME;V0;GI;V1",
+        ""
+      ].join("\n")
+    );
   });
 
   it("uses compact C64 variable names when readability is low", () => {
@@ -241,7 +250,20 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 1
       })
-    ).toBe(["10 REM SE=SENSORCOUNT", "20 SE=1", "30 REM AL=ALERTLEVEL", "40 AL=2", "50 PRINT SE;AL", ""].join("\n"));
+    ).toBe(["10 SE=1: REM SENSORCOUNT", "20 AL=2: REM ALERTLEVEL", "30 PRINT SE;AL", ""].join("\n"));
+  });
+
+  it("shortens function local variables and comments their source names in readable C64 output", () => {
+    const output = compileSource('Draw(5, "OK")\nFUNCTION Draw(Row, Text$)\nLOCAL Column\nColumn = (TEXT_COLUMNS - LEN(Text$)) / 2\nPRINT_AT Row, Column, Text$\nEND FUNCTION\n', {
+      filename: "local-comments.mbas",
+      target: "c64",
+      readability: 2
+    });
+
+    expect(output).toContain("CO=(40 - LEN(MB$)) / 2: REM COLUMN");
+    expect(output).toContain("POKE 211,CO");
+    expect(output).not.toContain("COLUMN=");
+    expect(output).not.toContain("POKE 211,COLUMN");
   });
 
   it("renders string variable assignment and PRINT", () => {
@@ -265,12 +287,12 @@ describe("C64 compiler", () => {
 
   it("renders MID$ directly for C64", () => {
     expect(
-      compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5)\n', {
+      compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5); mid$(tickerText$, 7)\n', {
         filename: "mid.mbas",
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 V0$="HELLO WORLD"', "20 PRINT MID$(V0$,2,5)", ""].join("\n"));
+    ).toBe(['10 V0$="HELLO WORLD"', "20 PRINT MID$(V0$,2,5);MID$(V0$,7)", ""].join("\n"));
   });
 
   it("renders LEN directly for C64", () => {
@@ -331,6 +353,12 @@ describe("C64 compiler", () => {
         readability: 0
       })
     ).toBe(["10 V0=BA ^ EX * 3", "20 NE=-(BA ^ EX)", ""].join("\n"));
+  });
+
+  it("lowers MOD through portable INT arithmetic", () => {
+    expect(compileSource("wrapped = x mod 4\nprint 10 mod 3\n", { filename: "mod.mbas", target: "c64", readability: 0 })).toBe(
+      ["10 WR=(X) - INT((X) / (4)) * (4)", "20 PRINT 1", ""].join("\n")
+    );
   });
 
   it("coerces integer variable assignments and renders native C64 integer variables", () => {

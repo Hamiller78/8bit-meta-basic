@@ -644,7 +644,11 @@ function renderAtariLen(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
-  return `${renderExpression(source, options)}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  const renderedSource = renderExpression(source, options);
+  if (!length) {
+    return `${renderedSource}(${renderExpression(start, options)},LEN(${renderedSource}))`;
+  }
+  return `${renderedSource}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }
 
 function renderAtariLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

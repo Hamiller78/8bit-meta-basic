@@ -89,6 +89,17 @@ function analyzeStatements(
         analyzed.push(analyzeTest(statement, constants, arrays, scalarNames, functions, devices, testMode));
         break;
       }
+      case "globals": {
+        if (!testMode) {
+          throw new DiagnosticError(statement.location, "GLOBALS blocks are only valid when testMode is enabled.");
+        }
+        if (scope) {
+          throw new DiagnosticError(statement.location, "Nested GLOBALS blocks are not supported.");
+        }
+        validateGlobalsBody(statement.body);
+        analyzed.push({ ...statement, body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, undefined, testMode) });
+        break;
+      }
       case "local":
         if (!scope) {
           throw new DiagnosticError(statement.location, "LOCAL can only be used inside a FUNCTION or TEST.");
@@ -213,12 +224,12 @@ function analyzeStatements(
           if (expression.kind === "string" || isStringExpression(expression)) {
             throw new DiagnosticError(statement.location, "Integer variable assignments require a numeric expression.");
           }
-          analyzed.push({ ...statement, name: targetName, expression: intCoercion(expression, statement.location) });
+          analyzed.push({ ...statement, name: targetName, sourceName: statement.sourceName ?? statement.name, expression: intCoercion(expression, statement.location) });
           break;
         } else if (expression.kind === "string" || isStringExpression(expression)) {
           throw new DiagnosticError(statement.location, "Assignments require a numeric expression.");
         }
-        analyzed.push({ ...statement, name: targetName, expression });
+        analyzed.push({ ...statement, name: targetName, sourceName: statement.sourceName ?? statement.name, expression });
         break;
       }
       case "array-let": {
@@ -474,6 +485,14 @@ function analyzeStatements(
   return analyzed;
 }
 
+function validateGlobalsBody(statements: readonly Statement[]): void {
+  for (const statement of statements) {
+    if (statement.kind !== "let" && statement.kind !== "array-let") {
+      throw new DiagnosticError(statement.location, "GLOBALS blocks currently support only assignments.");
+    }
+  }
+}
+
 function requireNumericExpression(expression: Expression, context: string): Expression {
   if (expression.kind === "color" || isStringExpression(expression)) {
     throw new DiagnosticError(expression.location, `${context} must be numeric.`);
@@ -675,6 +694,9 @@ function foldExpression(
       if (expression.operator === "^" && (left.kind === "color" || right.kind === "color" || isStringExpression(left) || isStringExpression(right))) {
         throw new DiagnosticError(expression.location, "Operator ^ requires numeric operands.");
       }
+      if (expression.operator === "MOD" && (left.kind === "color" || right.kind === "color" || isStringExpression(left) || isStringExpression(right))) {
+        throw new DiagnosticError(expression.location, "Operator MOD requires numeric operands.");
+      }
       return { ...expression, left, right };
     }
   }
@@ -851,12 +873,12 @@ function foldFunctionCall(
   }
 
   if (name === builtinFunctions.mid) {
-    if (expression.args.length !== 3) {
-      throw new DiagnosticError(expression.location, "MID$ expects exactly three arguments.");
+    if (expression.args.length !== 2 && expression.args.length !== 3) {
+      throw new DiagnosticError(expression.location, "MID$ expects two or three arguments.");
     }
     const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
     const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope);
-    const length = foldExpression(expression.args[2], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const length = expression.args[2] ? foldExpression(expression.args[2], constants, unknownIdentifierIsError, arrays, functions, scope) : undefined;
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "MID$ first argument must be a string expression.");
@@ -864,11 +886,11 @@ function foldFunctionCall(
     if (isStringExpression(start) || start.kind === "color") {
       throw new DiagnosticError(expression.args[1].location, "MID$ start argument must be numeric.");
     }
-    if (isStringExpression(length) || length.kind === "color") {
+    if (length && (isStringExpression(length) || length.kind === "color")) {
       throw new DiagnosticError(expression.args[2].location, "MID$ length argument must be numeric.");
     }
 
-    return { ...expression, name, args: [source, start, length] };
+    return { ...expression, name, args: length ? [source, start, length] : [source, start] };
   }
 
   if (name === builtinFunctions.left || name === builtinFunctions.right) {
@@ -989,6 +1011,11 @@ function evaluateBinary(operator: BinaryOperator, left: ConstantValue, right: Co
         throw new DiagnosticError(expression.location, "Division by zero in constant expression.");
       }
       return numericBinary(operator, left, right, expression, (a, b) => a / b);
+    case "MOD":
+      if (right === 0) {
+        throw new DiagnosticError(expression.location, "Modulo by zero in constant expression.");
+      }
+      return numericBinary(operator, left, right, expression, (a, b) => a - Math.trunc(a / b) * b);
     case "^":
       return numericBinary(operator, left, right, expression, (a, b) => a ** b);
     case "=":

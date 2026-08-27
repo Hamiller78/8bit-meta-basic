@@ -239,6 +239,9 @@ function renderSpectrumLen(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
+  if (!length) {
+    return `${renderExpression(source, options)}(${renderExpression(start, options)} TO )`;
+  }
   return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }
 

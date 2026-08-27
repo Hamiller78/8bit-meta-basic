@@ -74,6 +74,42 @@ describe("Meta-BASIC test mode", () => {
     expect(output).toContain("LET MBF1R=MBF1P1 + MBF1P2");
   });
 
+  it("resets explicit GLOBALS assignments before each TEST", () => {
+    const output = compileSource(
+      [
+        "globals",
+        "Counter = 0",
+        'Status$ = "READY"',
+        "end globals",
+        "test First()",
+        "Counter = Counter + 1",
+        'Status$ = "CHANGED"',
+        "assert_eq 1, Counter",
+        'assert_eq "CHANGED", Status$',
+        "end test",
+        "test Second()",
+        "assert_eq 0, Counter",
+        'assert_eq "READY", Status$',
+        "end test"
+      ].join("\n"),
+      { filename: "globals.mbas", target: "spectrum", readability: 0, testMode: true }
+    );
+
+    expect(count(output, "LET COUNTER=0")).toBe(2);
+    expect(count(output, 'LET A$="READY"')).toBe(2);
+    expect(output.indexOf("LET COUNTER=0")).toBeLessThan(output.indexOf('PRINT "RUNNING First...";'));
+    expect(output.lastIndexOf("LET COUNTER=0")).toBeLessThan(output.indexOf('PRINT "RUNNING Second...";'));
+  });
+
+  it("rejects GLOBALS blocks in normal builds and non-assignment GLOBALS contents", () => {
+    expect(() => compileSource("globals\nScore = 0\nend globals\n", { filename: "normal-globals.mbas", target: "spectrum" })).toThrow(
+      "GLOBALS blocks are only valid when testMode is enabled"
+    );
+    expect(() => compileSource('globals\nprint "NOPE"\nend globals\n', { filename: "bad-globals.mbas", target: "spectrum", testMode: true })).toThrow(
+      "GLOBALS blocks currently support only assignments"
+    );
+  });
+
   it("lowers ASSERT_TRUE and ASSERT_FALSE success and failure without aborting later assertions", () => {
     const output = compileSource(
       ["test Booleans()", "assert_true 1", "assert_true 0", "assert_false 0", "assert_false 1", "assert_true 1", "end test"].join("\n"),

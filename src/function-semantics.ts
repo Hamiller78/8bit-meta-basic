@@ -430,6 +430,8 @@ function collectLabels(statements: readonly Statement[], labels = new Map<string
       collectLabels(statement.elseBranch, labels);
     } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       collectLabels(statement.body, labels);
+    } else if (statement.kind === "globals") {
+      collectLabels(statement.body, labels);
     } else if (statement.kind === "function" || statement.kind === "test") {
       collectLabels(statement.body, labels);
     }
@@ -451,6 +453,8 @@ function validateLabelReferences(statements: readonly Statement[], labels: Reado
       validateLabelReferences(statement.elseBranch, labels, forbiddenLabels);
     } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       validateLabelReferences(statement.body, labels, forbiddenLabels);
+    } else if (statement.kind === "globals") {
+      validateLabelReferences(statement.body, labels, forbiddenLabels);
     } else if (statement.kind === "test") {
       validateLabelReferences(statement.body, labels, forbiddenLabels);
     }
@@ -470,6 +474,8 @@ function collectFunctionCallsFromStatements(
       collectFunctionCallsFromStatements(statement.thenBranch, functions, calls);
       collectFunctionCallsFromStatements(statement.elseBranch, functions, calls);
     } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      collectFunctionCallsFromStatements(statement.body, functions, calls);
+    } else if (statement.kind === "globals") {
       collectFunctionCallsFromStatements(statement.body, functions, calls);
     }
   }
@@ -525,6 +531,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "local":
     case "function":
     case "test":
+    case "globals":
     case "assert-true":
     case "assert-false":
     case "assert-eq":

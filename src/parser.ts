@@ -44,6 +44,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["LOCAL", (parser, location) => parser.parseLocal(location)],
   ["FUNCTION", (parser, location) => parser.parseFunction(location)],
   ["TEST", (parser, location) => parser.parseTest(location)],
+  ["GLOBALS", (parser, location) => parser.parseGlobals(location)],
   ["FOR", (parser, location) => parser.parseFor(location)],
   ["WHILE", (parser, location) => parser.parseWhile(location)],
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
@@ -63,6 +64,7 @@ const binaryPrecedence = new Map<string, number>([
   ["-", 4],
   ["*", 5],
   ["/", 5],
+  ["MOD", 5],
   ["^", 7]
 ]);
 
@@ -366,6 +368,14 @@ class Parser {
     return { kind: "test", name, body, location };
   }
 
+  parseGlobals(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    const body = this.parseBlock("end-globals", location);
+    this.expectEndGlobals();
+    this.expectLineEnd();
+    return { kind: "globals", body, location };
+  }
+
   parseAssertUnary(
     kind:
       | "assert-true"
@@ -463,7 +473,7 @@ class Parser {
   }
 
   private parseBlock(
-    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "end-test" | "next" | "wend" | "until",
+    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "end-test" | "end-globals" | "next" | "wend" | "until",
     missingBlockLocation?: SourceLocation
   ): Statement[] {
     const statements: Statement[] = [];
@@ -489,6 +499,9 @@ class Parser {
         }
         if (until === "end-test") {
           throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END TEST for TEST block.");
+        }
+        if (until === "end-globals") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END GLOBALS for GLOBALS block.");
         }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
@@ -519,6 +532,13 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected END TEST without matching TEST.");
+      }
+
+      if (this.isEndGlobals()) {
+        if (until === "end-globals") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected END GLOBALS without matching GLOBALS.");
       }
 
       if (this.matchKeyword("NEXT")) {
@@ -689,7 +709,7 @@ class Parser {
       return token.text;
     }
 
-    if (token.kind === "keyword" && (token.text === "AND" || token.text === "OR")) {
+    if (token.kind === "keyword" && (token.text === "AND" || token.text === "OR" || token.text === "MOD")) {
       return token.text;
     }
 
@@ -763,6 +783,11 @@ class Parser {
     this.expectKeyword("TEST", "Expected TEST after END.");
   }
 
+  private expectEndGlobals(): void {
+    this.expectKeyword("END", "Expected END GLOBALS.");
+    this.expectKeyword("GLOBALS", "Expected GLOBALS after END.");
+  }
+
   private isEndIf(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("ENDIF") || (this.matchKeyword("END") && next?.kind === "keyword" && next.text === "IF");
@@ -776,6 +801,11 @@ class Parser {
   private isEndTest(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "TEST";
+  }
+
+  private isEndGlobals(): boolean {
+    const next = this.tokens[this.index + 1];
+    return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "GLOBALS";
   }
 
   private expectIdentifier(message: string): Extract<Token, { kind: "identifier" }> {

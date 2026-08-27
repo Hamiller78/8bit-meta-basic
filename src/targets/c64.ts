@@ -27,7 +27,7 @@ export const c64Target: TargetBackend = {
     const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls);
     const withRs232Flush = expandRs232CloseFlush(withDeviceChecks);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
-    return readability === 1 ? addCompactVariableComments(withKeyboardInput) : withKeyboardInput;
+    return withKeyboardInput;
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
@@ -66,8 +66,8 @@ export const c64Target: TargetBackend = {
       case "check-device":
         rejectC64SharedDrive(instruction.device, instruction.location);
         return instruction.device === "rs232"
-          ? `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=1`
-          : `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=-(ST=0)`;
+          ? appendInlineVariableComment(`${lineNumber} ${renderVariableName(instruction.name, variableMap)}=1`, instruction, variableMap, readability)
+          : appendInlineVariableComment(`${lineNumber} ${renderVariableName(instruction.name, variableMap)}=-(ST=0)`, instruction, variableMap, readability);
       case "data":
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
@@ -75,7 +75,7 @@ export const c64Target: TargetBackend = {
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
-        return `${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`;
+        return appendInlineVariableComment(`${lineNumber} ${renderVariableName(instruction.name, variableMap)}=${renderExpression(instruction.expression, renderOptions)}`, instruction, variableMap, readability);
       case "multi-let":
         return `${lineNumber} ${instruction.assignments.map((assignment) => `${renderVariableName(assignment.name, variableMap)}=${renderExpression(assignment.expression, renderOptions)}`).join(":")}`;
       case "dim-array":
@@ -278,6 +278,18 @@ function renderC64ArrayDimensions(name: string, dimensions: readonly number[]): 
 function buildVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {
   const names: string[] = [];
   const seen = new Set<string>();
+  const preferredSourceNames = new Map<string, string>();
+
+  const addName = (name: string, sourceName?: string): void => {
+    const lower = name.toLowerCase();
+    if (sourceName && !preferredSourceNames.has(lower)) {
+      preferredSourceNames.set(lower, sourceName);
+    }
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      names.push(name);
+    }
+  };
 
   for (const instruction of instructions) {
     if (
@@ -293,10 +305,7 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
     ) {
       const instructionNames = instruction.kind === "read" ? instruction.targets : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
       for (const name of instructionNames) {
-        if (!seen.has(name.toLowerCase())) {
-          seen.add(name.toLowerCase());
-          names.push(name);
-        }
+        addName(name, instruction.kind === "let" || instruction.kind === "check-device" ? instruction.sourceName : undefined);
       }
     }
     for (const expression of instructionExpressions(instruction)) {
@@ -304,25 +313,8 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
     }
   }
 
-  const groups = new Map<string, string[]>();
-  for (const name of names) {
-    const key = significantName(name);
-    groups.set(key, [...(groups.get(key) ?? []), name]);
-  }
-
   const map = new Map<string, string>();
   const allocated = new Set<string>();
-
-  if (readability === 2) {
-    for (const name of names) {
-      const key = significantName(name);
-      const group = groups.get(key) ?? [];
-      if (group.length === 1 && canUseReadableVariableName(name, allocated)) {
-        map.set(name.toLowerCase(), name.toUpperCase());
-        allocated.add(key);
-      }
-    }
-  }
 
   let next = 0;
   for (const name of names) {
@@ -331,7 +323,7 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       continue;
     }
 
-    const preferred = preferredVariableName(name);
+    const preferred = preferredVariableName(preferredSourceNames.get(lower) ?? name, name);
     const candidate = preferred && canAllocate(preferred, allocated) ? preferred : nextGeneratedVariableName(name, allocated, () => next++);
     map.set(lower, candidate);
     allocated.add(significantName(candidate));
@@ -463,18 +455,13 @@ const c64TokenSubstrings = [
   "ST"
 ];
 
-function canUseReadableVariableName(name: string, allocated: ReadonlySet<string>): boolean {
-  const clean = cleanC64VariableName(name);
-  return clean.length > 0 && !allocated.has(significantName(name)) && !reservedNames.has(significantName(name).slice(0, 2)) && !containsC64TokenSubstring(clean);
-}
-
-function preferredVariableName(name: string): string | undefined {
-  const clean = cleanC64VariableName(name);
+function preferredVariableName(sourceName: string, storageName = sourceName): string | undefined {
+  const clean = cleanC64VariableName(sourceName);
   if (clean.length === 0) {
     return undefined;
   }
 
-  return `${clean.slice(0, 2)}${variableTypeSuffix(name)}`;
+  return `${clean.slice(0, 2)}${variableTypeSuffix(storageName)}`;
 }
 
 function nextGeneratedVariableName(name: string, allocated: ReadonlySet<string>, next: () => number): string {
@@ -522,29 +509,33 @@ function variableTypeSuffix(name: string): "" | "$" | "%" {
   return "";
 }
 
-function addCompactVariableComments(program: LoweredProgram): LoweredProgram {
-  const variableMap = buildVariableMap(program.instructions, 0);
-  const instructions: Instruction[] = [];
-  const commented = new Set<string>();
-
-  for (const instruction of program.instructions) {
-    if (instruction.kind === "let" || instruction.kind === "read-key") {
-      const key = instruction.name.toLowerCase();
-      if (!commented.has(key)) {
-        const compactName = renderVariableName(instruction.name, variableMap);
-        instructions.push({
-          kind: "rem",
-          text: `${compactName}=${instruction.name.toUpperCase()}`,
-          location: instruction.location
-        });
-        commented.add(key);
-      }
-    }
-
-    instructions.push(instruction);
+function appendInlineVariableComment(
+  line: string,
+  instruction: Extract<Instruction, { kind: "let" | "check-device" }>,
+  variableMap: ReadonlyMap<string, string>,
+  readability: ReadabilityLevel
+): string {
+  if (readability === 0 || !instruction.sourceName || !isFirstSourceAssignment(instruction)) {
+    return line;
   }
 
-  return rebuildLabels(program, instructions);
+  const renderedName = renderVariableName(instruction.name, variableMap);
+  const sourceName = instruction.sourceName.toUpperCase();
+  return renderedName === sourceName ? line : `${line}: REM ${sourceName}`;
+}
+
+function isFirstSourceAssignment(instruction: Extract<Instruction, { kind: "let" | "check-device" }>): boolean {
+  for (const candidate of currentProgramInstructions) {
+    if ((candidate.kind === "let" || candidate.kind === "check-device") && candidate.sourceName) {
+      if (candidate === instruction) {
+        return true;
+      }
+      if (candidate.sourceName.toLowerCase() === instruction.sourceName?.toLowerCase()) {
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 function expandScreenControls(program: LoweredProgram): LoweredProgram {

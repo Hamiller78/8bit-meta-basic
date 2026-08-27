@@ -45,6 +45,7 @@ const runnerPrintInlineLabel = "__mb_runner_print_inline";
 export interface TestRunnerLowerOptions {
   readonly printerOutput?: boolean;
   readonly outputDevice?: DeviceKind;
+  readonly globalResetInstructions?: readonly Instruction[];
 }
 
 export function lowerTestRunner(
@@ -78,6 +79,7 @@ export function lowerTestRunner(
     const passedLabel = nextInternalLabel();
     const afterLabel = nextInternalLabel();
     instructions.push(...testCaptureResetLets(test));
+    instructions.push(...cloneInstructions(options.globalResetInstructions ?? []));
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
     emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${test.name}...`, test.location)], true, test.location, options);
     instructions.push({ kind: "gosub", label: test.implementation.entryLabel, location: test.location });
@@ -128,6 +130,10 @@ export function lowerTestRunner(
   }
   emitAssertionHelpers(instructions, location, assertionHelpers);
   instructions.push({ kind: "end", location });
+}
+
+function cloneInstructions(instructions: readonly Instruction[]): Instruction[] {
+  return instructions.map((instruction) => ({ ...instruction }));
 }
 
 export function lowerAssertBoolean(

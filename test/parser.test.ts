@@ -94,6 +94,20 @@ describe("parser", () => {
     });
   });
 
+  it("parses GLOBALS blocks", () => {
+    expect(parseSource('globals\nScore = 0\nName$ = "READY"\nend globals\n', "globals.mbas")).toMatchObject({
+      statements: [
+        {
+          kind: "globals",
+          body: [
+            { kind: "let", name: "Score", expression: { kind: "number", value: 0 } },
+            { kind: "let", name: "Name$", expression: { kind: "string", value: "READY" } }
+          ]
+        }
+      ]
+    });
+  });
+
   it("parses nested IF statements and optional ELSE blocks", () => {
     const program = parseSource(
       [
@@ -220,6 +234,26 @@ describe("parser", () => {
         kind: "print",
         trailingSemicolon: true,
         items: [{ kind: "string", value: "SECONDS: " }, { kind: "identifier", name: "urgency" }]
+      }
+    ]);
+  });
+
+  it("parses MOD with multiplication precedence", () => {
+    const program = parseSource("wrapped = x + y mod 4 * 2\n", "mod.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "let",
+        expression: {
+          kind: "binary",
+          operator: "+",
+          right: {
+            kind: "binary",
+            operator: "*",
+            left: { kind: "binary", operator: "MOD" },
+            right: { kind: "number", value: 2 }
+          }
+        }
       }
     ]);
   });

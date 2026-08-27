@@ -214,12 +214,21 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
       if (expression.operator === "AND" || expression.operator === "OR") {
         return `${renderTruthy(expression.left, options)} ${expression.operator} ${renderTruthy(expression.right, options)}`;
       }
+      if (expression.operator === "MOD") {
+        return renderModuloExpression(expression.left, expression.right, options);
+      }
       const precedence = expressionPrecedence(expression);
       const left = renderExpressionWithParent(expression.left, precedence, "left", options);
       const right = renderExpressionWithParent(expression.right, precedence, "right", options);
       return `${left} ${expression.operator} ${right}`;
     }
   }
+}
+
+function renderModuloExpression(leftExpression: Expression, rightExpression: Expression, options: ExpressionRenderOptions): string {
+  const left = renderExpression(leftExpression, options);
+  const right = renderExpression(rightExpression, options);
+  return `(${left}) - INT((${left}) / (${right})) * (${right})`;
 }
 
 function renderTruthy(expression: Expression, options: ExpressionRenderOptions): string {
@@ -262,6 +271,7 @@ function binaryPrecedence(operator: BinaryOperator): number {
       return 4;
     case "*":
     case "/":
+    case "MOD":
       return 5;
     case "^":
       return 7;
