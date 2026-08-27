@@ -60,11 +60,13 @@ Packaged `.vsix` builds use the bundled compiler tools by default. If you want t
 }
 ```
 
-Converter and emulator paths are still local machine configuration. Put them in `metabasic-tools.json` in the open project folder, or point `metabasic.toolConfig` at another JSON file using the same shape as `scripts/tools.example.json`.
+Converter and emulator paths are still local machine configuration. Put them in `metabasic-tools.json` in the open project folder, or point `metabasic.toolConfig` at another JSON file using the same shape as `scripts/tools.example.json`. A project-local `tools.local.json` is also accepted as a compatibility fallback. Launch and deploy commands need this configuration because the extension cannot know where Fuse, Altirra, VICE, `bas2tap`, `petcat`, or the Atari tokenizer live on your machine.
+
+When no tool configuration is found, launch commands report the project-local path they expected, for example `<workspace-folder>/metabasic-tools.json`.
 
 ## Settings
 
-- `metabasic.toolRoot`: optional path to a MetaBASIC tool checkout. Leave empty to use bundled tools.
+- `metabasic.toolRoot`: optional path to a MetaBASIC tool checkout for extension development. Leave empty to use bundled tools.
 - `metabasic.toolConfig`: optional converter/emulator configuration JSON path. Relative paths are resolved from the open project folder. If empty, `metabasic-tools.json` in the project folder is used when present.
 - `metabasic.profile`: `debug`, `balanced`, or `release`.
 - `metabasic.runExternalTools`: whether configured converter tools should run during builds.
@@ -75,4 +77,4 @@ Converter and emulator paths are still local machine configuration. Put them in 
 ## Next Milestones
 
 - Add snippets for common MetaBASIC structures.
-- Package the compiler tools with the extension instead of depending on a local checkout.
+- Add project/tool configuration creation commands.

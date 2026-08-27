@@ -78,11 +78,14 @@ async function runProjectCommand(context, options) {
   output.appendLine(`MetaBASIC: ${options.action} (${workspaceFolder.name}, ${profile})`);
   output.appendLine(`Project: ${workspaceFolder.uri.fsPath}`);
   output.appendLine(`Tools: ${toolRoot}`);
+  if (invocation.toolConfig) {
+    output.appendLine(`Tool config: ${invocation.toolConfig}`);
+  }
   output.appendLine("");
   diagnostics.clearWorkspace(workspaceFolder);
 
   try {
-    await run(invocation.command, invocation.args, toolRoot);
+    await run(invocation.command, invocation.args, toolRoot, invocation.env);
     vscode.window.showInformationMessage(`MetaBASIC ${options.action.toLowerCase()} finished for ${workspaceFolder.name}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -105,6 +108,8 @@ function toolInvocation(options, projectPath, config, profile, toolRoot) {
   const toolConfig = resolveToolConfig(projectPath, config);
   if (toolConfig) {
     args.push("--config", toolConfig);
+  } else if (options.launch || options.forceExternalTools) {
+    args.push("--config", path.join(projectPath, "metabasic-tools.json"));
   }
 
   if (options.testMode) {
@@ -126,7 +131,7 @@ function toolInvocation(options, projectPath, config, profile, toolRoot) {
     args.push("--no-tools");
   }
 
-  return { command: process.execPath, args };
+  return { command: process.execPath, args, env: { ELECTRON_RUN_AS_NODE: "1" }, toolConfig: toolConfig ?? (options.launch || options.forceExternalTools ? path.join(projectPath, "metabasic-tools.json") : undefined) };
 }
 
 function resolveToolConfig(projectPath, config) {
@@ -136,7 +141,12 @@ function resolveToolConfig(projectPath, config) {
   }
 
   const projectConfig = path.join(projectPath, "metabasic-tools.json");
-  return fs.existsSync(projectConfig) ? projectConfig : undefined;
+  if (fs.existsSync(projectConfig)) {
+    return projectConfig;
+  }
+
+  const legacyProjectConfig = path.join(projectPath, "tools.local.json");
+  return fs.existsSync(legacyProjectConfig) ? legacyProjectConfig : undefined;
 }
 
 function pickWorkspaceFolder() {
@@ -162,11 +172,11 @@ function resolveToolRoot(context) {
   return path.resolve(context.extensionPath, "..");
 }
 
-function run(command, args, cwd) {
+function run(command, args, cwd, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     let transcript = "";
     output.appendLine(`> ${formatCommand(command, args)}`);
-    const child = cp.spawn(command, args, { cwd, shell: false });
+    const child = cp.spawn(command, args, { cwd, shell: false, env: { ...process.env, ...extraEnv } });
 
     child.stdout.on("data", (chunk) => {
       const text = chunk.toString();

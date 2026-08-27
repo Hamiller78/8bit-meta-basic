@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -186,7 +187,19 @@ function readValue(argv, index, option) {
 }
 
 async function loadConfig(configPath) {
+  if (!(await exists(configPath))) {
+    return undefined;
+  }
   return JSON.parse(await readFile(configPath, "utf8"));
+}
+
+async function exists(path) {
+  try {
+    await access(path, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function main() {
