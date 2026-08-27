@@ -699,7 +699,7 @@ function lowerStatements(
         const endLabel = nextInternalLabel();
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
-        instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: bodyLabel, location: statement.location });
+        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: bodyLabel, location: statement.location });
         instructions.push({ kind: "goto", label: endLabel, location: statement.location });
         instructions.push({ kind: "label", name: bodyLabel, internal: true, location: statement.location });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
@@ -713,7 +713,7 @@ function lowerStatements(
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
-        instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: endLabel, location: statement.location });
+        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: endLabel, location: statement.location });
         instructions.push({ kind: "goto", label: startLabel, location: statement.location });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         break;
@@ -723,13 +723,13 @@ function lowerStatements(
         const endLabel = nextInternalLabel();
 
         if (statement.elseBranch.length > 0) {
-          instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: thenLabel, location: statement.location });
+          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: thenLabel, location: statement.location });
           lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
           lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
         } else {
-          instructions.push({ kind: "if-goto", condition: expandFunctionCalls(statement.condition, instructions, context), label: thenLabel, location: statement.location });
+          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: thenLabel, location: statement.location });
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
           lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
@@ -740,6 +740,50 @@ function lowerStatements(
       }
     }
   }
+}
+
+function expandConditionExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
+  return preserveComplexModuloOperands(expandFunctionCalls(expression, instructions, context), instructions, context);
+}
+
+function preserveComplexModuloOperands(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
+  switch (expression.kind) {
+    case "binary": {
+      const left = preserveComplexModuloOperands(expression.left, instructions, context);
+      const right = preserveComplexModuloOperands(expression.right, instructions, context);
+      if (expression.operator !== "MOD") {
+        return { ...expression, left, right };
+      }
+      return {
+        ...expression,
+        left: preserveModuloOperand(left, instructions, context),
+        right: preserveModuloOperand(right, instructions, context)
+      };
+    }
+    case "parenthesized":
+      return { ...expression, expression: preserveComplexModuloOperands(expression.expression, instructions, context) };
+    case "unary":
+      return { ...expression, operand: preserveComplexModuloOperands(expression.operand, instructions, context) };
+    case "function-call":
+      return { ...expression, args: expression.args.map((arg) => preserveComplexModuloOperands(arg, instructions, context)) };
+    case "array-access":
+      return { ...expression, indices: expression.indices.map((index) => preserveComplexModuloOperands(index, instructions, context)) };
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+    case "identifier":
+      return expression;
+  }
+}
+
+function preserveModuloOperand(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
+  if (expression.kind === "number" || expression.kind === "identifier" || expression.kind === "array-access") {
+    return expression;
+  }
+  const name = `MBT${context.nextTempId++}`;
+  instructions.push({ kind: "let", name, expression, location: expression.location });
+  return { kind: "identifier", name, location: expression.location };
 }
 
 function numberExpression(value: number, location: SourceLocation): Expression {

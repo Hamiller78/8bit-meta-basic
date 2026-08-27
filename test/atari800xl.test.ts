@@ -273,6 +273,21 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("preserves complex MOD operands before Atari IF rendering gets too long", () => {
+    expect(compileSource("dim textQueueDelay(100)\nfor i = 1 to 3\nif jiffies() mod textQueueDelay(i) = 0 then\nprint i\nend if\nnext i\n", { filename: "mod-condition.mbas", target: "atari800xl", readability: 0 })).toBe(
+      [
+        "10 DIM TEXTQUEUEDELAY(99)",
+        "20 FOR I=1 TO 3",
+        "30 MBT1=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536",
+        "40 IF (MBT1) - INT((MBT1) / (TEXTQUEUEDELAY(I))) * (TEXTQUEUEDELAY(I)) = 0 THEN GOTO 60",
+        "50 GOTO 70",
+        "60 PRINT I",
+        "70 NEXT I",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("coerces integer variable assignments and renders them as numeric variables", () => {
     expect(compileSource("counter% = 3.7\nprint counter%\n", { filename: "ints.mbas", target: "atari800xl" })).toBe(
       ["10 COUNTERI=INT(3.7)", "20 PRINT COUNTERI", ""].join("\n")
@@ -300,6 +315,27 @@ describe("Atari 800XL compiler", () => {
         '20 MESSAGES$(1,12)="READY       "',
         '30 MESSAGES$(25,36)="STANDBY     "',
         "40 PRINT MESSAGES$(1,12);MESSAGES$(25,36)",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("stages dynamic string array slices to keep Atari lines short", () => {
+    expect(
+      compileSource("dim textQueue$(100, 39)\ndim textQueueRow(100)\ndim textQueueColumn(100)\ntextQueue$(i)=mid$(textQueue$(i), 2)\nprint_at textQueueRow(i), textQueueColumn(i), mid$(textQueue$(i), 1, 1)\n", {
+        filename: "queue.mbas",
+        target: "atari800xl"
+      })
+    ).toBe(
+      [
+        "10 DIM TEXTQUEUE$(3900)",
+        "20 DIM TEXTQUEUEROW(99)",
+        "30 DIM TEXTQUEUECOLUMN(99)",
+        "40 DIM MBTEMP$(255)",
+        "50 MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)",
+        "60 TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$",
+        "70 POSITION TEXTQUEUECOLUMN(I),TEXTQUEUEROW(I)",
+        "80 PRINT TEXTQUEUE$(I * 39 + 1 + 1 - 1,I * 39 + 1 + 1 + 1 - 2)",
         ""
       ].join("\n")
     );

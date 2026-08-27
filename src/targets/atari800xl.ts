@@ -93,6 +93,10 @@ export const atari800xlTarget: TargetBackend = {
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
       } else if (instruction.kind === "let" && isStringVariableName(instruction.name)) {
         pushStringAssignment(instruction);
+      } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name) && instruction.expression.kind !== "string") {
+        const tempName = allocateTempStringName();
+        pushStringAssignment({ kind: "let", name: tempName, expression: instruction.expression, location: instruction.location });
+        instructions.push({ ...instruction, expression: { kind: "identifier", name: tempName, location: instruction.location } });
       } else if (instruction.kind === "read") {
         for (const target of instruction.targets) {
           if (isStringVariableName(target)) {
@@ -391,6 +395,19 @@ function renderAtariStringArrayEnd(
   return `(${renderExpression(index, options)} + 1) * ${width}`;
 }
 
+function renderAtariStringArrayOffset(
+  elementStart: string,
+  expressions: readonly Expression[],
+  constantOffset: number,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  const terms = [elementStart, ...expressions.map((part) => renderExpression(part, options))];
+  if (constantOffset !== 0) {
+    terms.push(constantOffset.toString());
+  }
+  return terms.join(" + ").replaceAll("+ -", "- ");
+}
+
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
   if (!isStringVariableName(name) || expression.kind !== "binary" || expression.operator !== "+") {
     return undefined;
@@ -644,6 +661,15 @@ function renderAtariLen(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
+  if (source.kind === "array-access" && isStringVariableName(source.name)) {
+    const width = atariStringArrayWidth(source.name);
+    const renderedName = renderAtariArrayName(source.name, options.variableMap ?? new Map());
+    const elementStart = renderAtariStringArrayStart(source.indices[0], width, options);
+    const elementEnd = renderAtariStringArrayEnd(source.indices[0], width, options);
+    const sliceStart = renderAtariStringArrayOffset(elementStart, [start], -1, options);
+    const sliceEnd = length ? renderAtariStringArrayOffset(elementStart, [start, length], -2, options) : elementEnd;
+    return `${renderedName}(${sliceStart},${sliceEnd})`;
+  }
   const renderedSource = renderExpression(source, options);
   if (!length) {
     return `${renderedSource}(${renderExpression(start, options)},LEN(${renderedSource}))`;
