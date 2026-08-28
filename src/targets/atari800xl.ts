@@ -380,7 +380,7 @@ function renderAtariStringArrayStart(
     return (index.value * width + 1).toString();
   }
 
-  return `${renderExpression(index, options)} * ${width} + 1`;
+  return `${renderExpressionWithParens(index, options)} * ${width} + 1`;
 }
 
 function renderAtariStringArrayEnd(
@@ -406,6 +406,13 @@ function renderAtariStringArrayOffset(
     terms.push(constantOffset.toString());
   }
   return terms.join(" + ").replaceAll("+ -", "- ");
+}
+
+function renderExpressionWithParens(
+  expression: Expression,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  return expression.kind === "number" || expression.kind === "identifier" ? renderExpression(expression, options) : `(${renderExpression(expression, options)})`;
 }
 
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
@@ -679,6 +686,13 @@ function renderAtariMid(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
+  if (source.kind === "array-access" && isStringVariableName(source.name)) {
+    const width = atariStringArrayWidth(source.name);
+    const renderedName = renderAtariArrayName(source.name, options.variableMap ?? new Map());
+    const elementStart = renderAtariStringArrayStart(source.indices[0], width, options);
+    const sliceEnd = renderAtariStringArrayOffset(elementStart, [length], -1, options);
+    return `${renderedName}(${elementStart},${sliceEnd})`;
+  }
   return `${renderExpression(source, options)}(1,${renderExpression(length, options)})`;
 }
 

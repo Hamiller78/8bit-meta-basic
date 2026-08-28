@@ -239,6 +239,16 @@ function renderSpectrumLen(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
+  if (source.kind === "array-access" && isStringVariableName(source.name)) {
+    const width = spectrumStringArrayWidth(source.name, (options as { readonly stringArrayWidths?: ReadonlyMap<string, number> }).stringArrayWidths);
+    const renderedName = renderSpectrumArrayName(source.name, options.variableMap ?? new Map());
+    const index = renderSpectrumArrayIndex(source.indices[0], options);
+    const renderedStart = renderExpression(start, options);
+    if (!length) {
+      return `${renderedName}(${index},${renderedStart} TO ${width})`;
+    }
+    return `${renderedName}(${index},${renderedStart} TO ${renderedStart} + ${renderExpression(length, options)} - 1)`;
+  }
   if (!length) {
     return `${renderExpression(source, options)}(${renderExpression(start, options)} TO )`;
   }
@@ -247,6 +257,11 @@ function renderSpectrumMid(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
+  if (source.kind === "array-access" && isStringVariableName(source.name)) {
+    const renderedName = renderSpectrumArrayName(source.name, options.variableMap ?? new Map());
+    const index = renderSpectrumArrayIndex(source.indices[0], options);
+    return `${renderedName}(${index},1 TO ${renderExpression(length, options)})`;
+  }
   return `${renderExpression(source, options)}( TO ${renderExpression(length, options)})`;
 }
 

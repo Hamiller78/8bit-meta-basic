@@ -28,3 +28,15 @@ test StringArrays()
     assert_eq "READY   ", M$(0)
     assert_eq "GO      ", M$(1)
 end test
+
+test DynamicStringArraySlices()
+    dim Slices$(2, 8)
+    Source$ = "ALERT"
+    Slices$(0) = Source$
+    assert_eq "A", left$(Slices$(0), 1)
+    assert_eq "LERT", mid$(Slices$(0), 2, len(Source$) - 1)
+
+    Source$ = "Z"
+    Slices$(1) = Source$
+    assert_eq "Z", left$(Slices$(1), 1)
+end test

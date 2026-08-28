@@ -322,7 +322,7 @@ describe("Atari 800XL compiler", () => {
 
   it("stages dynamic string array slices to keep Atari lines short", () => {
     expect(
-      compileSource("dim textQueue$(100, 39)\ndim textQueueRow(100)\ndim textQueueColumn(100)\ntextQueue$(i)=mid$(textQueue$(i), 2)\nprint_at textQueueRow(i), textQueueColumn(i), mid$(textQueue$(i), 1, 1)\n", {
+      compileSource("dim textQueue$(100, 39)\ndim textQueueRow(100)\ndim textQueueColumn(100)\ntextQueue$(i)=mid$(textQueue$(i), 2)\nprint_at textQueueRow(i), textQueueColumn(i), left$(textQueue$(i), 1)\n", {
         filename: "queue.mbas",
         target: "atari800xl"
       })
@@ -335,10 +335,19 @@ describe("Atari 800XL compiler", () => {
         "50 MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)",
         "60 TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$",
         "70 POSITION TEXTQUEUECOLUMN(I),TEXTQUEUEROW(I)",
-        "80 PRINT TEXTQUEUE$(I * 39 + 1 + 1 - 1,I * 39 + 1 + 1 + 1 - 2)",
+        "80 PRINT TEXTQUEUE$(I * 39 + 1,I * 39 + 1 + 1 - 1)",
         ""
       ].join("\n")
     );
+  });
+
+  it("parenthesizes non-trivial dynamic string array indexes", () => {
+    expect(
+      compileSource("dim messages$(10, 8)\nmessages$(j + 1)=messages$(j)\n", {
+        filename: "string-array-shift.mbas",
+        target: "atari800xl"
+      })
+    ).toContain("MESSAGES$((J + 1) * 8 + 1,(J + 1 + 1) * 8)=MBTEMP$");
   });
 
   it("renders DATA, READ, and RESTORE for Atari BASIC", () => {

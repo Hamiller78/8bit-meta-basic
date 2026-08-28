@@ -490,6 +490,15 @@ describe("Spectrum compiler", () => {
     ).toBe(['10 DIM M$(3,12)', '20 LET M$(1,1 TO 12)="READY"', '30 LET M$(3,1 TO 12)="STANDBY"', "40 PRINT M$(1,1 TO 12);M$(3,1 TO 12)", ""].join("\n"));
   });
 
+  it("renders string slicing of fixed-width string arrays as native string-array ranges", () => {
+    expect(
+      compileSource("dim messages$(10, 8)\nprint left$(messages$(i), 1)\nmessages$(i)=mid$(messages$(i), 2)\n", {
+        filename: "string-array-slice.mbas",
+        target: "spectrum"
+      })
+    ).toBe(["10 DIM M$(10,8)", "20 PRINT M$(I + 1,1 TO 1)", "30 LET M$(I + 1,1 TO 8)=M$(I + 1,2 TO 8)", ""].join("\n"));
+  });
+
   it("keeps Spectrum scalar string variables distinct from string array names", () => {
     expect(
       compileSource('temp$=""\nother$=""\ndim messages$(2, 8)\nmessages$(0)="READY   "\ntemp$=messages$(0)\nother$=""\n', {

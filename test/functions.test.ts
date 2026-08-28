@@ -177,6 +177,17 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("RETURN");
   });
 
+  it("uses top-level constants inside function bodies", () => {
+    const output = compileSource(
+      ["const txtQueueSize = 20", "txtQueueIndex = -1", "Add()", "FUNCTION Add()", "IF txtQueueIndex = txtQueueSize - 1 THEN", "PRINT txtQueueSize", "END IF", "END FUNCTION"].join("\n"),
+      { filename: "function-const.mbas", target: "spectrum", readability: 0 }
+    );
+
+    expect(output).toContain("IF TXTQUEUEINDEX = 19 THEN GO TO");
+    expect(output).toContain("PRINT 20");
+    expect(output).not.toContain("TXTQUEUESIZE");
+  });
+
   it("allows bare RETURN inside functions that never return a value", () => {
     const source = [
       "DrawHeader()",
