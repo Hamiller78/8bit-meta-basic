@@ -34,6 +34,8 @@ export type Statement =
   | FunctionCallStatement
   | GotoStatement
   | GosubStatement
+  | ExitForStatement
+  | ContinueForStatement
   | ReturnStatement
   | EndStatement
   | RandomizeStatement
@@ -194,6 +196,16 @@ export interface GosubStatement {
   readonly location: SourceLocation;
 }
 
+export interface ExitForStatement {
+  readonly kind: "exit-for";
+  readonly location: SourceLocation;
+}
+
+export interface ContinueForStatement {
+  readonly kind: "continue-for";
+  readonly location: SourceLocation;
+}
+
 export interface ReturnStatement {
   readonly kind: "return";
   readonly expression?: Expression;
@@ -234,6 +246,7 @@ export interface FunctionStatement {
   readonly name: string;
   readonly parameters: readonly string[];
   readonly body: readonly Statement[];
+  readonly inline?: boolean;
   readonly implementation?: FunctionImplementation;
   readonly location: SourceLocation;
 }

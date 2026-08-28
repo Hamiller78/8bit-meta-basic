@@ -162,6 +162,44 @@ describe("Meta-BASIC functions", () => {
     expect(output).not.toContain("LET MBT");
   });
 
+  it("expands INLINE FUNCTION calls without emitting GOSUB or function bodies", () => {
+    const source = [
+      "Score = Double(3)",
+      "Draw(Score)",
+      "INLINE FUNCTION Double(Value)",
+      "RETURN Value * 2",
+      "END FUNCTION",
+      "INLINE FUNCTION Draw(Value)",
+      "PRINT Value",
+      "END FUNCTION"
+    ].join("\n");
+
+    expect(compileSource(source, { filename: "inline.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET SCORE=3 * 2", "20 PRINT SCORE", ""].join("\n"));
+  });
+
+  it("allows INLINE FUNCTION bodies to use locals", () => {
+    const source = [
+      "Draw(2)",
+      "INLINE FUNCTION Draw(Value)",
+      "LOCAL Result",
+      "Result = Value + 1",
+      "PRINT Result",
+      "END FUNCTION"
+    ].join("\n");
+
+    expect(compileSource(source, { filename: "inline-local.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET MBF1L1=2 + 1", "20 PRINT MBF1L1", ""].join("\n"));
+  });
+
+  it("rejects inline functions with unsafe control flow or parameter mutation", () => {
+    expect(() =>
+      compileSource("INLINE FUNCTION Bad(Value)\nValue = 2\nPRINT Value\nEND FUNCTION\nBad(1)\n", { filename: "inline-bad.mbas", target: "spectrum" })
+    ).toThrow('INLINE FUNCTION Bad cannot assign to parameter "Value".');
+
+    expect(() =>
+      compileSource("INLINE FUNCTION Bad()\nIF 1 THEN\nRETURN 1\nEND IF\nRETURN 2\nEND FUNCTION\nX = Bad()\n", { filename: "inline-bad.mbas", target: "spectrum" })
+    ).toThrow("INLINE FUNCTION Bad supports only a final RETURN statement.");
+  });
+
   it("allows standalone function calls without a return value", () => {
     const source = [
       "DrawHeader()",

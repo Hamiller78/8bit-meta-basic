@@ -208,6 +208,18 @@ DrawHeader()
 
 The standalone form lowers to the generated `GOSUB` call and discards the return value. A function used only as a standalone side-effect helper does not need a `RETURN expression`; the generated BASIC subroutine returns at `END FUNCTION`. Built-in functions and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
 
+Small helpers can be declared as `INLINE FUNCTION`. Inline functions are expanded at every call site and do not emit a BASIC subroutine or `GOSUB` call:
+
+```basic
+inline function PrintCell(row, column, text$)
+    print_at row, column, text$
+end function
+
+PrintCell(4, 0, "READY")
+```
+
+Inline functions are intentionally limited to predictable expansion. They cannot contain labels, `GOTO`, `GOSUB`, `EXIT FOR`, or `CONTINUE FOR`; they cannot assign to their parameters; and if they return a value, the `RETURN expression` must be the final statement.
+
 ## Output
 
 `PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline:
@@ -340,6 +352,20 @@ next row
 for countdown = 10 to 0 step -1
     print countdown
 next countdown
+```
+
+Use `CONTINUE FOR` to advance the current `FOR` loop early, and `EXIT FOR` to leave it:
+
+```basic
+for index = 0 to count - 1
+    if values(index) = 0 then
+        continue for
+    end if
+    if values(index) < 0 then
+        exit for
+    end if
+    print values(index)
+next index
 ```
 
 `WHILE/WEND` checks the condition before every iteration:

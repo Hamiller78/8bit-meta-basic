@@ -94,6 +94,20 @@ describe("parser", () => {
     });
   });
 
+  it("parses INLINE FUNCTION blocks", () => {
+    expect(parseSource("INLINE FUNCTION Emit(Value)\nPRINT Value\nEND FUNCTION\n", "inline.mbas")).toMatchObject({
+      statements: [
+        {
+          kind: "function",
+          inline: true,
+          name: "Emit",
+          parameters: ["Value"],
+          body: [{ kind: "print", items: [{ kind: "identifier", name: "Value" }] }]
+        }
+      ]
+    });
+  });
+
   it("parses GLOBALS blocks", () => {
     expect(parseSource('globals\nScore = 0\nName$ = "READY"\nend globals\n', "globals.mbas")).toMatchObject({
       statements: [
@@ -149,6 +163,17 @@ describe("parser", () => {
         limit: { kind: "number", value: 1 },
         step: { kind: "unary", operator: "-" },
         body: [{ kind: "print", items: [{ kind: "identifier", name: "counter" }] }]
+      }
+    ]);
+  });
+
+  it("parses EXIT FOR and CONTINUE FOR", () => {
+    const program = parseSource("for index = 1 to 3\ncontinue for\nexit for\nnext index\n", "loop-control.mbas");
+
+    expect(program.statements).toMatchObject([
+      {
+        kind: "for",
+        body: [{ kind: "continue-for" }, { kind: "exit-for" }]
       }
     ]);
   });

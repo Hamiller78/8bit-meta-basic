@@ -13,9 +13,11 @@ const statementParsers = new Map<string, StatementParser>([
   ["CELL_TEXT_COLOR", (parser, location) => parser.parseCellTextColor(location)],
   ["CELL_BACKGROUND_COLOR", (parser, location) => parser.parseCellBackgroundColor(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
+  ["CONTINUE", (parser, location) => parser.parseContinue(location)],
   ["DATA", (parser, location) => parser.parseData(location)],
   ["DIM", (parser, location) => parser.parseDim(location)],
   ["END", (parser, location) => parser.parseEnd(location)],
+  ["EXIT", (parser, location) => parser.parseExit(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["CLOSE_DEVICE", (parser, location) => parser.parseCloseDevice(location)],
   ["OPEN_DEVICE", (parser, location) => parser.parseOpenDevice(location)],
@@ -48,7 +50,8 @@ const statementParsers = new Map<string, StatementParser>([
   ["FOR", (parser, location) => parser.parseFor(location)],
   ["WHILE", (parser, location) => parser.parseWhile(location)],
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
-  ["IF", (parser, location) => parser.parseIf(location)]
+  ["IF", (parser, location) => parser.parseIf(location)],
+  ["INLINE", (parser, location) => parser.parseInline(location)]
 ]);
 
 const binaryPrecedence = new Map<string, number>([
@@ -346,13 +349,34 @@ class Parser {
   }
 
   parseFunction(location: SourceLocation): Statement {
+    return this.parseFunctionBody(location, false);
+  }
+
+  parseInline(location: SourceLocation): Statement {
+    this.expectKeyword("FUNCTION", "Expected FUNCTION after INLINE.");
+    return this.parseFunctionBody(location, true);
+  }
+
+  private parseFunctionBody(location: SourceLocation, inline: boolean): Statement {
     const name = this.expectIdentifier("Expected function name after FUNCTION.").text;
     const parameters = this.parseIdentifierList("Expected opening parenthesis after function name.");
     this.expectLineEnd();
     const body = this.parseBlock("end-function", location);
     this.expectEndFunction();
     this.expectLineEnd();
-    return { kind: "function", name, parameters, body, location };
+    return inline ? { kind: "function", name, parameters, body, inline: true, location } : { kind: "function", name, parameters, body, location };
+  }
+
+  parseExit(location: SourceLocation): Statement {
+    this.expectKeyword("FOR", "Expected FOR after EXIT.");
+    this.expectLineEnd();
+    return { kind: "exit-for", location };
+  }
+
+  parseContinue(location: SourceLocation): Statement {
+    this.expectKeyword("FOR", "Expected FOR after CONTINUE.");
+    this.expectLineEnd();
+    return { kind: "continue-for", location };
   }
 
   parseTest(location: SourceLocation): Statement {

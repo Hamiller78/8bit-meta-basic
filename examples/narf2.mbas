@@ -49,28 +49,45 @@ end function
 
 function printQueues()
     for i = 0 to txtQueueIndex
-        if txtQueueIndex > -1 then
-            if jiffies() >= txtQueueNextTime(i) then
-                print_at txtQueueRow(i), txtQueueColumn(i), left$(txtQueue$(i), 1) ' Print one character at a time
-                txtQueueLength(i) = txtQueueLength(i) - 1
-                if txtQueueLength(i) = 0 then
-                    'Remove from queue
-                    for j = i to txtQueueIndex - 1
-                        txtQueueRow(j) = txtQueueRow(j + 1)
-                        txtQueueColumn(j) = txtQueueColumn(j + 1)
-                        txtQueueDelay(j) = txtQueueDelay(j + 1)
-                        txtQueue$(j) = left$(txtQueue$(j + 1), txtQueueLength(j + 1))
-                        txtQueueLength(j) = txtQueueLength(j + 1)
-                        txtQueueNextTime(j) = txtQueueNextTime(j + 1)
-                    next j
-                    txtQueueIndex = txtQueueIndex - 1
-                    i = i - 1 ' Adjust index since we removed an item
-                else
-                    txtQueue$(i) = mid$(txtQueue$(i), 2, txtQueueLength(i)) ' Remove the printed character from the string
-                    txtQueueColumn(i) = txtQueueColumn(i) + 1
-                    txtQueueNextTime(i) = jiffies() + txtQueueDelay(i)
-                end if
-            end if
+        if txtQueueIndex < 0 then
+            exit for
         end if
+
+        if jiffies() < txtQueueNextTime(i) then
+            continue for
+        end if
+
+        printQueueCharacter(i)
+        txtQueueLength(i) = txtQueueLength(i) - 1
+
+        if txtQueueLength(i) = 0 then
+            removeQueueItem(i)
+            txtQueueIndex = txtQueueIndex - 1
+            i = i - 1 ' Adjust index since we removed an item
+            continue for
+        end if
+
+        advanceQueueItem(i)
     next i
+end function
+
+inline function printQueueCharacter(queueIndex)
+    print_at txtQueueRow(queueIndex), txtQueueColumn(queueIndex), left$(txtQueue$(queueIndex), 1) ' Print one character at a time
+end function
+
+inline function removeQueueItem(queueIndex)
+    for j = queueIndex to txtQueueIndex - 1
+        txtQueueRow(j) = txtQueueRow(j + 1)
+        txtQueueColumn(j) = txtQueueColumn(j + 1)
+        txtQueueDelay(j) = txtQueueDelay(j + 1)
+        txtQueue$(j) = left$(txtQueue$(j + 1), txtQueueLength(j + 1))
+        txtQueueLength(j) = txtQueueLength(j + 1)
+        txtQueueNextTime(j) = txtQueueNextTime(j + 1)
+    next j
+end function
+
+inline function advanceQueueItem(queueIndex)
+    txtQueue$(queueIndex) = mid$(txtQueue$(queueIndex), 2, txtQueueLength(queueIndex)) ' Remove the printed character from the string
+    txtQueueColumn(queueIndex) = txtQueueColumn(queueIndex) + 1
+    txtQueueNextTime(queueIndex) = jiffies() + txtQueueDelay(queueIndex)
 end function

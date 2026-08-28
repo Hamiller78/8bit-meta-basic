@@ -7,14 +7,43 @@ import { normalizeName } from "./symbols.js";
 
 export interface FunctionCallLoweringContext {
   readonly functions: ReadonlyMap<string, FunctionImplementation>;
+  readonly inlineFunctions?: ReadonlyMap<string, InlineFunctionImplementation>;
+  readonly expandInlineFunctionCall?: (
+    definition: InlineFunctionImplementation,
+    args: readonly Expression[],
+    destinationName: string | undefined,
+    instructions: Instruction[]
+  ) => Expression | undefined;
   nextTempId: number;
+}
+
+export interface InlineFunctionImplementation {
+  readonly name: string;
+  readonly returnsValue: boolean;
+  readonly implementation: FunctionImplementation;
+  readonly body: readonly Statement[];
 }
 
 export function collectFunctionImplementations(statements: readonly Statement[]): ReadonlyMap<string, FunctionImplementation> {
   const functions = new Map<string, FunctionImplementation>();
   for (const statement of statements) {
-    if (statement.kind === "function" && statement.implementation) {
+    if (statement.kind === "function" && statement.implementation && !statement.inline) {
       functions.set(normalizeName(statement.name), statement.implementation);
+    }
+  }
+  return functions;
+}
+
+export function collectInlineFunctionImplementations(statements: readonly Statement[]): ReadonlyMap<string, InlineFunctionImplementation> {
+  const functions = new Map<string, InlineFunctionImplementation>();
+  for (const statement of statements) {
+    if (statement.kind === "function" && statement.implementation && statement.inline) {
+      functions.set(normalizeName(statement.name), {
+        name: statement.name,
+        returnsValue: statement.body.some((bodyStatement) => bodyStatement.kind === "return" && bodyStatement.expression),
+        implementation: statement.implementation,
+        body: statement.body
+      });
     }
   }
   return functions;
@@ -27,14 +56,24 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
         return expandDeviceAvailableCall(expression, instructions, context);
       }
 
+      const inlineImplementation = context.inlineFunctions?.get(normalizeName(expression.name));
+      if (inlineImplementation) {
+        if (!inlineImplementation.returnsValue) {
+          throw new DiagnosticError(expression.location, `FUNCTION ${inlineImplementation.name} does not return a value and can only be called as a statement.`);
+        }
+        const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+        validateArgumentCount(expression, inlineImplementation.implementation);
+        const tempName = nextTempName(context, inlineImplementation.implementation.returnName);
+        const result = context.expandInlineFunctionCall?.(inlineImplementation, args, tempName, instructions);
+        return result ?? { kind: "identifier", name: tempName, location: expression.location };
+      }
+
       const implementation = context.functions.get(normalizeName(expression.name));
       const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
       if (!implementation) {
         return { ...expression, args };
       }
-      if (args.length !== implementation.parameters.length) {
-        throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
-      }
+      validateArgumentCount(expression, implementation);
       for (let index = 0; index < args.length; index += 1) {
         instructions.push({
           kind: "let",
@@ -91,14 +130,23 @@ export function expandFunctionCallIntoDestination(
   }
 
   const implementation = context.functions.get(normalizeName(expression.name));
+  const inlineImplementation = context.inlineFunctions?.get(normalizeName(expression.name));
+  if (inlineImplementation) {
+    if (!inlineImplementation.returnsValue) {
+      throw new DiagnosticError(expression.location, `FUNCTION ${inlineImplementation.name} does not return a value and can only be called as a statement.`);
+    }
+    const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+    validateArgumentCount(expression, inlineImplementation.implementation);
+    context.expandInlineFunctionCall?.(inlineImplementation, args, destinationName, instructions);
+    return true;
+  }
+
   if (!implementation) {
     return false;
   }
 
   const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
-  if (args.length !== implementation.parameters.length) {
-    throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
-  }
+  validateArgumentCount(expression, implementation);
   for (let index = 0; index < args.length; index += 1) {
     instructions.push({
       kind: "let",
@@ -124,14 +172,20 @@ export function expandFunctionCallForSideEffect(
   context: FunctionCallLoweringContext
 ): void {
   const implementation = context.functions.get(normalizeName(expression.name));
+  const inlineImplementation = context.inlineFunctions?.get(normalizeName(expression.name));
+  if (inlineImplementation) {
+    const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+    validateArgumentCount(expression, inlineImplementation.implementation);
+    context.expandInlineFunctionCall?.(inlineImplementation, args, undefined, instructions);
+    return;
+  }
+
   if (!implementation) {
     throw new DiagnosticError(expression.location, `Unknown FUNCTION "${expression.name}".`);
   }
 
   const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
-  if (args.length !== implementation.parameters.length) {
-    throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
-  }
+  validateArgumentCount(expression, implementation);
   for (let index = 0; index < args.length; index += 1) {
     instructions.push({
       kind: "let",
@@ -189,4 +243,10 @@ function nextTempName(context: FunctionCallLoweringContext, returnName: string):
   const name = `MBT${context.nextTempId}${suffix}`;
   context.nextTempId += 1;
   return name;
+}
+
+function validateArgumentCount(expression: Extract<Expression, { kind: "function-call" }>, implementation: FunctionImplementation): void {
+  if (expression.args.length !== implementation.parameters.length) {
+    throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
+  }
 }

@@ -33,6 +33,20 @@ test EmptyDynamicForLoop()
     assert_eq 0, Ran
 end test
 
+test ExitAndContinueForLoop()
+    Total = 0
+    for Index = 1 to 5
+        if Index = 2 then
+            continue for
+        end if
+        if Index = 4 then
+            exit for
+        end if
+        Total = Total + Index
+    next Index
+    assert_eq 4, Total
+end test
+
 test WhileWendLoop()
     Count = 0
     Total = 0

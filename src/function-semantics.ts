@@ -9,6 +9,7 @@ export interface FunctionDefinition {
   readonly key: string;
   readonly valueType: "number" | "string";
   readonly returnsValue: boolean;
+  readonly inline: boolean;
   readonly implementation: FunctionImplementation;
   readonly statement: Extract<Statement, { kind: "function" }>;
 }
@@ -28,6 +29,7 @@ interface PendingFunctionDefinition {
   readonly key: string;
   readonly valueType: "number" | "string";
   readonly returnsValue: boolean;
+  readonly inline: boolean;
   readonly locals: readonly string[];
   readonly statement: Extract<Statement, { kind: "function" }>;
 }
@@ -139,12 +141,16 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
     if (returnsValue && containsBareFunctionReturn(statement.body)) {
       throw new DiagnosticError(statement.location, `FUNCTION ${statement.name} cannot mix RETURN with and without an expression.`);
     }
+    if (statement.inline) {
+      validateInlineFunctionBody(statement, returnsValue);
+    }
     const pendingDefinition = {
       id,
       name: statement.name,
       key,
       valueType: isStringVariableName(statement.name) ? "string" : "number",
       returnsValue,
+      inline: statement.inline === true,
       locals,
       statement
     } satisfies PendingFunctionDefinition;
@@ -154,6 +160,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
       key,
       valueType: pendingDefinition.valueType,
       returnsValue: pendingDefinition.returnsValue,
+      inline: pendingDefinition.inline,
       implementation: uniqueFunctionImplementation(pendingDefinition),
       statement
     });
@@ -168,6 +175,7 @@ export function collectFunctionDefinitions(statements: readonly Statement[]): Re
       key: definition.key,
       valueType: definition.valueType,
       returnsValue: definition.returnsValue,
+      inline: definition.inline,
       implementation: implementations.get(definition.key) ?? uniqueFunctionImplementation(definition),
       statement: definition.statement
     });
@@ -410,6 +418,61 @@ function addScopedName(name: string, location: SourceLocation, seen: Map<string,
   seen.set(key, location);
 }
 
+function validateInlineFunctionBody(statement: Extract<Statement, { kind: "function" }>, returnsValue: boolean): void {
+  const last = statement.body[statement.body.length - 1];
+  const returns = collectReturns(statement.body);
+  if (returns.length > 0 && (returns.length !== 1 || last?.kind !== "return")) {
+    throw new DiagnosticError(statement.location, `INLINE FUNCTION ${statement.name} supports only a final RETURN statement.`);
+  }
+  if (returnsValue && last?.kind !== "return") {
+    throw new DiagnosticError(statement.location, `INLINE FUNCTION ${statement.name} must end with RETURN expression.`);
+  }
+
+  const parameters = new Set(statement.parameters.map((parameter) => normalizeName(parameter)));
+  validateInlineStatements(statement.body, statement, parameters);
+}
+
+function collectReturns(statements: readonly Statement[], returns: Statement[] = []): readonly Statement[] {
+  for (const statement of statements) {
+    if (statement.kind === "return") {
+      returns.push(statement);
+    } else if (statement.kind === "if") {
+      collectReturns(statement.thenBranch, returns);
+      collectReturns(statement.elseBranch, returns);
+    } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      collectReturns(statement.body, returns);
+    }
+  }
+  return returns;
+}
+
+function validateInlineStatements(
+  statements: readonly Statement[],
+  owner: Extract<Statement, { kind: "function" }>,
+  parameters: ReadonlySet<string>
+): void {
+  for (const statement of statements) {
+    if (statement.kind === "label" || statement.kind === "goto" || statement.kind === "gosub") {
+      throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot contain labels, GOTO, or GOSUB.`);
+    }
+    if (statement.kind === "exit-for" || statement.kind === "continue-for") {
+      throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot contain EXIT FOR or CONTINUE FOR.`);
+    }
+    if ((statement.kind === "let" || statement.kind === "array-let") && parameters.has(normalizeName(statement.name))) {
+      throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot assign to parameter "${statement.name}".`);
+    }
+    if (statement.kind === "for" && parameters.has(normalizeName(statement.variable))) {
+      throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot assign to parameter "${statement.variable}".`);
+    }
+    if (statement.kind === "if") {
+      validateInlineStatements(statement.thenBranch, owner, parameters);
+      validateInlineStatements(statement.elseBranch, owner, parameters);
+    } else if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      validateInlineStatements(statement.body, owner, parameters);
+    }
+  }
+}
+
 function storageName(functionId: number, kind: "P" | "L" | "R", index: number, sourceName: string): string {
   const suffix = storageSuffix(sourceName);
   return kind === "R" ? `MBF${functionId}R${suffix}` : `MBF${functionId}${kind}${index}${suffix}`;
@@ -544,6 +607,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "label":
     case "goto":
     case "gosub":
+    case "exit-for":
+    case "continue-for":
     case "read":
     case "open-device":
     case "close-device":

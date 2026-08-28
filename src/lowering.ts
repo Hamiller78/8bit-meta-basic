@@ -1,6 +1,14 @@
 import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
-import { collectFunctionImplementations, expandFunctionCallForSideEffect, expandFunctionCallIntoDestination, expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
+import {
+  collectFunctionImplementations,
+  collectInlineFunctionImplementations,
+  expandFunctionCallForSideEffect,
+  expandFunctionCallIntoDestination,
+  expandFunctionCalls,
+  type FunctionCallLoweringContext,
+  type InlineFunctionImplementation
+} from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
 import {
   capturedPrintExpression,
@@ -344,11 +352,18 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const userLabels = collectUserLabels(program.statements);
   const generator = internalLabelGenerator(userLabels);
   const functions = collectFunctionImplementations(program.statements);
-  const context: FunctionCallLoweringContext = { functions, nextTempId: 1 };
+  const inlineFunctions = collectInlineFunctionImplementations(program.statements);
+  const context: FunctionCallLoweringContext = {
+    functions,
+    inlineFunctions,
+    nextTempId: 1,
+    expandInlineFunctionCall: (definition, args, destinationName, targetInstructions) =>
+      expandInlineFunctionCall(definition, args, destinationName, targetInstructions, generator, context)
+  };
   const instructions: Instruction[] = [];
 
   const mainStatements = program.statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test" && statement.kind !== "globals");
-  const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function");
+  const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function" && !statement.inline);
   const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
   const globalsStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
 
@@ -412,6 +427,12 @@ interface LowerStatementOptions {
   readonly testMode?: boolean;
   readonly currentTestName?: string;
   readonly capturePrints?: boolean;
+  readonly loopControls?: readonly LoopControl[];
+}
+
+interface LoopControl {
+  readonly continueLabel: string;
+  readonly exitLabel: string;
 }
 
 function lowerStatements(
@@ -692,7 +713,13 @@ function lowerStatements(
             break;
           }
 
-          const skipLabel = staticBehavior === "unknown" ? nextInternalLabel() : undefined;
+          const bodyHasExitFor = containsCurrentForControl(statement.body, "exit-for");
+          const bodyHasContinueFor = containsCurrentForControl(statement.body, "continue-for");
+          const bodyHasForControl = bodyHasExitFor || bodyHasContinueFor;
+          const exitLabel = staticBehavior === "unknown" || bodyHasForControl ? nextInternalLabel() : undefined;
+          const continueLabel = bodyHasForControl ? nextInternalLabel() : undefined;
+          const loopControls = exitLabel && continueLabel ? [...(options.loopControls ?? []), { continueLabel, exitLabel }] : options.loopControls;
+          const skipLabel = staticBehavior === "unknown" ? exitLabel : undefined;
           if (skipLabel) {
             instructions.push({ kind: "if-goto", condition: forLoopSkipCondition(start, limit, step, statement.location), label: skipLabel, location: statement.location });
           }
@@ -705,13 +732,32 @@ function lowerStatements(
           ...(step ? { step } : {}),
           location: statement.location
         });
-          lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
+          lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, { ...options, loopControls });
+          if (continueLabel) {
+            instructions.push({ kind: "label", name: continueLabel, internal: true, location: statement.location });
+          }
           instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
-          if (skipLabel) {
-            instructions.push({ kind: "label", name: skipLabel, internal: true, location: statement.location });
+          if (exitLabel) {
+            instructions.push({ kind: "label", name: exitLabel, internal: true, location: statement.location });
           }
         }
         break;
+      case "exit-for": {
+        const loopControl = options.loopControls?.[options.loopControls.length - 1];
+        if (!loopControl) {
+          throw new DiagnosticError(statement.location, "Internal error: EXIT FOR missing loop target.");
+        }
+        instructions.push({ kind: "goto", label: loopControl.exitLabel, location: statement.location });
+        break;
+      }
+      case "continue-for": {
+        const loopControl = options.loopControls?.[options.loopControls.length - 1];
+        if (!loopControl) {
+          throw new DiagnosticError(statement.location, "Internal error: CONTINUE FOR missing loop target.");
+        }
+        instructions.push({ kind: "goto", label: loopControl.continueLabel, location: statement.location });
+        break;
+      }
       case "while": {
         const startLabel = nextInternalLabel();
         const bodyLabel = nextInternalLabel();
@@ -803,6 +849,181 @@ function preserveModuloOperand(expression: Expression, instructions: Instruction
   const name = `MBT${context.nextTempId++}`;
   instructions.push({ kind: "let", name, expression, location: expression.location });
   return { kind: "identifier", name, location: expression.location };
+}
+
+function containsCurrentForControl(statements: readonly Statement[], kind: "exit-for" | "continue-for"): boolean {
+  for (const statement of statements) {
+    if (statement.kind === kind) {
+      return true;
+    }
+    if (statement.kind === "if") {
+      if (containsCurrentForControl(statement.thenBranch, kind) || containsCurrentForControl(statement.elseBranch, kind)) {
+        return true;
+      }
+    } else if (statement.kind === "while" || statement.kind === "repeat-until") {
+      if (containsCurrentForControl(statement.body, kind)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function expandInlineFunctionCall(
+  definition: InlineFunctionImplementation,
+  args: readonly Expression[],
+  destinationName: string | undefined,
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  context: FunctionCallLoweringContext
+): Expression | undefined {
+  const parameters = new Map<string, Expression>();
+  for (let index = 0; index < args.length; index += 1) {
+    parameters.set(normalizeName(definition.implementation.parameters[index].storageName), args[index]);
+  }
+
+  const body = substituteInlineStatements(definition.body, parameters);
+  const final = body[body.length - 1];
+  const bodyWithoutFinalReturn = final?.kind === "return" ? body.slice(0, -1) : body;
+  lowerStatements(bodyWithoutFinalReturn, instructions, nextInternalLabel, context);
+
+  if (destinationName && final?.kind === "return" && final.expression) {
+    if (!expandFunctionCallIntoDestination(final.expression, destinationName, instructions, context)) {
+      instructions.push({
+        kind: "let",
+        name: destinationName,
+        expression: expandFunctionCalls(final.expression, instructions, context),
+        location: final.location
+      });
+    }
+    return { kind: "identifier", name: destinationName, location: final.location };
+  }
+
+  return destinationName ? { kind: "identifier", name: destinationName, location: definition.body[0]?.location ?? { filename: "<unknown>", line: 1 } } : undefined;
+}
+
+function substituteInlineStatements(statements: readonly Statement[], parameters: ReadonlyMap<string, Expression>): readonly Statement[] {
+  return statements.map((statement) => substituteInlineStatement(statement, parameters));
+}
+
+function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap<string, Expression>): Statement {
+  switch (statement.kind) {
+    case "const":
+      return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };
+    case "dim":
+      return { ...statement, dimensions: statement.dimensions.map((dimension) => substituteInlineExpression(dimension, parameters)) };
+    case "cls":
+      return statement.color ? { ...statement, color: substituteInlineExpression(statement.color, parameters) } : statement;
+    case "border-color":
+    case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
+      return { ...statement, color: substituteInlineExpression(statement.color, parameters) };
+    case "print":
+      return {
+        ...statement,
+        items: statement.items.map((item) => substituteInlineExpression(item, parameters)),
+        ...(statement.at
+          ? {
+              at: {
+                ...statement.at,
+                row: substituteInlineExpression(statement.at.row, parameters),
+                column: substituteInlineExpression(statement.at.column, parameters)
+              }
+            }
+          : {})
+      };
+    case "print-device":
+      return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
+    case "let":
+      return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };
+    case "array-let":
+      return {
+        ...statement,
+        indices: statement.indices.map((index) => substituteInlineExpression(index, parameters)),
+        expression: substituteInlineExpression(statement.expression, parameters)
+      };
+    case "function-call-statement":
+      return {
+        ...statement,
+        expression: { ...statement.expression, args: statement.expression.args.map((arg) => substituteInlineExpression(arg, parameters)) }
+      };
+    case "return":
+      return statement.expression ? { ...statement, expression: substituteInlineExpression(statement.expression, parameters) } : statement;
+    case "randomize":
+      return statement.seed ? { ...statement, seed: substituteInlineExpression(statement.seed, parameters) } : statement;
+    case "for":
+      return {
+        ...statement,
+        start: substituteInlineExpression(statement.start, parameters),
+        limit: substituteInlineExpression(statement.limit, parameters),
+        ...(statement.step ? { step: substituteInlineExpression(statement.step, parameters) } : {}),
+        body: substituteInlineStatements(statement.body, parameters)
+      };
+    case "while":
+      return { ...statement, condition: substituteInlineExpression(statement.condition, parameters), body: substituteInlineStatements(statement.body, parameters) };
+    case "repeat-until":
+      return { ...statement, body: substituteInlineStatements(statement.body, parameters), condition: substituteInlineExpression(statement.condition, parameters) };
+    case "if":
+      return {
+        ...statement,
+        condition: substituteInlineExpression(statement.condition, parameters),
+        thenBranch: substituteInlineStatements(statement.thenBranch, parameters),
+        elseBranch: substituteInlineStatements(statement.elseBranch, parameters)
+      };
+    case "data":
+      return { ...statement, values: statement.values.map((value) => substituteInlineExpression(value, parameters)) };
+    case "label":
+    case "open-device":
+    case "close-device":
+    case "read":
+    case "suppress-scroll-prompt":
+    case "restore":
+    case "goto":
+    case "gosub":
+    case "end":
+    case "local":
+    case "function":
+    case "test":
+    case "globals":
+    case "exit-for":
+    case "continue-for":
+    case "assert-true":
+    case "assert-false":
+    case "assert-eq":
+    case "assert-ne":
+    case "assert-print":
+    case "assert-printat":
+    case "assert-screen-border-color":
+    case "assert-screen-background-color":
+    case "assert-screen-text-color":
+    case "assert-cell-text-color":
+    case "assert-cell-background-color":
+      return statement;
+  }
+}
+
+function substituteInlineExpression(expression: Expression, parameters: ReadonlyMap<string, Expression>): Expression {
+  switch (expression.kind) {
+    case "identifier":
+      return parameters.get(normalizeName(expression.name)) ?? expression;
+    case "array-access":
+      return { ...expression, indices: expression.indices.map((index) => substituteInlineExpression(index, parameters)) };
+    case "function-call":
+      return { ...expression, args: expression.args.map((arg) => substituteInlineExpression(arg, parameters)) };
+    case "parenthesized":
+      return { ...expression, expression: substituteInlineExpression(expression.expression, parameters) };
+    case "unary":
+      return { ...expression, operand: substituteInlineExpression(expression.operand, parameters) };
+    case "binary":
+      return { ...expression, left: substituteInlineExpression(expression.left, parameters), right: substituteInlineExpression(expression.right, parameters) };
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      return expression;
+  }
 }
 
 type ForLoopStaticBehavior = "runs" | "skips" | "unknown";

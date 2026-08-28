@@ -113,6 +113,30 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("lowers CONTINUE FOR and EXIT FOR to the current FOR loop labels", () => {
+    expect(
+      compileSource(
+        ["total = 0", "for index = 1 to 5", "if index = 2 then", "continue for", "end if", "if index = 4 then", "exit for", "end if", "total = total + index", "next index", "print total"].join("\n"),
+        { filename: "loop-control.mbas", target: "spectrum", readability: 0 }
+      )
+    ).toBe(
+      [
+        "10 LET TOTAL=0",
+        "20 FOR I=1 TO 5",
+        "30 IF I = 2 THEN GO TO 50",
+        "40 GO TO 60",
+        "50 GO TO 100",
+        "60 IF I = 4 THEN GO TO 80",
+        "70 GO TO 90",
+        "80 GO TO 110",
+        "90 LET TOTAL=TOTAL + I",
+        "100 NEXT I",
+        "110 PRINT TOTAL",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders nested Spectrum FOR/NEXT with STEP", () => {
     expect(
       compileSource("for row = 10 to 1 step -2\nfor column = 1 to 2\nprint row; column\nnext column\nnext row\n", {

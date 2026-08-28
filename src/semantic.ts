@@ -62,7 +62,8 @@ function analyzeStatements(
   functions: ReadonlyMap<string, FunctionDefinition>,
   devices: ReadonlySet<string>,
   scope?: FunctionScope,
-  testMode = false
+  testMode = false,
+  forDepth = 0
 ): readonly Statement[] {
   const analyzed: Statement[] = [];
 
@@ -315,12 +316,24 @@ function analyzeStatements(
       case "end":
         analyzed.push(statement);
         break;
+      case "exit-for":
+        if (forDepth === 0) {
+          throw new DiagnosticError(statement.location, "EXIT FOR can only be used inside a FOR loop.");
+        }
+        analyzed.push(statement);
+        break;
+      case "continue-for":
+        if (forDepth === 0) {
+          throw new DiagnosticError(statement.location, "CONTINUE FOR can only be used inside a FOR loop.");
+        }
+        analyzed.push(statement);
+        break;
       case "if":
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode),
-          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
+          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth),
+          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth)
         });
         break;
       case "for": {
@@ -354,7 +367,7 @@ function analyzeStatements(
           start,
           limit,
           ...(step ? { step } : {}),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth + 1)
         });
         break;
       }
@@ -362,13 +375,13 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth)
         });
         break;
       case "repeat-until":
         analyzed.push({
           ...statement,
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode),
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth),
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope)
         });
         break;
