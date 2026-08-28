@@ -187,6 +187,7 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.freeMemory, () => "(65536 - USR 7962)"],
     [builtinFunctions.int, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
+    [builtinFunctions.keyPressed, () => `(INKEY$ <> "")`],
     [builtinFunctions.left, renderSpectrumLeft],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid],

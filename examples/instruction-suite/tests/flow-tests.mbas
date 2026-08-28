@@ -24,6 +24,15 @@ test ForStepLoop()
     assert_eq 12, Total
 end test
 
+test EmptyDynamicForLoop()
+    Last = 0
+    Ran = 0
+    for Index = 1 to Last
+        Ran = 1
+    next Index
+    assert_eq 0, Ran
+end test
+
 test WhileWendLoop()
     Count = 0
     Total = 0

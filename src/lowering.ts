@@ -682,16 +682,35 @@ function lowerStatements(
         instructions.push({ kind: "end", location: statement.location });
         break;
       case "for":
-        instructions.push({
+        {
+          const start = expandFunctionCalls(statement.start, instructions, context);
+          const limit = expandFunctionCalls(statement.limit, instructions, context);
+          const step = statement.step ? expandFunctionCalls(statement.step, instructions, context) : undefined;
+          const staticBehavior = forLoopStaticBehavior(start, limit, step);
+
+          if (staticBehavior === "skips") {
+            break;
+          }
+
+          const skipLabel = staticBehavior === "unknown" ? nextInternalLabel() : undefined;
+          if (skipLabel) {
+            instructions.push({ kind: "if-goto", condition: forLoopSkipCondition(start, limit, step, statement.location), label: skipLabel, location: statement.location });
+          }
+
+          instructions.push({
           kind: "for",
           variable: statement.variable,
-          start: expandFunctionCalls(statement.start, instructions, context),
-          limit: expandFunctionCalls(statement.limit, instructions, context),
-          ...(statement.step ? { step: expandFunctionCalls(statement.step, instructions, context) } : {}),
+          start,
+          limit,
+          ...(step ? { step } : {}),
           location: statement.location
         });
-        lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
-        instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
+          lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
+          instructions.push({ kind: "next", variable: statement.variable, location: statement.location });
+          if (skipLabel) {
+            instructions.push({ kind: "label", name: skipLabel, internal: true, location: statement.location });
+          }
+        }
         break;
       case "while": {
         const startLabel = nextInternalLabel();
@@ -784,6 +803,37 @@ function preserveModuloOperand(expression: Expression, instructions: Instruction
   const name = `MBT${context.nextTempId++}`;
   instructions.push({ kind: "let", name, expression, location: expression.location });
   return { kind: "identifier", name, location: expression.location };
+}
+
+type ForLoopStaticBehavior = "runs" | "skips" | "unknown";
+
+function forLoopStaticBehavior(start: Expression, limit: Expression, step: Expression | undefined): ForLoopStaticBehavior {
+  if (start.kind !== "number" || limit.kind !== "number" || (step && step.kind !== "number")) {
+    return "unknown";
+  }
+
+  const stepValue = step?.value ?? 1;
+  if (stepValue >= 0) {
+    return start.value > limit.value ? "skips" : "runs";
+  }
+  return start.value < limit.value ? "skips" : "runs";
+}
+
+function forLoopSkipCondition(start: Expression, limit: Expression, step: Expression | undefined, location: SourceLocation): Expression {
+  if (!step) {
+    return binaryExpression(">", start, limit, location);
+  }
+
+  if (step.kind === "number") {
+    return step.value >= 0 ? binaryExpression(">", start, limit, location) : binaryExpression("<", start, limit, location);
+  }
+
+  return binaryExpression(
+    "OR",
+    binaryExpression("AND", binaryExpression(">=", step, numberExpression(0, location), location), binaryExpression(">", start, limit, location), location),
+    binaryExpression("AND", binaryExpression("<", step, numberExpression(0, location), location), binaryExpression("<", start, limit, location), location),
+    location
+  );
 }
 
 function numberExpression(value: number, location: SourceLocation): Expression {

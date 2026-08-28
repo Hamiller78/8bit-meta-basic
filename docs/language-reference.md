@@ -143,6 +143,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `jiffies()` | Runtime | Read the target's running tick counter |
 | `free_memory()` | Runtime | Return the target's current free BASIC memory in bytes |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
+| `key_pressed()` | Runtime | Check whether a key is waiting without blocking |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
 `CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
@@ -162,7 +163,7 @@ value = rnd()
 
 `randomize` accepts an optional numeric seed. Atari BASIC ignores the seed because its native `RND` facility does not use the same explicit seed model.
 
-`STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
+`STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_PRESSED()` returns true when a key is available. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
 
 ```basic
 key = key_code()

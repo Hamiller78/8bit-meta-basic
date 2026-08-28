@@ -13,6 +13,7 @@ screen_text_color WHITE
 print_at 0, 0, "META-BASIC KEY DIAGNOSTICS";
 print_at 2, 0, "PRESS KEYS ON THE MACHINE";
 print_at 3, 0, "WATCH RAW KEY_CODE() VALUES";
+print_at 4, 0, "NO KEY IS "; KEY_NONE;
 print_at 5, 0, "UP "; KEY_UP; " DOWN "; KEY_DOWN;
 print_at 6, 0, "LEFT "; KEY_LEFT; " RIGHT "; KEY_RIGHT;
 print_at 7, 0, "Q "; KEY_Q; " A "; KEY_A; " O "; KEY_O; " P "; KEY_P;
@@ -23,12 +24,15 @@ print_at codeRow, 0, "PRESS A KEY";
 loop:
     key = key_code()
 
-    if key <> KEY_NONE and key <> lastKey then
+    if key <> lastKey then
         lastKey = key
         print_at codeRow, 0, clearLine$;
         print_at codeRow, 0, "KEY_CODE="; key;
         print_at matchRow, 0, clearLine$;
 
+        if key = KEY_NONE then
+            print_at matchRow, 0, "MATCH: KEY_NONE";
+        end if
         if key = KEY_UP then
             print_at matchRow, 0, "MATCH: KEY_UP";
         end if

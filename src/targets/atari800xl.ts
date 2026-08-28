@@ -621,6 +621,7 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.freeMemory, () => "FRE(0)"],
     [builtinFunctions.int, renderAtariUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536"],
+    [builtinFunctions.keyPressed, () => "(PEEK(764) <> 255)"],
     [builtinFunctions.left, renderAtariLeft],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid],

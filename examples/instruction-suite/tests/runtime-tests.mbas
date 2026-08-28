@@ -14,3 +14,7 @@ test FreeMemoryRead()
     MemoryLeft = free_memory()
     assert_true MemoryLeft > 0
 end test
+
+test NoKeyPressed()
+    assert_false key_pressed()
+end test

@@ -97,6 +97,26 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("guards dynamic FOR loops so Atari does not run an empty range once", () => {
+    expect(
+      compileSource("last = 0\nfor index = 1 to last\nprint index\nnext index\nprint \"DONE\"\n", {
+        filename: "empty-for.mbas",
+        target: "atari800xl",
+        readability: 0
+      })
+    ).toBe(
+      [
+        "10 LAST=0",
+        "20 IF 1 > LAST THEN GOTO 60",
+        "30 FOR INDEX=1 TO LAST",
+        "40 PRINT INDEX",
+        "50 NEXT INDEX",
+        "60 PRINT \"DONE\"",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders Atari CLS and every portable background colour without text-colour changes", () => {
     const source = ["cls", ...portableColors.map((color) => `cls ${color}`)].join("\n");
     const output = compileSource(`${source}\n`, { filename: "colors.mbas", target: "atari800xl" });
@@ -393,6 +413,25 @@ describe("Atari 800XL compiler", () => {
         "50 POKE 764,255",
         "60 REM __MB_KEY_2:",
         "70 PRINT 142;63;142;33;KEYCODE",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("renders KEY_PRESSED using Atari's no-key CH value", () => {
+    expect(
+      compileSource("pressed = key_pressed()\nif key_pressed() then\nprint \"KEY\"\nend if\nprint KEY_NONE\n", {
+        filename: "key-pressed.mbas",
+        target: "atari800xl",
+        readability: 0
+      })
+    ).toBe(
+      [
+        "10 PRESSED=(PEEK(764) <> 255)",
+        "20 IF (PEEK(764) <> 255) THEN GOTO 40",
+        "30 GOTO 50",
+        '40 PRINT "KEY"',
+        "50 PRINT 255",
         ""
       ].join("\n")
     );

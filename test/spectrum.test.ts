@@ -592,6 +592,16 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders KEY_PRESSED using Spectrum INKEY$", () => {
+    expect(
+      compileSource("pressed = key_pressed()\nif key_pressed() then\nprint \"KEY\"\nend if\nprint KEY_NONE\n", {
+        filename: "key-pressed.mbas",
+        target: "spectrum",
+        readability: 0
+      })
+    ).toBe(["10 LET PRESSED=(INKEY$ <> \"\")", "20 IF (INKEY$ <> \"\") THEN GO TO 40", "30 GO TO 50", '40 PRINT "KEY"', "50 PRINT 0", ""].join("\n"));
+  });
+
   it("reports invalid compile-time string fill calls", () => {
     expect(() => compileSource('print string$("ab", 1)\n', { filename: "fill.mbas", target: "spectrum" })).toThrow(
       "STRING$ first argument must be a string with exactly one character"
@@ -687,6 +697,7 @@ describe("Spectrum compiler", () => {
 
   it("reports invalid keyboard function calls", () => {
     expect(() => compileSource("print key_code(1)\n", { filename: "keys.mbas", target: "spectrum" })).toThrow("KEY_CODE expects no arguments");
+    expect(() => compileSource("print key_pressed(1)\n", { filename: "keys.mbas", target: "spectrum" })).toThrow("KEY_PRESSED expects no arguments");
     expect(() => compileSource("print key$()\n", { filename: "keys.mbas", target: "spectrum" })).toThrow('Unknown function "key$"');
   });
 

@@ -67,7 +67,7 @@ Constant coordinates must fit these zero-based ranges:
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
 - `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
-- `KEY_CODE()` uses `INKEY$`; short taps can be missed while the program is busy.
+- `KEY_PRESSED()` checks `INKEY$ <> ""`; `KEY_CODE()` uses `INKEY$`, so short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter.
 - `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
@@ -87,7 +87,7 @@ Constant coordinates must fit these zero-based ranges:
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
-- `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
+- `KEY_PRESSED()` checks `PEEK(764) <> 255`; `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter.
 - `FREE_MEMORY()` lowers to native `FRE(0)`.
 - `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
@@ -106,7 +106,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
 - `SHARED_DRIVE` is not supported on C64.
-- `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
+- `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
 - `RND()` lowers to `RND(1)`; `RANDOMIZE seed` lowers to a generated assignment using `RND(-seed)`.

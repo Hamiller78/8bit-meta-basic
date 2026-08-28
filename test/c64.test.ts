@@ -437,6 +437,16 @@ describe("C64 compiler", () => {
     ).toBe(['10 GET MB$', "20 KE=0", '30 IF MB$ <> "" THEN GOTO 50', "40 GOTO 60", "50 KE=ASC(MB$)", "60 PRINT 145;65;145;32;KE", ""].join("\n"));
   });
 
+  it("renders KEY_PRESSED using the C64 keyboard buffer count", () => {
+    expect(
+      compileSource("pressed = key_pressed()\nif key_pressed() then\nprint \"KEY\"\nend if\nprint KEY_NONE\n", {
+        filename: "key-pressed.mbas",
+        target: "c64",
+        readability: 0
+      })
+    ).toBe(["10 V0=(PEEK(198) > 0)", "20 IF (PEEK(198) > 0) THEN GOTO 40", "30 GOTO 50", '40 PRINT "KEY"', "50 PRINT 0", ""].join("\n"));
+  });
+
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" })).toContain(
       "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"

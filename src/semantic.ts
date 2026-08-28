@@ -775,6 +775,14 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.keyPressed) {
+    if (expression.args.length !== 0) {
+      throw new DiagnosticError(expression.location, "KEY_PRESSED expects no arguments.");
+    }
+
+    return { ...expression, name, args: [] };
+  }
+
   if (name === builtinFunctions.rnd) {
     if (expression.args.length !== 0) {
       throw new DiagnosticError(expression.location, "RND expects no arguments.");

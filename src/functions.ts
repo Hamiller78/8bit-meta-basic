@@ -11,6 +11,7 @@ export const builtinFunctions = {
   int: "INT",
   jiffies: "JIFFIES",
   keyCode: "KEY_CODE",
+  keyPressed: "KEY_PRESSED",
   left: "LEFT$",
   len: "LEN",
   mid: "MID$",
