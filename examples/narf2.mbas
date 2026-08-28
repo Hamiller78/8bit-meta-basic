@@ -18,6 +18,8 @@ printCentered(7, "Reaction Failsafe")
 printCentered(9, "(N.A.R.F.)")
 
 addToTextQueue(12, 1, 10, "Connecting to NORAD...")
+print_at 13, 1, "User:";
+addToTextQueue(13, 7, 50, "RONALD REAGAN")
 
 'main loop: add text output queue for telegraph effect
 repeat
