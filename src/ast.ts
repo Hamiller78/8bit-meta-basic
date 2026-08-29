@@ -32,7 +32,10 @@ export type Statement =
   | RestoreStatement
   | LetStatement
   | ArrayLetStatement
+  | StructFieldLetStatement
   | FunctionCallStatement
+  | InsertElementStatement
+  | RemoveElementStatement
   | GotoStatement
   | GosubStatement
   | ExitForStatement
@@ -44,6 +47,8 @@ export type Statement =
   | FunctionStatement
   | TestStatement
   | GlobalsStatement
+  | StructStatement
+  | EnumStatement
   | AssertStatement
   | ForStatement
   | WhileStatement
@@ -67,6 +72,7 @@ export interface DimStatement {
   readonly kind: "dim";
   readonly name: string;
   readonly dimensions: readonly Expression[];
+  readonly asType?: string;
   readonly location: SourceLocation;
 }
 
@@ -184,10 +190,44 @@ export interface ArrayLetStatement {
   readonly location: SourceLocation;
 }
 
+export interface StructFieldLetStatement {
+  readonly kind: "struct-field-let";
+  readonly base: string;
+  readonly indices: readonly Expression[];
+  readonly field: string;
+  readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
 export interface FunctionCallStatement {
   readonly kind: "function-call-statement";
   readonly expression: FunctionCallExpression;
   readonly location: SourceLocation;
+}
+
+export interface InsertElementStatement {
+  readonly kind: "insert-element";
+  readonly target: Expression;
+  readonly index: Expression;
+  readonly value: Expression;
+  readonly elementCount?: number;
+  readonly fields?: readonly ElementMoveField[];
+  readonly location: SourceLocation;
+}
+
+export interface RemoveElementStatement {
+  readonly kind: "remove-element";
+  readonly target: Expression;
+  readonly index: Expression;
+  readonly elementCount?: number;
+  readonly fields?: readonly Omit<ElementMoveField, "insertExpression">[];
+  readonly location: SourceLocation;
+}
+
+export interface ElementMoveField {
+  readonly arrayName: string;
+  readonly valueType: "number" | "string";
+  readonly insertExpression: Expression;
 }
 
 export interface GotoStatement {
@@ -238,6 +278,14 @@ export interface LocalStatement {
 export interface FunctionStorage {
   readonly sourceName: string;
   readonly storageName: string;
+  readonly asType?: string;
+  readonly structFields?: readonly FunctionStructFieldStorage[];
+}
+
+export interface FunctionStructFieldStorage {
+  readonly sourceName: string;
+  readonly storageName: string;
+  readonly valueType: "number" | "string";
 }
 
 export interface FunctionImplementation {
@@ -251,10 +299,16 @@ export interface FunctionStatement {
   readonly kind: "function";
   readonly name: string;
   readonly parameters: readonly string[];
+  readonly parameterTypes?: readonly ParameterType[];
   readonly body: readonly Statement[];
   readonly inline?: boolean;
   readonly implementation?: FunctionImplementation;
   readonly location: SourceLocation;
+}
+
+export interface ParameterType {
+  readonly name: string;
+  readonly asType: string;
 }
 
 export interface TestStatement {
@@ -268,6 +322,32 @@ export interface TestStatement {
 export interface GlobalsStatement {
   readonly kind: "globals";
   readonly body: readonly Statement[];
+  readonly location: SourceLocation;
+}
+
+export interface StructStatement {
+  readonly kind: "struct";
+  readonly name: string;
+  readonly fields: readonly StructField[];
+  readonly location: SourceLocation;
+}
+
+export interface StructField {
+  readonly name: string;
+  readonly dimensions: readonly Expression[];
+  readonly location: SourceLocation;
+}
+
+export interface EnumMember {
+  readonly name: string;
+  readonly expression?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface EnumStatement {
+  readonly kind: "enum";
+  readonly name: string;
+  readonly members: readonly EnumMember[];
   readonly location: SourceLocation;
 }
 
@@ -332,6 +412,7 @@ export type Expression =
   | ColorLiteralExpression
   | IdentifierExpression
   | ArrayAccessExpression
+  | StructFieldAccessExpression
   | FunctionCallExpression
   | ParenthesizedExpression
   | UnaryExpression
@@ -372,6 +453,15 @@ export interface ArrayAccessExpression {
   readonly kind: "array-access";
   readonly name: string;
   readonly indices: readonly Expression[];
+  readonly valueType?: "number" | "string";
+  readonly location: SourceLocation;
+}
+
+export interface StructFieldAccessExpression {
+  readonly kind: "struct-field-access";
+  readonly base: string;
+  readonly indices: readonly Expression[];
+  readonly field: string;
   readonly valueType?: "number" | "string";
   readonly location: SourceLocation;
 }

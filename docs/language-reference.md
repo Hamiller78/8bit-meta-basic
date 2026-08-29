@@ -28,6 +28,18 @@ const borderLine$ = string$("*", TEXT_COLUMNS)
 
 A constant may reference an earlier constant. Names are case-insensitive. Duplicate constants, unknown references, invalid operations, and compile-time division by zero are rejected.
 
+Enums are compile-time collections of integer constants:
+
+```basic
+enum ThreatState
+    ThreatIdle
+    ThreatTracking = 4
+    ThreatLocked
+end enum
+```
+
+Members without explicit values count upward from the previous value, starting at `0`. In the example, `ThreatIdle` is `0`, `ThreatTracking` is `4`, and `ThreatLocked` is `5`. Enum members currently become ordinary compile-time constants in the surrounding scope; the enum name is documentation, not a namespace.
+
 Every target supplies these environment constants:
 
 | Constant | Spectrum | Atari 800XL | C64 |
@@ -87,6 +99,28 @@ messages$(0) = "READY"
 messages$(2) = "STANDBY"
 print messages$(0); messages$(2)
 ```
+
+Use `STRUCT` blocks to define small record-like storage shapes:
+
+```basic
+struct TelegraphText
+    textQueueRow
+    textQueueColumn
+    textQueue$(39)
+end struct
+
+dim textQueue AS TelegraphText(100)
+dim newElement AS TelegraphText
+
+textQueue(0).textQueueRow = 4
+newElement.textQueue$ = "READY"
+```
+
+Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to one backing array per field, so a `TelegraphText(100)` queue becomes parallel native arrays behind the scenes. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`.
+
+`insert_element(array, index, value)` inserts into a one-dimensional native array or struct array. Existing elements from `index` upward are moved one slot higher, and the last element is lost. For struct arrays, `value` must currently be a scalar struct value of the same type. `remove_element(array, index)` moves elements from `index + 1` downward and overwrites the element at `index`; the final slot is left as whatever value remains there.
+
+Functions can accept scalar struct parameters with `parameter AS StructName`. Struct parameters are copied field-by-field before the function call, so assigning to `parameter.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet. Struct definitions cannot be nested.
 
 `dim messages$(3, 12)` creates three string slots with a maximum width of 12 characters. String array use still supplies only the element index; the width is part of the storage declaration. String literal assignments longer than the fixed width are rejected at compile time.
 
@@ -198,6 +232,17 @@ function AddBonus(Score, Bonus)
 end function
 
 Total = AddBonus(CurrentScore, 10)
+```
+
+Scalar struct parameters use `AS` in the parameter list:
+
+```basic
+function ShiftedRow(item AS TelegraphText, offset)
+    local result
+    result = item.row + offset
+    item.row = 99
+    return result
+end function
 ```
 
 Use a function call in an expression when the return value matters. A user-defined function may also be called as a standalone statement when only its side effects matter:

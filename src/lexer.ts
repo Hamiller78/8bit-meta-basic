@@ -3,6 +3,7 @@ import type { SourceLocation } from "./ast.js";
 
 export const keywords = new Set([
   "AND",
+  "AS",
   "ASSERT_CELL_BACKGROUND_COLOR",
   "ASSERT_CELL_TEXT_COLOR",
   "ASSERT_EQ",
@@ -25,6 +26,7 @@ export const keywords = new Set([
   "ELSE",
   "END",
   "ENDIF",
+  "ENUM",
   "EXIT",
   "FALSE",
   "FOR",
@@ -34,6 +36,7 @@ export const keywords = new Set([
   "GOTO",
   "IF",
   "INLINE",
+  "INSERT_ELEMENT",
   "LOCAL",
   "MOD",
   "NOT",
@@ -48,12 +51,14 @@ export const keywords = new Set([
   "REPEAT",
   "RANDOMIZE",
   "RESTORE",
+  "REMOVE_ELEMENT",
   "SCREEN_BACKGROUND_COLOR",
   "SCREEN_BORDER_COLOR",
   "SCREEN_TEXT_COLOR",
   "SUPPRESS_SCROLL_PROMPT",
   "NEXT",
   "STEP",
+  "STRUCT",
   "THEN",
   "TO",
   "CONTINUE",
@@ -110,7 +115,7 @@ export interface OperatorToken extends BaseToken {
 
 export interface PunctuationToken extends BaseToken {
   readonly kind: "punctuation";
-  readonly text: "(" | ")" | ":" | "," | ";" | "=";
+  readonly text: "(" | ")" | ":" | "," | ";" | "=" | ".";
 }
 
 export interface NewlineToken extends BaseToken {
@@ -196,7 +201,7 @@ export function tokenize(source: string, filename: string): Token[] {
       continue;
     }
 
-    if (char === "(" || char === ")" || char === ":" || char === "," || char === ";" || char === "=") {
+    if (char === "(" || char === ")" || char === ":" || char === "," || char === ";" || char === "=" || char === ".") {
       tokens.push({ kind: "punctuation", text: char, location: location() });
       advance(char);
       continue;

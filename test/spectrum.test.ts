@@ -318,6 +318,30 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("lowers STRUCT arrays to backing arrays with field access", () => {
+    expect(compileSource("struct QueueItem\nRow\nText$(10)\nend struct\ndim Queue AS QueueItem(4)\nQueue(0).Row = 7\nQueue(0).Text$ = \"READY\"\nprint Queue(0).Row; Queue(0).Text$\n", { filename: "struct.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 DIM Q(4)", "20 DIM A$(4,10)", '30 LET Q(1)=7', '40 LET A$(1,1 TO 10)="READY"', "50 PRINT Q(1);A$(1,1 TO 10)", ""].join("\n")
+    );
+  });
+
+  it("turns ENUM members into compile-time integer constants", () => {
+    expect(compileSource("enum AlertState\nIdle\nWarning = 3\nDanger\nend enum\nprint Idle; Warning; Danger\n", { filename: "enum.mbas", target: "spectrum", readability: 0 })).toBe(
+      ["10 PRINT 0;3;4", ""].join("\n")
+    );
+  });
+
+  it("reports invalid ENUM declarations", () => {
+    expect(() => compileSource("enum Bad\nTEXT_ROWS\nend enum\n", { filename: "enum.mbas", target: "spectrum" })).toThrow(
+      'Cannot redeclare environment constant "TEXT_ROWS".'
+    );
+    expect(() => compileSource("enum Bad\nHalf = 1.5\nend enum\n", { filename: "enum.mbas", target: "spectrum" })).toThrow(
+      "ENUM values must be compile-time integer constants."
+    );
+    expect(() => compileSource("enum Bad\nSame\nSame\nend enum\n", { filename: "enum.mbas", target: "spectrum" })).toThrow(
+      'Duplicate enum Bad member "Same".'
+    );
+  });
+
   it("lowers Spectrum printer availability checks as a best-effort open stream assumption", () => {
     expect(
       compileSource('available = device_available(PRINTER)\nprint available\n', {

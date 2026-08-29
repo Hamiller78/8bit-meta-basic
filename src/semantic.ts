@@ -31,6 +31,28 @@ interface ArrayDefinition {
   readonly location: Expression["location"];
 }
 
+interface StructFieldDefinition {
+  readonly name: string;
+  readonly storageSuffix: string;
+  readonly valueType: "number" | "string";
+  readonly dimensions: readonly number[];
+  readonly location: Expression["location"];
+}
+
+interface StructDefinition {
+  readonly name: string;
+  readonly fields: readonly StructFieldDefinition[];
+  readonly location: Expression["location"];
+}
+
+interface StructValueDefinition {
+  readonly name: string;
+  readonly typeName: string;
+  readonly dimensions: readonly number[];
+  readonly fields: readonly StructFieldDefinition[];
+  readonly location: Expression["location"];
+}
+
 export interface AnalyzeOptions {
   readonly testMode?: boolean;
 }
@@ -41,6 +63,8 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
     constants.set(key, { name: key.toUpperCase(), value, environment: true });
   }
   const arrays = new Map<string, ArrayDefinition>();
+  const structs = new Map<string, StructDefinition>();
+  const structValues = new Map<string, StructValueDefinition>();
   const scalarNames = new Set<string>();
   const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
   const functions = collectFunctionDefinitions(statements);
@@ -49,7 +73,7 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   validateControlFlowBoundaries(statements);
 
   return {
-    statements: analyzeStatements(statements, constants, false, arrays, scalarNames, functions, devices, undefined, options.testMode === true)
+    statements: analyzeStatements(statements, constants, false, arrays, structs, structValues, scalarNames, functions, devices, undefined, options.testMode === true)
   };
 }
 
@@ -58,6 +82,8 @@ function analyzeStatements(
   constants: Map<string, ConstantDefinition>,
   inConstantExpression: boolean,
   arrays: Map<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
   devices: ReadonlySet<string>,
@@ -77,7 +103,7 @@ function analyzeStatements(
         if (!definition) {
           throw new DiagnosticError(statement.location, `Internal error: missing function definition for "${statement.name}".`);
         }
-        analyzed.push(analyzeFunction(definition, constants, arrays, scalarNames, functions, devices));
+        analyzed.push(analyzeFunction(definition, constants, arrays, structs, structValues, scalarNames, functions, devices));
         break;
       }
       case "test": {
@@ -87,7 +113,7 @@ function analyzeStatements(
         if (scope) {
           throw new DiagnosticError(statement.location, "Nested TEST declarations are not supported.");
         }
-        analyzed.push(analyzeTest(statement, constants, arrays, scalarNames, functions, devices, testMode));
+        analyzed.push(analyzeTest(statement, constants, arrays, structs, structValues, scalarNames, functions, devices, testMode));
         break;
       }
       case "globals": {
@@ -98,7 +124,19 @@ function analyzeStatements(
           throw new DiagnosticError(statement.location, "Nested GLOBALS blocks are not supported.");
         }
         validateGlobalsBody(statement.body);
-        analyzed.push({ ...statement, body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, undefined, testMode) });
+        analyzed.push({ ...statement, body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, undefined, testMode) });
+        break;
+      }
+      case "struct":
+        addStructDefinition(statement, constants, arrays, structs, structValues);
+        break;
+      case "enum": {
+        let nextValue = 0;
+        for (const member of statement.members) {
+          const value = member.expression ? evaluateEnumValue(member.expression, constants) : nextValue;
+          addConstant(member.name, value, member.location, constants, `enum ${statement.name}`);
+          nextValue = value + 1;
+        }
         break;
       }
       case "local":
@@ -107,23 +145,14 @@ function analyzeStatements(
         }
         break;
       case "const": {
-        const key = normalizeName(statement.name);
-        const existing = constants.get(key);
-        if (existing?.environment) {
-          throw new DiagnosticError(statement.location, `Cannot redeclare environment constant "${statement.name}".`);
-        }
-        if (existing) {
-          throw new DiagnosticError(statement.location, `Duplicate constant "${statement.name}".`);
-        }
-
         const value = evaluateConstant(statement.expression, constants);
-        constants.set(key, { name: statement.name, value, environment: false });
+        addConstant(statement.name, value, statement.location, constants, "constant");
         break;
       }
       case "data": {
         analyzed.push({
           ...statement,
-          values: statement.values.map((value) => analyzeDataValue(value, constants, arrays, functions, scope))
+          values: statement.values.map((value) => analyzeDataValue(value, constants, arrays, functions, scope, structValues))
         });
         break;
       }
@@ -138,6 +167,11 @@ function analyzeStatements(
         analyzed.push(statement);
         break;
       case "dim": {
+        if (statement.asType) {
+          const expanded = analyzeStructDim(statement, constants, arrays, structs, structValues, scalarNames);
+          analyzed.push(...expanded);
+          break;
+        }
         const key = normalizeName(statement.name);
         if (constants.has(key)) {
           throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a constant.`);
@@ -214,7 +248,7 @@ function analyzeStatements(
           }
           scalarNames.add(normalizeName(statement.name));
         }
-        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope);
+        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope, structValues);
         if (expression.kind === "color") {
           throw new DiagnosticError(statement.location, "Assignments require a numeric or string expression.");
         }
@@ -240,7 +274,7 @@ function analyzeStatements(
           throw new DiagnosticError(statement.location, `Array "${statement.name}" must be declared with DIM before use.`);
         }
         const indices = analyzeArrayIndices(statement.name, statement.indices, definition, constants, inConstantExpression, arrays, functions, scope);
-        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope);
+        const expression = foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope, structValues);
         if (definition.valueType === "string") {
           if (expression.kind === "color" || !isStringExpression(expression)) {
             throw new DiagnosticError(statement.location, "String array assignments require a string expression.");
@@ -262,6 +296,15 @@ function analyzeStatements(
         });
         break;
       }
+      case "struct-field-let": {
+        const resolved = resolveStructFieldTarget(statement.base, statement.indices, statement.field, statement.location, structValues, constants, inConstantExpression, arrays, functions, scope);
+        const lowered: Statement =
+          resolved.kind === "array"
+            ? { kind: "array-let", name: resolved.name, indices: resolved.indices, expression: statement.expression, location: statement.location }
+            : { kind: "let", name: resolved.name, expression: statement.expression, sourceName: `${statement.base}.${statement.field}`, location: statement.location };
+        analyzed.push(...analyzeStatements([lowered], constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
+        break;
+      }
       case "function-call-statement": {
         if (canonicalFunctionName(statement.expression.name) || arrays.has(normalizeName(statement.expression.name))) {
           throw new DiagnosticError(statement.location, "Standalone calls are supported only for user-defined FUNCTIONs.");
@@ -276,25 +319,36 @@ function analyzeStatements(
             `FUNCTION ${definition.name} expects ${definition.implementation.parameters.length} argument${definition.implementation.parameters.length === 1 ? "" : "s"}.`
           );
         }
+        validateFunctionArguments(definition, statement.expression.args, structValues, scope);
         const expression = {
           ...statement.expression,
           name: definition.name,
           valueType: definition.valueType,
-          args: statement.expression.args.map((arg) => foldExpression(arg, constants, inConstantExpression, arrays, functions, scope))
+          args: analyzeFunctionCallArguments(definition, statement.expression.args, constants, inConstantExpression, arrays, functions, scope, structValues)
         } satisfies Extract<Expression, { kind: "function-call" }>;
         analyzed.push({ ...statement, expression });
         break;
       }
+      case "insert-element":
+        analyzed.push(
+          analyzeElementMoveStatement(statement, "insert", constants, inConstantExpression, arrays, structValues, functions, scope)
+        );
+        break;
+      case "remove-element":
+        analyzed.push(
+          analyzeElementMoveStatement(statement, "remove", constants, inConstantExpression, arrays, structValues, functions, scope)
+        );
+        break;
       case "print":
         analyzed.push({
           ...statement,
-          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope), "PRINT")),
+          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT")),
           ...(statement.at
             ? {
                 at: {
                   ...statement.at,
-                  row: foldExpression(statement.at.row, constants, inConstantExpression, arrays, functions, scope),
-                  column: foldExpression(statement.at.column, constants, inConstantExpression, arrays, functions, scope)
+                  row: foldExpression(statement.at.row, constants, inConstantExpression, arrays, functions, scope, structValues),
+                  column: foldExpression(statement.at.column, constants, inConstantExpression, arrays, functions, scope, structValues)
                 }
               }
             : {})
@@ -307,7 +361,7 @@ function analyzeStatements(
         requireOpenDevice(statement.handle, statement.location, devices, "PRINT_DEVICE");
         analyzed.push({
           ...statement,
-          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope), "PRINT_DEVICE"))
+          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT_DEVICE"))
         });
         break;
       case "close-device":
@@ -332,9 +386,9 @@ function analyzeStatements(
       case "if":
         analyzed.push({
           ...statement,
-          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth),
-          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth)
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope, structValues),
+          thenBranch: analyzeStatements(statement.thenBranch, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth),
+          elseBranch: analyzeStatements(statement.elseBranch, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth)
         });
         break;
       case "for": {
@@ -357,10 +411,10 @@ function analyzeStatements(
         }
 
         const loopVariable = resolveScopedName(statement.variable, scope);
-        const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression, arrays, functions, scope), "FOR start value");
-        const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression, arrays, functions, scope), "FOR limit value");
+        const start = requireNumericExpression(foldExpression(statement.start, constants, inConstantExpression, arrays, functions, scope, structValues), "FOR start value");
+        const limit = requireNumericExpression(foldExpression(statement.limit, constants, inConstantExpression, arrays, functions, scope, structValues), "FOR limit value");
         const step = statement.step
-          ? requireNumericExpression(foldExpression(statement.step, constants, inConstantExpression, arrays, functions, scope), "FOR STEP value")
+          ? requireNumericExpression(foldExpression(statement.step, constants, inConstantExpression, arrays, functions, scope, structValues), "FOR STEP value")
           : undefined;
         analyzed.push({
           ...statement,
@@ -368,22 +422,22 @@ function analyzeStatements(
           start,
           limit,
           ...(step ? { step } : {}),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth + 1)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth + 1)
         });
         break;
       }
       case "while":
         analyzed.push({
           ...statement,
-          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope),
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth)
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope, structValues),
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth)
         });
         break;
       case "repeat-until":
         analyzed.push({
           ...statement,
-          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, scalarNames, functions, devices, scope, testMode, forDepth),
-          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope)
+          body: analyzeStatements(statement.body, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth),
+          condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope, structValues)
         });
         break;
       case "randomize": {
@@ -393,7 +447,7 @@ function analyzeStatements(
         }
         analyzed.push({
           ...statement,
-          seed: requireNumericExpression(foldExpression(statement.seed, constants, inConstantExpression, arrays, functions, scope), "RANDOMIZE seed")
+          seed: requireNumericExpression(foldExpression(statement.seed, constants, inConstantExpression, arrays, functions, scope, structValues), "RANDOMIZE seed")
         });
         break;
       }
@@ -425,7 +479,7 @@ function analyzeStatements(
           }
           analyzed.push({
             ...statement,
-            expression: foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope)
+            expression: foldExpression(statement.expression, constants, inConstantExpression, arrays, functions, scope, structValues)
           });
           break;
         }
@@ -439,7 +493,7 @@ function analyzeStatements(
         if (!testMode || scope?.kind !== "test") {
           throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} can only be used inside a TEST when testMode is enabled.`);
         }
-        const actual = requireNumericExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
+        const actual = requireNumericExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope, structValues), assertDisplayName(statement.kind));
         analyzed.push({ ...statement, actual });
         break;
       }
@@ -451,8 +505,8 @@ function analyzeStatements(
         if (!statement.expected) {
           throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} requires expected and actual expressions.`);
         }
-        const expected = rejectColorExpression(foldExpression(statement.expected, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
-        const actual = rejectColorExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope), assertDisplayName(statement.kind));
+        const expected = rejectColorExpression(foldExpression(statement.expected, constants, inConstantExpression, arrays, functions, scope, structValues), assertDisplayName(statement.kind));
+        const actual = rejectColorExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope, structValues), assertDisplayName(statement.kind));
         if (isStringExpression(expected) !== isStringExpression(actual)) {
           throw new DiagnosticError(statement.location, `${assertDisplayName(statement.kind)} requires expected and actual expressions of the same type.`);
         }
@@ -463,7 +517,7 @@ function analyzeStatements(
         if (!testMode || scope?.kind !== "test") {
           throw new DiagnosticError(statement.location, "ASSERT_PRINT can only be used inside a TEST when testMode is enabled.");
         }
-        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope);
+        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope, structValues);
         if (!isStringExpression(actual)) {
           throw new DiagnosticError(statement.location, "ASSERT_PRINT requires a string expression.");
         }
@@ -477,9 +531,9 @@ function analyzeStatements(
         if (!statement.row || !statement.column) {
           throw new DiagnosticError(statement.location, "ASSERT_PRINTAT requires row, column, and expected text expressions.");
         }
-        const row = requireNumericExpression(foldExpression(statement.row, constants, inConstantExpression, arrays, functions, scope), "ASSERT_PRINTAT row");
-        const column = requireNumericExpression(foldExpression(statement.column, constants, inConstantExpression, arrays, functions, scope), "ASSERT_PRINTAT column");
-        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope);
+        const row = requireNumericExpression(foldExpression(statement.row, constants, inConstantExpression, arrays, functions, scope, structValues), "ASSERT_PRINTAT row");
+        const column = requireNumericExpression(foldExpression(statement.column, constants, inConstantExpression, arrays, functions, scope, structValues), "ASSERT_PRINTAT column");
+        const actual = foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope, structValues);
         if (!isStringExpression(actual)) {
           throw new DiagnosticError(statement.location, "ASSERT_PRINTAT expected text must be a string expression.");
         }
@@ -514,6 +568,291 @@ function validateGlobalsBody(statements: readonly Statement[]): void {
   }
 }
 
+function addStructDefinition(
+  statement: Extract<Statement, { kind: "struct" }>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: ReadonlyMap<string, StructValueDefinition>
+): void {
+  const key = normalizeName(statement.name);
+  if (constants.has(key) || arrays.has(key) || structValues.has(key)) {
+    throw new DiagnosticError(statement.location, `Cannot declare STRUCT "${statement.name}" with the same name as an existing symbol.`);
+  }
+  if (structs.has(key)) {
+    throw new DiagnosticError(statement.location, `Duplicate STRUCT "${statement.name}".`);
+  }
+
+  const seenFields = new Set<string>();
+  const fields = statement.fields.map((field) => {
+    const fieldKey = normalizeName(field.name);
+    if (seenFields.has(fieldKey)) {
+      throw new DiagnosticError(field.location, `Duplicate field "${field.name}" in STRUCT ${statement.name}.`);
+    }
+    seenFields.add(fieldKey);
+    const dimensions = field.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
+    if (isStringVariableName(field.name)) {
+      if (dimensions.length !== 1) {
+        throw new DiagnosticError(field.location, `String field "${field.name}" in STRUCT ${statement.name} requires a fixed width, for example ${field.name}(32).`);
+      }
+    } else if (dimensions.length !== 0) {
+      throw new DiagnosticError(field.location, `Numeric field "${field.name}" in STRUCT ${statement.name} must not have dimensions.`);
+    }
+    return {
+      name: field.name,
+      storageSuffix: field.name,
+      valueType: isStringVariableName(field.name) ? "string" : "number",
+      dimensions,
+      location: field.location
+    } satisfies StructFieldDefinition;
+  });
+
+  if (fields.length === 0) {
+    throw new DiagnosticError(statement.location, `STRUCT ${statement.name} requires at least one field.`);
+  }
+  structs.set(key, { name: statement.name, fields, location: statement.location });
+}
+
+function analyzeStructDim(
+  statement: Extract<Statement, { kind: "dim" }>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  structs: ReadonlyMap<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>,
+  scalarNames: Set<string>
+): readonly Statement[] {
+  const key = normalizeName(statement.name);
+  if (constants.has(key)) {
+    throw new DiagnosticError(statement.location, `Cannot declare struct value "${statement.name}" with the same name as a constant.`);
+  }
+  if (arrays.has(key) || scalarNames.has(key) || structValues.has(key)) {
+    throw new DiagnosticError(statement.location, `Duplicate struct value "${statement.name}".`);
+  }
+  if (canonicalFunctionName(statement.name)) {
+    throw new DiagnosticError(statement.location, `Cannot declare struct value "${statement.name}" with the same name as a built-in function.`);
+  }
+
+  const struct = structs.get(normalizeName(statement.asType ?? ""));
+  if (!struct) {
+    throw new DiagnosticError(statement.location, `Unknown STRUCT type "${statement.asType}".`);
+  }
+  if (statement.dimensions.length > 1) {
+    throw new DiagnosticError(statement.location, "Struct arrays currently support exactly one element-count dimension.");
+  }
+
+  const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
+  structValues.set(key, { name: statement.name, typeName: struct.name, dimensions, fields: struct.fields, location: statement.location });
+
+  if (dimensions.length === 0) {
+    for (const field of struct.fields) {
+      scalarNames.add(normalizeName(structFieldStorageName(statement.name, field)));
+    }
+    return [];
+  }
+
+  return struct.fields.map((field) => {
+    const fieldDimensions = field.valueType === "string" ? [dimensions[0], field.dimensions[0]] : dimensions;
+    const fieldName = structFieldStorageName(statement.name, field);
+    arrays.set(normalizeName(fieldName), { name: fieldName, valueType: field.valueType, dimensions: fieldDimensions, location: statement.location });
+    return {
+      kind: "dim",
+      name: fieldName,
+      dimensions: fieldDimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location })),
+      location: statement.location
+    };
+  });
+}
+
+function structFieldStorageName(base: string, field: StructFieldDefinition): string {
+  const suffix = field.valueType === "string" ? "$" : isIntegerVariableName(field.name) ? "%" : "";
+  const baseName = base.replace(/[$%]$/u, "");
+  const fieldName = field.storageSuffix.replace(/[$%]$/u, "");
+  return `${baseName}_${fieldName}${suffix}`;
+}
+
+function findStructField(definition: StructValueDefinition, fieldName: string, location: Expression["location"]): StructFieldDefinition {
+  const field = definition.fields.find((candidate) => normalizeName(candidate.name) === normalizeName(fieldName));
+  if (!field) {
+    throw new DiagnosticError(location, `STRUCT ${definition.typeName} has no field "${fieldName}".`);
+  }
+  return field;
+}
+
+function resolveStructFieldTarget(
+  base: string,
+  indices: readonly Expression[],
+  fieldName: string,
+  location: Expression["location"],
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  inConstantExpression: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope?: FunctionScope
+): { readonly kind: "array"; readonly name: string; readonly indices: readonly Expression[]; readonly valueType: "number" | "string" } | { readonly kind: "scalar"; readonly name: string; readonly valueType: "number" | "string" } {
+  const resolvedBase = resolveScopedName(base, scope);
+  const definition = structValues.get(normalizeName(resolvedBase)) ?? structValues.get(normalizeName(base));
+  if (!definition) {
+    throw new DiagnosticError(location, `Unknown struct value "${base}".`);
+  }
+  const field = findStructField(definition, fieldName, location);
+  const storageName = structFieldStorageName(resolvedBase, field);
+  if (definition.dimensions.length === 0) {
+    if (indices.length !== 0) {
+      throw new DiagnosticError(location, `Struct value "${base}" is not an array.`);
+    }
+    return { kind: "scalar", name: storageName, valueType: field.valueType };
+  }
+  const arrayDefinition = arrays.get(normalizeName(storageName));
+  if (!arrayDefinition) {
+    throw new DiagnosticError(location, `Internal error: missing backing array for "${base}.${fieldName}".`);
+  }
+  return {
+    kind: "array",
+    name: storageName,
+    valueType: field.valueType,
+    indices: analyzeArrayIndices(storageName, indices, arrayDefinition, constants, inConstantExpression, arrays, functions, scope)
+  };
+}
+
+function analyzeElementMoveStatement(
+  statement: Extract<Statement, { kind: "insert-element" | "remove-element" }>,
+  mode: "insert" | "remove",
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  inConstantExpression: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope?: FunctionScope
+): Statement {
+  if (statement.target.kind !== "identifier") {
+    throw new DiagnosticError(statement.target.location, `${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} first argument must be an array name.`);
+  }
+  const targetName = resolveScopedName(statement.target.name, scope);
+  const index = requireNumericExpression(foldExpression(statement.index, constants, inConstantExpression, arrays, functions, scope, structValues), `${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} index`);
+  const structTarget = structValues.get(normalizeName(targetName));
+  if (structTarget) {
+    if (structTarget.dimensions.length !== 1) {
+      throw new DiagnosticError(statement.target.location, `${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} requires a struct array.`);
+    }
+    if (statement.kind === "insert-element") {
+      const valueDefinition = resolveInsertedStructValue(statement.value, targetName, structTarget, structValues, scope);
+      return {
+        ...statement,
+        target: { kind: "identifier", name: targetName, location: statement.target.location },
+        index,
+        elementCount: structTarget.dimensions[0],
+        fields: structTarget.fields.map((field) => ({
+          arrayName: structFieldStorageName(targetName, field),
+          valueType: field.valueType,
+          insertExpression: { kind: "identifier", name: structFieldStorageName(valueDefinition.name, field), location: statement.value.location } satisfies Expression
+        }))
+      };
+    }
+    return {
+      ...statement,
+      target: { kind: "identifier", name: targetName, location: statement.target.location },
+      index,
+      elementCount: structTarget.dimensions[0],
+      fields: structTarget.fields.map((field) => ({ arrayName: structFieldStorageName(targetName, field), valueType: field.valueType }))
+    };
+  }
+
+  const array = arrays.get(normalizeName(targetName));
+  if (!array) {
+    throw new DiagnosticError(statement.target.location, `Array "${statement.target.name}" must be declared with DIM before use.`);
+  }
+  if (array.dimensions.length !== (array.valueType === "string" ? 2 : 1)) {
+    throw new DiagnosticError(statement.target.location, `${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} currently supports one-dimensional arrays.`);
+  }
+  if (statement.kind === "remove-element") {
+    return { ...statement, target: { kind: "identifier", name: targetName, location: statement.target.location }, index, elementCount: array.dimensions[0], fields: [{ arrayName: targetName, valueType: array.valueType }] };
+  }
+  const value = foldExpression(statement.value, constants, inConstantExpression, arrays, functions, scope, structValues);
+  if (array.valueType === "string") {
+    if (!isStringExpression(value)) {
+      throw new DiagnosticError(statement.value.location, "INSERT_ELEMENT value for a string array must be a string expression.");
+    }
+    validateStringArrayAssignmentLength(targetName, value, array);
+  } else if (value.kind === "color" || isStringExpression(value)) {
+    throw new DiagnosticError(statement.value.location, "INSERT_ELEMENT value for a numeric array must be numeric.");
+  }
+  return {
+    ...statement,
+    target: { kind: "identifier", name: targetName, location: statement.target.location },
+    index,
+    value,
+    elementCount: array.dimensions[0],
+    fields: [{ arrayName: targetName, valueType: array.valueType, insertExpression: value }]
+  };
+}
+
+function validateFunctionArguments(
+  definition: FunctionDefinition,
+  args: readonly Expression[],
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  scope?: FunctionScope
+): void {
+  for (let index = 0; index < definition.implementation.parameters.length; index += 1) {
+    const parameter = definition.implementation.parameters[index];
+    if (!parameter.asType) {
+      continue;
+    }
+    const arg = args[index];
+    if (arg?.kind !== "identifier") {
+      throw new DiagnosticError(arg?.location ?? definition.statement.location, `FUNCTION ${definition.name} parameter "${parameter.sourceName}" expects a scalar STRUCT ${parameter.asType} value.`);
+    }
+    const resolvedName = resolveScopedName(arg.name, scope);
+    const value = structValues.get(normalizeName(resolvedName)) ?? structValues.get(normalizeName(arg.name));
+    if (!value || value.dimensions.length !== 0 || normalizeName(value.typeName) !== normalizeName(parameter.asType)) {
+      throw new DiagnosticError(arg.location, `FUNCTION ${definition.name} parameter "${parameter.sourceName}" expects a scalar STRUCT ${parameter.asType} value.`);
+    }
+  }
+}
+
+function analyzeFunctionCallArguments(
+  definition: FunctionDefinition,
+  args: readonly Expression[],
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  unknownIdentifierIsError: boolean,
+  arrays: ReadonlyMap<string, ArrayDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope: FunctionScope | undefined,
+  structValues: ReadonlyMap<string, StructValueDefinition>
+): readonly Expression[] {
+  return args.map((arg, index) => {
+    const parameter = definition.implementation.parameters[index];
+    if (parameter?.asType) {
+      if (arg.kind !== "identifier") {
+        throw new DiagnosticError(arg.location, `FUNCTION ${definition.name} parameter "${parameter.sourceName}" expects a scalar STRUCT ${parameter.asType} value.`);
+      }
+      return { ...arg, name: scope?.variables.get(normalizeName(arg.name)) ?? arg.name };
+    }
+    return foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+  });
+}
+
+function resolveInsertedStructValue(
+  value: Expression,
+  targetName: string,
+  target: StructValueDefinition,
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  scope?: FunctionScope
+): StructValueDefinition {
+  if (value.kind !== "identifier") {
+    throw new DiagnosticError(value.location, "INSERT_ELEMENT value for a struct array must be a scalar struct value.");
+  }
+  const resolvedName = resolveScopedName(value.name, scope);
+  const definition = structValues.get(normalizeName(resolvedName)) ?? structValues.get(normalizeName(value.name));
+  if (!definition || definition.dimensions.length !== 0) {
+    throw new DiagnosticError(value.location, "INSERT_ELEMENT value for a struct array must be a scalar struct value.");
+  }
+  if (normalizeName(definition.typeName) !== normalizeName(target.typeName)) {
+    throw new DiagnosticError(value.location, `Cannot insert STRUCT ${definition.typeName} into ${targetName} AS ${target.typeName}.`);
+  }
+  return definition;
+}
+
 function requireNumericExpression(expression: Expression, context: string): Expression {
   if (expression.kind === "color" || isStringExpression(expression)) {
     throw new DiagnosticError(expression.location, `${context} must be numeric.`);
@@ -526,9 +865,10 @@ function analyzeDataValue(
   constants: ReadonlyMap<string, ConstantDefinition>,
   arrays: ReadonlyMap<string, ArrayDefinition>,
   functions: ReadonlyMap<string, FunctionDefinition>,
-  scope?: FunctionScope
+  scope?: FunctionScope,
+  structValues: ReadonlyMap<string, StructValueDefinition> = new Map()
 ): Expression {
-  const folded = foldExpression(expression, constants, true, arrays, functions, scope);
+  const folded = foldExpression(expression, constants, true, arrays, functions, scope, structValues);
   if (folded.kind === "number" || folded.kind === "string" || folded.kind === "boolean") {
     return folded;
   }
@@ -536,6 +876,33 @@ function analyzeDataValue(
     throw new DiagnosticError(expression.location, "DATA values cannot be portable colours.");
   }
   throw new DiagnosticError(expression.location, "DATA values must be compile-time numeric, string, or boolean values.");
+}
+
+function addConstant(
+  name: string,
+  value: ConstantValue,
+  location: Expression["location"],
+  constants: Map<string, ConstantDefinition>,
+  context: "constant" | string
+): void {
+  const key = normalizeName(name);
+  const existing = constants.get(key);
+  if (existing?.environment) {
+    throw new DiagnosticError(location, `Cannot redeclare environment constant "${name}".`);
+  }
+  if (existing) {
+    throw new DiagnosticError(location, context === "constant" ? `Duplicate constant "${name}".` : `Duplicate ${context} member "${name}".`);
+  }
+
+  constants.set(key, { name, value, environment: false });
+}
+
+function evaluateEnumValue(expression: Expression, constants: ReadonlyMap<string, ConstantDefinition>): number {
+  const value = evaluateConstant(expression, constants);
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new DiagnosticError(expression.location, "ENUM values must be compile-time integer constants.");
+  }
+  return value;
 }
 
 function analyzeReadTarget(
@@ -584,7 +951,8 @@ function analyzeArrayIndices(
   inConstantExpression: boolean,
   arrays: ReadonlyMap<string, ArrayDefinition>,
   functions: ReadonlyMap<string, FunctionDefinition> = new Map(),
-  scope?: FunctionScope
+  scope?: FunctionScope,
+  structValues: ReadonlyMap<string, StructValueDefinition> = new Map()
 ): readonly Expression[] {
   const expectedIndexCount = definition.valueType === "string" ? definition.dimensions.length - 1 : definition.dimensions.length;
   if (indices.length !== expectedIndexCount) {
@@ -595,7 +963,7 @@ function analyzeArrayIndices(
   }
 
   return indices.map((index, position) => {
-    const folded = requireNumericExpression(foldExpression(index, constants, inConstantExpression, arrays, functions, scope), "Array index");
+    const folded = requireNumericExpression(foldExpression(index, constants, inConstantExpression, arrays, functions, scope, structValues), "Array index");
     if (folded.kind === "number") {
       const upperExclusive = definition.dimensions[position];
       if (!Number.isInteger(folded.value) || folded.value < 0 || folded.value >= upperExclusive) {
@@ -654,7 +1022,8 @@ function foldExpression(
   unknownIdentifierIsError: boolean,
   arrays: ReadonlyMap<string, ArrayDefinition> = new Map(),
   functions: ReadonlyMap<string, FunctionDefinition> = new Map(),
-  scope?: FunctionScope
+  scope?: FunctionScope,
+  structValues: ReadonlyMap<string, StructValueDefinition> = new Map()
 ): Expression {
   switch (expression.kind) {
     case "number":
@@ -664,6 +1033,9 @@ function foldExpression(
       return expression;
     case "identifier": {
       const scopedName = scope?.variables.get(normalizeName(expression.name));
+      if (structValues.has(normalizeName(scopedName ?? expression.name)) || structValues.has(normalizeName(expression.name))) {
+        throw new DiagnosticError(expression.location, `Struct value "${expression.name}" cannot be used as a scalar expression.`);
+      }
       if (scopedName) {
         return { ...expression, name: scopedName };
       }
@@ -684,28 +1056,46 @@ function foldExpression(
       return {
         ...expression,
         valueType: definition.valueType,
-        indices: analyzeArrayIndices(expression.name, expression.indices, definition, constants, unknownIdentifierIsError, arrays, functions, scope)
+        indices: analyzeArrayIndices(expression.name, expression.indices, definition, constants, unknownIdentifierIsError, arrays, functions, scope, structValues)
       };
     }
+    case "struct-field-access": {
+      const resolved = resolveStructFieldTarget(
+        expression.base,
+        expression.indices,
+        expression.field,
+        expression.location,
+        structValues,
+        constants,
+        unknownIdentifierIsError,
+        arrays,
+        functions,
+        scope
+      );
+      if (resolved.kind === "scalar") {
+        return { kind: "identifier", name: resolved.name, location: expression.location };
+      }
+      return { kind: "array-access", name: resolved.name, valueType: resolved.valueType, indices: resolved.indices, location: expression.location };
+    }
     case "function-call":
-      return foldFunctionCall(expression, constants, unknownIdentifierIsError, arrays, functions, scope);
+      return foldFunctionCall(expression, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
     case "parenthesized": {
-      const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError, arrays, functions, scope);
+      const folded = foldExpression(expression.expression, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
       if (isLiteralExpression(folded)) {
         return folded;
       }
       return { ...expression, expression: folded };
     }
     case "unary": {
-      const operand = foldExpression(expression.operand, constants, unknownIdentifierIsError, arrays, functions, scope);
+      const operand = foldExpression(expression.operand, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
       if (isLiteralExpression(operand)) {
         return literalFromValue(evaluateUnary(expression.operator, evaluateLiteralExpression(operand), expression), expression.location);
       }
       return { ...expression, operand };
     }
     case "binary": {
-      const left = foldExpression(expression.left, constants, unknownIdentifierIsError, arrays, functions, scope);
-      const right = foldExpression(expression.right, constants, unknownIdentifierIsError, arrays, functions, scope);
+      const left = foldExpression(expression.left, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+      const right = foldExpression(expression.right, constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
       if (isLiteralExpression(left) && isLiteralExpression(right)) {
         return literalFromValue(
           evaluateBinary(expression.operator, evaluateLiteralExpression(left), evaluateLiteralExpression(right), expression),
@@ -729,7 +1119,8 @@ function foldFunctionCall(
   unknownIdentifierIsError: boolean,
   arrays: ReadonlyMap<string, ArrayDefinition>,
   functions: ReadonlyMap<string, FunctionDefinition>,
-  scope?: FunctionScope
+  scope?: FunctionScope,
+  structValues: ReadonlyMap<string, StructValueDefinition> = new Map()
 ): Expression {
   const name = canonicalFunctionName(expression.name);
 
@@ -745,11 +1136,12 @@ function foldFunctionCall(
           `FUNCTION ${functionDefinition.name} expects ${functionDefinition.implementation.parameters.length} argument${functionDefinition.implementation.parameters.length === 1 ? "" : "s"}.`
         );
       }
+      validateFunctionArguments(functionDefinition, expression.args, structValues, scope);
       return {
         ...expression,
         name: functionDefinition.name,
         valueType: functionDefinition.valueType,
-        args: expression.args.map((arg) => foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope))
+        args: analyzeFunctionCallArguments(functionDefinition, expression.args, constants, unknownIdentifierIsError, arrays, functions, scope, structValues)
       };
     }
 
@@ -759,7 +1151,7 @@ function foldFunctionCall(
         kind: "array-access",
         name: expression.name,
         valueType: definition.valueType,
-        indices: analyzeArrayIndices(expression.name, expression.args, definition, constants, unknownIdentifierIsError, arrays, functions, scope),
+        indices: analyzeArrayIndices(expression.name, expression.args, definition, constants, unknownIdentifierIsError, arrays, functions, scope, structValues),
         location: expression.location
       };
     }
@@ -821,7 +1213,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "CHR$ expects exactly one argument.");
     }
-    const code = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const code = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (isStringExpression(code) || code.kind === "color") {
       throw new DiagnosticError(expression.args[0].location, "CHR$ argument must be numeric.");
@@ -834,7 +1226,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, `${name} argument must be a string expression.`);
@@ -847,7 +1239,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "STR$ expects exactly one argument.");
     }
-    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (isStringExpression(value) || value.kind === "color") {
       throw new DiagnosticError(expression.args[0].location, "STR$ argument must be numeric.");
@@ -860,7 +1252,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "VAL expects exactly one argument.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "VAL argument must be a string expression.");
@@ -873,7 +1265,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, `${name} expects exactly one argument.`);
     }
-    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const value = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (isStringExpression(value) || value.kind === "color") {
       throw new DiagnosticError(expression.args[0].location, `${name} argument must be numeric.`);
@@ -905,9 +1297,9 @@ function foldFunctionCall(
     if (expression.args.length !== 2 && expression.args.length !== 3) {
       throw new DiagnosticError(expression.location, "MID$ expects two or three arguments.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
-    const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope);
-    const length = expression.args[2] ? foldExpression(expression.args[2], constants, unknownIdentifierIsError, arrays, functions, scope) : undefined;
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+    const start = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+    const length = expression.args[2] ? foldExpression(expression.args[2], constants, unknownIdentifierIsError, arrays, functions, scope, structValues) : undefined;
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "MID$ first argument must be a string expression.");
@@ -926,8 +1318,8 @@ function foldFunctionCall(
     if (expression.args.length !== 2) {
       throw new DiagnosticError(expression.location, `${name} expects exactly two arguments.`);
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
-    const length = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+    const length = foldExpression(expression.args[1], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, `${name} first argument must be a string expression.`);
@@ -943,7 +1335,7 @@ function foldFunctionCall(
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "LEN expects exactly one argument.");
     }
-    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope);
+    const source = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "LEN argument must be a string expression.");
@@ -1001,6 +1393,7 @@ function evaluateLiteralExpression(expression: Expression): ConstantValue {
       return { kind: "color", color: expression.color };
     case "function-call":
     case "array-access":
+    case "struct-field-access":
     default:
       throw new DiagnosticError(expression.location, "Constant expression must be fully known at compile time.");
   }
@@ -1159,6 +1552,8 @@ function isStringExpression(expression: Expression): boolean {
       return expression.valueType === "string" || isStringFunctionName(expression.name);
     case "array-access":
       return expression.valueType === "string";
+    case "struct-field-access":
+      return expression.valueType === "string" || isStringVariableName(expression.field);
     case "number":
     case "boolean":
     case "color":
@@ -1194,6 +1589,8 @@ function collectOpenDevices(statements: readonly Statement[], opened = new Map<s
       collectOpenDevices(statement.body, opened);
     } else if (statement.kind === "function" || statement.kind === "test") {
       collectOpenDevices(statement.body, opened);
+    } else if (statement.kind === "globals") {
+      collectOpenDevices(statement.body, opened);
     }
   }
 
@@ -1210,17 +1607,46 @@ function analyzeFunction(
   definition: FunctionDefinition,
   constants: Map<string, ConstantDefinition>,
   arrays: Map<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
   devices: ReadonlySet<string>
 ): Statement {
-  const scope = createFunctionScope(definition);
-  const body = analyzeStatements(definition.statement.body, constants, false, arrays, scalarNames, functions, devices, scope, false);
+  const implementation = implementationWithStructFields(definition.implementation, structs, definition.statement.location);
+  const functionStatement = { ...definition.statement, implementation };
+  const scopedDefinition = { ...definition, statement: functionStatement, implementation };
+  const scope = createFunctionScope(scopedDefinition);
+  const functionStructValues = new Map(structValues);
+  for (const parameter of implementation.parameters) {
+    if (!parameter.asType || !parameter.structFields) {
+      continue;
+    }
+    const struct = structs.get(normalizeName(parameter.asType));
+    if (!struct) {
+      throw new DiagnosticError(definition.statement.location, `Unknown STRUCT type "${parameter.asType}" used by FUNCTION ${definition.name}.`);
+    }
+    functionStructValues.set(normalizeName(parameter.sourceName), {
+      name: parameter.storageName,
+      typeName: struct.name,
+      dimensions: [],
+      fields: struct.fields,
+      location: definition.statement.location
+    });
+    functionStructValues.set(normalizeName(parameter.storageName), {
+      name: parameter.storageName,
+      typeName: struct.name,
+      dimensions: [],
+      fields: struct.fields,
+      location: definition.statement.location
+    });
+  }
+  const body = analyzeStatements(functionStatement.body, constants, false, arrays, structs, functionStructValues, scalarNames, functions, devices, scope, false);
   return {
-    ...definition.statement,
-    parameters: definition.statement.parameters,
+    ...functionStatement,
+    parameters: functionStatement.parameters,
     body,
-    implementation: definition.implementation
+    implementation
   };
 }
 
@@ -1228,17 +1654,49 @@ function analyzeTest(
   statement: Extract<Statement, { kind: "test" }>,
   constants: Map<string, ConstantDefinition>,
   arrays: Map<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>,
   scalarNames: Set<string>,
   functions: ReadonlyMap<string, FunctionDefinition>,
   devices: ReadonlySet<string>,
   testMode: boolean
 ): Statement {
   const scope = createTestScope(statement);
-  const body = analyzeStatements(statement.body, constants, false, arrays, scalarNames, functions, devices, scope, testMode);
+  const body = analyzeStatements(statement.body, constants, false, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode);
   return {
     ...statement,
     body,
     implementation: statement.implementation
+  };
+}
+
+function implementationWithStructFields(
+  implementation: Extract<Statement, { kind: "function" }>["implementation"],
+  structs: ReadonlyMap<string, StructDefinition>,
+  location: Expression["location"]
+): NonNullable<Extract<Statement, { kind: "function" }>["implementation"]> {
+  if (!implementation) {
+    throw new DiagnosticError(location, "Internal error: FUNCTION implementation missing before analysis.");
+  }
+  return {
+    ...implementation,
+    parameters: implementation.parameters.map((parameter) => {
+      if (!parameter.asType) {
+        return parameter;
+      }
+      const struct = structs.get(normalizeName(parameter.asType));
+      if (!struct) {
+        throw new DiagnosticError(location, `Unknown STRUCT type "${parameter.asType}" used by parameter "${parameter.sourceName}".`);
+      }
+      return {
+        ...parameter,
+        structFields: struct.fields.map((field) => ({
+          sourceName: field.name,
+          storageName: structFieldStorageName(parameter.storageName, field),
+          valueType: field.valueType
+        }))
+      };
+    })
   };
 }
 

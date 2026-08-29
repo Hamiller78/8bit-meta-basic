@@ -4,14 +4,18 @@ screen_background_color BLACK
 screen_text_color WHITE
 cls
 
+struct TextQueueItem
+    row
+    column
+    delay
+    text$(40)
+    length
+    nextTime
+end struct
+
 'Variables for text output queue
 const txtQueueSize = 20
-dim txtQueue$(txtQueueSize, 40)
-dim txtQueueRow(txtQueueSize)
-dim txtQueueColumn(txtQueueSize)
-dim txtQueueDelay(txtQueueSize)
-dim txtQueueLength(txtQueueSize)
-dim txtQueueNextTime(txtQueueSize)
+dim txtQueue AS TextQueueItem(txtQueueSize)
 txtQueueIndex = -1
 
 printCentered(5, "Nuclear Attack")
@@ -37,17 +41,17 @@ end function
 function addToTextQueue(row, column, delay, text$)
     if txtQueueIndex = txtQueueSize - 1 then
         'Queue is full, emergency flush one text to make room
-        print_at txtQueueRow(txtQueueIndex), txtQueueColumn(txtQueueIndex), left$(txtQueue$(txtQueueIndex), txtQueueLength(txtQueueIndex))
+        print_at txtQueue(txtQueueIndex).row, txtQueue(txtQueueIndex).column, left$(txtQueue(txtQueueIndex).text$, txtQueue(txtQueueIndex).length)
         txtQueueIndex = txtQueueSize - 2
     end if
 
     txtQueueIndex = txtQueueIndex + 1
-    txtQueueRow(txtQueueIndex) = row
-    txtQueueColumn(txtQueueIndex) = column
-    txtQueueDelay(txtQueueIndex) = delay
-    txtQueue$(txtQueueIndex) = text$
-    txtQueueLength(txtQueueIndex) = len(text$)
-    txtQueueNextTime(txtQueueIndex) = jiffies()
+    txtQueue(txtQueueIndex).row = row
+    txtQueue(txtQueueIndex).column = column
+    txtQueue(txtQueueIndex).delay = delay
+    txtQueue(txtQueueIndex).text$ = text$
+    txtQueue(txtQueueIndex).length = len(text$)
+    txtQueue(txtQueueIndex).nextTime = jiffies()
 end function
 
 function printQueues()
@@ -56,14 +60,18 @@ function printQueues()
             exit for
         end if
 
-        if jiffies() < txtQueueNextTime(i) then
+        if i > txtQueueIndex then
+            exit for
+        end if
+
+        if jiffies() < txtQueue(i).nextTime then
             continue for
         end if
 
         printQueueCharacter(i)
-        txtQueueLength(i) = txtQueueLength(i) - 1
+        txtQueue(i).length = txtQueue(i).length - 1
 
-        if txtQueueLength(i) = 0 then
+        if txtQueue(i).length = 0 then
             removeQueueItem(i)
             txtQueueIndex = txtQueueIndex - 1
             i = i - 1 ' Adjust index since we removed an item
@@ -75,22 +83,15 @@ function printQueues()
 end function
 
 inline function printQueueCharacter(queueIndex)
-    print_at txtQueueRow(queueIndex), txtQueueColumn(queueIndex), left$(txtQueue$(queueIndex), 1) ' Print one character at a time
+    print_at txtQueue(queueIndex).row, txtQueue(queueIndex).column, left$(txtQueue(queueIndex).text$, 1) ' Print one character at a time
 end function
 
 inline function removeQueueItem(queueIndex)
-    for j = queueIndex to txtQueueIndex - 1
-        txtQueueRow(j) = txtQueueRow(j + 1)
-        txtQueueColumn(j) = txtQueueColumn(j + 1)
-        txtQueueDelay(j) = txtQueueDelay(j + 1)
-        txtQueue$(j) = left$(txtQueue$(j + 1), txtQueueLength(j + 1))
-        txtQueueLength(j) = txtQueueLength(j + 1)
-        txtQueueNextTime(j) = txtQueueNextTime(j + 1)
-    next j
+    remove_element(txtQueue, queueIndex)
 end function
 
 inline function advanceQueueItem(queueIndex)
-    txtQueue$(queueIndex) = mid$(txtQueue$(queueIndex), 2, txtQueueLength(queueIndex)) ' Remove the printed character from the string
-    txtQueueColumn(queueIndex) = txtQueueColumn(queueIndex) + 1
-    txtQueueNextTime(queueIndex) = jiffies() + txtQueueDelay(queueIndex)
+    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
+    txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
+    txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
 end function

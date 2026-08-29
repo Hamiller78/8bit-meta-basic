@@ -116,6 +116,8 @@ export const atari800xlTarget: TargetBackend = {
           }
         }
         instructions.push(instruction);
+      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+        instructions.push(instruction, ...createAtariStringArrayInitialization(instruction));
       } else if (instruction.kind === "print" || instruction.kind === "print-device") {
         const beforePrint: Instruction[] = [];
         const items = instruction.items.map((item) => {
@@ -139,10 +141,10 @@ export const atari800xlTarget: TargetBackend = {
         instructions.push(instruction);
       }
     }
-    return rebuildLabels(expanded, instructions);
+    return rebuildLabels(expanded, hoistAtariStringDimensions(instructions));
   },
-  renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
-    const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
+  renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
+    const variableMap = buildAtariVariableMap(currentProgramInstructions, readability);
     const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess };
 
     switch (instruction.kind) {
@@ -187,7 +189,7 @@ export const atari800xlTarget: TargetBackend = {
       case "read-key":
         throw new Error("Internal error: unexpected read-key instruction for Atari 800XL.");
       case "dim-string":
-        return `${lineNumber} DIM ${instruction.name.toUpperCase()}(${instruction.length})`;
+        return `${lineNumber} DIM ${variableMap.get(instruction.name.toLowerCase()) ?? renderAtariVariableName(instruction.name)}(${instruction.length})`;
       case "goto":
         return `${lineNumber} GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "gosub":
@@ -221,6 +223,27 @@ export const atari800xlTarget: TargetBackend = {
     }
   }
 };
+
+function hoistAtariStringDimensions(instructions: readonly Instruction[]): readonly Instruction[] {
+  const dimStrings: Extract<Instruction, { kind: "dim-string" }>[] = [];
+  const seen = new Set<string>();
+  const body: Instruction[] = [];
+
+  for (const instruction of instructions) {
+    if (instruction.kind !== "dim-string") {
+      body.push(instruction);
+      continue;
+    }
+
+    const key = instruction.name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      dimStrings.push(instruction);
+    }
+  }
+
+  return [...dimStrings, ...body];
+}
 
 let currentProgramInstructions: readonly Instruction[] = [];
 
@@ -489,6 +512,35 @@ function expandAtariStringAssignment(
   return instructions;
 }
 
+function createAtariStringArrayInitialization(instruction: Extract<Instruction, { kind: "dim-array" }>): readonly Instruction[] {
+  const totalLength = instruction.dimensions.reduce((product, dimension) => product * dimension, 1);
+  const chunkSize = 64;
+  const chunks = Math.ceil(totalLength / chunkSize);
+  const instructions: Instruction[] = [];
+
+  for (let index = 0; index < chunks; index += 1) {
+    const length = Math.min(chunkSize, totalLength - index * chunkSize);
+    const chunk: Expression = { kind: "string", value: " ".repeat(length), location: instruction.location };
+    instructions.push({
+      kind: "let",
+      name: instruction.name,
+      expression:
+        index === 0
+          ? chunk
+          : {
+              kind: "binary",
+              operator: "+",
+              left: { kind: "identifier", name: instruction.name, location: instruction.location },
+              right: chunk,
+              location: instruction.location
+            },
+      location: instruction.location
+    });
+  }
+
+  return instructions;
+}
+
 function flattenStringConcatenation(expression: Expression): readonly Expression[] | undefined {
   if (!isStringConcatenation(expression)) {
     return undefined;
@@ -525,6 +577,8 @@ function isAtariStringExpression(expression: Expression): boolean {
       return isStringFunctionName(expression.name);
     case "array-access":
       return expression.valueType === "string";
+    case "struct-field-access":
+      return expression.valueType === "string";
     case "number":
     case "boolean":
     case "color":
@@ -550,6 +604,8 @@ function expressionReferencesName(expression: Expression, name: string): boolean
     case "function-call":
       return expression.args.some((arg) => expressionReferencesName(arg, name));
     case "array-access":
+      return expression.indices.some((index) => expressionReferencesName(index, name));
+    case "struct-field-access":
       return expression.indices.some((index) => expressionReferencesName(index, name));
     case "number":
     case "string":
@@ -716,6 +772,10 @@ function renderAtariRight(expression: FunctionCallExpression, options: { readonl
   return `${renderedSource}(LEN(${renderedSource}) - ${renderExpression(length, options)} + 1,LEN(${renderedSource}))`;
 }
 
+function buildAtariVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {
+  return readability === 2 ? buildUppercaseVariableMap(instructions) : buildCompactAtariVariableMap(instructions);
+}
+
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
 
@@ -724,7 +784,9 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       instruction.kind === "let" ||
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||
+      instruction.kind === "dim-string" ||
       instruction.kind === "read-key" ||
+      instruction.kind === "check-device" ||
       instruction.kind === "read" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
@@ -747,13 +809,201 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
 }
 
 function renderAtariVariableName(name: string): string {
-  if (isStringVariableName(name)) {
-    return name.toUpperCase();
-  }
-
   const clean = baseVariableName(name).toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
   const base = clean || "N";
+  if (isStringVariableName(name)) {
+    return `${base}$`;
+  }
+
   return isIntegerVariableName(name) ? `${base}I` : base;
+}
+
+function buildCompactAtariVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  for (const instruction of instructions) {
+    for (const name of instructionVariableNames(instruction)) {
+      addAtariVariableName(name, names, seen);
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectCompactIdentifiers(expression, names, seen);
+    }
+  }
+
+  const map = new Map<string, string>();
+  const allocated = new Set<string>();
+  let next = 0;
+
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (map.has(key)) {
+      continue;
+    }
+
+    const suffix = isStringVariableName(name) ? "$" : "";
+    let candidate: string;
+    do {
+      candidate = `${atariCompactStem(next)}${suffix}`;
+      next += 1;
+    } while (allocated.has(candidate) || isReservedAtariCompactName(candidate));
+
+    allocated.add(candidate);
+    map.set(key, candidate);
+  }
+
+  return map;
+}
+
+function instructionVariableNames(instruction: Instruction): readonly string[] {
+  switch (instruction.kind) {
+    case "let":
+    case "array-let":
+    case "dim-array":
+    case "dim-string":
+    case "read-key":
+    case "check-device":
+      return [instruction.name];
+    case "read":
+      return instruction.targets;
+    case "multi-let":
+      return instruction.assignments.map((assignment) => assignment.name);
+    case "for":
+    case "next":
+      return [instruction.variable];
+    case "label":
+    case "rem":
+    case "cls":
+    case "border-color":
+    case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
+    case "suppress-scroll-prompt":
+    case "program-mode":
+    case "paper":
+    case "print":
+    case "open-device":
+    case "print-device":
+    case "close-device":
+    case "trap":
+    case "wait-rs232-transmit":
+    case "data":
+    case "restore":
+    case "randomize":
+    case "goto":
+    case "gosub":
+    case "return":
+    case "end":
+    case "if-goto":
+    case "position":
+    case "setcolor":
+    case "poke":
+    case "print-chr":
+    case "sys":
+      return [];
+  }
+}
+
+function addAtariVariableName(name: string, names: string[], seen: Set<string>): void {
+  const key = name.toLowerCase();
+  if (!seen.has(key)) {
+    seen.add(key);
+    names.push(name);
+  }
+}
+
+function atariCompactStem(index: number): string {
+  const secondChars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (index < secondChars.length) {
+    return `V${secondChars[index]}`;
+  }
+
+  const firstChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const adjusted = index - secondChars.length;
+  const first = firstChars[Math.floor(adjusted / secondChars.length) % firstChars.length];
+  const second = secondChars[adjusted % secondChars.length];
+  return `${first}${second}`;
+}
+
+const atariReservedNamePrefixes = new Set([
+  "BY",
+  "CL",
+  "CO",
+  "CS",
+  "DA",
+  "DE",
+  "DI",
+  "DR",
+  "EN",
+  "FO",
+  "GE",
+  "GO",
+  "GR",
+  "IF",
+  "IN",
+  "LE",
+  "LI",
+  "LO",
+  "NE",
+  "NO",
+  "ON",
+  "OP",
+  "PO",
+  "PR",
+  "PU",
+  "RE",
+  "RU",
+  "SE",
+  "ST",
+  "TH",
+  "TO",
+  "TR"
+]);
+
+function isReservedAtariCompactName(name: string): boolean {
+  const clean = baseVariableName(name).toUpperCase().replaceAll(/[^A-Z0-9]/g, "");
+  return atariReservedNamePrefixes.has(clean.slice(0, 2));
+}
+
+function collectCompactIdentifiers(expression: Expression, names: string[], seen: Set<string>): void {
+  switch (expression.kind) {
+    case "identifier":
+      addAtariVariableName(expression.name, names, seen);
+      break;
+    case "parenthesized":
+      collectCompactIdentifiers(expression.expression, names, seen);
+      break;
+    case "unary":
+      collectCompactIdentifiers(expression.operand, names, seen);
+      break;
+    case "binary":
+      collectCompactIdentifiers(expression.left, names, seen);
+      collectCompactIdentifiers(expression.right, names, seen);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectCompactIdentifiers(arg, names, seen);
+      }
+      break;
+    case "array-access":
+      addAtariVariableName(expression.name, names, seen);
+      for (const index of expression.indices) {
+        collectCompactIdentifiers(index, names, seen);
+      }
+      break;
+    case "struct-field-access":
+      addAtariVariableName(expression.base, names, seen);
+      for (const index of expression.indices) {
+        collectCompactIdentifiers(index, names, seen);
+      }
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      break;
+  }
 }
 
 function expandAtariKeyCodeAssignment(

@@ -721,6 +721,8 @@ function isStringExpression(expression: Expression): boolean {
     case "array-access":
     case "function-call":
       return expression.valueType === "string" || isStringVariableName(expression.name);
+    case "struct-field-access":
+      return expression.valueType === "string" || isStringVariableName(expression.field);
     case "parenthesized":
       return isStringExpression(expression.expression);
     case "binary":

@@ -94,6 +94,8 @@ Supported constructs:
 - Target-provided environment constants `TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND`
 - Portable colour constants `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`
 - Constants written as `const name = expression`
+- Compile-time integer enum constants written as `enum Name ... end enum`
+- Compile-time struct type definitions written as `struct Name ... end struct`
 - `data` statements containing compile-time numeric, string, or boolean values
 - `read` statements targeting scalar variables
 - Bare `restore` to rewind the data stream
@@ -107,6 +109,10 @@ Supported constructs:
 - Runtime free BASIC memory reading with `free_memory()`
 - Non-blocking keyboard polling with `key_code()`
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
+- Scalar struct values and struct arrays declared with `DIM name AS StructName` and `DIM name AS StructName(count)`
+- Struct field access such as `textQueue(i).textQueueRow` and `newElement.text$`
+- Scalar struct function parameters written as `FUNCTION Foo(Item AS StructName)`
+- `insert_element(array, index, value)` and `remove_element(array, index)` for one-dimensional native arrays and struct arrays
 - Numeric assignments written canonically as `name = expression`
 - Integer numeric assignments written canonically as `name% = expression`
 - String assignments written canonically as `name$ = expression`
@@ -141,6 +147,12 @@ Important source-language rule:
 Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `FREE_MEMORY` is supported as a portable runtime free BASIC memory helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
+
+`STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`.
+
+`FUNCTION Foo(Item AS StructName)` accepts a scalar struct parameter. Struct parameters are copied field-by-field into generated function storage before `GOSUB`, so assigning to `Item.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet.
+
+`INSERT_ELEMENT(array, index, value)` and `REMOVE_ELEMENT(array, index)` are supported for one-dimensional native arrays and struct arrays. Insert shifts elements from `index` upward and loses the last element. Remove shifts elements from `index + 1` downward and leaves the final slot unspecified. For struct-array insertion, `value` must currently be a scalar struct value of the same struct type.
 
 Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable zero-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
 
@@ -213,6 +225,8 @@ Binary operators are left-associative. `^` is implemented naively for now and re
 
 `CONST` declarations are compile-time only and emit no BASIC line.
 
+`ENUM name ... END ENUM` declarations are compile-time only and emit no BASIC line. Each member becomes an integer constant in the surrounding scope. Members without explicit values count upward from the previous value, starting at `0`; after an explicit value, counting continues from that value plus one. Enum member values must fold to compile-time integers. The enum name is documentation, not a namespace.
+
 Selected targets provide read-only, case-insensitive environment constants:
 
 | Target | `TEXT_ROWS` | `TEXT_COLUMNS` | `JIFFIES_PER_SECOND` |
@@ -268,8 +282,8 @@ Target string-variable lowering:
 
 Target integer-variable lowering:
 
-- Spectrum maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
-- Atari 800XL maps Meta-BASIC integer variable names to ordinary numeric variables such as `COUNTI` and coerces assignments with `INT`.
+- Spectrum maps Meta-BASIC integer variable names to ordinary numeric variables and coerces assignments with `INT`. Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter mappings for strings, arrays, and `FOR` counters.
+- Atari 800XL maps Meta-BASIC integer variable names to ordinary numeric variables and coerces assignments with `INT`. Readability `0` and `1` use deterministic compact target names; readability `2` uses readable uppercase names where practical.
 - C64 preserves native `%` integer variable storage but uses deterministic compact `%` names in all readability modes and coerces assignments with `INT`.
 
 ## Arrays
@@ -464,7 +478,7 @@ Meaning:
 - Render assignments as `LET NAME=expression`.
 - Render `FOR` loop variables as single-letter numeric variables.
 - Render numeric arrays as single-letter numeric arrays, string arrays as single-letter string arrays, and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
-- Render numeric identifiers and `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. Preserve string literal contents exactly.
+- Render `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. At readability `0` and `1`, compact long numeric scalar identifiers to save memory and avoid oversized generated code. At readability `2`, render readable uppercase numeric scalar names where practical. Preserve string literal contents exactly.
 - Render positioned output directly as `PRINT AT row,column;...`.
 - Constant coordinates must satisfy row `0..21` and column `0..31`.
 
@@ -476,7 +490,7 @@ Meaning:
 - Use `GOSUB` and `RETURN`.
 - Render assignments without `LET`.
 - Render `FOR`/`NEXT` with explicit loop variables.
-- Render identifiers and `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly.
+- Render `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly. At readability `0` and `1`, render variables with deterministic compact names to save memory and avoid native tokenizer keyword-name warnings. At readability `2`, render readable uppercase variable names where practical.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 - Render fixed-width string arrays as one backing string with substring slices for element reads and writes.

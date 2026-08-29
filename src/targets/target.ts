@@ -194,6 +194,8 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
         throw new DiagnosticError(expression.location, `Array ${expression.name} cannot be rendered for this target.`);
       }
       return options.arrayRenderer(expression, options);
+    case "struct-field-access":
+      throw new DiagnosticError(expression.location, `Struct field ${expression.base}.${expression.field} must be resolved before target rendering.`);
     case "function-call": {
       const rendered = options.functionRenderer?.(expression, options);
       if (rendered !== undefined) {
@@ -243,6 +245,7 @@ function expressionPrecedence(expression: Expression): number {
     case "color":
     case "identifier":
     case "array-access":
+    case "struct-field-access":
     case "function-call":
     case "parenthesized":
       return 8;

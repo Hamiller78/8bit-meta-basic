@@ -397,6 +397,46 @@ describe("C64 compiler", () => {
     ).toBe(['10 DIM ME$(2)', '20 ME$(0)="READY"', '30 ME$(2)="STANDBY"', "40 PRINT ME$(0);ME$(2)", ""].join("\n"));
   });
 
+  it("lowers struct arrays and element movement to backing arrays", () => {
+    expect(
+      compileSource(
+        'STRUCT QueueItem\nRow\nText$(6)\nEND STRUCT\nDIM Queue AS QueueItem(3)\nDIM NewItem AS QueueItem\nQueue(0).Row = 1\nQueue(1).Row = 2\nQueue(0).Text$ = "ONE   "\nQueue(1).Text$ = "TWO   "\nNewItem.Row = 9\nNewItem.Text$ = "NINE  "\ninsert_element(Queue, 1, NewItem)\nremove_element(Queue, 0)\nprint Queue(0).Row; Queue(0).Text$; Queue(1).Row\n',
+        { filename: "structs.mbas", target: "c64", readability: 0 }
+      )
+    ).toBe(
+      [
+        "10 DIM QU(2)",
+        "20 DIM QU$(2)",
+        "30 QU(0)=1",
+        "40 QU(1)=2",
+        '50 QU$(0)="ONE   "',
+        '60 QU$(1)="TWO   "',
+        "70 NE=9",
+        '80 NE$="NINE  "',
+        "90 MB=1",
+        "100 V0=NE",
+        "110 MB$=NE$",
+        "120 V1=1",
+        "130 IF V1 < MB THEN GOTO 180",
+        "140 QU(V1 + 1)=QU(V1)",
+        "150 QU$(V1 + 1)=QU$(V1)",
+        "160 V1=V1 - 1",
+        "170 GOTO 130",
+        "180 QU(MB)=V0",
+        "190 QU$(MB)=MB$",
+        "200 V2=0",
+        "210 V3=V2",
+        "220 IF V3 >= 2 THEN GOTO 270",
+        "230 QU(V3)=QU(V3 + 1)",
+        "240 QU$(V3)=QU$(V3 + 1)",
+        "250 V3=V3 + 1",
+        "260 GOTO 220",
+        "270 PRINT QU(0);QU$(0);QU(1)",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders DATA, READ, and RESTORE for C64 BASIC V2", () => {
     expect(
       compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', {

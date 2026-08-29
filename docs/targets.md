@@ -59,6 +59,7 @@ Constant coordinates must fit these zero-based ranges:
 - Labels and identifiers are rendered in uppercase where appropriate.
 - String variables are mapped deterministically to single-letter names such as `A$`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
+- Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter names for strings, arrays, and `FOR` counters. Readability `2` keeps readable uppercase numeric scalar names where practical.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`.
 - `PRINT_AT` maps directly to `PRINT AT`.
@@ -77,6 +78,7 @@ Constant coordinates must fit these zero-based ranges:
 
 - The backend targets built-in Atari BASIC, not Turbo-BASIC XL or BASIC XL.
 - Assignments omit `LET`.
+- Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
 - `PRINT_AT` reverses portable `row, column` into Atari's `POSITION column,row`.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
@@ -84,7 +86,7 @@ Constant coordinates must fit these zero-based ranges:
 - `SHARED_DRIVE` opens `H6:MCP.TXT` for Altirra H: host-device text capture.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
-- Fixed-width string arrays render as one backing Atari string. For example, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`.
+- Fixed-width string arrays render as one backing Atari string. In readable output, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`. In compact output, the backing name is shortened like other variables.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.

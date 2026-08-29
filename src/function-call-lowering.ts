@@ -74,14 +74,7 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
         return { ...expression, args };
       }
       validateArgumentCount(expression, implementation);
-      for (let index = 0; index < args.length; index += 1) {
-        instructions.push({
-          kind: "let",
-          name: implementation.parameters[index].storageName,
-          expression: args[index],
-          location: expression.location
-        });
-      }
+      emitParameterAssignments(expression.name, implementation, args, instructions, expression.location);
       instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
       const tempName = nextTempName(context, implementation.returnName);
       instructions.push({
@@ -93,6 +86,8 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
       return { kind: "identifier", name: tempName, location: expression.location };
     }
     case "array-access":
+      return { ...expression, indices: expression.indices.map((index) => expandFunctionCalls(index, instructions, context)) };
+    case "struct-field-access":
       return { ...expression, indices: expression.indices.map((index) => expandFunctionCalls(index, instructions, context)) };
     case "parenthesized":
       return { ...expression, expression: expandFunctionCalls(expression.expression, instructions, context) };
@@ -147,14 +142,7 @@ export function expandFunctionCallIntoDestination(
 
   const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
   validateArgumentCount(expression, implementation);
-  for (let index = 0; index < args.length; index += 1) {
-    instructions.push({
-      kind: "let",
-      name: implementation.parameters[index].storageName,
-      expression: args[index],
-      location: expression.location
-    });
-  }
+  emitParameterAssignments(expression.name, implementation, args, instructions, expression.location);
   instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
   instructions.push({
     kind: "let",
@@ -186,14 +174,7 @@ export function expandFunctionCallForSideEffect(
 
   const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
   validateArgumentCount(expression, implementation);
-  for (let index = 0; index < args.length; index += 1) {
-    instructions.push({
-      kind: "let",
-      name: implementation.parameters[index].storageName,
-      expression: args[index],
-      location: expression.location
-    });
-  }
+  emitParameterAssignments(expression.name, implementation, args, instructions, expression.location);
   instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
 }
 
@@ -248,5 +229,38 @@ function nextTempName(context: FunctionCallLoweringContext, returnName: string):
 function validateArgumentCount(expression: Extract<Expression, { kind: "function-call" }>, implementation: FunctionImplementation): void {
   if (expression.args.length !== implementation.parameters.length) {
     throw new DiagnosticError(expression.location, `FUNCTION ${expression.name} expects ${implementation.parameters.length} argument${implementation.parameters.length === 1 ? "" : "s"}.`);
+  }
+}
+
+function emitParameterAssignments(
+  functionName: string,
+  implementation: FunctionImplementation,
+  args: readonly Expression[],
+  instructions: Instruction[],
+  location: Expression["location"]
+): void {
+  for (let index = 0; index < args.length; index += 1) {
+    const parameter = implementation.parameters[index];
+    const arg = args[index];
+    if (parameter.structFields) {
+      if (arg.kind !== "identifier") {
+        throw new DiagnosticError(arg.location, `FUNCTION ${functionName} parameter "${parameter.sourceName}" expects a scalar STRUCT ${parameter.asType} value.`);
+      }
+      for (const field of parameter.structFields) {
+        instructions.push({
+          kind: "let",
+          name: field.storageName,
+          expression: { kind: "identifier", name: `${arg.name}_${field.sourceName.replace(/[$%]$/u, "")}${field.valueType === "string" ? "$" : ""}`, location },
+          location
+        });
+      }
+      continue;
+    }
+    instructions.push({
+      kind: "let",
+      name: parameter.storageName,
+      expression: arg,
+      location
+    });
   }
 }

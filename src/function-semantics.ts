@@ -96,6 +96,9 @@ export function containsFunctionReturn(statements: readonly Statement[]): boolea
     if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       return containsFunctionReturn(statement.body);
     }
+    if (statement.kind === "struct") {
+      return false;
+    }
     return false;
   });
 }
@@ -110,6 +113,9 @@ export function containsBareFunctionReturn(statements: readonly Statement[]): bo
     }
     if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
       return containsBareFunctionReturn(statement.body);
+    }
+    if (statement.kind === "struct") {
+      return false;
     }
     return false;
   });
@@ -223,10 +229,11 @@ function uniqueFunctionImplementation(definition: PendingFunctionDefinition): Fu
   return {
     entryLabel: `MBF${definition.id}ENTRY`,
     returnName: storageName(definition.id, "R", 0, definition.name),
-    parameters: definition.statement.parameters.map((parameter, index) => ({
-      sourceName: parameter,
-      storageName: storageName(definition.id, "P", index + 1, parameter)
-    })),
+      parameters: definition.statement.parameters.map((parameter, index) => ({
+        sourceName: parameter,
+        storageName: storageName(definition.id, "P", index + 1, parameter),
+        ...parameterTypeProperties(definition.statement, parameter)
+      })),
     locals: definition.locals.map((local, index) => ({
       sourceName: local,
       storageName: storageName(definition.id, "L", index + 1, local)
@@ -258,7 +265,8 @@ function allocateFunctionStorage(
       returnName: allocator.allocate(definition.key, "R", 0, definition.name),
       parameters: definition.statement.parameters.map((parameter, index) => ({
         sourceName: parameter,
-        storageName: allocator.allocate(definition.key, "P", index + 1, parameter)
+        storageName: allocator.allocate(definition.key, "P", index + 1, parameter),
+        ...parameterTypeProperties(definition.statement, parameter)
       })),
       locals: definition.locals.map((local, index) => ({
         sourceName: local,
@@ -483,6 +491,11 @@ function testStorageName(index: number, sourceName: string): string {
   return `MBTEST1L${index}${suffix}`;
 }
 
+function parameterTypeProperties(statement: Extract<Statement, { kind: "function" }>, parameter: string): { readonly asType?: string } {
+  const type = statement.parameterTypes?.find((candidate) => normalizeName(candidate.name) === normalizeName(parameter));
+  return type ? { asType: type.asType } : {};
+}
+
 function storageSuffix(sourceName: string): string {
   return isStringVariableName(sourceName) ? "$" : isIntegerVariableName(sourceName) ? "%" : "";
 }
@@ -590,8 +603,14 @@ function statementExpressions(statement: Statement): readonly Expression[] {
       return [statement.expression];
     case "array-let":
       return [...statement.indices, statement.expression];
+    case "struct-field-let":
+      return [...statement.indices, statement.expression];
     case "function-call-statement":
       return [statement.expression];
+    case "insert-element":
+      return [statement.target, statement.index, statement.value];
+    case "remove-element":
+      return [statement.target, statement.index];
     case "return":
       return statement.expression ? [statement.expression] : [];
     case "randomize":
@@ -620,6 +639,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "function":
     case "test":
     case "globals":
+    case "struct":
+    case "enum":
     case "assert-true":
     case "assert-false":
     case "assert-eq":
@@ -648,6 +669,11 @@ function collectFunctionCalls(expression: Expression, functions: ReadonlyMap<str
       break;
     }
     case "array-access":
+      for (const index of expression.indices) {
+        collectFunctionCalls(index, functions, calls);
+      }
+      break;
+    case "struct-field-access":
       for (const index of expression.indices) {
         collectFunctionCalls(index, functions, calls);
       }

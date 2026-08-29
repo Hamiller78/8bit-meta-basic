@@ -1,3 +1,16 @@
+struct QueueStorage
+    QueueRow
+    QueueColumn
+    QueueText$(8)
+end struct
+
+function ShiftedQueueRow(Item AS QueueStorage, Offset)
+    local Result
+    Result = Item.QueueRow + Offset
+    Item.QueueRow = 99
+    return Result
+end function
+
 test IntegerVariables()
     Counter% = 3.7
     assert_eq 3, Counter%
@@ -39,4 +52,37 @@ test DynamicStringArraySlices()
     Source$ = "Z"
     Slices$(1) = Source$
     assert_eq "Z", left$(Slices$(1), 1)
+end test
+
+test StructArrays()
+    dim Queue AS QueueStorage(3)
+    dim NewItem AS QueueStorage
+
+    Queue(0).QueueRow = 12
+    Queue(0).QueueColumn = 2
+    Queue(0).QueueText$ = "ALERT   "
+    Queue(1).QueueRow = 24
+    Queue(1).QueueColumn = 4
+    Queue(1).QueueText$ = "STANDBY "
+    NewItem.QueueRow = 15
+    NewItem.QueueColumn = 6
+    NewItem.QueueText$ = "INSERT  "
+
+    assert_eq 12, Queue(0).QueueRow
+    assert_eq "ALERT   ", Queue(0).QueueText$
+    assert_eq 18, ShiftedQueueRow(NewItem, 3)
+    assert_eq 15, NewItem.QueueRow
+
+    insert_element(Queue, 1, NewItem)
+    assert_eq 12, Queue(0).QueueRow
+    assert_eq 15, Queue(1).QueueRow
+    assert_eq 24, Queue(2).QueueRow
+    assert_eq 6, Queue(1).QueueColumn
+    assert_eq "INSERT  ", Queue(1).QueueText$
+
+    remove_element(Queue, 0)
+    assert_eq 15, Queue(0).QueueRow
+    assert_eq 24, Queue(1).QueueRow
+    assert_eq "INSERT  ", Queue(0).QueueText$
+    assert_eq "STANDBY ", Queue(1).QueueText$
 end test

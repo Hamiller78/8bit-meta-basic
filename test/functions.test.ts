@@ -17,9 +17,10 @@ describe("Meta-BASIC functions", () => {
 
     const output = compileSource(source, { filename: "fn.mbas", target: "spectrum", readability: 0 });
 
-    expect(output).toContain("LET MBF1P1=CURRENTSCORE");
+    expect(output).toContain("LET V0=5");
+    expect(output).toContain("LET MBF1P1=V0");
     expect(output).toContain("LET MBF1P2=10");
-    expect(output).toContain("LET MBF1P1=CURRENTSCORE + EXTRA * 3");
+    expect(output).toContain("LET MBF1P1=V0 + EXTRA * 3");
     expect(output).toContain("LET MBF1L1=MBF1P1 + MBF1P2");
     expect(output).toContain("LET MBF1R=MBF1L1");
     expect(output).toContain("LET TOTAL=MBF1R");
@@ -47,6 +48,33 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("LET MBF1P1=X");
     expect(output).toContain("LET MBF1L1=MBF1P1 + 1");
     expect(output).toContain("LET Y=MBF1R");
+  });
+
+  it("copies struct parameters into function-local backing fields", () => {
+    const output = compileSource(
+      [
+        "STRUCT Item",
+        "Row",
+        "END STRUCT",
+        "DIM Source AS Item",
+        "Source.Row = 5",
+        "Total = RowPlus(Source, 2)",
+        "PRINT Total; Source.Row",
+        "FUNCTION RowPlus(Value AS Item, Bonus)",
+        "LOCAL Result",
+        "Result = Value.Row + Bonus",
+        "Value.Row = 99",
+        "RETURN Result",
+        "END FUNCTION"
+      ].join("\n"),
+      { filename: "struct-param.mbas", target: "spectrum", readability: 0 }
+    );
+
+    expect(output).toContain("LET SOURCEROW=5");
+    expect(output).toContain("LET MBF1P1ROW=SOURCEROW");
+    expect(output).toContain("LET MBF1L1=MBF1P1ROW + MBF1P2");
+    expect(output).toContain("LET MBF1P1ROW=99");
+    expect(output).toContain("PRINT TOTAL;SOURCEROW");
   });
 
   it("reuses local storage for independent functions with identically named locals", () => {
@@ -221,7 +249,8 @@ describe("Meta-BASIC functions", () => {
       { filename: "function-const.mbas", target: "spectrum", readability: 0 }
     );
 
-    expect(output).toContain("IF TXTQUEUEINDEX = 19 THEN GO TO");
+    expect(output).toContain("LET V0=-1");
+    expect(output).toContain("IF V0 = 19 THEN GO TO");
     expect(output).toContain("PRINT 20");
     expect(output).not.toContain("TXTQUEUESIZE");
   });

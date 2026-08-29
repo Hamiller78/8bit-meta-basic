@@ -453,9 +453,13 @@ function lowerStatements(
     switch (statement.kind) {
       case "const":
       case "local":
+      case "enum":
       case "function":
       case "test":
       case "globals":
+        break;
+      case "struct":
+        break;
         break;
       case "dim":
         instructions.push({
@@ -681,6 +685,14 @@ function lowerStatements(
           location: statement.location
         });
         break;
+      case "struct-field-let":
+        throw new DiagnosticError(statement.location, "Internal error: struct field assignments must be resolved before lowering.");
+      case "insert-element":
+        lowerElementMove(statement, "insert", instructions, nextInternalLabel, context);
+        break;
+      case "remove-element":
+        lowerElementMove(statement, "remove", instructions, nextInternalLabel, context);
+        break;
       case "function-call-statement":
         expandFunctionCallForSideEffect(statement.expression, instructions, context);
         break;
@@ -844,6 +856,8 @@ function preserveComplexModuloOperands(expression: Expression, instructions: Ins
       return { ...expression, args: expression.args.map((arg) => preserveComplexModuloOperands(arg, instructions, context)) };
     case "array-access":
       return { ...expression, indices: expression.indices.map((index) => preserveComplexModuloOperands(index, instructions, context)) };
+    case "struct-field-access":
+      return { ...expression, indices: expression.indices.map((index) => preserveComplexModuloOperands(index, instructions, context)) };
     case "number":
     case "string":
     case "boolean":
@@ -860,6 +874,89 @@ function preserveModuloOperand(expression: Expression, instructions: Instruction
   const name = `MBT${context.nextTempId++}`;
   instructions.push({ kind: "let", name, expression, location: expression.location });
   return { kind: "identifier", name, location: expression.location };
+}
+
+function lowerElementMove(
+  statement: Extract<Statement, { kind: "insert-element" | "remove-element" }>,
+  mode: "insert" | "remove",
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  context: FunctionCallLoweringContext
+): void {
+  if (statement.elementCount === undefined || !statement.fields) {
+    throw new DiagnosticError(statement.location, `Internal error: ${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} was not analyzed before lowering.`);
+  }
+
+  const indexName = `MBT${context.nextTempId++}`;
+  instructions.push({ kind: "let", name: indexName, expression: expandFunctionCalls(statement.index, instructions, context), location: statement.location });
+  const indexExpression = { kind: "identifier", name: indexName, location: statement.location } satisfies Expression;
+
+  if (mode === "insert") {
+    const insertValues = statement.fields.map((field) => {
+      if (!("insertExpression" in field)) {
+        throw new DiagnosticError(statement.location, "Internal error: INSERT_ELEMENT field is missing an insertion value.");
+      }
+      const tempName = `MBT${context.nextTempId++}${field.valueType === "string" ? "$" : ""}`;
+      instructions.push({ kind: "let", name: tempName, expression: expandFunctionCalls(field.insertExpression, instructions, context), location: statement.location });
+      return { arrayName: field.arrayName, tempName };
+    });
+
+    const loopName = `MBT${context.nextTempId++}`;
+    const startLabel = nextInternalLabel();
+    const doneLabel = nextInternalLabel();
+    const loopExpression = { kind: "identifier", name: loopName, location: statement.location } satisfies Expression;
+    instructions.push({ kind: "let", name: loopName, expression: numberExpression(statement.elementCount - 2, statement.location), location: statement.location });
+    instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
+    instructions.push({ kind: "if-goto", condition: binaryExpression("<", loopExpression, indexExpression, statement.location), label: doneLabel, location: statement.location });
+    for (const field of statement.fields) {
+      instructions.push({
+        kind: "array-let",
+        name: field.arrayName,
+        indices: [binaryExpression("+", loopExpression, numberExpression(1, statement.location), statement.location)],
+        expression: { kind: "array-access", name: field.arrayName, indices: [loopExpression], valueType: field.valueType, location: statement.location },
+        location: statement.location
+      });
+    }
+    instructions.push({ kind: "let", name: loopName, expression: binaryExpression("-", loopExpression, numberExpression(1, statement.location), statement.location), location: statement.location });
+    instructions.push({ kind: "goto", label: startLabel, location: statement.location });
+    instructions.push({ kind: "label", name: doneLabel, internal: true, location: statement.location });
+    for (const field of insertValues) {
+      instructions.push({
+        kind: "array-let",
+        name: field.arrayName,
+        indices: [indexExpression],
+        expression: { kind: "identifier", name: field.tempName, location: statement.location },
+        location: statement.location
+      });
+    }
+    return;
+  }
+
+  const loopName = `MBT${context.nextTempId++}`;
+  const startLabel = nextInternalLabel();
+  const doneLabel = nextInternalLabel();
+  const loopExpression = { kind: "identifier", name: loopName, location: statement.location } satisfies Expression;
+  instructions.push({ kind: "let", name: loopName, expression: indexExpression, location: statement.location });
+  instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
+  instructions.push({ kind: "if-goto", condition: binaryExpression(">=", loopExpression, numberExpression(statement.elementCount - 1, statement.location), statement.location), label: doneLabel, location: statement.location });
+  for (const field of statement.fields) {
+    instructions.push({
+      kind: "array-let",
+      name: field.arrayName,
+      indices: [loopExpression],
+      expression: {
+        kind: "array-access",
+        name: field.arrayName,
+        indices: [binaryExpression("+", loopExpression, numberExpression(1, statement.location), statement.location)],
+        valueType: field.valueType,
+        location: statement.location
+      },
+      location: statement.location
+    });
+  }
+  instructions.push({ kind: "let", name: loopName, expression: binaryExpression("+", loopExpression, numberExpression(1, statement.location), statement.location), location: statement.location });
+  instructions.push({ kind: "goto", label: startLabel, location: statement.location });
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location: statement.location });
 }
 
 function containsCurrentForControl(statements: readonly Statement[], kind: "exit-for" | "continue-for"): boolean {
@@ -949,7 +1046,13 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
     case "let":
       return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };
-    case "array-let":
+      case "array-let":
+        return {
+          ...statement,
+          indices: statement.indices.map((index) => substituteInlineExpression(index, parameters)),
+          expression: substituteInlineExpression(statement.expression, parameters)
+        };
+    case "struct-field-let":
       return {
         ...statement,
         indices: statement.indices.map((index) => substituteInlineExpression(index, parameters)),
@@ -959,6 +1062,20 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       return {
         ...statement,
         expression: { ...statement.expression, args: statement.expression.args.map((arg) => substituteInlineExpression(arg, parameters)) }
+      };
+    case "insert-element":
+      return {
+        ...statement,
+        target: substituteInlineExpression(statement.target, parameters),
+        index: substituteInlineExpression(statement.index, parameters),
+        value: substituteInlineExpression(statement.value, parameters),
+        fields: statement.fields?.map((field) => ({ ...field, insertExpression: substituteInlineExpression(field.insertExpression, parameters) }))
+      };
+    case "remove-element":
+      return {
+        ...statement,
+        target: substituteInlineExpression(statement.target, parameters),
+        index: substituteInlineExpression(statement.index, parameters)
       };
     case "return":
       return statement.expression ? { ...statement, expression: substituteInlineExpression(statement.expression, parameters) } : statement;
@@ -985,6 +1102,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       };
     case "data":
       return { ...statement, values: statement.values.map((value) => substituteInlineExpression(value, parameters)) };
+    case "struct":
+      return statement;
     case "label":
     case "open-device":
     case "close-device":
@@ -999,6 +1118,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "function":
     case "test":
     case "globals":
+    case "enum":
     case "exit-for":
     case "continue-for":
     case "assert-true":
@@ -1021,6 +1141,8 @@ function substituteInlineExpression(expression: Expression, parameters: Readonly
     case "identifier":
       return parameters.get(normalizeName(expression.name)) ?? expression;
     case "array-access":
+      return { ...expression, indices: expression.indices.map((index) => substituteInlineExpression(index, parameters)) };
+    case "struct-field-access":
       return { ...expression, indices: expression.indices.map((index) => substituteInlineExpression(index, parameters)) };
     case "function-call":
       return { ...expression, args: expression.args.map((arg) => substituteInlineExpression(arg, parameters)) };
@@ -1126,6 +1248,8 @@ function collectUserLabels(statements: readonly Statement[], seen = new Map<stri
     } else if (statement.kind === "while" || statement.kind === "repeat-until") {
       collectUserLabels(statement.body, seen);
     } else if (statement.kind === "function" || statement.kind === "test") {
+      collectUserLabels(statement.body, seen);
+    } else if (statement.kind === "globals") {
       collectUserLabels(statement.body, seen);
     }
   }

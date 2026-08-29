@@ -34,8 +34,8 @@ export const spectrumTarget: TargetBackend = {
     }
     return rebuildLabels(expanded, instructions);
   },
-  renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, _readability: ReadabilityLevel): string {
-    const variableMap = buildUppercaseVariableMap(currentProgramInstructions);
+  renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
+    const variableMap = buildSpectrumVariableMap(currentProgramInstructions, readability);
     const stringArrayWidths = buildSpectrumStringArrayWidths(currentProgramInstructions);
     const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess, stringArrayWidths };
 
@@ -354,6 +354,10 @@ function spectrumStringArrayWidth(name: string, widths: ReadonlyMap<string, numb
   return width;
 }
 
+function buildSpectrumVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {
+  return readability === 2 ? buildUppercaseVariableMap(instructions) : buildCompactSpectrumVariableMap(instructions);
+}
+
 function buildUppercaseVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
   const map = new Map<string, string>();
   const stringNames: string[] = [];
@@ -455,6 +459,11 @@ function collectSingleLetterNumericIdentifiers(expression: Expression, names: Se
       }
       break;
     case "array-access":
+      for (const index of expression.indices) {
+        collectSingleLetterNumericIdentifiers(index, names);
+      }
+      break;
+    case "struct-field-access":
       for (const index of expression.indices) {
         collectSingleLetterNumericIdentifiers(index, names);
       }
@@ -574,6 +583,12 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>, st
         collectIdentifiers(index, map, stringNames, seenStrings);
       }
       break;
+    case "struct-field-access":
+      collectNumericName(expression.base, map);
+      for (const index of expression.indices) {
+        collectIdentifiers(index, map, stringNames, seenStrings);
+      }
+      break;
     case "number":
     case "string":
     case "boolean":
@@ -642,6 +657,186 @@ function nextSpectrumStringName(used: ReadonlySet<string>): string {
   }
 
   throw new Error("Spectrum target only supports 26 string variables.");
+}
+
+function buildCompactSpectrumVariableMap(instructions: readonly Instruction[]): ReadonlyMap<string, string> {
+  const map = new Map<string, string>();
+  const stringNames: string[] = [];
+  const numericNames: string[] = [];
+  const seenStrings = new Set<string>();
+  const seenNumbers = new Set<string>();
+
+  allocateSpectrumArrayNames(collectSpectrumArrayNames(instructions), map);
+  const loopNames = collectSpectrumLoopNames(instructions);
+  allocateSpectrumLoopNames(loopNames, collectReservedSingleLetterNumericNames(instructions), map);
+
+  for (const instruction of instructions) {
+    for (const name of spectrumInstructionNames(instruction)) {
+      collectCompactSpectrumName(name, map, numericNames, seenNumbers, stringNames, seenStrings);
+    }
+    for (const expression of instructionExpressions(instruction)) {
+      collectCompactSpectrumIdentifiers(expression, map, numericNames, seenNumbers, stringNames, seenStrings);
+    }
+  }
+
+  allocateSpectrumStringNames(stringNames, map);
+  allocateCompactSpectrumNumericNames(numericNames, map);
+  return map;
+}
+
+function spectrumInstructionNames(instruction: Instruction): readonly string[] {
+  switch (instruction.kind) {
+    case "let":
+    case "check-device":
+    case "read-key":
+      return [instruction.name];
+    case "multi-let":
+      return instruction.assignments.map((assignment) => assignment.name);
+    case "read":
+      return instruction.targets;
+    case "for":
+    case "next":
+      return [instruction.variable];
+    case "label":
+    case "rem":
+    case "cls":
+    case "border-color":
+    case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
+    case "suppress-scroll-prompt":
+    case "program-mode":
+    case "paper":
+    case "print":
+    case "open-device":
+    case "print-device":
+    case "close-device":
+    case "trap":
+    case "wait-rs232-transmit":
+    case "data":
+    case "restore":
+    case "dim-array":
+    case "array-let":
+    case "dim-string":
+    case "randomize":
+    case "goto":
+    case "gosub":
+    case "return":
+    case "end":
+    case "if-goto":
+    case "position":
+    case "setcolor":
+    case "poke":
+    case "print-chr":
+    case "sys":
+      return [];
+  }
+}
+
+function collectCompactSpectrumName(
+  name: string,
+  map: Map<string, string>,
+  numericNames: string[],
+  seenNumbers: Set<string>,
+  stringNames: string[],
+  seenStrings: Set<string>
+): void {
+  const key = name.toLowerCase();
+  if (map.has(key)) {
+    return;
+  }
+  if (isStringVariableName(name)) {
+    collectStringName(name, stringNames, seenStrings);
+    return;
+  }
+  if (!seenNumbers.has(key)) {
+    seenNumbers.add(key);
+    numericNames.push(name);
+  }
+}
+
+function collectCompactSpectrumIdentifiers(
+  expression: Expression,
+  map: Map<string, string>,
+  numericNames: string[],
+  seenNumbers: Set<string>,
+  stringNames: string[],
+  seenStrings: Set<string>
+): void {
+  switch (expression.kind) {
+    case "identifier":
+      collectCompactSpectrumName(expression.name, map, numericNames, seenNumbers, stringNames, seenStrings);
+      break;
+    case "parenthesized":
+      collectCompactSpectrumIdentifiers(expression.expression, map, numericNames, seenNumbers, stringNames, seenStrings);
+      break;
+    case "unary":
+      collectCompactSpectrumIdentifiers(expression.operand, map, numericNames, seenNumbers, stringNames, seenStrings);
+      break;
+    case "binary":
+      collectCompactSpectrumIdentifiers(expression.left, map, numericNames, seenNumbers, stringNames, seenStrings);
+      collectCompactSpectrumIdentifiers(expression.right, map, numericNames, seenNumbers, stringNames, seenStrings);
+      break;
+    case "function-call":
+      for (const arg of expression.args) {
+        collectCompactSpectrumIdentifiers(arg, map, numericNames, seenNumbers, stringNames, seenStrings);
+      }
+      break;
+    case "array-access":
+      for (const index of expression.indices) {
+        collectCompactSpectrumIdentifiers(index, map, numericNames, seenNumbers, stringNames, seenStrings);
+      }
+      break;
+    case "struct-field-access":
+      collectCompactSpectrumName(expression.base, map, numericNames, seenNumbers, stringNames, seenStrings);
+      for (const index of expression.indices) {
+        collectCompactSpectrumIdentifiers(index, map, numericNames, seenNumbers, stringNames, seenStrings);
+      }
+      break;
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      break;
+  }
+}
+
+function allocateCompactSpectrumNumericNames(names: readonly string[], map: Map<string, string>): void {
+  const used = new Set(map.values());
+  let next = 0;
+
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (map.has(key)) {
+      continue;
+    }
+    const readableName = renderSpectrumNumericName(name);
+    if (baseVariableName(readableName).length <= 10 && !used.has(readableName)) {
+      used.add(readableName);
+      map.set(key, readableName);
+      continue;
+    }
+    let candidate: string;
+    do {
+      candidate = `V${compactSpectrumSuffix(next)}`;
+      next += 1;
+      if (isIntegerVariableName(name)) {
+        candidate = `${candidate}I`;
+      }
+    } while (used.has(candidate));
+    used.add(candidate);
+    map.set(key, candidate);
+  }
+}
+
+function compactSpectrumSuffix(index: number): string {
+  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (index < chars.length) {
+    return chars[index];
+  }
+  const adjusted = index - chars.length;
+  return `${chars[Math.floor(adjusted / chars.length) % chars.length]}${chars[adjusted % chars.length]}`;
 }
 
 function expandSpectrumKeyCodeAssignment(

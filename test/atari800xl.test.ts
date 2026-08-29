@@ -56,7 +56,7 @@ describe("Atari 800XL compiler", () => {
         filename: "printer.mbas",
         target: "atari800xl"
       })
-    ).toBe(['10 OPEN #1,8,0,"P:"', "20 DIM MESSAGE$(255)", '30 MESSAGE$="OK"', "40 DIM MBTEMP$(255)", '50 MBTEMP$="RESULT: "', "60 MBTEMP$(LEN(MBTEMP$)+1)=MESSAGE$", "70 PRINT #1;MBTEMP$", "80 CLOSE #1", ""].join("\n"));
+    ).toBe(["10 DIM MESSAGE$(255)", "20 DIM MBTEMP$(255)", '30 OPEN #1,8,0,"P:"', '40 MESSAGE$="OK"', '50 MBTEMP$="RESULT: "', "60 MBTEMP$(LEN(MBTEMP$)+1)=MESSAGE$", "70 PRINT #1;MBTEMP$", "80 CLOSE #1", ""].join("\n"));
   });
 
   it("renders RS232 device output through the Atari R: handler", () => {
@@ -112,11 +112,11 @@ describe("Atari 800XL compiler", () => {
       })
     ).toBe(
       [
-        "10 LAST=0",
-        "20 IF 1 > LAST THEN GOTO 60",
-        "30 FOR INDEX=1 TO LAST",
-        "40 PRINT INDEX",
-        "50 NEXT INDEX",
+        "10 V0=0",
+        "20 IF 1 > V0 THEN GOTO 60",
+        "30 FOR V1=1 TO V0",
+        "40 PRINT V1",
+        "50 NEXT V1",
         "60 PRINT \"DONE\"",
         ""
       ].join("\n")
@@ -204,8 +204,8 @@ describe("Atari 800XL compiler", () => {
     ).toBe(
       [
         '10 DIM PREFIX$(255)',
-        '20 PREFIX$="N.A.R.F."',
-        '30 DIM STATUS$(255)',
+        '20 DIM STATUS$(255)',
+        '30 PREFIX$="N.A.R.F."',
         "40 STATUS$=PREFIX$",
         '50 STATUS$(LEN(STATUS$)+1)=" "',
         '60 STATUS$(LEN(STATUS$)+1)="OFFLINE"',
@@ -218,8 +218,8 @@ describe("Atari 800XL compiler", () => {
     expect(compileSource('status$ = "OFFLINE"\nstatus$ = "N.A.R.F. " + status$\n', { filename: "prepend.mbas", target: "atari800xl" })).toBe(
       [
         '10 DIM STATUS$(255)',
-        '20 STATUS$="OFFLINE"',
-        '30 DIM MBTEMP$(255)',
+        '20 DIM MBTEMP$(255)',
+        '30 STATUS$="OFFLINE"',
         '40 MBTEMP$="N.A.R.F. "',
         "50 MBTEMP$(LEN(MBTEMP$)+1)=STATUS$",
         "60 STATUS$=MBTEMP$",
@@ -232,8 +232,8 @@ describe("Atari 800XL compiler", () => {
     expect(compileSource('status$ = "READY"\nprint status$ + " NOW"\n', { filename: "print-concat.mbas", target: "atari800xl" })).toBe(
       [
         '10 DIM STATUS$(255)',
-        '20 STATUS$="READY"',
-        '30 DIM MBTEMP$(255)',
+        '20 DIM MBTEMP$(255)',
+        '30 STATUS$="READY"',
         "40 MBTEMP$=STATUS$",
         '50 MBTEMP$(LEN(MBTEMP$)+1)=" NOW"',
         "60 PRINT MBTEMP$",
@@ -302,13 +302,13 @@ describe("Atari 800XL compiler", () => {
   it("preserves complex MOD operands before Atari IF rendering gets too long", () => {
     expect(compileSource("dim textQueueDelay(100)\nfor i = 1 to 3\nif jiffies() mod textQueueDelay(i) = 0 then\nprint i\nend if\nnext i\n", { filename: "mod-condition.mbas", target: "atari800xl", readability: 0 })).toBe(
       [
-        "10 DIM TEXTQUEUEDELAY(99)",
-        "20 FOR I=1 TO 3",
-        "30 MBT1=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536",
-        "40 IF (MBT1) - INT((MBT1) / (TEXTQUEUEDELAY(I))) * (TEXTQUEUEDELAY(I)) = 0 THEN GOTO 60",
+        "10 DIM V0(99)",
+        "20 FOR V1=1 TO 3",
+        "30 V2=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536",
+        "40 IF (V2) - INT((V2) / (V0(V1))) * (V0(V1)) = 0 THEN GOTO 60",
         "50 GOTO 70",
-        "60 PRINT I",
-        "70 NEXT I",
+        "60 PRINT V1",
+        "70 NEXT V1",
         ""
       ].join("\n")
     );
@@ -338,33 +338,48 @@ describe("Atari 800XL compiler", () => {
     ).toBe(
       [
         "10 DIM MESSAGES$(36)",
-        '20 MESSAGES$(1,12)="READY       "',
-        '30 MESSAGES$(25,36)="STANDBY     "',
-        "40 PRINT MESSAGES$(1,12);MESSAGES$(25,36)",
+        `20 MESSAGES$="${" ".repeat(36)}"`,
+        '30 MESSAGES$(1,12)="READY       "',
+        '40 MESSAGES$(25,36)="STANDBY     "',
+        "50 PRINT MESSAGES$(1,12);MESSAGES$(25,36)",
         ""
       ].join("\n")
     );
   });
 
+  it("sanitizes generated struct string field names for Atari BASIC", () => {
+    const output = compileSource(
+      'struct Item\nText$(6)\nend struct\ndim Queue AS Item(2)\ndim NewItem AS Item\nNewItem.Text$ = "READY "\ninsert_element(Queue, 0, NewItem)\nprint Queue(0).Text$\n',
+      {
+        filename: "struct-strings.mbas",
+        target: "atari800xl",
+        readability: 0
+      }
+    );
+
+    expect(output).toContain("DIM V4$(12)");
+    expect(output).toContain("DIM V0$(255)");
+    expect(output).toContain('V0$="READY "');
+    expect(output).not.toMatch(/[A-Z0-9]+_[A-Z0-9]*\$/);
+  });
+
   it("stages dynamic string array slices to keep Atari lines short", () => {
-    expect(
-      compileSource("dim textQueue$(100, 39)\ndim textQueueRow(100)\ndim textQueueColumn(100)\ntextQueue$(i)=mid$(textQueue$(i), 2)\nprint_at textQueueRow(i), textQueueColumn(i), left$(textQueue$(i), 1)\n", {
+    const output = compileSource("dim textQueue$(100, 39)\ndim textQueueRow(100)\ndim textQueueColumn(100)\ntextQueue$(i)=mid$(textQueue$(i), 2)\nprint_at textQueueRow(i), textQueueColumn(i), left$(textQueue$(i), 1)\n", {
         filename: "queue.mbas",
         target: "atari800xl"
-      })
-    ).toBe(
-      [
-        "10 DIM TEXTQUEUE$(3900)",
-        "20 DIM TEXTQUEUEROW(99)",
-        "30 DIM TEXTQUEUECOLUMN(99)",
-        "40 DIM MBTEMP$(255)",
-        "50 MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)",
-        "60 TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$",
-        "70 POSITION TEXTQUEUECOLUMN(I),TEXTQUEUEROW(I)",
-        "80 PRINT TEXTQUEUE$(I * 39 + 1,I * 39 + 1 + 1 - 1)",
-        ""
-      ].join("\n")
-    );
+      });
+
+    expect(output).toContain("DIM TEXTQUEUE$(3900)");
+    expect(output).toContain(`TEXTQUEUE$="${" ".repeat(64)}"`);
+    expect(output).toContain("TEXTQUEUE$(LEN(TEXTQUEUE$)+1)=");
+    expect(output).toContain("DIM TEXTQUEUEROW(99)");
+    expect(output).toContain("DIM TEXTQUEUECOLUMN(99)");
+    expect(output).toContain("DIM MBTEMP$(255)");
+    expect(output).toContain("MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)");
+    expect(output).toContain("TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$");
+    expect(output).toContain("POSITION TEXTQUEUECOLUMN(I),TEXTQUEUEROW(I)");
+    expect(output).toContain("PRINT TEXTQUEUE$(I * 39 + 1,I * 39 + 1 + 1 - 1)");
+    expect(output.indexOf("DIM MBTEMP$(255)")).toBeLessThan(output.indexOf("MBTEMP$=TEXTQUEUE$("));
   });
 
   it("parenthesizes non-trivial dynamic string array indexes", () => {
@@ -378,7 +393,7 @@ describe("Atari 800XL compiler", () => {
 
   it("renders DATA, READ, and RESTORE for Atari BASIC", () => {
     expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "atari800xl" })).toBe(
-      ["10 DATA 10,READY,1", "20 DIM STATUS$(255)", "30 READ SCORE,STATUS$,CONFIRMED", "40 PRINT SCORE;STATUS$;CONFIRMED", "50 RESTORE", "60 READ SCORE", ""].join("\n")
+      ["10 DIM STATUS$(255)", "20 DATA 10,READY,1", "30 READ SCORE,STATUS$,CONFIRMED", "40 PRINT SCORE;STATUS$;CONFIRMED", "50 RESTORE", "60 READ SCORE", ""].join("\n")
     );
   });
 
@@ -400,7 +415,7 @@ describe("Atari 800XL compiler", () => {
 
   it("renders RND and ignores RANDOMIZE on Atari BASIC", () => {
     expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "atari800xl", readability: 0 })).toBe(
-      ["10 VALUE=RND(0)", "20 PRINT VALUE", ""].join("\n")
+      ["10 V0=RND(0)", "20 PRINT V0", ""].join("\n")
     );
   });
 
@@ -433,7 +448,7 @@ describe("Atari 800XL compiler", () => {
       })
     ).toBe(
       [
-        "10 PRESSED=(PEEK(764) <> 255)",
+        "10 V0=(PEEK(764) <> 255)",
         "20 IF (PEEK(764) <> 255) THEN GOTO 40",
         "30 GOTO 50",
         '40 PRINT "KEY"',

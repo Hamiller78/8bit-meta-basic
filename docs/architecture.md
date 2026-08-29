@@ -2,7 +2,7 @@
 
 Meta-BASIC is built as a small TypeScript compiler plus thin command-line and editor shells. The compiler core should stay independent from emulators, packaging tools, VS Code, and local filesystem conventions.
 
-The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do Spectrum, Atari, and C64 lowering choose the awkward native spelling.
+The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `STRUCT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do Spectrum, Atari, and C64 lowering choose the awkward native spelling.
 
 ## Pipeline
 
@@ -27,7 +27,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/ast.ts` defines the syntax tree as discriminated unions.
 - `src/lexer.ts` tokenizes source text and owns the centralized keyword set. Built-in function names remain identifiers.
 - `src/parser.ts` turns tokens into statements and expressions. It should make syntax decisions from tokens, not whole-line regular expressions.
-- `src/semantic.ts` checks language rules, resolves constants, validates labels, functions, arrays, test-only constructs, devices, and built-in calls.
+- `src/semantic.ts` checks language rules, resolves constants, validates labels, functions, structs, arrays, test-only constructs, devices, and built-in calls. Struct values are erased here into generated backing scalar and array names.
 - `src/functions.ts` is the central list of portable built-in functions.
 - `src/devices.ts` is the central list of portable device constants.
 - `src/function-semantics.ts` analyzes user functions, local variables, parameters, and recursion.

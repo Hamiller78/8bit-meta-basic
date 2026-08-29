@@ -50,6 +50,8 @@ describe("lexer", () => {
     expect(keywords.has("PRINT_AT")).toBe(true);
     expect(keywords.has("AND")).toBe(true);
     expect(keywords.has("FOR")).toBe(true);
+    expect(keywords.has("STRUCT")).toBe(true);
+    expect(keywords.has("ENUM")).toBe(true);
     expect(keywords.has("NEXT")).toBe(true);
     expect(keywords.has("TO")).toBe(true);
     expect(keywords.has("STEP")).toBe(true);

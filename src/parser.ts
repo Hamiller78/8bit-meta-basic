@@ -1,4 +1,4 @@
-import type { BinaryOperator, Expression, PrintStatement, Program, SourceLocation, Statement, UnaryOperator } from "./ast.js";
+import type { BinaryOperator, EnumMember, Expression, ParameterType, PrintStatement, Program, SourceLocation, Statement, StructField, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { deviceSourceList, parseSourceDeviceName } from "./devices.js";
 import { tokenize, type Token } from "./lexer.js";
@@ -17,6 +17,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["DATA", (parser, location) => parser.parseData(location)],
   ["DIM", (parser, location) => parser.parseDim(location)],
   ["END", (parser, location) => parser.parseEnd(location)],
+  ["ENUM", (parser, location) => parser.parseEnum(location)],
   ["EXIT", (parser, location) => parser.parseExit(location)],
   ["CLS", (parser, location) => parser.parseCls(location)],
   ["CLOSE_DEVICE", (parser, location) => parser.parseCloseDevice(location)],
@@ -32,6 +33,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["RETURN", (parser, location) => parser.parseReturn(location)],
   ["RESTORE", (parser, location) => parser.parseRestore(location)],
   ["RANDOMIZE", (parser, location) => parser.parseRandomize(location)],
+  ["STRUCT", (parser, location) => parser.parseStruct(location)],
   ["SUPPRESS_SCROLL_PROMPT", (parser, location) => parser.parseSuppressScrollPrompt(location)],
   ["ASSERT_TRUE", (parser, location) => parser.parseAssertUnary("assert-true", location)],
   ["ASSERT_FALSE", (parser, location) => parser.parseAssertUnary("assert-false", location)],
@@ -52,7 +54,9 @@ const statementParsers = new Map<string, StatementParser>([
   ["WHILE", (parser, location) => parser.parseWhile(location)],
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
   ["IF", (parser, location) => parser.parseIf(location)],
-  ["INLINE", (parser, location) => parser.parseInline(location)]
+  ["INLINE", (parser, location) => parser.parseInline(location)],
+  ["INSERT_ELEMENT", (parser, location) => parser.parseInsertElement(location)],
+  ["REMOVE_ELEMENT", (parser, location) => parser.parseRemoveElement(location)]
 ]);
 
 const binaryPrecedence = new Map<string, number>([
@@ -97,6 +101,13 @@ class Parser {
 
   parseDim(location: SourceLocation): Statement {
     const name = this.expectIdentifier("Expected array name after DIM.").text;
+    if (this.matchKeyword("AS")) {
+      this.advance();
+      const asType = this.expectIdentifier("Expected struct type name after AS.").text;
+      const dimensions = this.matchPunctuation("(") ? this.parseArgumentList("Expected opening parenthesis after struct array type name.") : [];
+      this.expectLineEnd();
+      return { kind: "dim", name, asType, dimensions, location };
+    }
     const dimensions = this.parseArgumentList("Expected opening parenthesis after array name.");
     this.expectLineEnd();
     return { kind: "dim", name, dimensions, location };
@@ -285,6 +296,9 @@ class Parser {
 
   parseCallOrArrayAssignment(location: SourceLocation, name: string): Statement {
     const args = this.parseArgumentList("Expected opening parenthesis after name.");
+    if (this.matchPunctuation(".")) {
+      return this.parseStructFieldAssignment(location, name, args);
+    }
     if (this.matchPunctuation("=")) {
       this.advance();
       const expression = this.parseExpressionUntilLine();
@@ -293,6 +307,33 @@ class Parser {
     }
     this.expectLineEnd();
     return { kind: "function-call-statement", expression: { kind: "function-call", name, args, location }, location };
+  }
+
+  parseStructFieldAssignment(location: SourceLocation, base: string, indices: readonly Expression[]): Statement {
+    this.expectPunctuation(".", "Expected . before struct field name.");
+    const field = this.expectIdentifier("Expected struct field name after .").text;
+    this.expectPunctuation("=", "Expected = after struct field name.");
+    const expression = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "struct-field-let", base, indices, field, expression, location };
+  }
+
+  parseInsertElement(location: SourceLocation): Statement {
+    const args = this.parseArgumentList("Expected opening parenthesis after INSERT_ELEMENT.");
+    if (args.length !== 3) {
+      throw new DiagnosticError(location, "INSERT_ELEMENT expects array, index, and value arguments.");
+    }
+    this.expectLineEnd();
+    return { kind: "insert-element", target: args[0], index: args[1], value: args[2], location };
+  }
+
+  parseRemoveElement(location: SourceLocation): Statement {
+    const args = this.parseArgumentList("Expected opening parenthesis after REMOVE_ELEMENT.");
+    if (args.length !== 2) {
+      throw new DiagnosticError(location, "REMOVE_ELEMENT expects array and index arguments.");
+    }
+    this.expectLineEnd();
+    return { kind: "remove-element", target: args[0], index: args[1], location };
   }
 
   private parsePrintAt(commandName: "PRINT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
@@ -365,12 +406,14 @@ class Parser {
 
   private parseFunctionBody(location: SourceLocation, inline: boolean): Statement {
     const name = this.expectIdentifier("Expected function name after FUNCTION.").text;
-    const parameters = this.parseIdentifierList("Expected opening parenthesis after function name.");
+    const { names: parameters, types: parameterTypes } = this.parseParameterList("Expected opening parenthesis after function name.");
     this.expectLineEnd();
     const body = this.parseBlock("end-function", location);
     this.expectEndFunction();
     this.expectLineEnd();
-    return inline ? { kind: "function", name, parameters, body, inline: true, location } : { kind: "function", name, parameters, body, location };
+    return inline
+      ? { kind: "function", name, parameters, ...(parameterTypes.length > 0 ? { parameterTypes } : {}), body, inline: true, location }
+      : { kind: "function", name, parameters, ...(parameterTypes.length > 0 ? { parameterTypes } : {}), body, location };
   }
 
   parseExit(location: SourceLocation): Statement {
@@ -404,6 +447,59 @@ class Parser {
     this.expectEndGlobals();
     this.expectLineEnd();
     return { kind: "globals", body, location };
+  }
+
+  parseStruct(location: SourceLocation): Statement {
+    const name = this.expectIdentifier("Expected struct name after STRUCT.").text;
+    this.expectLineEnd();
+    const fields: StructField[] = [];
+    while (true) {
+      this.skipNewlines();
+      if (this.matchKind("eof")) {
+        throw new DiagnosticError(location, "Missing END STRUCT for STRUCT block.");
+      }
+      if (this.isEndStruct()) {
+        break;
+      }
+      const field = this.expectIdentifier("Expected struct field name.").text;
+      const fieldLocation = this.tokens[this.index - 1].location;
+      const dimensions = this.matchPunctuation("(") ? this.parseArgumentList("Expected opening parenthesis after struct field name.") : [];
+      this.expectLineEnd();
+      fields.push({ name: field, dimensions, location: fieldLocation });
+    }
+    this.expectEndStruct();
+    this.expectLineEnd();
+    return { kind: "struct", name, fields, location };
+  }
+
+  parseEnum(location: SourceLocation): Statement {
+    const name = this.expectIdentifier("Expected enum name after ENUM.").text;
+    this.expectLineEnd();
+    const members: EnumMember[] = [];
+
+    while (true) {
+      this.skipNewlines();
+      if (this.matchKind("eof")) {
+        throw new DiagnosticError(location, "Missing END ENUM for ENUM block.");
+      }
+      if (this.isEndEnum()) {
+        break;
+      }
+
+      const member = this.expectIdentifier("Expected enum member name.").text;
+      const memberLocation = this.tokens[this.index - 1].location;
+      let expression: Expression | undefined;
+      if (this.matchPunctuation("=")) {
+        this.advance();
+        expression = this.parseExpressionUntilLine();
+      }
+      this.expectLineEnd();
+      members.push(expression ? { name: member, expression, location: memberLocation } : { name: member, location: memberLocation });
+    }
+
+    this.expectEndEnum();
+    this.expectLineEnd();
+    return { kind: "enum", name, members, location };
   }
 
   parseAssertUnary(
@@ -503,7 +599,7 @@ class Parser {
   }
 
   private parseBlock(
-    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "end-test" | "end-globals" | "next" | "wend" | "until",
+    until: "eof" | "else-or-end-if" | "end-if" | "end-function" | "end-test" | "end-globals" | "end-struct" | "next" | "wend" | "until",
     missingBlockLocation?: SourceLocation
   ): Statement[] {
     const statements: Statement[] = [];
@@ -532,6 +628,9 @@ class Parser {
         }
         if (until === "end-globals") {
           throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END GLOBALS for GLOBALS block.");
+        }
+        if (until === "end-struct") {
+          throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END STRUCT for STRUCT block.");
         }
         throw new DiagnosticError(missingBlockLocation ?? this.current().location, "Missing END IF for IF block.");
       }
@@ -569,6 +668,17 @@ class Parser {
           return statements;
         }
         throw new DiagnosticError(this.current().location, "Unexpected END GLOBALS without matching GLOBALS.");
+      }
+
+      if (this.isEndStruct()) {
+        if (until === "end-struct") {
+          return statements;
+        }
+        throw new DiagnosticError(this.current().location, "Unexpected END STRUCT without matching STRUCT.");
+      }
+
+      if (this.isEndEnum()) {
+        throw new DiagnosticError(this.current().location, "Unexpected END ENUM without matching ENUM.");
       }
 
       if (this.matchKeyword("NEXT")) {
@@ -615,6 +725,11 @@ class Parser {
     if (token.kind === "identifier" && this.nextIsPunctuation("(")) {
       this.advance();
       return this.parseCallOrArrayAssignment(token.location, token.text);
+    }
+
+    if (token.kind === "identifier" && this.nextIsPunctuation(".")) {
+      this.advance();
+      return this.parseStructFieldAssignment(token.location, token.text, []);
     }
 
     if (token.kind === "keyword") {
@@ -703,7 +818,18 @@ class Parser {
     if (token.kind === "identifier") {
       this.advance();
       if (this.matchPunctuation("(")) {
-        return this.parseFunctionCall(token.text, token.location);
+        const call = this.parseFunctionCall(token.text, token.location);
+        if (this.matchPunctuation(".")) {
+          this.advance();
+          const field = this.expectIdentifier("Expected struct field name after .").text;
+          return { kind: "struct-field-access", base: token.text, indices: call.args, field, location: token.location };
+        }
+        return call;
+      }
+      if (this.matchPunctuation(".")) {
+        this.advance();
+        const field = this.expectIdentifier("Expected struct field name after .").text;
+        return { kind: "struct-field-access", base: token.text, indices: [], field, location: token.location };
       }
       return { kind: "identifier", name: token.text, location: token.location };
     }
@@ -746,7 +872,7 @@ class Parser {
     return undefined;
   }
 
-  private parseFunctionCall(name: string, location: SourceLocation): Expression {
+  private parseFunctionCall(name: string, location: SourceLocation): Extract<Expression, { kind: "function-call" }> {
     const args = this.parseArgumentList("Expected opening parenthesis after function name.");
     return { kind: "function-call", name, args, location };
   }
@@ -780,6 +906,32 @@ class Parser {
     const names = this.parseIdentifierSequence("Expected parameter name.");
     this.expectPunctuation(")", "Expected closing parenthesis after parameter list.");
     return names;
+  }
+
+  private parseParameterList(openMessage: string): { readonly names: readonly string[]; readonly types: readonly ParameterType[] } {
+    this.expectPunctuation("(", openMessage);
+    const names: string[] = [];
+    const types: ParameterType[] = [];
+    if (this.matchPunctuation(")")) {
+      this.advance();
+      return { names, types };
+    }
+
+    while (true) {
+      const name = this.expectIdentifier("Expected parameter name.").text;
+      names.push(name);
+      if (this.matchKeyword("AS")) {
+        this.advance();
+        types.push({ name, asType: this.expectIdentifier("Expected struct type name after AS.").text });
+      }
+      if (!this.matchPunctuation(",")) {
+        break;
+      }
+      this.advance();
+    }
+
+    this.expectPunctuation(")", "Expected closing parenthesis after parameter list.");
+    return { names, types };
   }
 
   private parseIdentifierSequence(firstMessage: string): string[] {
@@ -818,6 +970,16 @@ class Parser {
     this.expectKeyword("GLOBALS", "Expected GLOBALS after END.");
   }
 
+  private expectEndStruct(): void {
+    this.expectKeyword("END", "Expected END STRUCT.");
+    this.expectKeyword("STRUCT", "Expected STRUCT after END.");
+  }
+
+  private expectEndEnum(): void {
+    this.expectKeyword("END", "Expected END ENUM.");
+    this.expectKeyword("ENUM", "Expected ENUM after END.");
+  }
+
   private isEndIf(): boolean {
     const next = this.tokens[this.index + 1];
     return this.matchKeyword("ENDIF") || (this.matchKeyword("END") && next?.kind === "keyword" && next.text === "IF");
@@ -838,6 +1000,16 @@ class Parser {
     return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "GLOBALS";
   }
 
+  private isEndStruct(): boolean {
+    const next = this.tokens[this.index + 1];
+    return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "STRUCT";
+  }
+
+  private isEndEnum(): boolean {
+    const next = this.tokens[this.index + 1];
+    return this.matchKeyword("END") && next?.kind === "keyword" && next.text === "ENUM";
+  }
+
   private expectIdentifier(message: string): Extract<Token, { kind: "identifier" }> {
     const token = this.current();
     if (token.kind !== "identifier") {
@@ -854,7 +1026,7 @@ class Parser {
     this.advance();
   }
 
-  private expectPunctuation(text: "(" | ")" | ":" | "," | ";" | "=", message: string): void {
+  private expectPunctuation(text: "(" | ")" | ":" | "," | ";" | "=" | ".", message: string): void {
     if (!this.matchPunctuation(text)) {
       throw new DiagnosticError(this.current().location, message);
     }
@@ -885,12 +1057,12 @@ class Parser {
     return token.kind === "keyword" && token.text === text;
   }
 
-  private matchPunctuation(text: "(" | ")" | ":" | "," | ";" | "="): boolean {
+  private matchPunctuation(text: "(" | ")" | ":" | "," | ";" | "=" | "."): boolean {
     const token = this.current();
     return token.kind === "punctuation" && token.text === text;
   }
 
-  private nextIsPunctuation(text: "(" | ")" | ":" | "," | ";" | "="): boolean {
+  private nextIsPunctuation(text: "(" | ")" | ":" | "," | ";" | "=" | "."): boolean {
     const token = this.tokens[this.index + 1];
     return token?.kind === "punctuation" && token.text === text;
   }

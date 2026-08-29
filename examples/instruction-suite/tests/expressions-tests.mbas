@@ -25,3 +25,15 @@ test NumericFunctions()
     assert_eq -1, sgn(-12)
     assert_eq 4, sqr(16)
 end test
+
+enum DemoState
+    DemoIdle
+    DemoRunning = 4
+    DemoFinished
+end enum
+
+test EnumConstants()
+    assert_eq 0, DemoIdle
+    assert_eq 4, DemoRunning
+    assert_eq 5, DemoFinished
+end test

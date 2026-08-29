@@ -122,6 +122,48 @@ describe("parser", () => {
     });
   });
 
+  it("parses STRUCT blocks", () => {
+    expect(parseSource("struct Queue\nRow\nText$(10)\nend struct\n", "struct.mbas")).toMatchObject({
+      statements: [
+        {
+          kind: "struct",
+          name: "Queue",
+          fields: [
+            { name: "Row", dimensions: [] },
+            { name: "Text$", dimensions: [{ kind: "number", value: 10 }] }
+          ]
+        }
+      ]
+    });
+  });
+
+  it("parses struct field access and element move commands", () => {
+    expect(parseSource("Queue(0).Row = 7\nprint Queue(0).Row\ninsert_element(Queue, 1, NewItem)\nremove_element(Queue, 0)\n", "struct-access.mbas")).toMatchObject({
+      statements: [
+        { kind: "struct-field-let", base: "Queue", field: "Row", indices: [{ kind: "number", value: 0 }] },
+        { kind: "print", items: [{ kind: "struct-field-access", base: "Queue", field: "Row", indices: [{ kind: "number", value: 0 }] }] },
+        { kind: "insert-element", target: { kind: "identifier", name: "Queue" }, index: { kind: "number", value: 1 }, value: { kind: "identifier", name: "NewItem" } },
+        { kind: "remove-element", target: { kind: "identifier", name: "Queue" }, index: { kind: "number", value: 0 } }
+      ]
+    });
+  });
+
+  it("parses ENUM blocks with automatic and explicit values", () => {
+    expect(parseSource("enum AlertState\nIdle\nWarning = 3\nDanger\nend enum\n", "enum.mbas")).toMatchObject({
+      statements: [
+        {
+          kind: "enum",
+          name: "AlertState",
+          members: [
+            { name: "Idle" },
+            { name: "Warning", expression: { kind: "number", value: 3 } },
+            { name: "Danger" }
+          ]
+        }
+      ]
+    });
+  });
+
   it("parses nested IF statements and optional ELSE blocks", () => {
     const program = parseSource(
       [

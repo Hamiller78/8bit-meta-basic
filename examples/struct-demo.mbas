@@ -1,0 +1,39 @@
+struct TelegraphText
+    row
+    column
+    text$(12)
+end struct
+
+dim textQueue AS TelegraphText(4)
+dim newElement AS TelegraphText
+
+cls
+
+textQueue(0).row = 4
+textQueue(0).column = 2
+textQueue(0).text$ = "ALERT       "
+
+textQueue(1).row = 5
+textQueue(1).column = 2
+textQueue(1).text$ = "STANDBY     "
+
+newElement.row = 6
+newElement.column = 2
+newElement.text$ = "INSERTED    "
+
+shiftedRow = ShiftedRow(newElement, 1)
+
+insert_element(textQueue, 1, newElement)
+remove_element(textQueue, 0)
+
+print "STRUCT QUEUE DEMO"
+print "FUNCTION ROW "; shiftedRow; " ORIGINAL "; newElement.row
+print_at textQueue(0).row, textQueue(0).column, textQueue(0).text$
+print_at textQueue(1).row, textQueue(1).column, textQueue(1).text$
+
+function ShiftedRow(item AS TelegraphText, offset)
+    local result
+    result = item.row + offset
+    item.row = 99
+    return result
+end function
