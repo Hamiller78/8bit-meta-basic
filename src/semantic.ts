@@ -195,6 +195,7 @@ function analyzeStatements(
         break;
       }
       case "suppress-scroll-prompt":
+      case "program-mode":
         analyzed.push(statement);
         break;
       case "let": {

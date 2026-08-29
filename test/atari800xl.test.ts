@@ -14,6 +14,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("renders PROGRAM_MODE as Atari cursor hiding setup", () => {
+    expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "atari800xl", readability: 0 })).toBe(
+      ["10 POKE 752,1", '20 PRINT "OK"', ""].join("\n")
+    );
+  });
+
   it("reports Atari constant coordinate ranges", () => {
     expect(() => compileSource('print_at 24, 0, "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
       "Atari 800XL PRINT_AT row coordinate 24 is outside the supported range 0..23"

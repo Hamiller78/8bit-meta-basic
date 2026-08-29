@@ -22,6 +22,7 @@ export type Statement =
   | CellTextColorStatement
   | CellBackgroundColorStatement
   | SuppressScrollPromptStatement
+  | ProgramModeStatement
   | OpenDeviceStatement
   | PrintDeviceStatement
   | CloseDeviceStatement
@@ -115,6 +116,11 @@ export interface CellBackgroundColorStatement {
 
 export interface SuppressScrollPromptStatement {
   readonly kind: "suppress-scroll-prompt";
+  readonly location: SourceLocation;
+}
+
+export interface ProgramModeStatement {
+  readonly kind: "program-mode";
   readonly location: SourceLocation;
 }
 

@@ -84,6 +84,18 @@ export const atari800xlTarget: TargetBackend = {
         continue;
       } else if (instruction.kind === "suppress-scroll-prompt") {
         continue;
+      } else if (instruction.kind === "program-mode") {
+        instructions.push({
+          kind: "poke",
+          address: 752,
+          value: {
+            kind: "number",
+            value: 1,
+            raw: "1",
+            location: instruction.location
+          },
+          location: instruction.location
+        });
       } else if (instruction.kind === "randomize") {
         continue;
       } else if (instruction.kind === "check-device") {
@@ -145,6 +157,7 @@ export const atari800xlTarget: TargetBackend = {
       case "cell-text-color":
       case "cell-background-color":
       case "suppress-scroll-prompt":
+      case "program-mode":
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":

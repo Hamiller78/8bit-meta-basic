@@ -312,6 +312,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("renders PROGRAM_MODE as Spectrum program setup", () => {
+    expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "spectrum", readability: 0 })).toBe(
+      ['10 POKE 23692,255', '20 PRINT "OK"', ""].join("\n")
+    );
+  });
+
   it("lowers Spectrum printer availability checks as a best-effort open stream assumption", () => {
     expect(
       compileSource('available = device_available(PRINTER)\nprint available\n', {

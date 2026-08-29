@@ -52,6 +52,7 @@ export type Instruction =
   | CellTextColorInstruction
   | CellBackgroundColorInstruction
   | SuppressScrollPromptInstruction
+  | ProgramModeInstruction
   | PaperInstruction
   | PrintInstruction
   | OpenDeviceInstruction
@@ -134,6 +135,11 @@ export interface CellBackgroundColorInstruction {
 
 export interface SuppressScrollPromptInstruction {
   readonly kind: "suppress-scroll-prompt";
+  readonly location: SourceLocation;
+}
+
+export interface ProgramModeInstruction {
+  readonly kind: "program-mode";
   readonly location: SourceLocation;
 }
 
@@ -540,6 +546,11 @@ function lowerStatements(
       case "suppress-scroll-prompt":
         if (!options.capturePrints) {
           instructions.push({ kind: "suppress-scroll-prompt", location: statement.location });
+        }
+        break;
+      case "program-mode":
+        if (!options.capturePrints) {
+          instructions.push({ kind: "program-mode", location: statement.location });
         }
         break;
       case "label":
@@ -979,6 +990,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "close-device":
     case "read":
     case "suppress-scroll-prompt":
+    case "program-mode":
     case "restore":
     case "goto":
     case "gosub":

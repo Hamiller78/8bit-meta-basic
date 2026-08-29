@@ -41,6 +41,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "cell-text-color":
     case "cell-background-color":
     case "suppress-scroll-prompt":
+    case "program-mode":
     case "paper":
     case "setcolor":
     case "print-chr":

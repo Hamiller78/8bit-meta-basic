@@ -24,6 +24,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["PRINT", (parser, location) => parser.parsePrint(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
   ["PRINT_DEVICE", (parser, location) => parser.parsePrintDevice(location)],
+  ["PROGRAM_MODE", (parser, location) => parser.parseProgramMode(location)],
   ["READ", (parser, location) => parser.parseRead(location)],
   ["TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
   ["GOSUB", (parser, location) => parser.parseGosub(location)],
@@ -253,6 +254,11 @@ class Parser {
   parseSuppressScrollPrompt(location: SourceLocation): Statement {
     this.expectLineEnd();
     return { kind: "suppress-scroll-prompt", location };
+  }
+
+  parseProgramMode(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    return { kind: "program-mode", location };
   }
 
   parsePrintAtStatement(location: SourceLocation): Statement {

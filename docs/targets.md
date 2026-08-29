@@ -67,6 +67,7 @@ Constant coordinates must fit these zero-based ranges:
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
 - `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
+- `PROGRAM_MODE` emits the same scroll-prompt counter refresh.
 - `KEY_PRESSED()` checks `INKEY$ <> ""`; `KEY_CODE()` uses `INKEY$`, so short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter.
 - `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
@@ -87,6 +88,7 @@ Constant coordinates must fit these zero-based ranges:
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
+- `PROGRAM_MODE` emits `POKE 752,1` to hide the text cursor.
 - `KEY_PRESSED()` checks `PEEK(764) <> 255`; `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter.
 - `FREE_MEMORY()` lowers to native `FRE(0)`.
@@ -104,6 +106,7 @@ Atari colour values are deterministic approximations and can look different betw
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
+- `PROGRAM_MODE` emits `POKE 808,234` to disable the simple RUN/STOP check.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
 - `SHARED_DRIVE` is not supported on C64.
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.

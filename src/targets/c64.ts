@@ -45,6 +45,7 @@ export const c64Target: TargetBackend = {
       case "cell-text-color":
       case "cell-background-color":
       case "suppress-scroll-prompt":
+      case "program-mode":
       case "paper":
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
@@ -591,6 +592,18 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
       });
     } else if (instruction.kind === "cell-background-color" || instruction.kind === "suppress-scroll-prompt") {
       continue;
+    } else if (instruction.kind === "program-mode") {
+      instructions.push({
+        kind: "poke",
+        address: 808,
+        value: {
+          kind: "number",
+          value: 234,
+          raw: "234",
+          location: instruction.location
+        },
+        location: instruction.location
+      });
     } else {
       instructions.push(instruction);
     }

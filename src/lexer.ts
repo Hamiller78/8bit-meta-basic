@@ -38,6 +38,7 @@ export const keywords = new Set([
   "MOD",
   "NOT",
   "OR",
+  "PROGRAM_MODE",
   "PRINT",
   "PRINT_AT",
   "PRINT_DEVICE",

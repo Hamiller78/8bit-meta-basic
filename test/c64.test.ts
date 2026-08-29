@@ -14,6 +14,12 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("renders PROGRAM_MODE as C64 RUN/STOP disabling setup", () => {
+    expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "c64", readability: 0 })).toBe(
+      ["10 POKE 808,234", '20 PRINT "OK"', ""].join("\n")
+    );
+  });
+
   it("reports C64 constant coordinate ranges", () => {
     expect(() => compileSource('print_at 25, 0, "NO"\n', { filename: "range.mbas", target: "c64" })).toThrow(
       "C64 PRINT_AT row coordinate 25 is outside the supported range 0..24"

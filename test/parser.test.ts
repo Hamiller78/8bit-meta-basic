@@ -453,6 +453,11 @@ describe("parser", () => {
     expect(() => parseSource("suppress_scroll_prompt 1\n", "screen.mbas")).toThrow('Expected end of line, found "1"');
   });
 
+  it("parses PROGRAM_MODE as a no-argument runtime setup command", () => {
+    expect(parseSource("program_mode\n", "screen.mbas").statements).toMatchObject([{ kind: "program-mode" }]);
+    expect(() => parseSource("program_mode 1\n", "screen.mbas")).toThrow('Expected end of line, found "1"');
+  });
+
   it("reports missing BORDER_COLOR colour", () => {
     expect(() => parseSource("border_color\n", "border.mbas")).toThrow("BORDER_COLOR requires a colour expression");
   });

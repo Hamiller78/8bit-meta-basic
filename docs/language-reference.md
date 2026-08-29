@@ -406,6 +406,7 @@ screen_text_color WHITE
 cell_text_color YELLOW
 cell_background_color BLUE
 suppress_scroll_prompt
+program_mode
 ```
 
 `border_color` is a compatibility spelling for `screen_border_color`; `text_color` is a compatibility spelling for `screen_text_color`.
@@ -413,6 +414,8 @@ suppress_scroll_prompt
 Cell colours may have no effect on targets without the corresponding per-cell feature. This is deliberate rather than an attempt to simulate the feature with a large runtime.
 
 `suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL or C64.
+
+`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
 
 ## Current omissions
 

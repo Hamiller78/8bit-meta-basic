@@ -129,6 +129,7 @@ Supported constructs:
 - `cell_text_color colour`
 - `cell_background_color colour`
 - `suppress_scroll_prompt`
+- `program_mode`
 - `randomize` and `randomize seed`
 - Expressions in `IF`, `CONST`, assignments, `FOR`, `PRINT`, and `DATA`
 
@@ -378,6 +379,7 @@ screen_text_color WHITE
 cell_text_color YELLOW
 cell_background_color BLUE
 suppress_scroll_prompt
+program_mode
 ```
 
 `CLS` clears the text screen. `CLS colour` selects the portable background colour and then clears the screen. The colour form does not change the foreground/text colour or border colour.
@@ -394,6 +396,8 @@ suppress_scroll_prompt
 
 `SUPPRESS_SCROLL_PROMPT` refreshes the ZX Spectrum scroll counter so long output can continue without the interactive scroll prompt. Atari 800XL and C64 ignore it.
 
+`PROGRAM_MODE` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll prompt counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check.
+
 Target lowering:
 
 - Spectrum: `CLS`, or `PAPER targetColour` followed by `CLS`.
@@ -405,6 +409,7 @@ Target lowering:
 - Cell text colour lowers to Spectrum `INK targetColour`, C64 `POKE 646,targetColour`, and no Atari 800XL output.
 - Cell background colour lowers to Spectrum `PAPER targetColour` and no C64 or Atari 800XL output.
 - Scroll-prompt suppression lowers to Spectrum `POKE 23692,255` and no output on Atari 800XL or C64.
+- Program mode lowers to Spectrum `POKE 23692,255`, Atari `POKE 752,1`, and C64 `POKE 808,234`.
 
 Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 
