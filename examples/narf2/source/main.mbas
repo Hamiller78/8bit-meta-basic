@@ -77,15 +77,9 @@ function printCentered(row, text$)
 end function
 
 function addToTextQueue(row, column, delay, text$)
-    local lastRow, lastColumn, lastLength, lastText$
-
     if txtQueueIndex = txtQueueSize - 1 then
         'Queue is full, emergency flush one text to make room
-        lastRow = txtQueue(txtQueueIndex).row
-        lastColumn = txtQueue(txtQueueIndex).column
-        lastLength = txtQueue(txtQueueIndex).length
-        lastText$ = left$(txtQueue(txtQueueIndex).text$, lastLength)
-        print_at lastRow, lastColumn, lastText$
+        print_at txtQueue(txtQueueIndex).row, txtQueue(txtQueueIndex).column, left$(txtQueue(txtQueueIndex).text$, txtQueue(txtQueueIndex).length)
         txtQueueIndex = txtQueueSize - 2
     end if
 

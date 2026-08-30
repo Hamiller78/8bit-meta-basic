@@ -15,6 +15,7 @@ source files / project config
   -> shared lowering, including startup prelude creation
   -> target lowering and expression rendering
   -> line numbering and line validation
+  -> optional line-length relief with generated temporaries
   -> BASIC text
   -> optional packaging tools
   -> optional emulator launch
@@ -37,6 +38,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, and C64.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.
+- `src/compiler.ts` coordinates final rendering and may retry with generated temporaries when complex generated code would exceed a target line-length limit.
 - `src/output-stats.ts` reports generated-line and variable-use information.
 - `src/build-configuration.ts` loads `metabasic.json` style program descriptions.
 - `src/cli.ts` is the thin command-line shell around the compiler.

@@ -35,6 +35,21 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("introduces temporaries when complex readable expressions would exceed the Atari line limit", () => {
+    const output = compileSource(
+      [
+        "firstLongSourceVariableName = 1000",
+        "secondLongSourceVariableName = 2000",
+        "thirdLongSourceVariableName = 3",
+        "print (firstLongSourceVariableName * thirdLongSourceVariableName + secondLongSourceVariableName * thirdLongSourceVariableName + firstLongSourceVariableName * secondLongSourceVariableName) * (firstLongSourceVariableName + secondLongSourceVariableName + thirdLongSourceVariableName)"
+      ].join("\n") + "\n",
+      { filename: "long-expression.mbas", target: "atari800xl", readability: 2 }
+    );
+
+    expect(output).toContain("MBT");
+    expect(Math.max(...output.trimEnd().split("\n").map((line) => line.length))).toBeLessThanOrEqual(120);
+  });
+
   it("uses Atari environment constants and case-insensitive lookup", () => {
     expect(
       compileSource('const row = text_rows\nprint_at row, TEXT_COLUMNS, "EDGE"\n', {

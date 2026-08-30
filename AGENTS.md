@@ -450,6 +450,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Prefer deterministic output: identical input and options must produce byte-for-byte identical BASIC.
 - Render expressions from the AST.
 - Emit numeric constants using a deterministic culture-independent format with `.` as decimal separator.
+- Before emitting a generated-line length diagnostic, the compiler may introduce generated temporary assignments to split complex expressions in generated code. This is a last-resort lowering step for target limits and applies to complex assignments, array assignments, conditions, `PRINT`, and `PRINT_AT` support code. Simple oversized statements such as very long string literals are still rejected.
 
 ## Readability option
 
