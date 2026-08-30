@@ -18,12 +18,9 @@ const txtQueueSize = 20
 dim txtQueue AS TextQueueItem(txtQueueSize)
 txtQueueIndex = -1
 
-printCentered(5, "Nuclear Attack")
-printCentered(7, "Reaction Failsafe")
-printCentered(9, "(N.A.R.F.)")
+printFixedText()
 
 addToTextQueue(12, 1, 10, "Connecting to NORAD...")
-print_at 13, 1, "User:";
 addToTextQueue(13, 7, 50, "RONALD REAGAN")
 
 'main loop: add text output queue for telegraph effect
@@ -31,7 +28,17 @@ repeat
     printQueues()
 until key_pressed()
 
+print free_memory();" bytes free"
+
 end
+
+inline function printFixedText()
+    printCentered(5, "Nuclear Attack")
+    printCentered(7, "Reaction Failsafe")
+    printCentered(9, "(N.A.R.F.)")
+
+    print_at 13, 1, "User:"
+end function
 
 function printCentered(row, text$)
     column = (TEXT_COLUMNS - len(text$)) / 2 + 1
@@ -56,11 +63,7 @@ end function
 
 function printQueues()
     for i = 0 to txtQueueIndex
-        if txtQueueIndex < 0 then
-            exit for
-        end if
-
-        if i > txtQueueIndex then
+        if txtQueueIndex < 0 or i > txtQueueIndex then
             exit for
         end if
 
@@ -68,11 +71,11 @@ function printQueues()
             continue for
         end if
 
-        printQueueCharacter(i)
+        print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
         txtQueue(i).length = txtQueue(i).length - 1
 
         if txtQueue(i).length = 0 then
-            removeQueueItem(i)
+            remove_element(txtQueue, i)
             txtQueueIndex = txtQueueIndex - 1
             i = i - 1 ' Adjust index since we removed an item
             continue for
@@ -80,14 +83,6 @@ function printQueues()
 
         advanceQueueItem(i)
     next i
-end function
-
-inline function printQueueCharacter(queueIndex)
-    print_at txtQueue(queueIndex).row, txtQueue(queueIndex).column, left$(txtQueue(queueIndex).text$, 1) ' Print one character at a time
-end function
-
-inline function removeQueueItem(queueIndex)
-    remove_element(txtQueue, queueIndex)
 end function
 
 inline function advanceQueueItem(queueIndex)
