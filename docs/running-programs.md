@@ -181,12 +181,12 @@ The example configuration uses:
 
 `-xl` and `-basic` should start the emulator directly into Atari BASIC. The launcher still builds the normal Atari 800XL target and uses the configured Atari tokenization/ATR tools. The default launch artifact is the tokenized `.BAS`; `--artifact basic`, `--artifact lst`, and `--artifact atr` are also available for experiments.
 
-For all-target launches, Altirra is preferred when both Atari emulators are configured:
+For all-target launches, both Atari emulators are started when both are configured:
 
 ```text
 npm run launch:all-targets -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator auto
 npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator atari800
-npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator all
 ```
 
 ## Atari 800XL test output capture

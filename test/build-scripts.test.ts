@@ -150,6 +150,14 @@ describe("build scripts", () => {
     ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
 
     expect(
+      configuredLaunchTargets({
+        spectrum: { emulator: { path: "fuse" } },
+        atari800xl: { emulators: { altirra: { path: "altirra" }, atari800: { path: "atari800" } } },
+        c64: { emulator: { path: "x64sc" } }
+      }).map((entry: { script: string }) => entry.script)
+    ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
+
+    expect(
       configuredLaunchTargets(
         {
           spectrum: { emulator: { path: "fuse" } },

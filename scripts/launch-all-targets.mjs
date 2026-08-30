@@ -21,7 +21,7 @@ const launchTargets = [
 export function configuredLaunchTargets(config, options = {}) {
   return launchTargets.filter(({ target, atariEmulator }) => {
     if (atariEmulator) {
-      const selectedAtari = options.atariEmulator ?? "auto";
+      const selectedAtari = options.atariEmulator ?? "all";
       if (selectedAtari === "auto") {
         const altirraConfigured = hasAtariEmulatorPath(config, "altirra");
         if ((altirraConfigured && atariEmulator !== "altirra") || (!altirraConfigured && atariEmulator !== "atari800")) {
@@ -111,7 +111,7 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     atariArtifact: undefined,
-    atariEmulator: "auto",
+    atariEmulator: "all",
     runBuild: true,
     restart: false
   };

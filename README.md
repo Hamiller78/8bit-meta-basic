@@ -102,7 +102,7 @@ Launch every configured emulator for one source:
 npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
 
-When both Altirra and Atari800 are configured, `launch:all-targets` uses Altirra for Atari by default. Use `--atari-emulator atari800` to pick Atari800, or `--atari-emulator all` to launch both Atari emulators.
+When both Altirra and Atari800 are configured, `launch:all-targets` launches both Atari emulators by default. Use `--atari-emulator auto` to launch only one Atari emulator, preferring Altirra when configured.
 
 Build profiles select the output readability:
 

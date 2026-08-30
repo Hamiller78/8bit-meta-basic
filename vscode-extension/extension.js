@@ -99,7 +99,8 @@ async function runProjectCommand(context, options) {
 }
 
 function toolInvocation(options, projectPath, config, profile, toolRoot) {
-  const args = [path.join(toolRoot, options.script)];
+  const script = launchScriptForOptions(options, config);
+  const args = [path.join(toolRoot, script)];
   if (options.target) {
     args.push(options.target);
   }
@@ -123,6 +124,10 @@ function toolInvocation(options, projectPath, config, profile, toolRoot) {
     }
   }
 
+  if (options.launch && script === "scripts/launch-all-targets.mjs") {
+    args.push("--atari-emulator", config.get("atariEmulator", "auto"));
+  }
+
   if (options.launch && config.get("restartEmulators", true)) {
     args.push("--restart");
   }
@@ -132,6 +137,13 @@ function toolInvocation(options, projectPath, config, profile, toolRoot) {
   }
 
   return { command: process.execPath, args, env: { ELECTRON_RUN_AS_NODE: "1" }, toolConfig: toolConfig ?? (options.launch || options.forceExternalTools ? path.join(projectPath, "metabasic-tools.json") : undefined) };
+}
+
+function launchScriptForOptions(options, config) {
+  if (options.launch && options.target === "atari800xl" && config.get("atariEmulator", "auto") === "atari800") {
+    return "scripts/launch-atari800.mjs";
+  }
+  return options.script;
 }
 
 function resolveToolConfig(projectPath, config) {

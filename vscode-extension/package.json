@@ -129,6 +129,17 @@
             ],
             "default": "target-default",
             "description": "External device used when mirrorTestOutput is enabled. target-default lets each launcher choose its configured target transport."
+          },
+        "metabasic.atariEmulator": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "altirra",
+            "atari800",
+            "all"
+          ],
+          "default": "all",
+          "description": "Atari emulator used by launch commands. all launches both configured Atari emulators during all-target launches; auto prefers Altirra when configured and otherwise uses Atari800."
           }
       }
     }

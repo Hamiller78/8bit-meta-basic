@@ -169,7 +169,7 @@ To launch every target with an emulator path configured:
 npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
 
-The all-targets launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead. When both Altirra and Atari800 are configured, Altirra is used by default; pass `--atari-emulator atari800` to choose Atari800, or `--atari-emulator all` to launch both Atari emulators.
+The all-targets launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead. When both Altirra and Atari800 are configured, both are launched by default; pass `--atari-emulator auto` to launch only one Atari emulator, preferring Altirra when configured.
 
 ## Configuration Boundary
 
