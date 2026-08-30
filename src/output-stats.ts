@@ -1,17 +1,4 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++export interface OutputStats {
+export interface OutputStats {
   readonly lineCount: number;
   readonly firstLineNumber?: number;
   readonly lastLineNumber?: number;
@@ -35,7 +22,10 @@ export interface VariableRoleStats {
   readonly generatedBookkeeping: readonly string[];
 }
 
-export function analyzeBasicOutput(lines: readonly string[], target?: string): OutputStats {
+export function analyzeBasicOutput(
+  lines: readonly string[],
+  target?: string,
+): OutputStats {
   const numericVariables = new Set<string>();
   const stringVariables = new Set<string>();
   const numericArrays = new Set<string>();
@@ -60,14 +50,33 @@ export function analyzeBasicOutput(lines: readonly string[], target?: string): O
   }
 
   for (const line of lines) {
-    collectDimmedVariables(line, target, numericVariables, stringVariables, numericArrays, stringArrays);
+    collectDimmedVariables(
+      line,
+      target,
+      numericVariables,
+      stringVariables,
+      numericArrays,
+      stringArrays,
+    );
   }
 
   for (const line of lines) {
-    collectVariables(line, target, numericVariables, stringVariables, numericArrays, stringArrays);
+    collectVariables(
+      line,
+      target,
+      numericVariables,
+      stringVariables,
+      numericArrays,
+      stringArrays,
+    );
   }
 
-  const allVariables = new Set([...numericVariables, ...stringVariables, ...numericArrays, ...stringArrays]);
+  const allVariables = new Set([
+    ...numericVariables,
+    ...stringVariables,
+    ...numericArrays,
+    ...stringArrays,
+  ]);
 
   return {
     lineCount: lines.length,
@@ -79,15 +88,24 @@ export function analyzeBasicOutput(lines: readonly string[], target?: string): O
     stringVariables: sorted(stringVariables),
     numericArrays: sorted(numericArrays),
     stringArrays: sorted(stringArrays),
-    variableRoles: classifyVariableRoles(allVariables)
+    variableRoles: classifyVariableRoles(allVariables),
   };
 }
 
 export function formatOutputStats(stats: OutputStats): string {
   const lineRange =
-    stats.firstLineNumber !== undefined && stats.lastLineNumber !== undefined ? ` (${stats.firstLineNumber}..${stats.lastLineNumber})` : "";
-  const longestLine = stats.longestLineNumber !== undefined ? `${stats.longestLineLength} chars at ${stats.longestLineNumber}` : `${stats.longestLineLength} chars`;
-  const totalVariables = stats.numericVariables.length + stats.stringVariables.length + stats.numericArrays.length + stats.stringArrays.length;
+    stats.firstLineNumber !== undefined && stats.lastLineNumber !== undefined
+      ? ` (${stats.firstLineNumber}..${stats.lastLineNumber})`
+      : "";
+  const longestLine =
+    stats.longestLineNumber !== undefined
+      ? `${stats.longestLineLength} chars at ${stats.longestLineNumber}`
+      : `${stats.longestLineLength} chars`;
+  const totalVariables =
+    stats.numericVariables.length +
+    stats.stringVariables.length +
+    stats.numericArrays.length +
+    stats.stringArrays.length;
 
   return [
     "Transpiler output:",
@@ -106,7 +124,7 @@ export function formatOutputStats(stats: OutputStats): string {
     `    Compiler temporaries: ${stats.variableRoles.compilerTemporaries.length}${formatNames(stats.variableRoles.compilerTemporaries)}`,
     `    TEST locals: ${stats.variableRoles.testLocals.length}${formatNames(stats.variableRoles.testLocals)}`,
     `    TEST runtime: ${stats.variableRoles.testRuntime.length}${formatNames(stats.variableRoles.testRuntime)}`,
-    `    Other generated bookkeeping: ${stats.variableRoles.generatedBookkeeping.length}${formatNames(stats.variableRoles.generatedBookkeeping)}`
+    `    Other generated bookkeeping: ${stats.variableRoles.generatedBookkeeping.length}${formatNames(stats.variableRoles.generatedBookkeeping)}`,
   ].join("\n");
 }
 
@@ -119,7 +137,7 @@ function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
     compilerTemporaries: new Set<string>(),
     testLocals: new Set<string>(),
     testRuntime: new Set<string>(),
-    generatedBookkeeping: new Set<string>()
+    generatedBookkeeping: new Set<string>(),
   };
 
   for (const name of names) {
@@ -134,7 +152,10 @@ function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
       roles.compilerTemporaries.add(name);
     } else if (/^MBTEST\d+L\d+$/i.test(base)) {
       roles.testLocals.add(name);
-    } else if (testRuntimeVariables.has(name) || testRuntimeVariables.has(base)) {
+    } else if (
+      testRuntimeVariables.has(name) ||
+      testRuntimeVariables.has(base)
+    ) {
       roles.testRuntime.add(name);
     } else if (/^MB[A-Z0-9]*/i.test(base)) {
       roles.generatedBookkeeping.add(name);
@@ -151,7 +172,7 @@ function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
     compilerTemporaries: sorted(roles.compilerTemporaries),
     testLocals: sorted(roles.testLocals),
     testRuntime: sorted(roles.testRuntime),
-    generatedBookkeeping: sorted(roles.generatedBookkeeping)
+    generatedBookkeeping: sorted(roles.generatedBookkeeping),
   };
 }
 
@@ -161,7 +182,7 @@ function collectVariables(
   numericVariables: Set<string>,
   stringVariables: Set<string>,
   numericArrays: Set<string>,
-  stringArrays: Set<string>
+  stringArrays: Set<string>,
 ): void {
   const code = stripStrings(stripLineNumber(line));
   if (/^\s*REM\b/i.test(code)) {
@@ -186,7 +207,7 @@ function collectDimmedVariables(
   numericVariables: Set<string>,
   stringVariables: Set<string>,
   numericArrays: Set<string>,
-  stringArrays: Set<string>
+  stringArrays: Set<string>,
 ): void {
   const code = stripStrings(stripLineNumber(line));
   const dimMatch = /^\s*DIM\s+(.+)$/i.exec(code);
@@ -204,7 +225,11 @@ function collectDimmedVariables(
   }
 }
 
-function addName(name: string, numericNames: Set<string>, stringNames: Set<string>): void {
+function addName(
+  name: string,
+  numericNames: Set<string>,
+  stringNames: Set<string>,
+): void {
   if (name.endsWith("$")) {
     stringNames.add(name);
   } else {
@@ -212,7 +237,11 @@ function addName(name: string, numericNames: Set<string>, stringNames: Set<strin
   }
 }
 
-function isDeclaredArray(name: string, numericArrays: ReadonlySet<string>, stringArrays: ReadonlySet<string>): boolean {
+function isDeclaredArray(
+  name: string,
+  numericArrays: ReadonlySet<string>,
+  stringArrays: ReadonlySet<string>,
+): boolean {
   return numericArrays.has(name) || stringArrays.has(name);
 }
 
@@ -221,7 +250,7 @@ function stripLineNumber(line: string): string {
 }
 
 function stripStrings(line: string): string {
-  return line.replaceAll(/"[^"]*"/g, "\"\"");
+  return line.replaceAll(/"[^"]*"/g, '""');
 }
 
 function parseLineNumber(line: string): number | undefined {
@@ -282,7 +311,7 @@ const ignoredIdentifiers = new Set([
   "SUB",
   "SYS",
   "THEN",
-  "TO"
+  "TO",
 ]);
 
 const ignoredCallNames = new Set([
@@ -306,7 +335,7 @@ const ignoredCallNames = new Set([
   "SQR",
   "STR",
   "USR",
-  "VAL"
+  "VAL",
 ]);
 
 const variableNamePattern = /\b[A-Z][A-Z0-9]*(?:[%$])?(?![A-Z0-9])/gi;
@@ -342,5 +371,5 @@ const testRuntimeVariables = new Set([
   "MBTPR",
   "MBTMSG$",
   "MB",
-  "MB$"
+  "MB$",
 ]);
