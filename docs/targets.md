@@ -88,7 +88,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.
-- `SHARED_DRIVE` opens `H6:MCP.TXT` for Altirra H: host-device text capture.
+- `SHARED_DRIVE` opens `H6:MCP.TXT` by default for Altirra H: host-device text capture. The Atari800 launcher overrides it to `H1:MCP.TXT`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
 - Fixed-width string arrays render as one backing Atari string. In readable output, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`. In compact output, the backing name is shortened like other variables.

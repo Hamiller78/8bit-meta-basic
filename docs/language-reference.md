@@ -297,7 +297,7 @@ Supported device constants are `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `R
 
 `TEXT_PRINTER` is intended for plain text capture workflows. On Spectrum it lowers `PRINT_DEVICE` to native `LPRINT`, which is the path Fuse can write to a host text file through ZX Printer emulation. On Atari and C64 it currently behaves like `PRINTER`.
 
-`SHARED_DRIVE` is intended for emulator host-folder workflows. It is currently implemented for Atari/Altirra only and lowers to the translated H: host-device file `H6:MCP.TXT`.
+`SHARED_DRIVE` is intended for emulator host-folder workflows. It is implemented for Atari host-device workflows and lowers to `H6:MCP.TXT` by default for Altirra. The Atari800 launcher overrides that to `H1:MCP.TXT`.
 
 `DEVICE_AVAILABLE` is a best-effort runtime helper; C64 RS-232 currently reports available because probing the channel can disturb the connection, while printer availability can be checked more directly on some targets.
 

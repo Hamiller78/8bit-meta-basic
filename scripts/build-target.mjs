@@ -42,6 +42,7 @@ export async function buildTarget(options) {
   const configPath = options.configPath ?? defaultToolConfig;
   const runBuild = options.runBuild ?? true;
   const runTools = options.runTools ?? true;
+  const atariSharedDriveSpec = options.atariSharedDriveSpec;
 
   if (!targets.includes(target)) {
     throw new Error(`Unknown target "${target}". Expected one of: ${targets.join(", ")}.`);
@@ -77,7 +78,8 @@ export async function buildTarget(options) {
       "--output",
       basicPath,
       ...(testMode ? ["--run-tests"] : []),
-      ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : [])
+      ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : []),
+      ...(atariSharedDriveSpec ? ["--atari-shared-drive-spec", atariSharedDriveSpec] : [])
     ],
     { cwd }
   );
@@ -396,7 +398,8 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
-    runTools: true
+    runTools: true,
+    atariSharedDriveSpec: undefined
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -454,6 +457,11 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--atari-shared-drive-spec") {
+      options.atariSharedDriveSpec = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--skip-build") {
       options.runBuild = false;
       continue;
@@ -473,7 +481,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;

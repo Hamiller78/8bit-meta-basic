@@ -65,7 +65,7 @@ describe("build scripts", () => {
       inputArtifact: "atariDiskDirectory",
       outputExtension: ".atr"
     });
-    expect(config.atari800xl.emulator).toMatchObject({
+    expect(config.atari800xl.emulators.altirra).toMatchObject({
       name: "Altirra",
       testOutputDevice: "shared-drive",
       sharedDrivePath: "build/altirra_drive",
@@ -75,6 +75,19 @@ describe("build scripts", () => {
         atr: ["/disk", "{artifact}"],
         "tokenized-bas": ["/runbas", "{artifact}"]
       }
+    });
+  });
+
+  it("configures the Atari800 emulator launch command", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+
+    expect(config.atari800xl.emulators.atari800).toMatchObject({
+      name: "Atari800",
+      testOutputDevice: "shared-drive",
+      sharedDriveSpec: "H1:MCP.TXT",
+      sharedDrivePath: "build/atari800_drive",
+      sharedDriveOutputPath: "build/atari800_drive/MCP.TXT",
+      args: ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"]
     });
   });
 
@@ -131,10 +144,21 @@ describe("build scripts", () => {
     expect(
       configuredLaunchTargets({
         spectrum: { emulator: { path: "fuse" } },
-        atari800xl: { emulator: { path: "" } },
+        atari800xl: { emulators: { altirra: { path: "" }, atari800: { path: "atari800" } } },
         c64: { emulator: { path: "x64sc" } }
-      }).map((entry: { target: string }) => entry.target)
-    ).toEqual(["spectrum", "c64"]);
+      }).map((entry: { script: string }) => entry.script)
+    ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
+
+    expect(
+      configuredLaunchTargets(
+        {
+          spectrum: { emulator: { path: "fuse" } },
+          atari800xl: { emulators: { altirra: { path: "" }, atari800: { path: "atari800" } } },
+          c64: { emulator: { path: "x64sc" } }
+        },
+        { atariEmulator: "atari800" }
+      ).map((entry: { script: string }) => entry.script)
+    ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
   });
 
   it("derives build artifact names from single sources and project configs", async () => {

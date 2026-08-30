@@ -88,6 +88,7 @@ npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer
 ```
 
 The launch scripts default to the verified capture transport for each target: Spectrum uses `TEXT_PRINTER`/Fuse ZX Printer text output, Atari uses `SHARED_DRIVE`/Altirra H: output below `build/altirra_drive/`, and C64 uses a small local RS-232 capture endpoint below `build/rs232/<profile>/c64/`.
+Atari800 7.x is also supported as an alternate Atari emulator through `npm run launch:atari800`; configure it in the `atari800xl.emulators.atari800` block of `scripts/tools.local.json`.
 
 Build artifacts for all targets:
 
@@ -100,6 +101,8 @@ Launch every configured emulator for one source:
 ```text
 npm run launch:all-targets -- --source examples/narf.mbas --restart
 ```
+
+When both Altirra and Atari800 are configured, `launch:all-targets` uses Altirra for Atari by default. Use `--atari-emulator atari800` to pick Atari800, or `--atari-emulator all` to launch both Atari emulators.
 
 Build profiles select the output readability:
 

@@ -4,7 +4,7 @@ import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
 import { getTarget, type TargetId } from "./targets/index.js";
 import { setC64RenderProgram } from "./targets/c64.js";
-import { setAtariRenderProgram } from "./targets/atari800xl.js";
+import { setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions } from "./targets/instruction-expressions.js";
@@ -24,6 +24,7 @@ export interface CompileOptions {
   readonly testMode?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
+  readonly atariSharedDriveSpec?: string;
 }
 
 export interface CompileResult {
@@ -53,6 +54,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice
   });
+  setAtariSharedDriveSpec(options.atariSharedDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability);
 
   return {

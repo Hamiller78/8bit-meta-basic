@@ -246,9 +246,14 @@ function hoistAtariStringDimensions(instructions: readonly Instruction[]): reado
 }
 
 let currentProgramInstructions: readonly Instruction[] = [];
+let currentSharedDriveSpec = "H6:MCP.TXT";
 
 export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+export function setAtariSharedDriveSpec(spec: string | undefined): void {
+  currentSharedDriveSpec = spec ?? "H6:MCP.TXT";
 }
 
 function atariIocbNumber(handle: string, location: Expression["location"]): number {
@@ -298,12 +303,12 @@ function expandAtariDeviceAvailabilityCheck(
   ];
 }
 
-function atariDeviceSpec(device: DeviceKind): "P:" | "R:" | "H6:MCP.TXT" {
+function atariDeviceSpec(device: DeviceKind): string {
   switch (device) {
     case "rs232":
       return "R:";
     case "shared-drive":
-      return "H6:MCP.TXT";
+      return currentSharedDriveSpec;
     case "printer":
     case "text-printer":
       return "P:";

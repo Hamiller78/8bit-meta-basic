@@ -1,4 +1,17 @@
-export interface OutputStats {
+
+
+
+
+
+
+
+
+
+
+
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++export interface OutputStats {
   readonly lineCount: number;
   readonly firstLineNumber?: number;
   readonly lastLineNumber?: number;

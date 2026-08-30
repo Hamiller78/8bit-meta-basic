@@ -12,18 +12,21 @@ const defaultOutDir = "build";
 const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
 const defaultTestOutputDevice = "shared-drive";
+const defaultSharedDriveSpec = "H1:MCP.TXT";
 const artifactExtensions = {
+  basic: ".bas",
   atr: ".atr",
   "tokenized-bas": ".tokenized.bas",
   lst: ".lst",
   "disk-directory": ".atr-files"
 };
 
-async function launchAtari(options) {
+async function launchAtari800(options) {
   const cwd = options.cwd ?? process.cwd();
   const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.atari800xl?.emulators?.altirra;
+  const emulator = config?.atari800xl?.emulators?.atari800;
   const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
+  const atariSharedDriveSpec = emulator?.sharedDriveSpec ?? defaultSharedDriveSpec;
 
   await buildTarget({
     target: "atari800xl",
@@ -39,25 +42,25 @@ async function launchAtari(options) {
     configPath: options.configPath,
     runBuild: options.runBuild,
     runTools: true,
-    atariSharedDriveSpec: emulator?.sharedDriveSpec
+    atariSharedDriveSpec
   });
 
   const artifacts = buildArtifacts(cwd, options);
   const artifact = artifacts[options.artifact];
   if (!artifact) {
-    throw new Error(`Unknown Atari launch artifact "${options.artifact}". Expected one of: ${Object.keys(artifactExtensions).join(", ")}.`);
+    throw new Error(`Unknown Atari800 launch artifact "${options.artifact}". Expected one of: ${Object.keys(artifactExtensions).join(", ")}.`);
   }
   if (!(await exists(artifact))) {
-    throw new Error(`Atari launch artifact not found: ${artifact}. Check that the configured tools produced it.`);
+    throw new Error(`Atari800 launch artifact not found: ${artifact}. Check that the configured tools produced it.`);
   }
 
   if (!emulator?.path) {
-    throw new Error(`No Altirra emulator path configured. Add atari800xl.emulators.altirra.path to ${options.configPath}.`);
+    throw new Error(`No Atari800 emulator path configured. Add atari800xl.emulators.atari800.path to ${options.configPath}.`);
   }
 
   const emulatorPath = resolve(cwd, emulator.path);
   if (!(await exists(emulatorPath))) {
-    throw new Error(`Atari emulator not found at ${emulator.path}.`);
+    throw new Error(`Atari800 emulator not found at ${emulator.path}.`);
   }
 
   if (options.restart) {
@@ -80,7 +83,8 @@ async function launchAtari(options) {
   if (options.testPrinterOutput) {
     await prepareDeviceOutput(deviceOutputForKind(testOutputDevice, replacements));
   }
-  const argsTemplate = emulator.artifactArgs?.[options.artifact] ?? emulator.args ?? ["{artifact}"];
+
+  const argsTemplate = emulator.artifactArgs?.[options.artifact] ?? emulator.args ?? ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"];
   const deviceArgs = deviceArgsForKind(testOutputDevice, emulator);
   const args = [...argsTemplate, ...(options.testPrinterOutput ? deviceArgs : [])].map((arg) => replacePlaceholders(arg, replacements));
 
@@ -92,7 +96,7 @@ async function launchAtari(options) {
   });
   child.unref();
 
-  console.log(`launched ${emulator.name ?? "Atari emulator"} with ${relativeToCwd(cwd, artifact)}`);
+  console.log(`launched ${emulator.name ?? "Atari800"} with ${relativeToCwd(cwd, artifact)}`);
 }
 
 function parseArgs(argv) {
@@ -217,6 +221,7 @@ async function loadConfig(configPath) {
 function buildArtifacts(cwd, options) {
   const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
   return {
+    basic: outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".bas"),
     atr: outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".atr"),
     "tokenized-bas": outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".tokenized.bas"),
     lst: outputPathFor(cwd, options.outDir, options.profile, "atari800xl", program.name, ".lst"),
@@ -236,7 +241,7 @@ function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
 }
 
 function sharedDrivePath(cwd, emulator, options, sourceName, target) {
-  const template = emulator.sharedDrivePath ?? "build/altirra_drive";
+  const template = emulator.sharedDrivePath ?? "build/atari800_drive";
   return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
 }
 
@@ -307,7 +312,7 @@ function relativeToCwd(cwd, path) {
 
 async function main() {
   try {
-    await launchAtari(parseArgs(process.argv.slice(2)));
+    await launchAtari800(parseArgs(process.argv.slice(2)));
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

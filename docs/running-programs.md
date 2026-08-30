@@ -89,7 +89,7 @@ Status: **current documented project workflow; emulator details need a clean rep
 
 Configuration split:
 
-- JSON: set `basicParser`, `dir2atr`, Altirra executable path, artifact launch arguments, and shared-drive output paths in `scripts/tools.local.json`.
+- JSON: set shared Atari packaging tools in `atari800xl.tools`; set Altirra executable path, artifact launch arguments, and shared-drive output paths in `atari800xl.emulators.altirra`.
 - Manual: install Altirra and the Atari packaging tools; if using test capture, create or select an Altirra profile with a writable H: host device pointing at the configured shared-drive folder.
 
 The launch helper can build the selected program and run the tokenized `.BAS` in Altirra:
@@ -163,6 +163,32 @@ For an explicit raw tokenized-file launch in Altirra:
 npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --restart
 ```
 
+## Atari 800XL with Atari800 7.x
+
+Status: **script support added; emulator behavior should be checked per machine**.
+
+Atari800 7.x can be launched directly from the command line. Configure `atari800xl.emulators.atari800.path` in `scripts/tools.local.json`, then run:
+
+```text
+npm run launch:atari800 -- --source examples/narf.mbas --restart
+```
+
+The example configuration uses:
+
+```text
+-xl -pal -basic -H1 build/atari800_drive -hreadwrite -run <artifact>
+```
+
+`-xl` and `-basic` should start the emulator directly into Atari BASIC. The launcher still builds the normal Atari 800XL target and uses the configured Atari tokenization/ATR tools. The default launch artifact is the tokenized `.BAS`; `--artifact basic`, `--artifact lst`, and `--artifact atr` are also available for experiments.
+
+For all-target launches, Altirra is preferred when both Atari emulators are configured:
+
+```text
+npm run launch:all-targets -- --source examples/narf.mbas --restart
+npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator atari800
+npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator all
+```
+
 ## Atari 800XL test output capture
 
 Status: **minimal Altirra H: host-device path verified locally**.
@@ -178,6 +204,12 @@ C:\Users\Knees\source\repos\8bit-meta-basic\build\altirra_drive\
 The launcher clears `build/altirra_drive/MCP.TXT` before starting Altirra, and the generated Atari test runner writes to `H6:MCP.TXT` so line endings become readable on the host.
 
 This H: mapping is currently a manual Altirra setting. The JSON config only tells the launcher which host folder and output filename to prepare; it does not create the emulator profile or change Altirra's GUI settings.
+
+For Atari800, the launcher configures the H: host device on the command line. The default Atari800 test path is `H1:MCP.TXT`, mapped to `build/atari800_drive/MCP.TXT`:
+
+```text
+npm run launch:atari800 -- --project examples/instruction-suite --run-tests --printer-output --restart
+```
 
 Shared-drive capture:
 

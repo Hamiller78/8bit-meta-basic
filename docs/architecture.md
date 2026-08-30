@@ -77,6 +77,7 @@ The verified external test-output transports are:
 
 - Spectrum/Fuse: `TEXT_PRINTER`, lowered to `LPRINT`, captured through Fuse ZX Printer text output.
 - Atari/Altirra: `SHARED_DRIVE`, lowered to `H6:MCP.TXT` on Altirra's H: host device.
+- Atari800: `SHARED_DRIVE`, lowered to `H1:MCP.TXT` by the Atari800 launch adapter and mapped with `-H1`.
 - C64/VICE: `RS232`, lowered to BASIC device 2 and captured by a local TCP helper.
 
 The logical result protocol is shared. Only the physical transport differs per emulator.

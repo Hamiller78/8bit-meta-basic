@@ -39,23 +39,45 @@
         "outputExtension": ".atr"
       }
     ],
-    "emulator": {
-      "name": "Altirra",
-      "path": "",
-      "testOutputDevice": "shared-drive",
-      "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
-      "printerArgs": [],
-      "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
-      "rs232Args": [],
-      "sharedDrivePath": "build/altirra_drive",
-      "sharedDriveOutputPath": "build/altirra_drive/MCP.TXT",
-      "sharedDriveArgs": [],
-      "args": ["{artifact}"],
-      "artifactArgs": {
-        "atr": ["/disk", "{artifact}"],
-        "tokenized-bas": ["/runbas", "{artifact}"],
-        "lst": ["/runbas", "{artifact}"],
-        "disk-directory": ["{artifact}"]
+    "emulators": {
+      "altirra": {
+        "name": "Altirra",
+        "path": "",
+        "testOutputDevice": "shared-drive",
+        "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+        "printerArgs": [],
+        "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
+        "rs232Args": [],
+        "sharedDrivePath": "build/altirra_drive",
+        "sharedDriveOutputPath": "build/altirra_drive/MCP.TXT",
+        "sharedDriveArgs": [],
+        "args": ["{artifact}"],
+        "artifactArgs": {
+          "atr": ["/disk", "{artifact}"],
+          "tokenized-bas": ["/runbas", "{artifact}"],
+          "lst": ["/runbas", "{artifact}"],
+          "disk-directory": ["{artifact}"]
+        }
+      },
+      "atari800": {
+        "name": "Atari800",
+        "path": "",
+        "testOutputDevice": "shared-drive",
+        "sharedDriveSpec": "H1:MCP.TXT",
+        "sharedDrivePath": "build/atari800_drive",
+        "sharedDriveOutputPath": "build/atari800_drive/MCP.TXT",
+        "sharedDriveArgs": [],
+        "printerOutputPath": "build/printer/{profile}/{target}/{sourceName}.txt",
+        "printerArgs": [],
+        "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt",
+        "rs232Args": [],
+        "args": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"],
+        "artifactArgs": {
+          "basic": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"],
+          "tokenized-bas": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"],
+          "lst": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"],
+          "atr": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "{artifact}"]
+        }
       }
     }
   },
