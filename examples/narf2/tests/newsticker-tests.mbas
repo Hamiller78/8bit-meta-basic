@@ -1,0 +1,39 @@
+globals
+    newsText$ = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    displayedText$ = left$(newsText$, TICKER_TEXT_WIDTH)
+    nextText$ = ""
+    newsIndex = 1
+    nextTickerUpdate = 0
+end globals
+
+test SetupTickerInitializesWindow()
+    setupTicker()
+    assert_eq left$(newsText$, TICKER_TEXT_WIDTH), displayedText$
+    assert_eq TICKER_TEXT_WIDTH + 1, newsIndex
+    assert_true nextTickerUpdate > 0
+end test
+
+test GetNewsLineAdvancesByOneCharacter()
+    setupTicker()
+    getNewsLine()
+    assert_eq mid$(newsText$, 2, TICKER_TEXT_WIDTH), displayedText$
+    assert_eq TICKER_TEXT_WIDTH + 2, newsIndex
+end test
+
+test NextTickerTextIsUsedOnWrap()
+    setupTicker()
+    setNextTickerText("1234567890123456789012345678901234567890")
+    newsIndex = len(newsText$) + 1
+    getNewsLine()
+    assert_eq "1234567890123456789012345678901234567890", newsText$
+    assert_eq "", nextText$
+    assert_eq 2, newsIndex
+    assert_eq "1", right$(displayedText$, 1)
+end test
+
+test UpdateTickerPrintsCurrentWindow()
+    setupTicker()
+    nextTickerUpdate = -1
+    updateTicker()
+    assert_printat TEXT_ROWS - 1, 5, displayedText$
+end test

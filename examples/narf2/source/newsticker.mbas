@@ -7,6 +7,7 @@ newsText$ = newsText$ + "FIGHTING CONTINUES BETWEEN RIVAL PLO FACTIONS IN LEBANO
 newsText$ = newsText$ + "TONIGHT: MAGNUM P.I. ON CBS - "
 newsText$ = newsText$ + "THE WEATHER: PARTLY CLOUDY WITH A HIGH OF 75 - "
 displayedText$ = left$(newsText$, TICKER_TEXT_WIDTH)
+nextText$ = ""
 newsIndex = 1
 nextTickerUpdate = 0
 
@@ -15,6 +16,10 @@ function setupTicker()
     displayedText$ = left$(newsText$, TICKER_TEXT_WIDTH)
     newsIndex = TICKER_TEXT_WIDTH + 1
     nextTickerUpdate = jiffies() + TICKER_UPDATE_DELAY
+end function
+
+function setNextTickerText(text$)
+    nextText$ = text$
 end function
 
 function updateTicker()
@@ -27,6 +32,10 @@ end function
 
 inline function getNewsLine()
     if newsIndex > len(newsText$) then
+        if nextText$ <> "" then
+            newsText$ = nextText$
+            nextText$ = ""
+        end if
         newsIndex = 1
     end if
 
