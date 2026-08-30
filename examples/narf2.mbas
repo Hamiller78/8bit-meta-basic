@@ -1,9 +1,10 @@
 program_mode
-screen_border_color BLACK
-screen_background_color BLACK
+screen_border_color BLUE
+screen_background_color BLUE
 screen_text_color WHITE
 cls
 
+' struct for telegraph text being printed one character at a time
 struct TextQueueItem
     row
     column
@@ -13,12 +14,19 @@ struct TextQueueItem
     nextTime
 end struct
 
-'Variables for text output queue
+'Variables for telegraph text output queue, several in parallel can be printed at once, each with its own delay
 const txtQueueSize = 20
 dim txtQueue AS TextQueueItem(txtQueueSize)
 txtQueueIndex = -1
 
-printFixedText()
+'Variables for game logic
+icbms = 500
+submarines = 50
+bombers = 100
+defcon = 1
+
+'begin program
+printIntroText()
 
 addToTextQueue(12, 1, 10, "Connecting to NORAD...")
 addToTextQueue(13, 7, 50, "RONALD REAGAN")
@@ -28,16 +36,36 @@ repeat
     printQueues()
 until key_pressed()
 
+txtQueueIndex = -1 ' Clear the queue for next screen
+setUpMainScreen()
+
+repeat
+until key_pressed()
+
 print free_memory();" bytes free"
 
 end
 
-inline function printFixedText()
+inline function printIntroText()
     printCentered(5, "Nuclear Attack")
     printCentered(7, "Reaction Failsafe")
     printCentered(9, "(N.A.R.F.)")
 
     print_at 13, 1, "User:"
+end function
+
+inline function setUpMainScreen()
+    cls
+
+    print_at 1, 1, "DEFCON: " + str$(defcon);
+    print_at 1, 20, "ICBMS:   " + str$(icbms);
+    print_at 2, 1, "SUBS:   " + str$(submarines);
+    print_at 2, 20, "BOMBERS: " + str$(bombers);
+    print_at 3,1, string$("-", TEXT_COLUMNS);
+    print_at TEXT_ROWS - 1, 1, "***";
+    text_color YELLOW
+    print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";
+    text_color WHITE
 end function
 
 function printCentered(row, text$)
