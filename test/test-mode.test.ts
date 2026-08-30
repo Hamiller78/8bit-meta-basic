@@ -150,7 +150,7 @@ describe("Meta-BASIC test mode", () => {
       { filename: "printat.mbas", target: "spectrum", readability: 0, testMode: true }
     );
 
-    expect(output).not.toContain('PRINT AT 2,3;"HI"');
+    expect(output).not.toContain('PRINT AT 1,2;"HI"');
     expect(output).toContain("LET MBTPROW=2");
     expect(output).toContain("LET MBTPCOL=3");
     expect(output).not.toContain("FAIL PositionedOutput");

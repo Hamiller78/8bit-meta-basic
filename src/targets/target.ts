@@ -100,7 +100,7 @@ export function expandPositionedPrints(
     if (instruction.kind === "print" && instruction.at) {
       validateConstantCoordinate(instruction.at.row, "row", maxRow, targetName);
       validateConstantCoordinate(instruction.at.column, "column", maxColumn, targetName);
-      instructions.push(...expand(instruction));
+      instructions.push(...expand(lowerPositionedPrintCoordinates(instruction)));
     } else {
       instructions.push(instruction);
     }
@@ -129,15 +129,44 @@ export function rebuildLabels(program: LoweredProgram, instructions: readonly In
   return { instructions, labels };
 }
 
+function lowerPositionedPrintCoordinates(instruction: Extract<Instruction, { kind: "print" }>): Extract<Instruction, { kind: "print" }> {
+  if (!instruction.at) {
+    return instruction;
+  }
+
+  return {
+    ...instruction,
+    at: {
+      row: lowerPositionedPrintCoordinate(instruction.at.row),
+      column: lowerPositionedPrintCoordinate(instruction.at.column)
+    }
+  };
+}
+
+function lowerPositionedPrintCoordinate(expression: Expression): Expression {
+  if (expression.kind === "number") {
+    return { ...expression, value: expression.value - 1, raw: formatNumber(expression.value - 1) };
+  }
+
+  return {
+    kind: "binary",
+    operator: "-",
+    left: expression,
+    right: { kind: "number", value: 1, raw: "1", location: expression.location },
+    location: expression.location
+  };
+}
+
 function validateConstantCoordinate(expression: Expression, axis: "row" | "column", max: number, targetName: string): void {
   if (expression.kind !== "number") {
     return;
   }
 
-  if (!Number.isInteger(expression.value) || expression.value < 0 || expression.value > max) {
+  const humanMax = max + 1;
+  if (!Number.isInteger(expression.value) || expression.value < 1 || expression.value > humanMax) {
     throw new DiagnosticError(
       expression.location,
-      `${targetName} PRINT_AT ${axis} coordinate ${formatNumber(expression.value)} is outside the supported range 0..${max}.`
+      `${targetName} PRINT_AT ${axis} coordinate ${formatNumber(expression.value)} is outside the supported range 1..${humanMax}.`
     );
   }
 }

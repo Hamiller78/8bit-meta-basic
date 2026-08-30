@@ -359,16 +359,16 @@ describe("Spectrum compiler", () => {
 
   it("renders positioned output with Spectrum PRINT AT from source PRINT_AT", () => {
     expect(compileSource('print_at 10, 5, "WARNING";\n', { filename: "at.mbas", target: "spectrum" })).toBe(
-      ['10 PRINT AT 10,5;"WARNING";', ""].join("\n")
+      ['10 PRINT AT 9,4;"WARNING";', ""].join("\n")
     );
   });
 
   it("reports Spectrum constant coordinate ranges", () => {
-    expect(() => compileSource('print_at 22, 0, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
-      "Spectrum PRINT_AT row coordinate 22 is outside the supported range 0..21"
+    expect(() => compileSource('print_at 23, 1, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT_AT row coordinate 23 is outside the supported range 1..22"
     );
-    expect(() => compileSource('print_at 0, 32, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
-      "Spectrum PRINT_AT column coordinate 32 is outside the supported range 0..31"
+    expect(() => compileSource('print_at 1, 0, "NO"\n', { filename: "range.mbas", target: "spectrum" })).toThrow(
+      "Spectrum PRINT_AT column coordinate 0 is outside the supported range 1..32"
     );
   });
 
@@ -387,11 +387,11 @@ describe("Spectrum compiler", () => {
 
   it("uses Spectrum environment constants and case-insensitive lookup", () => {
     expect(
-      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1, "EDGE"\n', {
+      compileSource('const row = text_rows\nprint_at row, TEXT_COLUMNS, "EDGE"\n', {
         filename: "env.mbas",
         target: "spectrum"
       })
-    ).toBe(['10 PRINT AT 20,31;"EDGE"', ""].join("\n"));
+    ).toBe(['10 PRINT AT 21,31;"EDGE"', ""].join("\n"));
   });
 
   it("renders Spectrum CLS and every portable background colour without border or text-colour changes", () => {
@@ -829,8 +829,8 @@ describe("Spectrum compiler", () => {
 
   it("renders exact output for the colors example", () => {
     const source = [
-      "const titleColumn = 4",
-      "const messageRow = 4",
+      "const titleColumn = 5",
+      "const messageRow = 5",
       'const ruleLine$ = string$("-", TEXT_COLUMNS)',
       "",
       "screen_border_color BLUE",
@@ -841,10 +841,10 @@ describe("Spectrum compiler", () => {
       "cell_text_color YELLOW",
       "cell_background_color BLUE",
       "print ruleLine$",
-      'print_at 2, titleColumn, "META-BASIC COLOURS"',
+      'print_at 3, titleColumn, "META-BASIC COLOURS"',
       "",
       "screen_text_color CYAN",
-      'print_at messageRow, 0, "PRINT AND PRINT_AT"',
+      'print_at messageRow, 1, "PRINT AND PRINT_AT"',
       "",
       "screen_text_color WHITE",
       "print ruleLine$"

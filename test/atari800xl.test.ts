@@ -4,7 +4,7 @@ import { compileSource } from "../src/compiler.js";
 describe("Atari 800XL compiler", () => {
   it("renders assignment without LET and expands PRINT_AT to POSITION plus PRINT", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "atari.mbas", target: "atari800xl" })).toBe(
-      ["10 X=1", "20 POSITION 5,10", '30 PRINT "WARNING";X', ""].join("\n")
+      ["10 X=1", "20 POSITION 4,9", '30 PRINT "WARNING";X', ""].join("\n")
     );
   });
 
@@ -21,11 +21,11 @@ describe("Atari 800XL compiler", () => {
   });
 
   it("reports Atari constant coordinate ranges", () => {
-    expect(() => compileSource('print_at 24, 0, "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
-      "Atari 800XL PRINT_AT row coordinate 24 is outside the supported range 0..23"
+    expect(() => compileSource('print_at 25, 1, "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
+      "Atari 800XL PRINT_AT row coordinate 25 is outside the supported range 1..24"
     );
-    expect(() => compileSource('print_at 0, 40, "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
-      "Atari 800XL PRINT_AT column coordinate 40 is outside the supported range 0..39"
+    expect(() => compileSource('print_at 1, 0, "NO"\n', { filename: "range.mbas", target: "atari800xl" })).toThrow(
+      "Atari 800XL PRINT_AT column coordinate 0 is outside the supported range 1..40"
     );
   });
 
@@ -37,11 +37,11 @@ describe("Atari 800XL compiler", () => {
 
   it("uses Atari environment constants and case-insensitive lookup", () => {
     expect(
-      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1, "EDGE"\n', {
+      compileSource('const row = text_rows\nprint_at row, TEXT_COLUMNS, "EDGE"\n', {
         filename: "env.mbas",
         target: "atari800xl"
       })
-    ).toBe(["10 POSITION 39,22", '20 PRINT "EDGE"', ""].join("\n"));
+    ).toBe(["10 POSITION 39,23", '20 PRINT "EDGE"', ""].join("\n"));
   });
 
   it("renders GOSUB and RETURN", () => {
@@ -377,7 +377,7 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("DIM MBTEMP$(255)");
     expect(output).toContain("MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)");
     expect(output).toContain("TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$");
-    expect(output).toContain("POSITION TEXTQUEUECOLUMN(I),TEXTQUEUEROW(I)");
+    expect(output).toContain("POSITION TEXTQUEUECOLUMN(I) - 1,TEXTQUEUEROW(I) - 1");
     expect(output).toContain("PRINT TEXTQUEUE$(I * 39 + 1,I * 39 + 1 + 1 - 1)");
     expect(output.indexOf("DIM MBTEMP$(255)")).toBeLessThan(output.indexOf("MBTEMP$=TEXTQUEUE$("));
   });
@@ -489,8 +489,8 @@ describe("Atari 800XL compiler", () => {
 
 function colorsSource(): string {
   return [
-    "const titleColumn = 4",
-    "const messageRow = 4",
+    "const titleColumn = 5",
+    "const messageRow = 5",
     'const ruleLine$ = string$("-", TEXT_COLUMNS)',
     "",
     "screen_border_color BLUE",
@@ -501,10 +501,10 @@ function colorsSource(): string {
     "cell_text_color YELLOW",
     "cell_background_color BLUE",
     "print ruleLine$",
-    'print_at 2, titleColumn, "META-BASIC COLOURS"',
+    'print_at 3, titleColumn, "META-BASIC COLOURS"',
     "",
     "screen_text_color CYAN",
-    'print_at messageRow, 0, "PRINT AND PRINT_AT"',
+    'print_at messageRow, 1, "PRINT AND PRINT_AT"',
     "",
     "screen_text_color WHITE",
     "print ruleLine$"

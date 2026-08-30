@@ -114,7 +114,7 @@ Build profiles select the output readability:
 Meta-BASIC source:
 
 ```basic
-const titleColumn = 4
+const titleColumn = 5
 const ruleLine$ = string$("-", TEXT_COLUMNS)
 
 screen_border_color BLUE
@@ -125,7 +125,7 @@ cls
 cell_text_color YELLOW
 cell_background_color BLUE
 print ruleLine$
-print_at 2, titleColumn; "META-BASIC COLOURS"
+print_at 3, titleColumn, "META-BASIC COLOURS"
 ```
 
 Spectrum output begins like this:

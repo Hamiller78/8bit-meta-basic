@@ -9,16 +9,16 @@ dim newElement AS TelegraphText
 
 cls
 
-textQueue(0).row = 4
-textQueue(0).column = 2
+textQueue(0).row = 5
+textQueue(0).column = 3
 textQueue(0).text$ = "ALERT       "
 
-textQueue(1).row = 5
-textQueue(1).column = 2
+textQueue(1).row = 6
+textQueue(1).column = 3
 textQueue(1).text$ = "STANDBY     "
 
-newElement.row = 6
-newElement.column = 2
+newElement.row = 7
+newElement.column = 3
 newElement.text$ = "INSERTED    "
 
 shiftedRow = ShiftedRow(newElement, 1)

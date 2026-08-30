@@ -25,33 +25,38 @@ Meta-BASIC:
 print_at 10, 5, "WARNING"
 ```
 
+Meta-BASIC `PRINT_AT` coordinates are 1-based and written as `row, column`.
+The targets use zero-based native coordinates, so the compiler subtracts one
+when it renders the final BASIC. Constant coordinates are folded at compile
+time.
+
 Spectrum:
 
 ```basic
-10 PRINT AT 10,5;"WARNING"
+10 PRINT AT 9,4;"WARNING"
 ```
 
 Atari 800XL:
 
 ```basic
-10 POSITION 5,10
+10 POSITION 4,9
 20 PRINT "WARNING"
 ```
 
 C64:
 
 ```basic
-10 POKE 214,10
-20 POKE 211,5
+10 POKE 214,9
+20 POKE 211,4
 30 SYS 58732
 40 PRINT "WARNING"
 ```
 
-Constant coordinates must fit these zero-based ranges:
+Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 
-- Spectrum: rows `0..21`, columns `0..31`
-- Atari: rows `0..23`, columns `0..39`
-- C64: rows `0..24`, columns `0..39`
+- Spectrum: rows `1..22`, columns `1..32`
+- Atari: rows `1..24`, columns `1..40`
+- C64: rows `1..25`, columns `1..40`
 
 ## ZX Spectrum
 
@@ -62,7 +67,7 @@ Constant coordinates must fit these zero-based ranges:
 - Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter names for strings, arrays, and `FOR` counters. Readability `2` keeps readable uppercase numeric scalar names where practical.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`.
-- `PRINT_AT` maps directly to `PRINT AT`.
+- `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
 - `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `SHARED_DRIVE` is not supported on Spectrum.
 - `CLS colour` uses `PAPER` and then `CLS`.
@@ -79,7 +84,7 @@ Constant coordinates must fit these zero-based ranges:
 - The backend targets built-in Atari BASIC, not Turbo-BASIC XL or BASIC XL.
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
-- `PRINT_AT` reverses portable `row, column` into Atari's `POSITION column,row`.
+- `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.
@@ -103,7 +108,7 @@ Atari colour values are deterministic approximations and can look different betw
 
 - The backend targets built-in Commodore BASIC V2 without an extension cartridge or injected runtime.
 - Assignments omit `LET`.
-- `PRINT_AT` initially expands to writes to row and column editor variables followed by `SYS 58732`.
+- `PRINT_AT` lowers 1-based source coordinates to writes to zero-based row and column editor variables followed by `SYS 58732`.
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.

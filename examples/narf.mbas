@@ -1,5 +1,5 @@
-const tickerRow = TEXT_ROWS - 1
-const lowerRuleRow = TEXT_ROWS - 2
+const tickerRow = TEXT_ROWS
+const lowerRuleRow = TEXT_ROWS - 1
 const tickerColumns = TEXT_COLUMNS - 1
 const scrollDelay = JIFFIES_PER_SECOND / 5
 const ruleLine$ = string$("-", tickerColumns)
@@ -23,22 +23,22 @@ screen_background_color BLACK
 cls
 screen_text_color WHITE
 
-print_at 0, 0, ruleLine$;
-print_at 1, 0, "DEFCON5 1983-11-06 23:00:00";
-print_at 2, 0, "N.A.R.F. FAILSAFE";
-print_at 3, 0, ruleLine$;
-print_at 5, 0, "COMMAND CHANNEL";
-print_at 6, 0, "N.A.R.F. OFFLINE";
-print_at 8, 0, "AUTOMATED FAILSAFE STANDING BY";
-print_at 10, 0, "INCOMING THREATS";
-print_at 11, 0, "NO THREATS DETECTED";
-print_at 13, 0, "PRIMARY NETWORK: DISCONNECTED";
-print_at 14, 0, "CIVIL DEFENCE LINK: STANDBY";
-print_at 16, 0, "SYSTEM STATUS: PROBABLY FINE";
-print_at lowerRuleRow, 0, ruleLine$;
+print_at 1, 1, ruleLine$;
+print_at 2, 1, "DEFCON5 1983-11-06 23:00:00";
+print_at 3, 1, "N.A.R.F. FAILSAFE";
+print_at 4, 1, ruleLine$;
+print_at 6, 1, "COMMAND CHANNEL";
+print_at 7, 1, "N.A.R.F. OFFLINE";
+print_at 9, 1, "AUTOMATED FAILSAFE STANDING BY";
+print_at 11, 1, "INCOMING THREATS";
+print_at 12, 1, "NO THREATS DETECTED";
+print_at 14, 1, "PRIMARY NETWORK: DISCONNECTED";
+print_at 15, 1, "CIVIL DEFENCE LINK: STANDBY";
+print_at 17, 1, "SYSTEM STATUS: PROBABLY FINE";
+print_at lowerRuleRow, 1, ruleLine$;
 cell_text_color YELLOW
-print_at tickerRow, 0, clearLine$;
-print_at tickerRow, 0, mid$(tickerText$, tickerPos, tickerColumns);
+print_at tickerRow, 1, clearLine$;
+print_at tickerRow, 1, mid$(tickerText$, tickerPos, tickerColumns);
 
 scroll:
     if jiffies() - lastClockTick >= JIFFIES_PER_SECOND then
@@ -60,12 +60,12 @@ scroll:
             end if
         end if
         cell_text_color WHITE
-        print_at 1, 19, "23:";
-        print_at 1, 22, chr$(48 + clockMinuteTens);
-        print_at 1, 23, chr$(48 + clockMinuteOnes);
-        print_at 1, 24, ":";
-        print_at 1, 25, chr$(48 + clockSecondTens);
-        print_at 1, 26, chr$(48 + clockSecondOnes);
+        print_at 2, 20, "23:";
+        print_at 2, 23, chr$(48 + clockMinuteTens);
+        print_at 2, 24, chr$(48 + clockMinuteOnes);
+        print_at 2, 25, ":";
+        print_at 2, 26, chr$(48 + clockSecondTens);
+        print_at 2, 27, chr$(48 + clockSecondOnes);
         cell_text_color YELLOW
     end if
     if jiffies() - lastTick >= scrollDelay then
@@ -74,6 +74,6 @@ scroll:
         if tickerPos > len(tickerText$) - tickerColumns then
             tickerPos = 1
         end if
-        print_at tickerRow, 0, mid$(tickerText$, tickerPos, tickerColumns);
+        print_at tickerRow, 1, mid$(tickerText$, tickerPos, tickerColumns);
     end if
     goto scroll

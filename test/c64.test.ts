@@ -4,7 +4,7 @@ import { compileSource } from "../src/compiler.js";
 describe("C64 compiler", () => {
   it("renders assignment without LET and expands PRINT_AT to POKE/SYS plus PRINT", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "c64.mbas", target: "c64" })).toBe(
-      ["10 X=1", "20 POKE 214,10", "30 POKE 211,5", "40 SYS 58732", '50 PRINT "WARNING";X', ""].join("\n")
+      ["10 X=1", "20 POKE 214,9", "30 POKE 211,4", "40 SYS 58732", '50 PRINT "WARNING";X', ""].join("\n")
     );
   });
 
@@ -21,11 +21,11 @@ describe("C64 compiler", () => {
   });
 
   it("reports C64 constant coordinate ranges", () => {
-    expect(() => compileSource('print_at 25, 0, "NO"\n', { filename: "range.mbas", target: "c64" })).toThrow(
-      "C64 PRINT_AT row coordinate 25 is outside the supported range 0..24"
+    expect(() => compileSource('print_at 26, 1, "NO"\n', { filename: "range.mbas", target: "c64" })).toThrow(
+      "C64 PRINT_AT row coordinate 26 is outside the supported range 1..25"
     );
-    expect(() => compileSource('print_at 0, 40, "NO"\n', { filename: "range.mbas", target: "c64" })).toThrow(
-      "C64 PRINT_AT column coordinate 40 is outside the supported range 0..39"
+    expect(() => compileSource('print_at 1, 0, "NO"\n', { filename: "range.mbas", target: "c64" })).toThrow(
+      "C64 PRINT_AT column coordinate 0 is outside the supported range 1..40"
     );
   });
 
@@ -37,11 +37,11 @@ describe("C64 compiler", () => {
 
   it("uses C64 environment constants and case-insensitive lookup", () => {
     expect(
-      compileSource('const row = text_rows - 2\nprint_at row, TEXT_COLUMNS - 1, "EDGE"\n', {
+      compileSource('const row = text_rows\nprint_at row, TEXT_COLUMNS, "EDGE"\n', {
         filename: "env.mbas",
         target: "c64"
       })
-    ).toBe(["10 POKE 214,23", "20 POKE 211,39", "30 SYS 58732", '40 PRINT "EDGE"', ""].join("\n"));
+    ).toBe(["10 POKE 214,24", "20 POKE 211,39", "30 SYS 58732", '40 PRINT "EDGE"', ""].join("\n"));
   });
 
   it("renders GOSUB and RETURN", () => {
@@ -527,8 +527,8 @@ describe("C64 compiler", () => {
 
 function colorsSource(): string {
   return [
-    "const titleColumn = 4",
-    "const messageRow = 4",
+    "const titleColumn = 5",
+    "const messageRow = 5",
     'const ruleLine$ = string$("-", TEXT_COLUMNS)',
     "",
     "screen_border_color BLUE",
@@ -539,10 +539,10 @@ function colorsSource(): string {
     "cell_text_color YELLOW",
     "cell_background_color BLUE",
     "print ruleLine$",
-    'print_at 2, titleColumn, "META-BASIC COLOURS"',
+    'print_at 3, titleColumn, "META-BASIC COLOURS"',
     "",
     "screen_text_color CYAN",
-    'print_at messageRow, 0, "PRINT AND PRINT_AT"',
+    'print_at messageRow, 1, "PRINT AND PRINT_AT"',
     "",
     "screen_text_color WHITE",
     "print ruleLine$"

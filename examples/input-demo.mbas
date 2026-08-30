@@ -1,9 +1,9 @@
-const coordinateRow = 3
-const statusRow = 5
+const coordinateRow = 4
+const statusRow = 6
 const clearLine$ = space$(TEXT_COLUMNS)
 
-x = 10
-y = 10
+x = 11
+y = 11
 key = KEY_NONE
 
 screen_border_color BLACK
@@ -11,42 +11,42 @@ screen_background_color BLACK
 cls
 screen_text_color WHITE
 
-print_at 0, 0, "META-BASIC INPUT DEMO";
-print_at 1, 0, "MOVE TARGET WITH GAME KEYS";
+print_at 1, 1, "META-BASIC INPUT DEMO";
+print_at 2, 1, "MOVE TARGET WITH GAME KEYS";
 
 loop:
     key = key_code()
 
     if key = GAME_UP then
-        if y > 0 then
+        if y > 1 then
             y = y - 1
         end if
     end if
 
     if key = GAME_DOWN then
-        if y < TEXT_ROWS - 1 then
+        if y < TEXT_ROWS then
             y = y + 1
         end if
     end if
 
     if key = GAME_LEFT then
-        if x > 0 then
+        if x > 1 then
             x = x - 1
         end if
     end if
 
     if key = GAME_RIGHT then
-        if x < TEXT_COLUMNS - 1 then
+        if x < TEXT_COLUMNS then
             x = x + 1
         end if
     end if
 
-    print_at coordinateRow, 0, clearLine$;
-    print_at coordinateRow, 0, "X="; x; " Y="; y;
+    print_at coordinateRow, 1, clearLine$;
+    print_at coordinateRow, 1, "X="; x; " Y="; y;
 
     if key = KEY_ENTER or key = GAME_FIRE then
-        print_at statusRow, 0, clearLine$;
-        print_at statusRow, 0, "Target coordinates set to "; x; ","; y;
+        print_at statusRow, 1, clearLine$;
+        print_at statusRow, 1, "Target coordinates set to "; x; ","; y;
     end if
 
     goto loop

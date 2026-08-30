@@ -274,14 +274,14 @@ print "SECONDS: "; countdown
 print "WAIT";
 ```
 
-Portable positioned output uses zero-based `row, column` coordinates:
+Portable positioned output uses 1-based `row, column` coordinates:
 
 ```basic
-print_at 10, 5, "WARNING"
-print_at warningRow, 0, "SECONDS: "; countdown
+print_at 1, 1, "WARNING"
+print_at warningRow, 1, "SECONDS: "; countdown
 ```
 
-The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet.
+The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet. Target renderers lower these human-facing coordinates to each machine's native zero-based positioning.
 
 Device output is available for printer-like logging and emulator capture workflows:
 
@@ -358,7 +358,7 @@ When launched through the helper scripts, `--printer-output` mirrors the test ru
 `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
 For portable output assertions, prefer string output; numeric formatting still follows the target BASIC conversion rules.
 
-`ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable zero-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory.
+`ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory.
 
 Colour assertions compare the latest portable colour command state captured in test mode. `CLS colour` counts as setting the screen background colour. Colour assertion values use portable colour names such as `BLUE` and `WHITE`, not target-specific numeric colour codes.
 

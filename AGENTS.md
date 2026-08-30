@@ -86,6 +86,7 @@ Supported constructs:
 - `end`
 - Standalone user-defined function calls such as `DrawHeader()`, with the return value discarded; such side-effect helper functions may omit `RETURN expression`
 - `for name = start to limit` / `next name`, with optional `step`
+- `exit for` and `continue for`
 - `while expression` / `wend`
 - `repeat` / `until expression`
 - Multiline `if expression then ... else ... end if`
@@ -108,6 +109,7 @@ Supported constructs:
 - Runtime jiffy timer reading with `jiffies()`
 - Runtime free BASIC memory reading with `free_memory()`
 - Non-blocking keyboard polling with `key_code()`
+- Non-blocking keyboard availability checks with `key_pressed()`
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Scalar struct values and struct arrays declared with `DIM name AS StructName` and `DIM name AS StructName(count)`
 - Struct field access such as `textQueue(i).textQueueRow` and `newElement.text$`
@@ -144,7 +146,7 @@ Important source-language rule:
 - `LET` is **not** Meta-BASIC source syntax. Assignment is `name = expression`.
 - Spectrum BASIC output still renders assignments with `LET` because that is target syntax.
 
-Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `FREE_MEMORY` is supported as a portable runtime free BASIC memory helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
+Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `FREE_MEMORY` is supported as a portable runtime free BASIC memory helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `KEY_PRESSED` is supported as a portable non-blocking keyboard availability helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
@@ -154,7 +156,7 @@ Keywords and symbol lookup are case-insensitive. Preserve the source spelling of
 
 `INSERT_ELEMENT(array, index, value)` and `REMOVE_ELEMENT(array, index)` are supported for one-dimensional native arrays and struct arrays. Insert shifts elements from `index` upward and loses the last element. Remove shifts elements from `index + 1` downward and leaves the final slot unspecified. For struct-array insertion, `value` must currently be a scalar struct value of the same struct type.
 
-Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable zero-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
+Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable 1-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
 
 ## Tokenizer and parser
 
@@ -178,7 +180,7 @@ Every token retains filename, line, and column. Comments are discarded by the to
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `FREE_MEMORY`, `KEY_CODE`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `FREE_MEMORY`, `KEY_CODE`, `KEY_PRESSED`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -198,6 +200,7 @@ Supported expression forms:
 - Runtime timer function call `JIFFIES()`
 - Runtime free BASIC memory function call `FREE_MEMORY()`
 - Runtime keyboard function call `KEY_CODE()`
+- Runtime keyboard availability function call `KEY_PRESSED()`
 - Runtime device availability call `DEVICE_AVAILABLE(PRINTER)`, `DEVICE_AVAILABLE(TEXT_PRINTER)`, `DEVICE_AVAILABLE(SHARED_DRIVE)`, or `DEVICE_AVAILABLE(RS232)`
 - Array reads such as `VALUES(0)` and `MESSAGES$(0)`
 - Parenthesized expressions
@@ -333,12 +336,12 @@ Portable positioned output is supported with the canonical `PRINT_AT` source spe
 
 ```basic
 print_at 10, 5, "WARNING"
-print_at warningRow, 0, "SECONDS: "; countdown
+print_at warningRow, 1, "SECONDS: "; countdown
 ```
 
 Rules:
 
-- Coordinates are written in portable order `row, column` and are zero-based.
+- Coordinates are written in portable order `row, column` and are 1-based in Meta-BASIC source.
 - A comma after the column expression is required.
 - The row and column are full numeric expressions.
 - Positioned output is represented explicitly in the target-independent AST.
@@ -479,8 +482,8 @@ Meaning:
 - Render `FOR` loop variables as single-letter numeric variables.
 - Render numeric arrays as single-letter numeric arrays, string arrays as single-letter string arrays, and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
 - Render `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. At readability `0` and `1`, compact long numeric scalar identifiers to save memory and avoid oversized generated code. At readability `2`, render readable uppercase numeric scalar names where practical. Preserve string literal contents exactly.
-- Render positioned output directly as `PRINT AT row,column;...`.
-- Constant coordinates must satisfy row `0..21` and column `0..31`.
+- Render positioned output as native zero-based `PRINT AT row,column;...`, subtracting one from Meta-BASIC source coordinates.
+- Constant source coordinates must satisfy row `1..22` and column `1..32`.
 
 ### Atari 800XL
 
@@ -495,14 +498,14 @@ Meaning:
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
 - Render fixed-width string arrays as one backing string with substring slices for element reads and writes.
 - Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
-- Lower positioned output into:
+- Lower positioned output into native zero-based coordinates:
 
 ```basic
 POSITION column,row
 PRINT ...
 ```
 
-- Constant coordinates must satisfy row `0..23` and column `0..39` for `GRAPHICS 0` text mode.
+- Constant source coordinates must satisfy row `1..24` and column `1..40` for `GRAPHICS 0` text mode.
 - Do not emit `GRAPHICS 0` automatically.
 
 ### Commodore 64
@@ -514,7 +517,7 @@ PRINT ...
 - Render assignments without `LET`.
 - Render `FOR`/`NEXT` with explicit loop variables.
 - Render identifiers and `REM` label text in uppercase for readable C64 listings. Preserve string literal contents exactly.
-- Lower positioned output into:
+- Lower positioned output into native zero-based coordinates:
 
 ```basic
 POKE 214,row
@@ -523,7 +526,7 @@ SYS 58732
 PRINT ...
 ```
 
-- Constant coordinates must satisfy row `0..24` and column `0..39`.
+- Constant source coordinates must satisfy row `1..25` and column `1..40`.
 - Commodore BASIC V2 distinguishes variable names by only their first two significant characters. The C64 backend must use deterministic target-lowering name mapping so distinct Meta-BASIC variables never silently alias.
 - At readability `2`, allocate compact generated variable names deterministically and append inline comments to the first explicit assignment for each source variable.
 - At readability `1`, allocate compact generated variable names deterministically and append inline comments to the first explicit assignment for each source variable.

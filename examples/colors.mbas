@@ -1,5 +1,5 @@
-const titleColumn = 4
-const messageRow = 4
+const titleColumn = 5
+const messageRow = 5
 const ruleLine$ = string$("-", TEXT_COLUMNS)
 
 screen_border_color BLUE
@@ -10,10 +10,10 @@ cls
 cell_text_color YELLOW
 cell_background_color BLUE
 print ruleLine$
-print_at 2, titleColumn, "META-BASIC COLOURS"
+print_at 3, titleColumn, "META-BASIC COLOURS"
 
 screen_text_color CYAN
-print_at messageRow, 0, "PRINT AND PRINT_AT"
+print_at messageRow, 1, "PRINT AND PRINT_AT"
 
 screen_text_color WHITE
 print ruleLine$
