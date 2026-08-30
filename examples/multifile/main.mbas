@@ -4,10 +4,8 @@ screen_text_color WHITE
 cls
 
 score = 42
-bonus = 8
-total = addBonus(score, bonus)
+total = addBonus(score)
 
 ignored = printTitle()
 print "score: "; score
-print "bonus: "; bonus
 print "total: "; total

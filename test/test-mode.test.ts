@@ -22,6 +22,24 @@ describe("Meta-BASIC test mode", () => {
     expect(output).not.toContain('PRINT "MAIN"');
   });
 
+  it("runs module-style global initializers before the generated test runner", () => {
+    const output = compileSource(
+      [
+        "bonus = 10",
+        "function addBonus(score)",
+        "return score + bonus",
+        "end function",
+        "test UsesModuleInitializer()",
+        "assert_eq 15, addBonus(5)",
+        "end test"
+      ].join("\n"),
+      { filename: "module-init-tests.mbas", target: "spectrum", testMode: true, readability: 0 }
+    );
+
+    expect(output.indexOf("LET BONUS=10")).toBeLessThan(output.indexOf('PRINT "META CONTROL PROGRAM'));
+    expect(output).toContain("LET MBF1R=MBF1P1 + BONUS");
+  });
+
   it("prints M.C.P. runner banners, marks failure with a red final border, and lists failed tests in the summary", () => {
     const output = compileSource(
       ["test Good()", "assert_true 1", "end test", "test Bad()", "assert_true 0", "end test"].join("\n"),

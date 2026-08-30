@@ -1,4 +1,6 @@
-function addBonus(score, bonus)
+bonus = 8
+
+function addBonus(score)
     local result
     result = score + bonus
     return result

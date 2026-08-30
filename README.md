@@ -48,7 +48,7 @@ Compile an ordered multi-file program through a small JSON build configuration:
 npm run dev -- --config metabasic.json --target spectrum
 ```
 
-Paths in the configuration are resolved relative to the JSON file. The listed files form one compilation unit in the listed order.
+Paths in the configuration are resolved relative to the JSON file. The listed files form one compilation unit in the listed order. Top-level `DIM` declarations are emitted before normal startup code. In library-style files that contain only declarations, initializers, and functions, top-level assignments are also emitted before startup code, so functions from that file can rely on their own global setup when called from an earlier file.
 See `examples/multifile/metabasic.json` for a small working example.
 
 The build and launch helper scripts use `--build-config` for Meta-BASIC project files, leaving `--config` for local tool/emulator configuration:
@@ -159,7 +159,7 @@ See [vscode-extension/README.md](vscode-extension/README.md) for the current dev
 
 ## Important limitations
 
-- Multi-file builds are simple ordered concatenation into one compilation unit; there are no modules, imports, exports, namespaces, or separate compilation.
+- Multi-file builds form one compilation unit with a generated startup prelude for storage declarations and library-style global initializers; there are no namespaces, imports, exports, or separate compilation.
 - User functions use statically allocated storage and do not support recursion.
 - There is no general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.

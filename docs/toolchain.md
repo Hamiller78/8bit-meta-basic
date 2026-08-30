@@ -47,7 +47,7 @@ project/
     math-tests.mbas
 ```
 
-Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
+Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. File order still controls ordinary startup code, but the compiler emits top-level `DIM` declarations before startup and also hoists top-level assignments from library-style files that contain only declarations, assignments, and functions. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
 
 ```text
 npm run build:spectrum -- --project examples/project-demo --profile debug

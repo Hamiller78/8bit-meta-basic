@@ -559,7 +559,7 @@ describe("Spectrum compiler", () => {
         filename: "string-array-conflict.mbas",
         target: "spectrum"
       })
-    ).toBe(["10 LET A$=\"\"", "20 LET B$=\"\"", "30 DIM M$(2,8)", '40 LET M$(1,1 TO 8)="READY   "', "50 LET A$=M$(1,1 TO 8)", "60 LET B$=\"\"", ""].join("\n"));
+    ).toBe(["10 DIM M$(2,8)", "20 LET A$=\"\"", "30 LET B$=\"\"", '40 LET M$(1,1 TO 8)="READY   "', "50 LET A$=M$(1,1 TO 8)", "60 LET B$=\"\"", ""].join("\n"));
   });
 
   it("renders DATA, READ, and RESTORE for Spectrum", () => {

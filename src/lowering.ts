@@ -372,9 +372,11 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function" && !statement.inline);
   const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
   const globalsStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
+  const mainLayout = partitionTopLevelStatementsForInitialization(mainStatements);
 
   if (options.testMode) {
     const globalResetInstructions: Instruction[] = [];
+    lowerStatements([...mainLayout.declarations, ...mainLayout.initializers], instructions, generator, context);
     for (const statement of globalsStatements) {
       lowerStatements(statement.body, globalResetInstructions, generator, context);
     }
@@ -384,7 +386,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
       globalResetInstructions
     });
   } else {
-    lowerStatements(mainStatements, instructions, generator, context);
+    lowerStatements([...mainLayout.declarations, ...mainLayout.initializers, ...mainLayout.body], instructions, generator, context);
   }
 
   if (testStatements.length > 0) {
@@ -427,6 +429,57 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   validateReferences(instructions, labels);
 
   return { instructions, labels };
+}
+
+interface TopLevelStatementLayout {
+  readonly declarations: readonly Statement[];
+  readonly initializers: readonly Statement[];
+  readonly body: readonly Statement[];
+}
+
+function partitionTopLevelStatementsForInitialization(statements: readonly Statement[]): TopLevelStatementLayout {
+  const filesWithRuntimeBody = collectFilesWithRuntimeBody(statements);
+  const declarations: Statement[] = [];
+  const initializers: Statement[] = [];
+  const body: Statement[] = [];
+
+  for (const statement of statements) {
+    if (isTopLevelStorageDeclaration(statement)) {
+      declarations.push(statement);
+    } else if (isTopLevelInitializer(statement) && !filesWithRuntimeBody.has(statement.location.filename)) {
+      initializers.push(statement);
+    } else {
+      body.push(statement);
+    }
+  }
+
+  return { declarations, initializers, body };
+}
+
+function collectFilesWithRuntimeBody(statements: readonly Statement[]): ReadonlySet<string> {
+  const files = new Set<string>();
+  for (const statement of statements) {
+    if (!isTopLevelDeclarationOrInitializer(statement)) {
+      files.add(statement.location.filename);
+    }
+  }
+  return files;
+}
+
+function isTopLevelDeclarationOrInitializer(statement: Statement): boolean {
+  return isTopLevelStorageDeclaration(statement) || isTopLevelInitializer(statement) || isTopLevelCompileTimeDeclaration(statement);
+}
+
+function isTopLevelStorageDeclaration(statement: Statement): boolean {
+  return statement.kind === "dim";
+}
+
+function isTopLevelInitializer(statement: Statement): boolean {
+  return statement.kind === "let" || statement.kind === "array-let";
+}
+
+function isTopLevelCompileTimeDeclaration(statement: Statement): boolean {
+  return statement.kind === "const" || statement.kind === "enum" || statement.kind === "struct" || statement.kind === "local";
 }
 
 interface LowerStatementOptions {

@@ -37,9 +37,12 @@ repeat
 until key_pressed()
 
 txtQueueIndex = -1 ' Clear the queue for next screen
+waitForKeyRelease()
 setUpMainScreen()
 
+setupTicker()
 repeat
+    updateTicker()
 until key_pressed()
 
 print free_memory();" bytes free"
@@ -62,8 +65,8 @@ inline function setUpMainScreen()
     print_at 2, 1, "SUBS:   " + str$(submarines);
     print_at 2, 20, "BOMBERS: " + str$(bombers);
     print_at 3,1, string$("-", TEXT_COLUMNS);
-    print_at TEXT_ROWS - 1, 1, "***";
     text_color YELLOW
+    print_at TEXT_ROWS - 1, 1, "***";
     print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";
     text_color WHITE
 end function
@@ -117,4 +120,11 @@ inline function advanceQueueItem(queueIndex)
     txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
     txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
     txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
+end function
+
+function waitForKeyRelease()
+    key = key_code()
+    repeat
+        key = key_code()
+    until not key_pressed()
 end function

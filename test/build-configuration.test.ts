@@ -42,6 +42,41 @@ describe("build configuration", () => {
     });
   });
 
+  it("runs global initializers from function-only source files before main code can call those functions", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), "score = addBonus(5)\nprint score\n", "utf8");
+      await writeFile(join(dir, "math.mbas"), "bonus = 10\nfunction addBonus(score)\nreturn score + bonus\nend function\n", "utf8");
+
+      await expect(compileBuildConfiguration({ files: ["main.mbas", "math.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 })).resolves.toBe(
+        [
+          "10 LET BONUS=10",
+          "20 LET MBF1P1=5",
+          "30 GO SUB 70",
+          "40 LET SCORE=MBF1R",
+          "50 PRINT SCORE",
+          "60 GO TO 90",
+          "70 LET MBF1R=MBF1P1 + BONUS",
+          "80 RETURN",
+          "90 REM END",
+          ""
+        ].join("\n")
+      );
+    });
+  });
+
+  it("runs global storage declarations from function-only source files before main code can call those functions", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), "score = firstValue()\nprint score\n", "utf8");
+      await writeFile(join(dir, "storage.mbas"), "dim values(2)\nvalues(0) = 7\nfunction firstValue()\nreturn values(0)\nend function\n", "utf8");
+
+      const output = await compileBuildConfiguration({ files: ["main.mbas", "storage.mbas"] }, { baseDir: dir, target: "c64", readability: 0 });
+
+      expect(output.indexOf("DIM VA(1)")).toBeLessThan(output.indexOf("GOSUB"));
+      expect(output.indexOf("VA(0)=7")).toBeLessThan(output.indexOf("GOSUB"));
+      expect(output).toContain("=VA(0)");
+    });
+  });
+
   it("allows functions in different files to call one another", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), "total = outer(5)\nprint total\n", "utf8");

@@ -563,7 +563,7 @@ The CLI also accepts a simple JSON build configuration:
 }
 ```
 
-The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
+The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Shared lowering emits top-level `DIM` declarations before ordinary startup code. A source file that contains only compile-time declarations, storage declarations, top-level assignments, and functions is treated as a library-style file; its top-level assignments are emitted in the startup prelude before normal code, so functions from that file can rely on their own scalar/global initialization even when called from an earlier file. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
 
 Target build scripts:
 
