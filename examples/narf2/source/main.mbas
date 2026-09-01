@@ -60,11 +60,13 @@ end function
 inline function setUpMainScreen()
     cls
 
-    print_at 1, 1, "DEFCON: " + str$(defcon);
-    print_at 1, 20, "ICBMS:   " + str$(icbms);
-    print_at 2, 1, "SUBS:   " + str$(submarines);
-    print_at 2, 20, "BOMBERS: " + str$(bombers);
-    print_at 3,1, string$("-", TEXT_COLUMNS);
+    print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + str$(defcon);
+    print_at 2, TEXT_COLUMNS - 11, "RED:  11:47";
+    print_at 3, TEXT_COLUMNS - 11, "BLUE: 22:21";
+    print_at 1, 1, "ICBMS:   " + str$(icbms);
+    print_at 2, 1, "SUBS:    " + str$(submarines);
+    print_at 3, 1, "BOMBERS: " + str$(bombers);
+    print_at 4,1, string$("-", TEXT_COLUMNS);
     text_color YELLOW
     print_at TEXT_ROWS - 1, 1, "***";
     print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";

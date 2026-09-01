@@ -1,0 +1,51 @@
+startJiffies = 0
+nextUpdateJiffies = 0
+clockJiffiesOverride = -1
+startTime$ = "00:00:00"
+currentTime$ = "00:00:00"
+
+function setClock(time$)
+    startJiffies = readClockJiffies()
+    startTime$ = time$
+    currentTime$ = time$
+    nextUpdateJiffies = startJiffies + JIFFIES_PER_SECOND
+end function
+
+function getCurrentTimeIfUpdated$()
+    currentJiffies = readClockJiffies()
+    if currentJiffies < nextUpdateJiffies then
+        return ""
+    end if
+
+    elapsedJiffies = currentJiffies - startJiffies
+    elapsedSeconds = int(elapsedJiffies / JIFFIES_PER_SECOND)
+
+    startHour = val(left$(startTime$, 2))
+    startMinute = val(mid$(startTime$, 4, 2))
+    startSecond = val(right$(startTime$, 2))
+
+    elapsedMinutes = int((startSecond + elapsedSeconds) / 60)
+    newSeconds = (startSecond + elapsedSeconds) MOD 60
+    newMinute = (startMinute + elapsedMinutes) MOD 60
+    newHour = (startHour + int((startMinute + elapsedMinutes) / 60)) MOD 24
+
+    currentTime$ = twoDigits$(newHour) + ":" + twoDigits$(newMinute) + ":" + twoDigits$(newSeconds)
+
+    return currentTime$
+end function
+
+function readClockJiffies()
+    if clockJiffiesOverride >= 0 then
+        return clockJiffiesOverride
+    end if
+
+    return jiffies()
+end function
+
+function twoDigits$(value)
+    if value < 10 then
+        return "0" + chr$(48 + value)
+    end if
+
+    return chr$(48 + int(value / 10)) + chr$(48 + (value MOD 10))
+end function

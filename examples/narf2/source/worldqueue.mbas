@@ -1,0 +1,11 @@
+enum WorldQueueEventType
+    None = 0
+    MissileHitsOurCity = 1
+end enum
+
+struct WorldQueueEvent
+    eventType
+    eventTime$(8)
+    eventText$(40)  'Here with target city
+    eventValue  'Number for event, here victim number
+end struct

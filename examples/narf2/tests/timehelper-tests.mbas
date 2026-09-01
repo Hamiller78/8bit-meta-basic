@@ -1,0 +1,50 @@
+globals
+    startJiffies = 0
+    nextUpdateJiffies = 0
+    clockJiffiesOverride = -1
+    startTime$ = "00:00:00"
+    currentTime$ = "00:00:00"
+end globals
+
+test SetClockInitializesClockState()
+    clockJiffiesOverride = 1000
+    setClock("11:47:30")
+
+    assert_eq 1000, startJiffies
+    assert_eq 1050, nextUpdateJiffies
+    assert_eq "11:47:30", startTime$
+    assert_eq "11:47:30", currentTime$
+end test
+
+test CurrentTimeStaysEmptyBeforeNextTick()
+    clockJiffiesOverride = 1049
+    startJiffies = 1000
+    nextUpdateJiffies = 1050
+    startTime$ = "11:47:30"
+    currentTime$ = "11:47:30"
+
+    assert_eq "", getCurrentTimeIfUpdated$()
+    assert_eq "11:47:30", currentTime$
+end test
+
+test CurrentTimeAdvancesByOneSecond()
+    clockJiffiesOverride = 1050
+    startJiffies = 1000
+    nextUpdateJiffies = 1050
+    startTime$ = "11:47:30"
+    currentTime$ = "11:47:30"
+
+    assert_eq "11:47:31", getCurrentTimeIfUpdated$()
+    assert_eq "11:47:31", currentTime$
+end test
+
+test CurrentTimeWrapsMinuteHourAndDay()
+    clockJiffiesOverride = 1050
+    startJiffies = 1000
+    nextUpdateJiffies = 1050
+    startTime$ = "23:59:59"
+    currentTime$ = "23:59:59"
+
+    assert_eq "00:00:00", getCurrentTimeIfUpdated$()
+    assert_eq "00:00:00", currentTime$
+end test
