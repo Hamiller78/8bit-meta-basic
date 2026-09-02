@@ -14,6 +14,7 @@ import {
 import { builtinFunctions, canonicalFunctionName, isStringFunctionName } from "./functions.js";
 import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
+import { canonicalTestRuntimeSetterName } from "./test-runtime.js";
 import { isIntegerVariableName, isStringVariableName } from "./variables.js";
 
 type ConstantValue = number | string | boolean | ColorValue;
@@ -306,6 +307,11 @@ function analyzeStatements(
         break;
       }
       case "function-call-statement": {
+        const setter = analyzeTestRuntimeSetterStatement(statement, constants, inConstantExpression, arrays, functions, scope, structValues, testMode);
+        if (setter) {
+          analyzed.push(setter);
+          break;
+        }
         if (canonicalFunctionName(statement.expression.name) || arrays.has(normalizeName(statement.expression.name))) {
           throw new DiagnosticError(statement.location, "Standalone calls are supported only for user-defined FUNCTIONs.");
         }
@@ -558,6 +564,46 @@ function analyzeStatements(
   }
 
   return analyzed;
+}
+
+function analyzeTestRuntimeSetterStatement(
+  statement: Extract<Statement, { kind: "function-call-statement" }>,
+  constants: Map<string, ConstantDefinition>,
+  unknownIdentifierIsError: boolean,
+  arrays: Map<string, ArrayDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope: FunctionScope | undefined,
+  structValues: Map<string, StructValueDefinition>,
+  testMode: boolean
+): Statement | undefined {
+  const canonical = canonicalTestRuntimeSetterName(statement.expression.name);
+  const setter = canonical;
+  if (!setter) {
+    return undefined;
+  }
+
+  if (!testMode || scope?.kind !== "test") {
+    throw new DiagnosticError(statement.location, `${setter} can only be used inside a TEST when test mode is enabled.`);
+  }
+
+  if (statement.expression.args.length !== 1) {
+    throw new DiagnosticError(statement.expression.location, `${setter} expects exactly one argument.`);
+  }
+
+  const value = foldExpression(statement.expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+  if (value.kind === "color" || isStringExpression(value)) {
+    throw new DiagnosticError(statement.expression.args[0].location, `${setter} expects a numeric argument.`);
+  }
+
+  return {
+    ...statement,
+    expression: {
+      ...statement.expression,
+      name: setter,
+      args: [value],
+      valueType: "number"
+    }
+  };
 }
 
 function validateGlobalsBody(statements: readonly Statement[]): void {
@@ -1187,6 +1233,10 @@ function foldFunctionCall(
     }
 
     return { ...expression, name, args: [] };
+  }
+
+  if (name === builtinFunctions.setJiffies || name === builtinFunctions.setKeyCode || name === builtinFunctions.setKeyPressed) {
+    throw new DiagnosticError(expression.location, `${name} can only be used as a statement inside a TEST.`);
   }
 
   if (name === builtinFunctions.rnd) {

@@ -3,6 +3,7 @@ import { DiagnosticError } from "./diagnostics.js";
 import { expandFunctionCalls, type FunctionCallLoweringContext } from "./function-call-lowering.js";
 import { builtinFunctions } from "./functions.js";
 import type { Instruction } from "./lowering.js";
+import { replaceTestRuntimeFunctionCalls, testJiffiesName, testKeyCodeName, testKeyPressedName } from "./test-runtime.js";
 import { isStringVariableName } from "./variables.js";
 
 export const testOutputName = "MBTOUT$";
@@ -14,6 +15,7 @@ export const testScreenBackgroundColorName = "MBTCG";
 export const testScreenTextColorName = "MBTCT";
 export const testCellTextColorName = "MBTCC";
 export const testCellBackgroundColorName = "MBTCD";
+export { testJiffiesName, testKeyCodeName, testKeyPressedName };
 
 const testCountName = "MBTESTS";
 const testPassedName = "MBTPASS";
@@ -78,6 +80,7 @@ export function lowerTestRunner(
     }
     const passedLabel = nextInternalLabel();
     const afterLabel = nextInternalLabel();
+    instructions.push(...testRuntimeResetLets(test.location));
     instructions.push(...testCaptureResetLets(test));
     instructions.push(...cloneInstructions(options.globalResetInstructions ?? []));
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
@@ -136,6 +139,18 @@ function cloneInstructions(instructions: readonly Instruction[]): Instruction[] 
   return instructions.map((instruction) => ({ ...instruction }));
 }
 
+function testRuntimeResetLets(location: SourceLocation): Instruction[] {
+  return [
+    { kind: "let", name: testJiffiesName, expression: numberExpression(0, location), location },
+    { kind: "let", name: testKeyCodeName, expression: numberExpression(0, location), location },
+    { kind: "let", name: testKeyPressedName, expression: numberExpression(0, location), location }
+  ];
+}
+
+function lowerTestExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
+  return replaceTestRuntimeFunctionCalls(expandFunctionCalls(expression, instructions, context));
+}
+
 export function lowerAssertBoolean(
   expression: Expression,
   expectedTruth: boolean,
@@ -145,7 +160,7 @@ export function lowerAssertBoolean(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  const condition = expandFunctionCalls(expression, instructions, context);
+  const condition = lowerTestExpression(expression, instructions, context);
   instructions.push({ kind: "let", name: booleanActualName, expression: condition, location });
   instructions.push({ kind: "gosub", label: expectedTruth ? assertTrueLabel : assertFalseLabel, location });
 }
@@ -161,8 +176,8 @@ export function lowerAssertComparison(
   location: SourceLocation
 ): void {
   const stringComparison = isStringExpression(expected) || isStringExpression(actual);
-  preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
-  preserveAssertionValue(expandFunctionCalls(actual, instructions, context), actualValueName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(expected, instructions, context), expectedValueName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(actual, instructions, context), actualValueName, instructions, location);
   void testName;
   instructions.push({
     kind: "gosub",
@@ -185,7 +200,7 @@ export function lowerAssertPrint(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  preserveAssertionValue(expandFunctionCalls(expected, instructions, context), expectedValueName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(expected, instructions, context), expectedValueName, instructions, location);
   instructions.push({ kind: "let", name: `${actualValueName}$`, expression: identifierExpression(testOutputName, location), location });
   void testName;
   instructions.push({ kind: "gosub", label: assertEqStringLabel, location });
@@ -201,9 +216,9 @@ export function lowerAssertPrintAt(
   context: FunctionCallLoweringContext,
   location: SourceLocation
 ): void {
-  preserveAssertionValue(expandFunctionCalls(expectedRow, instructions, context), expectedRowName, instructions, location);
-  preserveAssertionValue(expandFunctionCalls(expectedColumn, instructions, context), expectedColumnName, instructions, location);
-  preserveAssertionValue(expandFunctionCalls(expectedText, instructions, context), expectedTextName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(expectedRow, instructions, context), expectedRowName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(expectedColumn, instructions, context), expectedColumnName, instructions, location);
+  preserveAssertionValue(lowerTestExpression(expectedText, instructions, context), expectedTextName, instructions, location);
   void testName;
   instructions.push({ kind: "gosub", label: assertPrintAtLabel, location });
 }

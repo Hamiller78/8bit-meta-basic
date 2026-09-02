@@ -10,6 +10,7 @@ import {
   type InlineFunctionImplementation
 } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
+import { canonicalTestRuntimeSetterName, replaceTestRuntimeFunctionCalls, setterStorageName } from "./test-runtime.js";
 import {
   capturedPrintExpression,
   captureTestColor,
@@ -363,8 +364,9 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     functions,
     inlineFunctions,
     nextTempId: 1,
+    ...(options.testMode ? { transformExpandedExpression: replaceTestRuntimeFunctionCalls } : {}),
     expandInlineFunctionCall: (definition, args, destinationName, targetInstructions) =>
-      expandInlineFunctionCall(definition, args, destinationName, targetInstructions, generator, context)
+      expandInlineFunctionCall(definition, args, destinationName, targetInstructions, generator, context, options)
   };
   const instructions: Instruction[] = [];
 
@@ -617,11 +619,11 @@ function lowerStatements(
         {
           const at = statement.at
             ? {
-                row: expandFunctionCalls(statement.at.row, instructions, context),
-                column: expandFunctionCalls(statement.at.column, instructions, context)
+                row: lowerExpression(statement.at.row, instructions, context, options),
+                column: lowerExpression(statement.at.column, instructions, context, options)
               }
             : undefined;
-          const items = statement.items.map((item) => expandFunctionCalls(item, instructions, context));
+          const items = statement.items.map((item) => lowerExpression(item, instructions, context, options));
           if (options.capturePrints && at) {
             instructions.push({ kind: "let", name: testPrintAtRowName, expression: at.row, location: statement.location });
             instructions.push({ kind: "let", name: testPrintAtColumnName, expression: at.column, location: statement.location });
@@ -661,7 +663,7 @@ function lowerStatements(
           instructions.push({
             kind: "print-device",
             handle: statement.handle,
-            items: statement.items.map((item) => expandFunctionCalls(item, instructions, context)),
+            items: statement.items.map((item) => lowerExpression(item, instructions, context, options)),
             trailingSemicolon: statement.trailingSemicolon,
             location: statement.location
           });
@@ -723,7 +725,7 @@ function lowerStatements(
           instructions.push({
             kind: "let",
             name: statement.name,
-            expression: expandFunctionCalls(statement.expression, instructions, context),
+            expression: lowerExpression(statement.expression, instructions, context, options),
             ...(statement.sourceName ? { sourceName: statement.sourceName } : {}),
             location: statement.location
           });
@@ -733,26 +735,33 @@ function lowerStatements(
         instructions.push({
           kind: "array-let",
           name: statement.name,
-          indices: statement.indices.map((index) => expandFunctionCalls(index, instructions, context)),
-          expression: expandFunctionCalls(statement.expression, instructions, context),
+          indices: statement.indices.map((index) => lowerExpression(index, instructions, context, options)),
+          expression: lowerExpression(statement.expression, instructions, context, options),
           location: statement.location
         });
         break;
       case "struct-field-let":
         throw new DiagnosticError(statement.location, "Internal error: struct field assignments must be resolved before lowering.");
       case "insert-element":
-        lowerElementMove(statement, "insert", instructions, nextInternalLabel, context);
+        lowerElementMove(statement, "insert", instructions, nextInternalLabel, context, options);
         break;
       case "remove-element":
-        lowerElementMove(statement, "remove", instructions, nextInternalLabel, context);
+        lowerElementMove(statement, "remove", instructions, nextInternalLabel, context, options);
         break;
       case "function-call-statement":
-        expandFunctionCallForSideEffect(statement.expression, instructions, context);
+        {
+          const setter = canonicalTestRuntimeSetterName(statement.expression.name);
+          if (setter) {
+            instructions.push({ kind: "let", name: setterStorageName(setter), expression: lowerExpression(statement.expression.args[0], instructions, context, options), location: statement.location });
+            break;
+          }
+          expandFunctionCallForSideEffect(statement.expression, instructions, context);
+        }
         break;
       case "randomize":
         instructions.push({
           kind: "randomize",
-          ...(statement.seed ? { seed: expandFunctionCalls(statement.seed, instructions, context) } : {}),
+          ...(statement.seed ? { seed: lowerExpression(statement.seed, instructions, context, options) } : {}),
           location: statement.location
         });
         break;
@@ -768,7 +777,7 @@ function lowerStatements(
             instructions.push({
               kind: "let",
               name: currentFunction.returnName,
-              expression: expandFunctionCalls(statement.expression, instructions, context),
+              expression: lowerExpression(statement.expression, instructions, context, options),
               location: statement.location
             });
           }
@@ -780,9 +789,9 @@ function lowerStatements(
         break;
       case "for":
         {
-          const start = expandFunctionCalls(statement.start, instructions, context);
-          const limit = expandFunctionCalls(statement.limit, instructions, context);
-          const step = statement.step ? expandFunctionCalls(statement.step, instructions, context) : undefined;
+          const start = lowerExpression(statement.start, instructions, context, options);
+          const limit = lowerExpression(statement.limit, instructions, context, options);
+          const step = statement.step ? lowerExpression(statement.step, instructions, context, options) : undefined;
           const staticBehavior = forLoopStaticBehavior(start, limit, step);
 
           if (staticBehavior === "skips") {
@@ -840,7 +849,7 @@ function lowerStatements(
         const endLabel = nextInternalLabel();
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
-        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: bodyLabel, location: statement.location });
+        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: bodyLabel, location: statement.location });
         instructions.push({ kind: "goto", label: endLabel, location: statement.location });
         instructions.push({ kind: "label", name: bodyLabel, internal: true, location: statement.location });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
@@ -854,7 +863,7 @@ function lowerStatements(
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
-        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: endLabel, location: statement.location });
+        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: endLabel, location: statement.location });
         instructions.push({ kind: "goto", label: startLabel, location: statement.location });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         break;
@@ -864,13 +873,13 @@ function lowerStatements(
         const endLabel = nextInternalLabel();
 
         if (statement.elseBranch.length > 0) {
-          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: thenLabel, location: statement.location });
+          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: thenLabel, location: statement.location });
           lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
           lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
         } else {
-          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context), label: thenLabel, location: statement.location });
+          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: thenLabel, location: statement.location });
           instructions.push({ kind: "goto", label: endLabel, location: statement.location });
           instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
           lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
@@ -883,8 +892,13 @@ function lowerStatements(
   }
 }
 
-function expandConditionExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
-  return preserveComplexModuloOperands(expandFunctionCalls(expression, instructions, context), instructions, context);
+function lowerExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, options: LowerOptions): Expression {
+  const expanded = expandFunctionCalls(expression, instructions, context);
+  return options.testMode ? replaceTestRuntimeFunctionCalls(expanded) : expanded;
+}
+
+function expandConditionExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, options: LowerOptions): Expression {
+  return preserveComplexModuloOperands(lowerExpression(expression, instructions, context, options), instructions, context);
 }
 
 function preserveComplexModuloOperands(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext): Expression {
@@ -934,14 +948,15 @@ function lowerElementMove(
   mode: "insert" | "remove",
   instructions: Instruction[],
   nextInternalLabel: () => string,
-  context: FunctionCallLoweringContext
+  context: FunctionCallLoweringContext,
+  options: LowerOptions
 ): void {
   if (statement.elementCount === undefined || !statement.fields) {
     throw new DiagnosticError(statement.location, `Internal error: ${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} was not analyzed before lowering.`);
   }
 
   const indexName = `MBT${context.nextTempId++}`;
-  instructions.push({ kind: "let", name: indexName, expression: expandFunctionCalls(statement.index, instructions, context), location: statement.location });
+  instructions.push({ kind: "let", name: indexName, expression: lowerExpression(statement.index, instructions, context, options), location: statement.location });
   const indexExpression = { kind: "identifier", name: indexName, location: statement.location } satisfies Expression;
 
   if (mode === "insert") {
@@ -950,7 +965,7 @@ function lowerElementMove(
         throw new DiagnosticError(statement.location, "Internal error: INSERT_ELEMENT field is missing an insertion value.");
       }
       const tempName = `MBT${context.nextTempId++}${field.valueType === "string" ? "$" : ""}`;
-      instructions.push({ kind: "let", name: tempName, expression: expandFunctionCalls(field.insertExpression, instructions, context), location: statement.location });
+      instructions.push({ kind: "let", name: tempName, expression: lowerExpression(field.insertExpression, instructions, context, options), location: statement.location });
       return { arrayName: field.arrayName, tempName };
     });
 
@@ -1036,7 +1051,8 @@ function expandInlineFunctionCall(
   destinationName: string | undefined,
   instructions: Instruction[],
   nextInternalLabel: () => string,
-  context: FunctionCallLoweringContext
+  context: FunctionCallLoweringContext,
+  options: LowerOptions
 ): Expression | undefined {
   const parameters = new Map<string, Expression>();
   for (let index = 0; index < args.length; index += 1) {
@@ -1046,14 +1062,14 @@ function expandInlineFunctionCall(
   const body = substituteInlineStatements(definition.body, parameters);
   const final = body[body.length - 1];
   const bodyWithoutFinalReturn = final?.kind === "return" ? body.slice(0, -1) : body;
-  lowerStatements(bodyWithoutFinalReturn, instructions, nextInternalLabel, context);
+  lowerStatements(bodyWithoutFinalReturn, instructions, nextInternalLabel, context, undefined, options);
 
   if (destinationName && final?.kind === "return" && final.expression) {
     if (!expandFunctionCallIntoDestination(final.expression, destinationName, instructions, context)) {
       instructions.push({
         kind: "let",
         name: destinationName,
-        expression: expandFunctionCalls(final.expression, instructions, context),
+        expression: lowerExpression(final.expression, instructions, context, options),
         location: final.location
       });
     }

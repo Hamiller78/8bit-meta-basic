@@ -1,18 +1,17 @@
 startJiffies = 0
 nextUpdateJiffies = 0
-clockJiffiesOverride = -1
 startTime$ = "00:00:00"
 currentTime$ = "00:00:00"
 
 function setClock(time$)
-    startJiffies = readClockJiffies()
+    startJiffies = jiffies()
     startTime$ = time$
     currentTime$ = time$
     nextUpdateJiffies = startJiffies + JIFFIES_PER_SECOND
 end function
 
 function getCurrentTimeIfUpdated$()
-    currentJiffies = readClockJiffies()
+    currentJiffies = jiffies()
     if currentJiffies < nextUpdateJiffies then
         return ""
     end if
@@ -32,14 +31,6 @@ function getCurrentTimeIfUpdated$()
     currentTime$ = twoDigits$(newHour) + ":" + twoDigits$(newMinute) + ":" + twoDigits$(newSeconds)
 
     return currentTime$
-end function
-
-function readClockJiffies()
-    if clockJiffiesOverride >= 0 then
-        return clockJiffiesOverride
-    end if
-
-    return jiffies()
 end function
 
 function twoDigits$(value)

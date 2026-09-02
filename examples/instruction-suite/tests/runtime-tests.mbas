@@ -10,6 +10,19 @@ test JiffiesRead()
     assert_true Tick >= 0
 end test
 
+test TestRuntimeFakes()
+    set_jiffies(1234)
+    set_key_code(KEY_SPACE)
+    set_key_pressed(1)
+
+    assert_eq 1234, jiffies()
+    assert_eq KEY_SPACE, key_code()
+    assert_true key_pressed()
+
+    set_key_pressed(0)
+    assert_false key_pressed()
+end test
+
 test FreeMemoryRead()
     MemoryLeft = free_memory()
     assert_true MemoryLeft > 0

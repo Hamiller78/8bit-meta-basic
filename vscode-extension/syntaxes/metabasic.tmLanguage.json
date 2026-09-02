@@ -93,7 +93,7 @@
       "patterns": [
         {
           "name": "support.function.metabasic",
-          "match": "(?i)\\b(?:STRING\\$|SPACE\\$|MID\\$|LEFT\\$|RIGHT\\$|LEN|CHR\\$|CODE|ASC|STR\\$|VAL|ABS|ATN|COS|EXP|INT|SGN|SIN|SQR|RND|JIFFIES|FREE_MEMORY|KEY_CODE|KEY_PRESSED|DEVICE_AVAILABLE)\\b"
+          "match": "(?i)\\b(?:STRING\\$|SPACE\\$|MID\\$|LEFT\\$|RIGHT\\$|LEN|CHR\\$|CODE|ASC|STR\\$|VAL|ABS|ATN|COS|EXP|INT|SGN|SIN|SQR|RND|JIFFIES|FREE_MEMORY|KEY_CODE|KEY_PRESSED|SET_JIFFIES|SET_KEY_CODE|SET_KEY_PRESSED|DEVICE_AVAILABLE)\\b"
         }
       ]
     },

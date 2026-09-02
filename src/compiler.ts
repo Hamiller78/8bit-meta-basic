@@ -424,6 +424,9 @@ const generatedHousekeepingNames = new Set([
   "MBTCT",
   "MBTCC",
   "MBTCD",
+  "MBTJIF",
+  "MBTKC",
+  "MBTKP",
   "MBTMSG$",
   "MBTF0"
 ]);

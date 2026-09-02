@@ -203,6 +203,25 @@ value = rnd()
 key = key_code()
 ```
 
+In test mode, tests can replace the runtime values returned by the timer and keyboard helpers:
+
+```basic
+test FakesRuntimeInputs()
+    set_jiffies(123)
+    set_key_code(KEY_SPACE)
+    set_key_pressed(1)
+
+    assert_eq 123, jiffies()
+    assert_eq KEY_SPACE, key_code()
+    assert_true key_pressed()
+
+    set_key_pressed(0)
+    assert_false key_pressed()
+end test
+```
+
+`SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+
 ## Data streams
 
 `DATA`, `READ`, and bare `RESTORE` provide the classic BASIC data stream:
@@ -334,6 +353,8 @@ end test
 `GLOBALS` blocks may contain assignment statements. The generated test runner replays those assignments before each test, so shared global fixture variables return to their declared initial values. This is explicit on purpose: globals outside a `GLOBALS` block are left alone.
 
 `TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s.
+
+Runtime fakes for `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` are reset before each test. Use `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)` inside a test to make time and keyboard-dependent code deterministic.
 
 Supported assertions are:
 

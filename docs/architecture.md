@@ -70,6 +70,7 @@ When `--run-tests` or `testMode` is enabled, startup code is replaced by a gener
 - discovers test blocks in compilation order,
 - calls each test through generated `GOSUB`s,
 - captures logical program output for assertions,
+- replaces `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` with per-test fake runtime values,
 - prints MCP progress and summary lines,
 - optionally mirrors that runner log to an emulator device.
 
