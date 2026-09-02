@@ -488,6 +488,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("parenthesizes Spectrum string slices of function-call results", () => {
+    expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "spectrum" })).toBe(
+      ["10 PRINT (STR$ DEFCON)(LEN (STR$ DEFCON) - 1 + 1 TO )", ""].join("\n")
+    );
+  });
+
   it("renders STR$ and VAL as Spectrum conversion functions", () => {
     expect(compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', { filename: "convert.mbas", target: "spectrum" })).toBe(
       ["10 LET A$=STR$ (SCORE + 10)", "20 LET SCORE=VAL A$", "30 PRINT A$;SCORE", ""].join("\n")

@@ -300,6 +300,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("preserves computed string slice sources before Atari substring rendering", () => {
+    expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "atari800xl" })).toBe(
+      ["10 DIM MBTEMP$(255)", "20 MBTEMP$=STR$(DEFCON)", "30 PRINT MBTEMP$(LEN(MBTEMP$) - 1 + 1,LEN(MBTEMP$))", ""].join("\n")
+    );
+  });
+
   it("renders STR$ and VAL as Atari conversion functions", () => {
     expect(compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', { filename: "convert.mbas", target: "atari800xl" })).toBe(
       ['10 DIM VALUETEXT$(255)', "20 VALUETEXT$=STR$(SCORE + 10)", "30 SCORE=VAL(VALUETEXT$)", "40 PRINT VALUETEXT$;SCORE", ""].join("\n")

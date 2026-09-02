@@ -28,8 +28,8 @@ defcon = 1
 'begin program
 printIntroText()
 
-addToTextQueue(12, 1, 10, "Connecting to NORAD...")
-addToTextQueue(13, 7, 50, "RONALD REAGAN")
+addToTextQueue(12, 1, 5, "Connecting to NORAD...")
+addToTextQueue(13, 7, 30, "RONALD REAGAN")
 
 'main loop: add text output queue for telegraph effect
 repeat
@@ -40,8 +40,15 @@ txtQueueIndex = -1 ' Clear the queue for next screen
 waitForKeyRelease()
 setUpMainScreen()
 
+setClock("11:47:30") ' Set initial time for clock
+print_at 4, (TEXT_COLUMNS - 10) / 2, " ";currentTime$;" "
+
 setupTicker()
 repeat
+    time$ = getCurrentTimeIfUpdated$()
+    if time$ <> "" then
+        print_at 4, (TEXT_COLUMNS - 10) / 2, " ";time$;" " 
+    end if
     updateTicker()
 until key_pressed()
 
@@ -60,7 +67,7 @@ end function
 inline function setUpMainScreen()
     cls
 
-    print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + str$(defcon);
+    print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + right$(str$(defcon),1);
     print_at 2, TEXT_COLUMNS - 11, "RED:  11:47";
     print_at 3, TEXT_COLUMNS - 11, "BLUE: 22:21";
     print_at 1, 1, "ICBMS:   " + str$(icbms);

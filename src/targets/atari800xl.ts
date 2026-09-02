@@ -121,20 +121,21 @@ export const atari800xlTarget: TargetBackend = {
       } else if (instruction.kind === "print" || instruction.kind === "print-device") {
         const beforePrint: Instruction[] = [];
         const items = instruction.items.map((item) => {
-          if (!isStringConcatenation(item)) {
-            return item;
+          const preservedItem = preserveComputedAtariSliceSources(item, beforePrint, allocateTempStringName, ensureStringDim);
+          if (!isStringConcatenation(preservedItem)) {
+            return preservedItem;
           }
 
           const tempName = allocateTempStringName();
-          ensureStringDim(tempName, item.location);
+          ensureStringDim(tempName, preservedItem.location);
           beforePrint.push(
             ...expandAtariStringAssignment(
-              { kind: "let", name: tempName, expression: item, location: item.location },
+              { kind: "let", name: tempName, expression: preservedItem, location: preservedItem.location },
               allocateTempStringName,
               ensureStringDim
             )
           );
-          return { kind: "identifier", name: tempName, location: item.location } satisfies Expression;
+          return { kind: "identifier", name: tempName, location: preservedItem.location } satisfies Expression;
         });
         instructions.push(...beforePrint, { ...instruction, items });
       } else {
@@ -473,15 +474,17 @@ function expandAtariStringAssignment(
   allocateTempStringName: () => string,
   ensureStringDim: (name: string, location: Expression["location"]) => void
 ): readonly Instruction[] {
-  const parts = flattenStringConcatenation(instruction.expression);
+  const prefix: Instruction[] = [];
+  const expression = preserveComputedAtariSliceSources(instruction.expression, prefix, allocateTempStringName, ensureStringDim);
+  const parts = flattenStringConcatenation(expression);
   if (!parts) {
-    return [instruction];
+    return [...prefix, { ...instruction, expression }];
   }
 
   const leadingSelfAppend = isIdentifierNamed(parts[0], instruction.name);
-  const needsTemp = !leadingSelfAppend && expressionReferencesName(instruction.expression, instruction.name);
+  const needsTemp = !leadingSelfAppend && expressionReferencesName(expression, instruction.name);
   const targetName = needsTemp ? allocateTempStringName() : instruction.name;
-  const instructions: Instruction[] = [];
+  const instructions: Instruction[] = [...prefix];
   const appendStart = leadingSelfAppend ? 1 : 0;
 
   if (needsTemp) {
@@ -544,6 +547,63 @@ function createAtariStringArrayInitialization(instruction: Extract<Instruction, 
   }
 
   return instructions;
+}
+
+function preserveComputedAtariSliceSources(
+  expression: Expression,
+  instructions: Instruction[],
+  allocateTempStringName: () => string,
+  ensureStringDim: (name: string, location: Expression["location"]) => void
+): Expression {
+  switch (expression.kind) {
+    case "function-call": {
+      const args = expression.args.map((arg) => preserveComputedAtariSliceSources(arg, instructions, allocateTempStringName, ensureStringDim));
+      if (isAtariStringSliceFunction(expression.name) && args[0] && !isDirectAtariSliceSource(args[0])) {
+        const tempName = allocateTempStringName();
+        ensureStringDim(tempName, args[0].location);
+        instructions.push({ kind: "let", name: tempName, expression: args[0], location: args[0].location });
+        return { ...expression, args: [{ kind: "identifier", name: tempName, location: args[0].location }, ...args.slice(1)] };
+      }
+      return { ...expression, args };
+    }
+    case "parenthesized":
+      return { ...expression, expression: preserveComputedAtariSliceSources(expression.expression, instructions, allocateTempStringName, ensureStringDim) };
+    case "unary":
+      return { ...expression, operand: preserveComputedAtariSliceSources(expression.operand, instructions, allocateTempStringName, ensureStringDim) };
+    case "binary":
+      return {
+        ...expression,
+        left: preserveComputedAtariSliceSources(expression.left, instructions, allocateTempStringName, ensureStringDim),
+        right: preserveComputedAtariSliceSources(expression.right, instructions, allocateTempStringName, ensureStringDim)
+      };
+    case "array-access":
+      return {
+        ...expression,
+        indices: expression.indices.map((index) => preserveComputedAtariSliceSources(index, instructions, allocateTempStringName, ensureStringDim))
+      };
+    case "struct-field-access":
+      return {
+        ...expression,
+        indices: expression.indices.map((index) => preserveComputedAtariSliceSources(index, instructions, allocateTempStringName, ensureStringDim))
+      };
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+    case "identifier":
+      return expression;
+  }
+}
+
+function isAtariStringSliceFunction(name: string): boolean {
+  return name === builtinFunctions.left || name === builtinFunctions.mid || name === builtinFunctions.right;
+}
+
+function isDirectAtariSliceSource(expression: Expression): boolean {
+  if (expression.kind === "parenthesized") {
+    return isDirectAtariSliceSource(expression.expression);
+  }
+  return expression.kind === "identifier" || expression.kind === "string" || expression.kind === "array-access";
 }
 
 function flattenStringConcatenation(expression: Expression): readonly Expression[] | undefined {
