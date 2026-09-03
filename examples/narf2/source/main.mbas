@@ -23,18 +23,19 @@ until key_pressed()
 
 clearTextQueue()
 waitForKeyRelease()
-setUpMainScreen()
+drawMainScreen()
 
 setClock("11:47:30") ' Set initial time for clock
-print_at 4, (TEXT_COLUMNS - 10) / 2, " ";currentTime$;" "
+drawMainClock(currentTime$)
+addToTextQueue(5, 1, 3, "TEST: MISSILE DETECTED")
+addWorldQueueEvent(MissileHitsOurCity, jiffies() + 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
 
 setupTicker()
 repeat
-    time$ = getCurrentTimeIfUpdated$()
-    if time$ <> "" then
-        print_at 4, (TEXT_COLUMNS - 10) / 2, " ";time$;" " 
-    end if
+    checkWorldQueueEvents()
+    updateMainScreen()
     updateTicker()
+    printQueues()
 until key_pressed()
 
 print free_memory();" bytes free"
@@ -47,22 +48,6 @@ inline function printIntroText()
     printCentered(9, "(N.A.R.F.)")
 
     print_at 13, 1, "User:"
-end function
-
-inline function setUpMainScreen()
-    cls
-
-    print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + right$(str$(defcon),1);
-    print_at 2, TEXT_COLUMNS - 11, "RED:  11:47";
-    print_at 3, TEXT_COLUMNS - 11, "BLUE: 22:21";
-    print_at 1, 1, "ICBMS:   " + str$(icbms);
-    print_at 2, 1, "SUBS:    " + str$(submarines);
-    print_at 3, 1, "BOMBERS: " + str$(bombers);
-    print_at 4,1, string$("-", TEXT_COLUMNS);
-    text_color YELLOW
-    print_at TEXT_ROWS - 1, 1, "***";
-    print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";
-    text_color WHITE
 end function
 
 function printCentered(row, text$)

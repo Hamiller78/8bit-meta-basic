@@ -38,6 +38,17 @@ describe("example programs", () => {
     await expect(build(configuration, { baseDir: process.cwd(), target: "c64", readability: 0 })).resolves.not.toHaveLength(0);
     await expect(build(configuration, { baseDir: process.cwd(), target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
   });
+
+  it("compiles the narf2 project tests for all targets", async () => {
+    const configuration = {
+      testMode: true,
+      files: [...projectFiles("examples/narf2/source"), ...projectFiles("examples/narf2/tests")]
+    };
+
+    await expect(build(configuration, { baseDir: process.cwd(), target: "spectrum", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { baseDir: process.cwd(), target: "c64", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { baseDir: process.cwd(), target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
+  });
 });
 
 function projectFiles(directory: string): string[] {

@@ -1,0 +1,61 @@
+globals
+    txtQueueIndex = -1
+end globals
+
+test AddToTextQueueStoresItem()
+    set_jiffies(123)
+    addToTextQueue(5, 6, 7, "ABC")
+
+    assert_eq 0, txtQueueIndex
+    assert_eq 5, txtQueue(0).row
+    assert_eq 6, txtQueue(0).column
+    assert_eq 7, txtQueue(0).delay
+    assert_eq "ABC", left$(txtQueue(0).text$, txtQueue(0).length)
+    assert_eq 3, txtQueue(0).length
+    assert_eq 123, txtQueue(0).nextTime
+end test
+
+test ClearTextQueueResetsLength()
+    addToTextQueue(5, 6, 7, "ABC")
+    clearTextQueue()
+
+    assert_eq -1, txtQueueIndex
+end test
+
+test PrintQueuesAdvancesReadyItem()
+    set_jiffies(100)
+    addToTextQueue(5, 6, 7, "AB")
+
+    printQueues()
+
+    assert_printat 5, 6, "A"
+    assert_eq 0, txtQueueIndex
+    assert_eq 1, txtQueue(0).length
+    assert_eq "B", left$(txtQueue(0).text$, txtQueue(0).length)
+    assert_eq 7, txtQueue(0).column
+    assert_eq 107, txtQueue(0).nextTime
+end test
+
+test PrintQueuesRemovesCompletedItem()
+    set_jiffies(100)
+    addToTextQueue(5, 6, 7, "A")
+
+    printQueues()
+
+    assert_printat 5, 6, "A"
+    assert_eq -1, txtQueueIndex
+end test
+
+test PrintQueuesRemovesCompletedItemBeforeTail()
+    set_jiffies(100)
+    addToTextQueue(5, 6, 7, "A")
+    addToTextQueue(6, 1, 7, "BC")
+
+    printQueues()
+
+    assert_eq 0, txtQueueIndex
+    assert_eq 6, txtQueue(0).row
+    assert_eq 2, txtQueue(0).column
+    assert_eq 1, txtQueue(0).length
+    assert_eq "C", left$(txtQueue(0).text$, txtQueue(0).length)
+end test

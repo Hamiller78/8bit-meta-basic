@@ -1,6 +1,7 @@
 {
   "files": [
     "source/main.mbas",
+    "source/mainscreen.mbas",
     "source/textqueue.mbas",
     "source/worldqueue.mbas",
     "source/timehelper.mbas",

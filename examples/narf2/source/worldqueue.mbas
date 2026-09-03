@@ -7,15 +7,17 @@ struct WorldQueueEvent
     eventType
     eventTime
     eventText$(40)  'Here with target city
+    eventTextLength
     eventValue  'Number for event, here victim number
 end struct
 
 const worldQueueSize = 50
 dim worldQueue AS WorldQueueEvent(worldQueueSize)
-dim newWorldQueueEvent AS WorldQueueEvent
 worldQueueLength = 0
 
 function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
+    local i
+
     insertIndex = worldQueueLength
 
     for i = 0 to worldQueueLength - 1
@@ -29,18 +31,88 @@ function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
         return
     end if
 
-    newWorldQueueEvent.eventType = eventType
-    newWorldQueueEvent.eventTime = eventTime
-    newWorldQueueEvent.eventText$ = eventText$
-    newWorldQueueEvent.eventValue = eventValue
-
     if insertIndex < worldQueueLength then
-        insert_element(worldQueue, insertIndex, newWorldQueueEvent)
+        i = worldQueueLength
+        while i > insertIndex
+            worldQueue(i).eventType = worldQueue(i - 1).eventType
+            worldQueue(i).eventTime = worldQueue(i - 1).eventTime
+            worldQueue(i).eventText$ = worldQueue(i - 1).eventText$
+            worldQueue(i).eventTextLength = worldQueue(i - 1).eventTextLength
+            worldQueue(i).eventValue = worldQueue(i - 1).eventValue
+            i = i - 1
+        wend
+
+        worldQueue(insertIndex).eventType = eventType
+        worldQueue(insertIndex).eventTime = eventTime
+        worldQueue(insertIndex).eventText$ = eventText$
+        worldQueue(insertIndex).eventTextLength = len(eventText$)
+        worldQueue(insertIndex).eventValue = eventValue
     else
-        worldQueue(insertIndex) = newWorldQueueEvent
+        worldQueue(insertIndex).eventType = eventType
+        worldQueue(insertIndex).eventTime = eventTime
+        worldQueue(insertIndex).eventText$ = eventText$
+        worldQueue(insertIndex).eventTextLength = len(eventText$)
+        worldQueue(insertIndex).eventValue = eventValue
     end if
 
     if worldQueueLength < worldQueueSize then
         worldQueueLength = worldQueueLength + 1
     end if
+
+    if eventType = MissileHitsOurCity then
+        addToTextQueue(6, 1, 3, "INCOMING MISSILE: " + eventText$)
+    end if
+end function
+
+function checkWorldQueueEvents()
+    while worldQueueLength > 0 and jiffies() >= worldQueue(0).eventTime
+        if worldQueue(0).eventType = MissileHitsOurCity then
+            resolveMissileHitEvent(0)
+        else
+            removeWorldQueueEvent(0)
+        end if
+    wend
+end function
+
+function secondsUntilNextMissileImpact()
+    local i
+
+    for i = 0 to worldQueueLength - 1
+        if worldQueue(i).eventType = MissileHitsOurCity then
+            if jiffies() >= worldQueue(i).eventTime then
+                return 0
+            end if
+
+            return int((worldQueue(i).eventTime - jiffies()) / JIFFIES_PER_SECOND)
+        end if
+    next i
+
+    return -1
+end function
+
+function resolveMissileHitEvent(eventIndex)
+    if eventIndex < 0 or eventIndex >= worldQueueLength then
+        return
+    end if
+
+    addToTextQueue(8, 1, 3, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
+    removeWorldQueueEvent(eventIndex)
+end function
+
+function removeWorldQueueEvent(eventIndex)
+    local i
+
+    if eventIndex < worldQueueLength - 1 then
+        i = eventIndex
+        while i < worldQueueLength - 1
+            worldQueue(i).eventType = worldQueue(i + 1).eventType
+            worldQueue(i).eventTime = worldQueue(i + 1).eventTime
+            worldQueue(i).eventText$ = worldQueue(i + 1).eventText$
+            worldQueue(i).eventTextLength = worldQueue(i + 1).eventTextLength
+            worldQueue(i).eventValue = worldQueue(i + 1).eventValue
+            i = i + 1
+        wend
+    end if
+
+    worldQueueLength = worldQueueLength - 1
 end function

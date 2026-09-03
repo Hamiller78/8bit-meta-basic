@@ -1,0 +1,45 @@
+inline function drawMainScreen()
+    cls
+
+    print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + right$(str$(defcon),1);
+    drawRedCountdown()
+    print_at 3, TEXT_COLUMNS - 11, "BLUE: 22:21";
+    print_at 1, 1, "ICBMS:   " + str$(icbms);
+    print_at 2, 1, "SUBS:    " + str$(submarines);
+    print_at 3, 1, "BOMBERS: " + str$(bombers);
+    print_at 4,1, string$("-", TEXT_COLUMNS);
+    text_color YELLOW
+    print_at TEXT_ROWS - 1, 1, "***";
+    print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";
+    text_color WHITE
+end function
+
+function drawMainClock(time$)
+    print_at 4, (TEXT_COLUMNS - 10) / 2, " ";time$;" "
+end function
+
+function updateMainScreen()
+    local screenTime$
+
+    screenTime$ = getCurrentTimeIfUpdated$()
+    if screenTime$ <> "" then
+        drawMainClock(screenTime$)
+    end if
+
+    drawRedCountdown()
+end function
+
+function drawRedCountdown()
+    local secondsLeft
+    local minutesLeft
+    local remainingSeconds
+
+    secondsLeft = secondsUntilNextMissileImpact()
+    if secondsLeft < 0 then
+        print_at 2, TEXT_COLUMNS - 11, "RED:  --:--";
+    else
+        minutesLeft = int(secondsLeft / 60)
+        remainingSeconds = secondsLeft MOD 60
+        print_at 2, TEXT_COLUMNS - 11, "RED:  " + twoDigits$(minutesLeft) + ":" + twoDigits$(remainingSeconds);
+    end if
+end function

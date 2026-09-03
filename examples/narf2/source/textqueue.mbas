@@ -34,31 +34,47 @@ function clearTextQueue()
 end function
 
 function printQueues()
-    for i = 0 to txtQueueIndex
-        if txtQueueIndex < 0 or i > txtQueueIndex then
-            exit for
+    local i
+
+    i = 0
+    while i <= txtQueueIndex
+        if jiffies() >= txtQueue(i).nextTime then
+            print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
+            txtQueue(i).length = txtQueue(i).length - 1
+
+            if txtQueue(i).length = 0 then
+                removeTextQueueItem(i)
+            else
+                advanceQueueItem(i)
+                i = i + 1
+            end if
+        else
+            i = i + 1
         end if
-
-        if jiffies() < txtQueue(i).nextTime then
-            continue for
-        end if
-
-        print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
-        txtQueue(i).length = txtQueue(i).length - 1
-
-        if txtQueue(i).length = 0 then
-            remove_element(txtQueue, i)
-            txtQueueIndex = txtQueueIndex - 1
-            i = i - 1 ' Adjust index since we removed an item
-            continue for
-        end if
-
-        advanceQueueItem(i)
-    next i
+    wend
 end function
 
 inline function advanceQueueItem(queueIndex)
     txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
     txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
     txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
+end function
+
+function removeTextQueueItem(queueIndex)
+    local i
+
+    if queueIndex < txtQueueIndex then
+        i = queueIndex
+        while i < txtQueueIndex
+            txtQueue(i).row = txtQueue(i + 1).row
+            txtQueue(i).column = txtQueue(i + 1).column
+            txtQueue(i).delay = txtQueue(i + 1).delay
+            txtQueue(i).text$ = txtQueue(i + 1).text$
+            txtQueue(i).length = txtQueue(i + 1).length
+            txtQueue(i).nextTime = txtQueue(i + 1).nextTime
+            i = i + 1
+        wend
+    end if
+
+    txtQueueIndex = txtQueueIndex - 1
 end function

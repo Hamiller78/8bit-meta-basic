@@ -1,0 +1,47 @@
+globals
+    icbms = 500
+    submarines = 50
+    bombers = 100
+    defcon = 1
+    startJiffies = 0
+    nextUpdateJiffies = 0
+    startTime$ = "00:00:00"
+    currentTime$ = "00:00:00"
+    worldQueueLength = 0
+    txtQueueIndex = -1
+end globals
+
+test DrawMainClockPrintsCenteredTime()
+    drawMainClock("12:34:56")
+
+    assert_printat 4, (TEXT_COLUMNS - 10) / 2, " 12:34:56 "
+end test
+
+test UpdateMainScreenPrintsOnlyWhenClockAdvances()
+    set_jiffies(1000)
+    setClock("11:47:30")
+    drawMainClock(currentTime$)
+
+    set_jiffies(1049)
+    updateMainScreen()
+    assert_eq "11:47:30", currentTime$
+
+    set_jiffies(1050)
+    updateMainScreen()
+    assert_eq "11:47:31", currentTime$
+end test
+
+test DrawRedCountdownShowsNoMissilePlaceholder()
+    drawRedCountdown()
+
+    assert_printat 2, TEXT_COLUMNS - 11, "RED:  --:--"
+end test
+
+test DrawRedCountdownShowsNextMissileImpact()
+    set_jiffies(100)
+    addWorldQueueEvent(MissileHitsOurCity, 1100, "WASHINGTON D.C.", 0)
+
+    drawRedCountdown()
+
+    assert_printat 2, TEXT_COLUMNS - 11, "RED:  00:20"
+end test
