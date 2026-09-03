@@ -1,4 +1,4 @@
-const TICKER_UPDATE_DELAY = 10
+const TICKER_UPDATE_DELAY = 25
 const TICKER_TEXT_WIDTH = TEXT_COLUMNS - 10
 
 newsText$ = "PRESIDENT REAGAN CONTINUES ASIA TOUR - "
@@ -13,6 +13,9 @@ nextTickerUpdate = 0
 
 
 function setupTicker()
+    if len(newsText$) MOD 2 <> 0 then
+        newsText$ = newsText$ + " "
+    end if
     displayedText$ = left$(newsText$, TICKER_TEXT_WIDTH)
     newsIndex = TICKER_TEXT_WIDTH + 1
     nextTickerUpdate = jiffies() + TICKER_UPDATE_DELAY
@@ -20,6 +23,9 @@ end function
 
 function setNextTickerText(text$)
     nextText$ = text$
+    if len(nextText$) MOD 2 <> 0 then
+        nextText$ = nextText$ + " "
+    end if
 end function
 
 function updateTicker()
@@ -39,8 +45,8 @@ inline function getNewsLine()
         newsIndex = 1
     end if
 
-    displayedText$ = mid$(displayedText$, 2)
-    displayedText$ = displayedText$ + mid$(newsText$, newsIndex, 1)
+    displayedText$ = mid$(displayedText$, 3)
+    displayedText$ = displayedText$ + mid$(newsText$, newsIndex, 2)
 
-    newsIndex = newsIndex + 1
+    newsIndex = newsIndex + 2
 end function

@@ -29,6 +29,31 @@ describe("build configuration", () => {
     });
   });
 
+  it("emits module boundary comments for balanced and debug readability", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), 'print "MAIN"\n', "utf8");
+      await writeFile(join(dir, "ui.mbas"), 'print "UI"\n', "utf8");
+
+      await expect(compileBuildConfiguration({ files: ["main.mbas", "ui.mbas"] }, { baseDir: dir, target: "c64", readability: 1 })).resolves.toBe(
+        ['10 REM -------- MODULE MAIN.MBAS --------', '20 PRINT "MAIN"', "30 REM -------- MODULE UI.MBAS --------", '40 PRINT "UI"', ""].join("\n")
+      );
+      await expect(compileBuildConfiguration({ files: ["main.mbas", "ui.mbas"] }, { baseDir: dir, target: "c64", readability: 2 })).resolves.toBe(
+        ['10 REM -------- MODULE MAIN.MBAS --------', '20 PRINT "MAIN"', "30 REM -------- MODULE UI.MBAS --------", '40 PRINT "UI"', ""].join("\n")
+      );
+    });
+  });
+
+  it("keeps module boundary comments out of release readability", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), 'print "MAIN"\n', "utf8");
+      await writeFile(join(dir, "ui.mbas"), 'print "UI"\n', "utf8");
+
+      await expect(compileBuildConfiguration({ files: ["main.mbas", "ui.mbas"] }, { baseDir: dir, target: "c64", readability: 0 })).resolves.toBe(
+        ['10 PRINT "MAIN"', '20 PRINT "UI"', ""].join("\n")
+      );
+    });
+  });
+
   it("allows a function defined in a later file to be called from an earlier file", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), "score = addBonus(10, 5)\nprint score\n", "utf8");

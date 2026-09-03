@@ -1,5 +1,7 @@
 {
   "files": [
+    "source/textqueue.mbas",
+    "source/timehelper.mbas",
     "source/main.mbas",
     "source/newsticker.mbas"
   ]

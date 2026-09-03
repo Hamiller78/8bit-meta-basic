@@ -4,21 +4,6 @@ screen_background_color BLUE
 screen_text_color WHITE
 cls
 
-' struct for telegraph text being printed one character at a time
-struct TextQueueItem
-    row
-    column
-    delay
-    text$(40)
-    length
-    nextTime
-end struct
-
-'Variables for telegraph text output queue, several in parallel can be printed at once, each with its own delay
-const txtQueueSize = 20
-dim txtQueue AS TextQueueItem(txtQueueSize)
-txtQueueIndex = -1
-
 'Variables for game logic
 icbms = 500
 submarines = 50
@@ -36,7 +21,7 @@ repeat
     printQueues()
 until key_pressed()
 
-txtQueueIndex = -1 ' Clear the queue for next screen
+clearTextQueue()
 waitForKeyRelease()
 setUpMainScreen()
 
@@ -83,52 +68,6 @@ end function
 function printCentered(row, text$)
     column = (TEXT_COLUMNS - len(text$)) / 2 + 1
     print_at row, column, text$
-end function
-
-function addToTextQueue(row, column, delay, text$)
-    if txtQueueIndex = txtQueueSize - 1 then
-        'Queue is full, emergency flush one text to make room
-        print_at txtQueue(txtQueueIndex).row, txtQueue(txtQueueIndex).column, left$(txtQueue(txtQueueIndex).text$, txtQueue(txtQueueIndex).length)
-        txtQueueIndex = txtQueueSize - 2
-    end if
-
-    txtQueueIndex = txtQueueIndex + 1
-    txtQueue(txtQueueIndex).row = row
-    txtQueue(txtQueueIndex).column = column
-    txtQueue(txtQueueIndex).delay = delay
-    txtQueue(txtQueueIndex).text$ = text$
-    txtQueue(txtQueueIndex).length = len(text$)
-    txtQueue(txtQueueIndex).nextTime = jiffies()
-end function
-
-function printQueues()
-    for i = 0 to txtQueueIndex
-        if txtQueueIndex < 0 or i > txtQueueIndex then
-            exit for
-        end if
-
-        if jiffies() < txtQueue(i).nextTime then
-            continue for
-        end if
-
-        print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
-        txtQueue(i).length = txtQueue(i).length - 1
-
-        if txtQueue(i).length = 0 then
-            remove_element(txtQueue, i)
-            txtQueueIndex = txtQueueIndex - 1
-            i = i - 1 ' Adjust index since we removed an item
-            continue for
-        end if
-
-        advanceQueueItem(i)
-    next i
-end function
-
-inline function advanceQueueItem(queueIndex)
-    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
-    txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
-    txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
 end function
 
 function waitForKeyRelease()
