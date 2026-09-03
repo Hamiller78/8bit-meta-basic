@@ -3,7 +3,7 @@ inline function drawMainScreen()
 
     print_at 1, TEXT_COLUMNS - 11, "DEFCON:   " + right$(str$(defcon),1);
     drawRedCountdown()
-    print_at 3, TEXT_COLUMNS - 11, "BLUE: 22:21";
+    print_at 3, TEXT_COLUMNS - 11, "BLUE: --:--";
     print_at 1, 1, "ICBMS:   " + str$(icbms);
     print_at 2, 1, "SUBS:    " + str$(submarines);
     print_at 3, 1, "BOMBERS: " + str$(bombers);

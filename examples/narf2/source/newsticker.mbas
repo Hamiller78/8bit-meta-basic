@@ -8,6 +8,7 @@ newsText$ = newsText$ + "TONIGHT: MAGNUM P.I. ON CBS - "
 newsText$ = newsText$ + "THE WEATHER: PARTLY CLOUDY WITH A HIGH OF 75 - "
 displayedText$ = left$(newsText$, TICKER_TEXT_WIDTH)
 nextText$ = ""
+hasNextText = false
 newsIndex = 1
 nextTickerUpdate = 0
 
@@ -23,6 +24,7 @@ end function
 
 function setNextTickerText(text$)
     nextText$ = text$
+    hasNextText = true
     if len(nextText$) MOD 2 <> 0 then
         nextText$ = nextText$ + " "
     end if
@@ -38,9 +40,10 @@ end function
 
 inline function getNewsLine()
     if newsIndex > len(newsText$) then
-        if nextText$ <> "" then
+        if hasNextText then
             newsText$ = nextText$
             nextText$ = ""
+            hasNextText = false
         end if
         newsIndex = 1
     end if

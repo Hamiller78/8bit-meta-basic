@@ -615,7 +615,13 @@ describe("Spectrum compiler", () => {
 
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
-      ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
+      ["10 LET LASTTICK=(PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)", "20 PRINT 50", ""].join("\n")
+    );
+  });
+
+  it("keeps Spectrum JIFFIES grouped inside binary expressions", () => {
+    expect(compileSource("remaining = targetTime - jiffies()\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
+      ["10 LET REMAINING=TARGETTIME - (PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)", ""].join("\n")
     );
   });
 

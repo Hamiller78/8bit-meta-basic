@@ -76,14 +76,16 @@ end function
 
 function secondsUntilNextMissileImpact()
     local i
+    local now
 
+    now = jiffies()
     for i = 0 to worldQueueLength - 1
         if worldQueue(i).eventType = MissileHitsOurCity then
-            if jiffies() >= worldQueue(i).eventTime then
+            if now >= worldQueue(i).eventTime then
                 return 0
             end if
 
-            return int((worldQueue(i).eventTime - jiffies()) / JIFFIES_PER_SECOND)
+            return int((worldQueue(i).eventTime - now) / JIFFIES_PER_SECOND)
         end if
     next i
 

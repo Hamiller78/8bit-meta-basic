@@ -70,7 +70,7 @@ test DueMissileImpactTextPrintsInMainLoopOrder()
     printQueues()
 
     assert_eq 0, worldQueueLength
-    assert_printat 8, 1, "M"
+    assert_printat 7, 1, "M"
 end test
 
 test DueMissilePrintsAfterQueueDrains()
@@ -90,5 +90,5 @@ test DueMissilePrintsAfterQueueDrains()
     printQueues()
 
     assert_eq 0, worldQueueLength
-    assert_printat 8, 1, "M"
+    assert_printat 7, 1, "M"
 end test

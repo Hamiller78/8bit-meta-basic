@@ -335,7 +335,7 @@ describe("Atari 800XL compiler", () => {
       [
         "10 DIM V0(99)",
         "20 FOR V1=1 TO 3",
-        "30 V2=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536",
+        "30 V2=(PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536)",
         "40 IF (V2) - INT((V2) / (V0(V1))) * (V0(V1)) = 0 THEN GOTO 60",
         "50 GOTO 70",
         "60 PRINT V1",
@@ -434,7 +434,13 @@ describe("Atari 800XL compiler", () => {
 
   it("renders JIFFIES from the Atari real-time clock", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
-      ["10 LASTTICK=PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536", "20 PRINT 50", ""].join("\n")
+      ["10 LASTTICK=(PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536)", "20 PRINT 50", ""].join("\n")
+    );
+  });
+
+  it("keeps Atari JIFFIES grouped inside binary expressions", () => {
+    expect(compileSource("remaining = targetTime - jiffies()\n", { filename: "jiffies.mbas", target: "atari800xl" })).toBe(
+      ["10 REMAINING=TARGETTIME - (PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536)", ""].join("\n")
     );
   });
 
