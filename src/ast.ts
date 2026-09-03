@@ -12,6 +12,7 @@ export interface Program {
 }
 
 export type Statement =
+  | CommentStatement
   | ConstStatement
   | DimStatement
   | LabelStatement
@@ -54,6 +55,12 @@ export type Statement =
   | WhileStatement
   | RepeatUntilStatement
   | IfStatement;
+
+export interface CommentStatement {
+  readonly kind: "comment";
+  readonly text: string;
+  readonly location: SourceLocation;
+}
 
 export interface LabelStatement {
   readonly kind: "label";

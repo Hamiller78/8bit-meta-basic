@@ -586,9 +586,15 @@ describe("Spectrum compiler", () => {
     );
   });
 
-  it("keeps apostrophe comments everywhere, including after PRINT", () => {
+  it("keeps apostrophe comments out unless source comments are enabled", () => {
     expect(compileSource("' ignored\nvalue = 1 ' trailing\nprint value ' trailing print comment\n", { filename: "comments.mbas", target: "spectrum", readability: 0 })).toBe(
       ["10 LET VALUE=1", "20 PRINT VALUE", ""].join("\n")
+    );
+  });
+
+  it("emits source comments as REM lines when source comments are enabled", () => {
+    expect(compileSource("' heading\nvalue = 1 ' trailing\nprint value ' trailing print comment\n", { filename: "comments.mbas", target: "spectrum", readability: 2, sourceComments: true })).toBe(
+      ["10 REM HEADING", "20 LET VALUE=1", "30 REM TRAILING", "40 PRINT VALUE", "50 REM TRAILING PRINT COMMENT", ""].join("\n")
     );
   });
 

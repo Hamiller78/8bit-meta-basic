@@ -53,7 +53,8 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
     testMode: options.testMode ?? configuration.testMode,
     testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
     testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice,
-    atariSharedDriveSpec: options.atariSharedDriveSpec
+    atariSharedDriveSpec: options.atariSharedDriveSpec,
+    sourceComments: options.sourceComments
   });
 }
 

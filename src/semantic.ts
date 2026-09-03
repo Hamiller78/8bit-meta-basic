@@ -128,6 +128,9 @@ function analyzeStatements(
 
   for (const statement of statements) {
     switch (statement.kind) {
+      case "comment":
+        analyzed.push(statement);
+        break;
       case "function": {
         if (scope) {
           throw new DiagnosticError(statement.location, "Nested FUNCTION declarations are not supported.");

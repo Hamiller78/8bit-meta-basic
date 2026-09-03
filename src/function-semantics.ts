@@ -624,6 +624,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "if":
       return [statement.condition];
     case "label":
+    case "comment":
     case "goto":
     case "gosub":
     case "exit-for":

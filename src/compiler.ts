@@ -26,6 +26,7 @@ export interface CompileOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
+  readonly sourceComments?: boolean;
 }
 
 export interface CompileResult {
@@ -56,7 +57,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     testOutputDevice: options.testOutputDevice
   });
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
-  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability);
+  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true);
 
   return {
     output: `${targetLowered.lines.join("\n")}\n`,
@@ -68,12 +69,12 @@ interface RenderedProgram {
   readonly lines: readonly string[];
 }
 
-function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel): RenderedProgram {
+function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean): RenderedProgram {
   let current = program;
   let nextTempId = nextLineReliefTempId(program.instructions);
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(target.lower(current, readability)), readability);
+    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(current, readability), includeSourceComments)), readability);
     setRenderProgram(target.id, targetLowered.instructions);
     const numbered = assignLineNumbers(targetLowered, readability, {
       maxLineNumber: target.maxLineNumber,
@@ -108,6 +109,17 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   }
 
   throw new Error("Internal error: line-length relief did not converge.");
+}
+
+function filterSourceComments(program: LoweredProgram, includeSourceComments: boolean): LoweredProgram {
+  if (includeSourceComments) {
+    return program;
+  }
+
+  return rebuildLabels(
+    program,
+    program.instructions.filter((instruction) => instruction.kind !== "rem" || instruction.sourceComment !== true)
+  );
 }
 
 function insertModuleBoundaryComments(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {

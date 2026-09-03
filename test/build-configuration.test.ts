@@ -54,6 +54,30 @@ describe("build configuration", () => {
     });
   });
 
+  it("emits source comments only when source comments are requested", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), "' main note\nprint \"MAIN\"\n", "utf8");
+      await writeFile(join(dir, "ui.mbas"), "print \"UI\" ' ui note\n", "utf8");
+
+      await expect(compileBuildConfiguration({ files: ["main.mbas", "ui.mbas"] }, { baseDir: dir, target: "c64", readability: 1 })).resolves.toBe(
+        ['10 REM -------- MODULE MAIN.MBAS --------', '20 PRINT "MAIN"', "30 REM -------- MODULE UI.MBAS --------", '40 PRINT "UI"', ""].join("\n")
+      );
+      await expect(
+        compileBuildConfiguration({ files: ["main.mbas", "ui.mbas"] }, { baseDir: dir, target: "c64", readability: 2, sourceComments: true })
+      ).resolves.toBe(
+        [
+          "10 REM -------- MODULE MAIN.MBAS --------",
+          "20 REM MAIN NOTE",
+          '30 PRINT "MAIN"',
+          "40 REM -------- MODULE UI.MBAS --------",
+          '50 PRINT "UI"',
+          "60 REM UI NOTE",
+          ""
+        ].join("\n")
+      );
+    });
+  });
+
   it("allows a function defined in a later file to be called from an earlier file", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), "score = addBonus(10, 5)\nprint score\n", "utf8");

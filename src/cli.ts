@@ -19,6 +19,7 @@ interface CliOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
+  readonly sourceComments?: boolean;
 }
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -32,7 +33,8 @@ async function main(argv: readonly string[]): Promise<number> {
           testMode: options.testMode,
           testPrinterOutput: options.testPrinterOutput,
           testOutputDevice: options.testOutputDevice,
-          atariSharedDriveSpec: options.atariSharedDriveSpec
+          atariSharedDriveSpec: options.atariSharedDriveSpec,
+          sourceComments: options.sourceComments
         })
       : compileSourceDetailed(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
@@ -41,7 +43,8 @@ async function main(argv: readonly string[]): Promise<number> {
           testMode: options.testMode,
           testPrinterOutput: options.testPrinterOutput,
           testOutputDevice: options.testOutputDevice,
-          atariSharedDriveSpec: options.atariSharedDriveSpec
+          atariSharedDriveSpec: options.atariSharedDriveSpec,
+          sourceComments: options.sourceComments
         });
 
     if (options.outputPath) {
@@ -69,6 +72,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   let testPrinterOutput = false;
   let testOutputDevice: DeviceKind = "printer";
   let atariSharedDriveSpec: string | undefined;
+  let sourceComments = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -146,6 +150,11 @@ function parseArgs(argv: readonly string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--source-comments") {
+      sourceComments = true;
+      continue;
+    }
+
     if (arg.startsWith("-")) {
       throw new Error(`Unknown option "${arg}".`);
     }
@@ -157,7 +166,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
   }
 
   if (inputPath && configPath) {
@@ -169,8 +178,8 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   const parsed: CliOptions = configPath
-    ? { configPath, target, readability, testMode, testPrinterOutput, atariSharedDriveSpec }
-    : { inputPath: inputPath ?? "", target, readability, testMode, testPrinterOutput, atariSharedDriveSpec };
+    ? { configPath, target, readability, testMode, testPrinterOutput, atariSharedDriveSpec, sourceComments }
+    : { inputPath: inputPath ?? "", target, readability, testMode, testPrinterOutput, atariSharedDriveSpec, sourceComments };
   const parsedWithDevice = { ...parsed, testOutputDevice };
   return outputPath ? { ...parsedWithDevice, outputPath } : parsedWithDevice;
 }

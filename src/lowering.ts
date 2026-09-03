@@ -95,6 +95,7 @@ export interface LabelInstruction {
 export interface RemInstruction {
   readonly kind: "rem";
   readonly text: string;
+  readonly sourceComment?: boolean;
   readonly location: SourceLocation;
 }
 
@@ -481,7 +482,27 @@ function isTopLevelInitializer(statement: Statement): boolean {
 }
 
 function isTopLevelCompileTimeDeclaration(statement: Statement): boolean {
-  return statement.kind === "const" || statement.kind === "enum" || statement.kind === "struct" || statement.kind === "local";
+  return statement.kind === "comment" || statement.kind === "const" || statement.kind === "enum" || statement.kind === "struct" || statement.kind === "local";
+}
+
+function splitSourceComment(text: string): readonly string[] {
+  const maxLength = 60;
+  if (text.length <= maxLength) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > maxLength) {
+    let splitAt = remaining.lastIndexOf(" ", maxLength);
+    if (splitAt <= 0) {
+      splitAt = maxLength;
+    }
+    chunks.push(remaining.slice(0, splitAt).trim());
+    remaining = remaining.slice(splitAt).trim();
+  }
+  chunks.push(remaining);
+  return chunks;
 }
 
 interface LowerStatementOptions {
@@ -506,6 +527,11 @@ function lowerStatements(
 ): void {
   for (const statement of statements) {
     switch (statement.kind) {
+      case "comment":
+        for (const text of splitSourceComment(statement.text)) {
+          instructions.push({ kind: "rem", text, sourceComment: true, location: statement.location });
+        }
+        break;
       case "const":
       case "local":
       case "enum":
@@ -1172,6 +1198,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "data":
       return { ...statement, values: statement.values.map((value) => substituteInlineExpression(value, parameters)) };
     case "struct":
+    case "comment":
       return statement;
     case "label":
     case "open-device":

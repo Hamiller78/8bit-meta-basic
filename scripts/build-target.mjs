@@ -77,6 +77,7 @@ export async function buildTarget(options) {
       profiles[profile].toString(),
       "--output",
       basicPath,
+      ...(profile === "debug" ? ["--source-comments"] : []),
       ...(testMode ? ["--run-tests"] : []),
       ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : []),
       ...(atariSharedDriveSpec ? ["--atari-shared-drive-spec", atariSharedDriveSpec] : [])
