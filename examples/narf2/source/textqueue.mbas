@@ -35,17 +35,29 @@ end function
 
 function printQueues()
     local i
+    local now
+    local charsToPrint
 
+    now = jiffies()
     i = 0
     while i <= txtQueueIndex
-        if jiffies() >= txtQueue(i).nextTime then
-            print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
-            txtQueue(i).length = txtQueue(i).length - 1
+        if now >= txtQueue(i).nextTime then
+            if txtQueue(i).delay <= 0 then
+                charsToPrint = txtQueue(i).length
+            else
+                charsToPrint = int((now - txtQueue(i).nextTime) / txtQueue(i).delay) + 1
+                if charsToPrint > txtQueue(i).length then
+                    charsToPrint = txtQueue(i).length
+                end if
+            end if
+
+            print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, charsToPrint)
+            txtQueue(i).length = txtQueue(i).length - charsToPrint
 
             if txtQueue(i).length = 0 then
                 removeTextQueueItem(i)
             else
-                advanceQueueItem(i)
+                advanceQueueItem(i, charsToPrint)
                 i = i + 1
             end if
         else
@@ -54,10 +66,10 @@ function printQueues()
     wend
 end function
 
-inline function advanceQueueItem(queueIndex)
-    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
-    txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
-    txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
+inline function advanceQueueItem(queueIndex, charsPrinted)
+    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, charsPrinted + 1, txtQueue(queueIndex).length)
+    txtQueue(queueIndex).column = txtQueue(queueIndex).column + charsPrinted
+    txtQueue(queueIndex).nextTime = txtQueue(queueIndex).nextTime + charsPrinted * txtQueue(queueIndex).delay
 end function
 
 function removeTextQueueItem(queueIndex)

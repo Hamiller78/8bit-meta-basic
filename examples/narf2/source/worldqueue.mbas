@@ -60,7 +60,7 @@ function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
     end if
 
     if eventType = MissileHitsOurCity then
-        addToTextQueue(6, 1, 3, "INCOMING MISSILE: " + eventText$)
+        addToTextQueue(5, 1, 10, "INCOMING MISSILE: " + eventText$)
     end if
 end function
 
@@ -95,7 +95,7 @@ function resolveMissileHitEvent(eventIndex)
         return
     end if
 
-    addToTextQueue(8, 1, 3, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
+    addToTextQueue(7, 1, 10, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
     removeWorldQueueEvent(eventIndex)
 end function
 

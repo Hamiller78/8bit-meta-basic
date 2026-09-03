@@ -27,8 +27,8 @@ drawMainScreen()
 
 setClock("11:47:30") ' Set initial time for clock
 drawMainClock(currentTime$)
-addToTextQueue(5, 1, 3, "TEST: MISSILE DETECTED")
 addWorldQueueEvent(MissileHitsOurCity, jiffies() + 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
+drawRedCountdown()
 
 setupTicker()
 repeat

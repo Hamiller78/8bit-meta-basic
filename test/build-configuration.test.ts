@@ -67,6 +67,18 @@ describe("build configuration", () => {
     });
   });
 
+  it("allows earlier files to use enum constants declared in later files", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), "AddEvent(MissileHitsOurCity)\n", "utf8");
+      await writeFile(join(dir, "events.mbas"), "enum EventType\nMissileHitsOurCity = 1\nend enum\nfunction AddEvent(eventType)\nprint eventType\nend function\n", "utf8");
+
+      const output = await compileBuildConfiguration({ files: ["main.mbas", "events.mbas"] }, { baseDir: dir, target: "c64", readability: 0 });
+
+      expect(output).toContain("=1");
+      expect(output).not.toContain("=MI");
+    });
+  });
+
   it("runs global initializers from function-only source files before main code can call those functions", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), "score = addBonus(5)\nprint score\n", "utf8");

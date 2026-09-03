@@ -68,6 +68,7 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   const structValues = new Map<string, StructValueDefinition>();
   const scalarNames = new Set<string>();
   const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
+  predeclareTopLevelSymbols(statements, constants, arrays, structs, structValues);
   const functions = collectFunctionDefinitions(statements);
   const devices = collectOpenDevices(statements);
   validateFunctionRecursion(functions);
@@ -76,6 +77,37 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   return {
     statements: analyzeStatements(statements, constants, false, arrays, structs, structValues, scalarNames, functions, devices, undefined, options.testMode === true)
   };
+}
+
+function predeclareTopLevelSymbols(
+  statements: readonly Statement[],
+  constants: Map<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>
+): void {
+  for (const statement of statements) {
+    if (statement.kind === "const") {
+      const value = evaluateConstant(statement.expression, constants);
+      addConstant(statement.name, value, statement.location, constants, "constant");
+      continue;
+    }
+
+    if (statement.kind === "enum") {
+      let nextValue = 0;
+      for (const member of statement.members) {
+        const value = member.expression ? evaluateEnumValue(member.expression, constants) : nextValue;
+        addConstant(member.name, value, member.location, constants, `enum ${statement.name}`);
+        nextValue = value + 1;
+      }
+    }
+  }
+
+  for (const statement of statements) {
+    if (statement.kind === "struct") {
+      addStructDefinition(statement, constants, arrays, structs, structValues);
+    }
+  }
 }
 
 function analyzeStatements(
@@ -129,9 +161,14 @@ function analyzeStatements(
         break;
       }
       case "struct":
-        addStructDefinition(statement, constants, arrays, structs, structValues);
+        if (scope) {
+          addStructDefinition(statement, constants, arrays, structs, structValues);
+        }
         break;
       case "enum": {
+        if (!scope) {
+          break;
+        }
         let nextValue = 0;
         for (const member of statement.members) {
           const value = member.expression ? evaluateEnumValue(member.expression, constants) : nextValue;
@@ -146,6 +183,9 @@ function analyzeStatements(
         }
         break;
       case "const": {
+        if (!scope) {
+          break;
+        }
         const value = evaluateConstant(statement.expression, constants);
         addConstant(statement.name, value, statement.location, constants, "constant");
         break;

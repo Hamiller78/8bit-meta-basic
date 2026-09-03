@@ -24,9 +24,8 @@ function updateMainScreen()
     screenTime$ = getCurrentTimeIfUpdated$()
     if screenTime$ <> "" then
         drawMainClock(screenTime$)
+        drawRedCountdown()
     end if
-
-    drawRedCountdown()
 end function
 
 function drawRedCountdown()
