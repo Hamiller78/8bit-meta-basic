@@ -437,6 +437,28 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("lowers whole-struct assignments to field assignments", () => {
+    expect(
+      compileSource(
+        'STRUCT QueueItem\nRow\nText$(6)\nEND STRUCT\nDIM Queue AS QueueItem(3)\nDIM Source AS QueueItem\nDIM Copy AS QueueItem\nSource.Row = 9\nSource.Text$ = "NINE  "\nQueue(1) = Source\nCopy = Source\nprint Queue(1).Row; Queue(1).Text$; Copy.Row; Copy.Text$\n',
+        { filename: "struct-assign.mbas", target: "c64", readability: 0 }
+      )
+    ).toBe(
+      [
+        "10 DIM QU(2)",
+        "20 DIM QU$(2)",
+        "30 SO=9",
+        '40 SO$="NINE  "',
+        "50 QU(1)=SO",
+        "60 QU$(1)=SO$",
+        "70 CO=SO",
+        "80 CO$=SO$",
+        "90 PRINT QU(1);QU$(1);CO;CO$",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders DATA, READ, and RESTORE for C64 BASIC V2", () => {
     expect(
       compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', {

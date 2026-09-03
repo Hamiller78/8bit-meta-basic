@@ -234,6 +234,22 @@ function analyzeStatements(
         analyzed.push(statement);
         break;
       case "let": {
+        const structTarget = structValues.get(normalizeName(resolveScopedName(statement.name, scope))) ?? structValues.get(normalizeName(statement.name));
+        if (structTarget) {
+          if (structTarget.dimensions.length !== 0) {
+            throw new DiagnosticError(statement.location, `Struct array "${statement.name}" requires an index for whole-struct assignment.`);
+          }
+          const valueDefinition = resolveAssignedStructValue(statement.expression, statement.name, structTarget, structValues, scope);
+          const lowered = structTarget.fields.map((field) => ({
+            kind: "let" as const,
+            name: structFieldStorageName(structTarget.name, field),
+            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), location: statement.expression.location },
+            sourceName: `${statement.name}.${field.name}`,
+            location: statement.location
+          }));
+          analyzed.push(...analyzeStatements(lowered, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
+          break;
+        }
         const targetName = resolveScopedName(statement.name, scope);
         const isScopedVariable = scope?.variables.has(normalizeName(statement.name)) ?? false;
         if (!isScopedVariable) {
@@ -270,6 +286,23 @@ function analyzeStatements(
         break;
       }
       case "array-let": {
+        const targetName = resolveScopedName(statement.name, scope);
+        const structTarget = structValues.get(normalizeName(targetName)) ?? structValues.get(normalizeName(statement.name));
+        if (structTarget) {
+          if (structTarget.dimensions.length !== 1) {
+            throw new DiagnosticError(statement.location, `Struct value "${statement.name}" is not an array.`);
+          }
+          const valueDefinition = resolveAssignedStructValue(statement.expression, targetName, structTarget, structValues, scope);
+          const lowered = structTarget.fields.map((field) => ({
+            kind: "array-let" as const,
+            name: structFieldStorageName(targetName, field),
+            indices: statement.indices,
+            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), location: statement.expression.location },
+            location: statement.location
+          }));
+          analyzed.push(...analyzeStatements(lowered, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
+          break;
+        }
         const definition = arrays.get(normalizeName(statement.name));
         if (!definition) {
           throw new DiagnosticError(statement.location, `Array "${statement.name}" must be declared with DIM before use.`);
@@ -895,6 +928,27 @@ function resolveInsertedStructValue(
   }
   if (normalizeName(definition.typeName) !== normalizeName(target.typeName)) {
     throw new DiagnosticError(value.location, `Cannot insert STRUCT ${definition.typeName} into ${targetName} AS ${target.typeName}.`);
+  }
+  return definition;
+}
+
+function resolveAssignedStructValue(
+  value: Expression,
+  targetName: string,
+  target: StructValueDefinition,
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  scope?: FunctionScope
+): StructValueDefinition {
+  if (value.kind !== "identifier") {
+    throw new DiagnosticError(value.location, "Struct assignment requires a scalar struct value.");
+  }
+  const resolvedName = resolveScopedName(value.name, scope);
+  const definition = structValues.get(normalizeName(resolvedName)) ?? structValues.get(normalizeName(value.name));
+  if (!definition || definition.dimensions.length !== 0) {
+    throw new DiagnosticError(value.location, "Struct assignment requires a scalar struct value.");
+  }
+  if (normalizeName(definition.typeName) !== normalizeName(target.typeName)) {
+    throw new DiagnosticError(value.location, `Cannot assign STRUCT ${definition.typeName} to ${targetName} AS ${target.typeName}.`);
   }
   return definition;
 }

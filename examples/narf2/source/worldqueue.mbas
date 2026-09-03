@@ -5,7 +5,42 @@ end enum
 
 struct WorldQueueEvent
     eventType
-    eventTime$(8)
+    eventTime
     eventText$(40)  'Here with target city
     eventValue  'Number for event, here victim number
 end struct
+
+const worldQueueSize = 50
+dim worldQueue AS WorldQueueEvent(worldQueueSize)
+dim newWorldQueueEvent AS WorldQueueEvent
+worldQueueLength = 0
+
+function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
+    insertIndex = worldQueueLength
+
+    for i = 0 to worldQueueLength - 1
+        if eventTime < worldQueue(i).eventTime then
+            insertIndex = i
+            exit for
+        end if
+    next i
+
+    if insertIndex = worldQueueSize then
+        return
+    end if
+
+    newWorldQueueEvent.eventType = eventType
+    newWorldQueueEvent.eventTime = eventTime
+    newWorldQueueEvent.eventText$ = eventText$
+    newWorldQueueEvent.eventValue = eventValue
+
+    if insertIndex < worldQueueLength then
+        insert_element(worldQueue, insertIndex, newWorldQueueEvent)
+    else
+        worldQueue(insertIndex) = newWorldQueueEvent
+    end if
+
+    if worldQueueLength < worldQueueSize then
+        worldQueueLength = worldQueueLength + 1
+    end if
+end function

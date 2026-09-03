@@ -2,6 +2,7 @@
   "files": [
     "source/main.mbas",
     "source/textqueue.mbas",
+    "source/worldqueue.mbas",
     "source/timehelper.mbas",
     "source/newsticker.mbas"
   ]
