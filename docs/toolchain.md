@@ -36,6 +36,29 @@ The build and launch scripts accept exactly one program input mode:
 - `--build-config metabasic.json` for an explicit ordered file list
 - `--project folder` for a conventional project folder
 
+Build profiles select how much readability scaffolding is kept in generated BASIC:
+
+| Profile | Readability | Generated comments |
+| --- | ---: | --- |
+| `debug` | 2 | Source comments as `REM`, prominent module separators, source labels, and generated labels |
+| `balanced` | 1 | Prominent module separators and source labels |
+| `release` | 0 | Compact output without generated comments |
+
+The debug profile passes `.mbas` apostrophe comments through as generated `REM` lines. Trailing comments are emitted after the generated statement they annotate, so:
+
+```basic
+print "READY" ' shown after startup
+```
+
+can become:
+
+```basic
+10 PRINT "READY"
+20 REM SHOWN AFTER STARTUP
+```
+
+The direct compiler flag for this behavior is `--source-comments`; the profile scripts add it automatically for `debug`. Long source comments may be split into multiple `REM` lines to stay within target line-length limits. In multi-file programs, readable profiles also insert prominent module separators such as `REM -------- MODULE MAIN.MBAS --------` when the generated output crosses from one source file to another.
+
 A project folder contains `source/` and `tests/` side by side:
 
 ```text

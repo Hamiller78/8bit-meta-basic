@@ -12,7 +12,7 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 ## Status
 
-This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, and optional hooks for external packaging tools.
+This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
 
 ## Quick start
 
@@ -108,9 +108,11 @@ Build profiles select the output readability:
 
 | Profile | Readability | Purpose |
 | --- | ---: | --- |
-| `debug` | 2 | Source and generated label comments; readable variable names where possible |
-| `balanced` | 1 | Source label comments; more compact target variables |
-| `release` | 0 | Compact output without label comments |
+| `debug` | 2 | Source comments, module separators, source and generated label comments; readable variable names where possible |
+| `balanced` | 1 | Module separators and source label comments; more compact target variables |
+| `release` | 0 | Compact output without generated comments |
+
+Debug profile builds pass apostrophe comments from `.mbas` source through as generated `REM` lines. The lower-level CLI flag is `--source-comments`; the profile scripts enable it automatically for `debug`.
 
 ## Small example
 

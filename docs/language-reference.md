@@ -11,8 +11,10 @@ Blank lines are allowed. An apostrophe starts a comment that continues to the en
 ```basic
 ' Wait for confirmation
 start:
-    goto start
+    goto start ' Keep polling
 ```
+
+Source comments have no runtime effect. When source-comment emission is enabled, for example by the `debug` build profile, full-line comments and trailing comments are emitted as generated `REM` lines. In compact builds they are discarded.
 
 Labels use `name:` and may be referenced by `goto` or `gosub`. Duplicate and undefined labels are compile-time errors.
 

@@ -75,7 +75,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
 - `PROGRAM_MODE` emits the same scroll-prompt counter refresh.
 - `KEY_PRESSED()` checks `INKEY$ <> ""`; `KEY_CODE()` uses `INKEY$`, so short taps can be missed while the program is busy.
-- `JIFFIES()` reads the three-byte `FRAMES` counter.
+- `JIFFIES()` reads the three-byte `FRAMES` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
 
@@ -97,7 +97,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `PROGRAM_MODE` emits `POKE 752,1` to hide the text cursor.
 - `KEY_PRESSED()` checks `PEEK(764) <> 255`; `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
-- `JIFFIES()` reads the three-byte `RTCLOK` counter.
+- `JIFFIES()` reads the three-byte `RTCLOK` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` lowers to native `FRE(0)`.
 - `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
 - The compiler does not emit `GRAPHICS 0` automatically.
