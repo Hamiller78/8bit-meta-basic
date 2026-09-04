@@ -2,86 +2,61 @@ globals
     txtQueueIndex = -1
 end globals
 
-test AddToTextQueueStoresItem()
-    set_jiffies(123)
+test AddToTextQueueStoresAndPrintsChatLine()
     addToTextQueue(5, 6, 7, "ABC")
 
     assert_eq 0, txtQueueIndex
-    assert_eq 5, txtQueue(0).row
-    assert_eq 6, txtQueue(0).column
-    assert_eq 7, txtQueue(0).delay
-    assert_eq "ABC", left$(txtQueue(0).text$, txtQueue(0).length)
-    assert_eq 3, txtQueue(0).length
-    assert_eq 123, txtQueue(0).nextTime
+    assert_eq "ABC", chatBuffer$(0)
+    assert_printat 5, 9, left$(chatBlankLine$, TEXT_COLUMNS - 8)
 end test
 
-test ClearTextQueueResetsLength()
-    addToTextQueue(5, 6, 7, "ABC")
+test AddToTextQueueStoresHighestUsedChatRow()
+    addToTextQueue(5, 1, 7, "FIRST")
+    addToTextQueue(7, 1, 7, "THIRD")
+
+    assert_eq 2, txtQueueIndex
+    assert_eq "FIRST", chatBuffer$(0)
+    assert_eq "THIRD", chatBuffer$(2)
+end test
+
+test AddToTextQueuePrintsNonChatLineWithoutBuffering()
+    addToTextQueue(3, 2, 7, "HEADER")
+
+    assert_eq -1, txtQueueIndex
+    assert_printat 3, 2, "HEADER"
+end test
+
+test ClearTextQueueResetsBuffer()
+    addToTextQueue(5, 1, 7, "ABC")
     clearTextQueue()
 
     assert_eq -1, txtQueueIndex
+    assert_eq "", chatBuffer$(0)
+    assert_printat chatLastRow, 1, blankChatLine$
 end test
 
-test PrintQueuesAdvancesReadyItem()
-    set_jiffies(100)
-    addToTextQueue(5, 6, 7, "AB")
+test ResetTextQueueResetsBufferWithoutPrinting()
+    addToTextQueue(5, 1, 7, "ABC")
+    resetTextQueue()
 
-    printQueues()
-
-    assert_printat 5, 6, "A"
-    assert_eq 0, txtQueueIndex
-    assert_eq 1, txtQueue(0).length
-    assert_eq "B", left$(txtQueue(0).text$, txtQueue(0).length)
-    assert_eq 7, txtQueue(0).column
-    assert_eq 107, txtQueue(0).nextTime
-end test
-
-test PrintQueuesCatchesUpReadyCharacters()
-    set_jiffies(100)
-    addToTextQueue(5, 6, 7, "ABCDE")
-
-    set_jiffies(121)
-    printQueues()
-
-    assert_printat 5, 6, "ABCD"
-    assert_eq 0, txtQueueIndex
-    assert_eq 1, txtQueue(0).length
-    assert_eq "E", left$(txtQueue(0).text$, txtQueue(0).length)
-    assert_eq 10, txtQueue(0).column
-    assert_eq 128, txtQueue(0).nextTime
-end test
-
-test PrintQueuesRemovesItemWhenAllCharactersAreDue()
-    set_jiffies(100)
-    addToTextQueue(5, 6, 7, "ABC")
-
-    set_jiffies(200)
-    printQueues()
-
-    assert_printat 5, 6, "ABC"
     assert_eq -1, txtQueueIndex
+    assert_eq "", chatBuffer$(0)
+    assert_printat 5, 4, left$(chatBlankLine$, TEXT_COLUMNS - 3)
 end test
 
-test PrintQueuesRemovesCompletedItem()
-    set_jiffies(100)
-    addToTextQueue(5, 6, 7, "A")
+test DrawTextQueueRedrawsBufferedLines()
+    addToTextQueue(5, 1, 7, "FIRST")
+    addToTextQueue(7, 1, 7, "THIRD")
 
-    printQueues()
+    drawTextQueue()
 
-    assert_printat 5, 6, "A"
-    assert_eq -1, txtQueueIndex
+    assert_printat 7, 6, left$(chatBlankLine$, TEXT_COLUMNS - 5)
 end test
 
-test PrintQueuesRemovesCompletedItemBeforeTail()
-    set_jiffies(100)
-    addToTextQueue(5, 6, 7, "A")
-    addToTextQueue(6, 1, 7, "BC")
-
+test PrintQueuesDoesNotAnimateText()
+    addToTextQueue(5, 1, 7, "ABC")
     printQueues()
 
     assert_eq 0, txtQueueIndex
-    assert_eq 6, txtQueue(0).row
-    assert_eq 2, txtQueue(0).column
-    assert_eq 1, txtQueue(0).length
-    assert_eq "C", left$(txtQueue(0).text$, txtQueue(0).length)
+    assert_eq "ABC", chatBuffer$(0)
 end test

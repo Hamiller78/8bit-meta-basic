@@ -1,92 +1,80 @@
-' Struct for telegraph text being printed one character at a time
-struct TextQueueItem
-    row
-    column
-    delay
-    text$(40)
-    length
-    nextTime
-end struct
+' Buffered text output for the main chat area
+const chatFirstRow = 5
+const chatLastRow = TEXT_ROWS - 3
+const chatRows = chatLastRow - chatFirstRow + 1
+const blankChatLine$ = string$(" ", TEXT_COLUMNS)
 
-' Variables for telegraph text output queue, several in parallel can be printed at once, each with its own delay
-const txtQueueSize = 20
-dim txtQueue AS TextQueueItem(txtQueueSize)
+dim chatBuffer$(chatRows, TEXT_COLUMNS)
+chatBlankLine$ = blankChatLine$
 txtQueueIndex = -1
 
 function addToTextQueue(row, column, delay, text$)
-    if txtQueueIndex = txtQueueSize - 1 then
-        ' Queue is full, emergency flush one text to make room
-        print_at txtQueue(txtQueueIndex).row, txtQueue(txtQueueIndex).column, left$(txtQueue(txtQueueIndex).text$, txtQueue(txtQueueIndex).length)
-        txtQueueIndex = txtQueueSize - 2
+    local bufferIndex
+    local printWidth
+    local textLength
+
+    if row < chatFirstRow or row > chatLastRow then
+        print_at row, column, text$;
+        return
     end if
 
-    txtQueueIndex = txtQueueIndex + 1
-    txtQueue(txtQueueIndex).row = row
-    txtQueue(txtQueueIndex).column = column
-    txtQueue(txtQueueIndex).delay = delay
-    txtQueue(txtQueueIndex).text$ = text$
-    txtQueue(txtQueueIndex).length = len(text$)
-    txtQueue(txtQueueIndex).nextTime = jiffies()
+    bufferIndex = row - chatFirstRow
+    chatBuffer$(bufferIndex) = text$
+    if bufferIndex > txtQueueIndex then
+        txtQueueIndex = bufferIndex
+    end if
+
+    printWidth = TEXT_COLUMNS - column + 1
+    textLength = len(text$)
+    print_at row, column, text$;
+    if textLength < printWidth then
+        print_at row, column + textLength, left$(chatBlankLine$, printWidth - textLength);
+    end if
 end function
 
 function clearTextQueue()
+    resetTextQueue()
+    clearTextQueueArea()
+end function
+
+function resetTextQueue()
+    local i
+
+    i = 0
+    while i < chatRows
+        chatBuffer$(i) = ""
+        i = i + 1
+    wend
+
     txtQueueIndex = -1
 end function
 
-function printQueues()
+function clearTextQueueArea()
     local i
-    local now
-    local charsToPrint
 
-    now = jiffies()
     i = 0
-    while i <= txtQueueIndex
-        if now >= txtQueue(i).nextTime then
-            if txtQueue(i).delay <= 0 then
-                charsToPrint = txtQueue(i).length
-            else
-                charsToPrint = int((now - txtQueue(i).nextTime) / txtQueue(i).delay) + 1
-                if charsToPrint > txtQueue(i).length then
-                    charsToPrint = txtQueue(i).length
-                end if
-            end if
-
-            print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, charsToPrint)
-            txtQueue(i).length = txtQueue(i).length - charsToPrint
-
-            if txtQueue(i).length = 0 then
-                removeTextQueueItem(i)
-            else
-                advanceQueueItem(i, charsToPrint)
-                i = i + 1
-            end if
-        else
-            i = i + 1
-        end if
+    while i < chatRows
+        print_at chatFirstRow + i, 1, blankChatLine$;
+        i = i + 1
     wend
 end function
 
-inline function advanceQueueItem(queueIndex, charsPrinted)
-    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, charsPrinted + 1, txtQueue(queueIndex).length)
-    txtQueue(queueIndex).column = txtQueue(queueIndex).column + charsPrinted
-    txtQueue(queueIndex).nextTime = txtQueue(queueIndex).nextTime + charsPrinted * txtQueue(queueIndex).delay
+function drawTextQueue()
+    local i
+    local textLength
+
+    i = 0
+    while i <= txtQueueIndex
+        if chatBuffer$(i) <> "" then
+            textLength = len(chatBuffer$(i))
+            print_at chatFirstRow + i, 1, chatBuffer$(i);
+            if textLength < TEXT_COLUMNS then
+                print_at chatFirstRow + i, textLength + 1, left$(chatBlankLine$, TEXT_COLUMNS - textLength);
+            end if
+        end if
+        i = i + 1
+    wend
 end function
 
-function removeTextQueueItem(queueIndex)
-    local i
-
-    if queueIndex < txtQueueIndex then
-        i = queueIndex
-        while i < txtQueueIndex
-            txtQueue(i).row = txtQueue(i + 1).row
-            txtQueue(i).column = txtQueue(i + 1).column
-            txtQueue(i).delay = txtQueue(i + 1).delay
-            txtQueue(i).text$ = txtQueue(i + 1).text$
-            txtQueue(i).length = txtQueue(i + 1).length
-            txtQueue(i).nextTime = txtQueue(i + 1).nextTime
-            i = i + 1
-        wend
-    end if
-
-    txtQueueIndex = txtQueueIndex - 1
+function printQueues()
 end function

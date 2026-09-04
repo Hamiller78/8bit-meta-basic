@@ -14,14 +14,10 @@ defcon = 1
 printIntroText()
 
 addToTextQueue(12, 1, 5, "Connecting to NORAD...")
-addToTextQueue(13, 7, 30, "RONALD REAGAN")
+addToTextQueue(13, 1, 30, "User: RONALD REAGAN")
 
-'main loop: add text output queue for telegraph effect
-repeat
-    printQueues()
-until key_pressed()
-
-clearTextQueue()
+waitForKeyPress()
+resetTextQueue()
 waitForKeyRelease()
 drawMainScreen()
 
@@ -30,12 +26,9 @@ drawMainClock(currentTime$)
 addWorldQueueEvent(MissileHitsOurCity, jiffies() + 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
 drawRedCountdown()
 
-setupTicker()
 repeat
     checkWorldQueueEvents()
     updateMainScreen()
-    updateTicker()
-    printQueues()
 until key_pressed()
 
 print free_memory();" bytes free"
@@ -46,13 +39,11 @@ inline function printIntroText()
     printCentered(5, "Nuclear Attack")
     printCentered(7, "Reaction Failsafe")
     printCentered(9, "(N.A.R.F.)")
-
-    print_at 13, 1, "User:"
 end function
 
 function printCentered(row, text$)
     column = (TEXT_COLUMNS - len(text$)) / 2 + 1
-    print_at row, column, text$
+    print_at row, column, text$;
 end function
 
 function waitForKeyRelease()
@@ -60,4 +51,12 @@ function waitForKeyRelease()
     repeat
         key = key_code()
     until not key_pressed()
+end function
+
+function waitForKeyPress()
+    local pressed
+
+    repeat
+        pressed = key_pressed()
+    until pressed
 end function

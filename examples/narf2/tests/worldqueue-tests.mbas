@@ -13,7 +13,7 @@ test AddWorldQueueEventAnnouncesIncomingMissile()
     assert_eq "WASHINGTON D.C.", left$(worldQueue(0).eventText$, 15)
     assert_eq 15, worldQueue(0).eventTextLength
     assert_eq 0, txtQueueIndex
-    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(txtQueue(0).text$, txtQueue(0).length)
+    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", chatBuffer$(0)
 end test
 
 test AddWorldQueueEventKeepsQueueSorted()
@@ -39,8 +39,8 @@ test CheckWorldQueueEventsResolvesDueMissile()
     set_jiffies(200)
     checkWorldQueueEvents()
     assert_eq 0, worldQueueLength
-    assert_eq 0, txtQueueIndex
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(txtQueue(0).text$, txtQueue(0).length)
+    assert_eq 2, txtQueueIndex
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
 end test
 
 test MissileCountdownUsesNextEvent()
@@ -70,25 +70,19 @@ test DueMissileImpactTextPrintsInMainLoopOrder()
     printQueues()
 
     assert_eq 0, worldQueueLength
-    assert_printat 7, 1, "M"
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
 end test
 
-test DueMissilePrintsAfterQueueDrains()
+test DueMissilePrintsWithExistingChatLines()
     set_jiffies(0)
     addToTextQueue(5, 1, 3, "TEST: MISSILE DETECTED")
     addWorldQueueEvent(MissileHitsOurCity, 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
 
-    for time = 0 to 900 step 3
-        set_jiffies(time)
-        checkWorldQueueEvents()
-        printQueues()
-    next time
-
-    assert_eq -1, txtQueueIndex
     set_jiffies(20 * JIFFIES_PER_SECOND)
     checkWorldQueueEvents()
     printQueues()
 
     assert_eq 0, worldQueueLength
-    assert_printat 7, 1, "M"
+    assert_eq "TEST: MISSILE DETECTED", chatBuffer$(0)
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
 end test

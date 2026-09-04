@@ -65,12 +65,16 @@ function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
 end function
 
 function checkWorldQueueEvents()
-    while worldQueueLength > 0 and jiffies() >= worldQueue(0).eventTime
+    local now
+
+    now = jiffies()
+    while worldQueueLength > 0 and now >= worldQueue(0).eventTime
         if worldQueue(0).eventType = MissileHitsOurCity then
             resolveMissileHitEvent(0)
         else
             removeWorldQueueEvent(0)
         end if
+        now = jiffies()
     wend
 end function
 
