@@ -48,7 +48,7 @@ Compile an ordered multi-file program through a small JSON build configuration:
 npm run dev -- --config metabasic.json --target spectrum
 ```
 
-Paths in the configuration are resolved relative to the JSON file. The listed files form one compilation unit in the listed order. Top-level `DIM` declarations are emitted before normal startup code. In library-style files that contain only declarations, initializers, and functions, top-level assignments are also emitted before startup code, so functions from that file can rely on their own global setup when called from an earlier file.
+Paths in the configuration are resolved relative to the JSON file. The listed files form one compilation unit in the listed order. Top-level constants, enums, and struct definitions are visible across the whole unit before executable statements are analyzed. Top-level `DIM` declarations are emitted before normal startup code. In library-style files that contain only declarations, initializers, and functions, top-level assignments are also emitted before startup code, so functions from that file can rely on their own global setup when called from an earlier file.
 See `examples/multifile/metabasic.json` for a small working example.
 
 The build and launch helper scripts use `--build-config` for Meta-BASIC project files, leaving `--config` for local tool/emulator configuration:

@@ -128,4 +128,4 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 
 ## Readability
 
-`--readability 0`, `1`, and `2` control label comments and variable-name compactness. Generated code remains deterministic at every level. String literal contents are preserved; target character-set translation is a separate concern.
+`--readability 0`, `1`, and `2` control label comments, module separators, and variable-name compactness. The separate `--source-comments` option can keep `.mbas` apostrophe comments as generated `REM` lines; the debug profile enables it automatically. Generated code remains deterministic at every level. String literal contents are preserved; target character-set translation is a separate concern.

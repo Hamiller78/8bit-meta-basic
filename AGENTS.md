@@ -113,6 +113,7 @@ Supported constructs:
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Scalar struct values and struct arrays declared with `DIM name AS StructName` and `DIM name AS StructName(count)`
 - Struct field access such as `textQueue(i).textQueueRow` and `newElement.text$`
+- Whole-struct assignment from a scalar struct value of the same type, such as `queue(0) = newElement` or `copy = newElement`
 - Scalar struct function parameters written as `FUNCTION Foo(Item AS StructName)`
 - `insert_element(array, index, value)` and `remove_element(array, index)` for one-dimensional native arrays and struct arrays
 - Numeric assignments written canonically as `name = expression`
@@ -151,7 +152,7 @@ Keywords and symbol lookup are case-insensitive. Preserve the source spelling of
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
-`STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`.
+`STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`. Whole-struct assignment copies every field from a scalar struct value of the same type; the right-hand side cannot be an arbitrary expression or struct array element.
 
 `FUNCTION Foo(Item AS StructName)` accepts a scalar struct parameter. Struct parameters are copied field-by-field into generated function storage before `GOSUB`, so assigning to `Item.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet.
 
@@ -177,7 +178,7 @@ The tokenizer currently handles:
 - Newline
 - End of file
 
-Every token retains filename, line, and column. Comments are discarded by the tokenizer, but newlines remain available to the parser because statements are line-oriented.
+Every token retains filename, line, and column. Comments are tokenized so debug/profile output can preserve them, and newlines remain available to the parser because statements are line-oriented.
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
@@ -565,7 +566,7 @@ The CLI also accepts a simple JSON build configuration:
 }
 ```
 
-The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Shared lowering emits top-level `DIM` declarations before ordinary startup code. A source file that contains only compile-time declarations, storage declarations, top-level assignments, and functions is treated as a library-style file; its top-level assignments are emitted in the startup prelude before normal code, so functions from that file can rely on their own scalar/global initialization even when called from an earlier file. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
+The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Top-level constants, enums, and struct definitions are collected across the compilation unit before executable statements are analyzed, so earlier files can use declarations from later files; constant declarations themselves still evaluate in source/build order. Shared lowering emits top-level `DIM` declarations before ordinary startup code. A source file that contains only compile-time declarations, storage declarations, top-level assignments, and functions is treated as a library-style file; its top-level assignments are emitted in the startup prelude before normal code, so functions from that file can rely on their own scalar/global initialization even when called from an earlier file. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
 
 Target build scripts:
 
@@ -603,6 +604,8 @@ Build profiles map to readability levels:
 - `debug`: readability `2`
 - `balanced`: readability `1`
 - `release`: readability `0`
+
+Debug profile builds also enable source-comment emission through `--source-comments`; readable multi-file output includes prominent module boundary `REM` lines.
 
 The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `COLORS.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:COLORS.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 

@@ -14,7 +14,7 @@ start:
     goto start ' Keep polling
 ```
 
-Source comments have no runtime effect. When source-comment emission is enabled, for example by the `debug` build profile, full-line comments and trailing comments are emitted as generated `REM` lines. In compact builds they are discarded.
+Source comments have no runtime effect. When source-comment emission is enabled, for example by the `debug` build profile or the direct `--source-comments` flag, full-line comments and trailing comments are emitted as generated `REM` lines. Otherwise they are discarded.
 
 Labels use `name:` and may be referenced by `goto` or `gosub`. Duplicate and undefined labels are compile-time errors.
 
@@ -29,6 +29,8 @@ const borderLine$ = string$("*", TEXT_COLUMNS)
 ```
 
 A constant may reference an earlier constant. Names are case-insensitive. Duplicate constants, unknown references, invalid operations, and compile-time division by zero are rejected.
+
+Top-level constants, enums, and struct type definitions are collected across the whole compilation unit before executable statements are analyzed. This means startup code in an earlier file can use an enum member or struct type declared in a later file. Constant declarations themselves still evaluate in source/build order, so a constant expression may only refer to constants that have already been declared.
 
 Enums are compile-time collections of integer constants:
 
@@ -119,6 +121,19 @@ newElement.textQueue$ = "READY"
 ```
 
 Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to one backing array per field, so a `TelegraphText(100)` queue becomes parallel native arrays behind the scenes. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`.
+
+Whole-struct assignment copies every field from a scalar struct value of the same type:
+
+```basic
+dim queue AS TelegraphText(100)
+dim nextText AS TelegraphText
+dim copyText AS TelegraphText
+
+queue(0) = nextText
+copyText = nextText
+```
+
+The right-hand side must be a scalar struct value, not an expression or struct array element.
 
 `insert_element(array, index, value)` inserts into a one-dimensional native array or struct array. Existing elements from `index` upward are moved one slot higher, and the last element is lost. For struct arrays, `value` must currently be a scalar struct value of the same type. `remove_element(array, index)` moves elements from `index + 1` downward and overwrites the element at `index`; the final slot is left as whatever value remains there.
 
