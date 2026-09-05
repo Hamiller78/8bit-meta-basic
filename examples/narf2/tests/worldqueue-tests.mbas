@@ -35,6 +35,7 @@ end test
 
 test CheckWorldQueueEventsResolvesDueMissile()
     addWorldQueueEvent(MissileHitsOurCity, 200, "WASHINGTON D.C.", 0)
+    reportQueue(0).reportTime = 0
     clearTextQueue()
 
     set_jiffies(199)
@@ -47,10 +48,12 @@ test CheckWorldQueueEventsResolvesDueMissile()
     assert_eq 0, worldQueueLength
     assert_eq -1, txtQueueIndex
     assert_eq 2, reportQueueLength
+    reportQueue(0).reportTime = 201
+    reportQueue(1).reportTime = 202
     set_jiffies(200 + 60 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
-    assert_eq 2, txtQueueIndex
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
+    assert_eq 1, txtQueueIndex
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(1), len("MISSILE HIT: WASHINGTON D.C."))
 end test
 
 test MissileCountdownUsesNextEvent()
@@ -72,11 +75,14 @@ end test
 
 test DueMissileImpactTextPrintsInMainLoopOrder()
     set_jiffies(0)
-    addToTextQueue(5, 1, 3, "TEST: MISSILE DETECTED")
+    addToTextQueue("TEST: MISSILE DETECTED")
     addWorldQueueEvent(MissileHitsOurCity, 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
+    reportQueue(0).reportTime = 0
 
     set_jiffies(20 * JIFFIES_PER_SECOND)
     checkWorldQueueEvents()
+    reportQueue(0).reportTime = 21 * JIFFIES_PER_SECOND
+    reportQueue(1).reportTime = 22 * JIFFIES_PER_SECOND
     set_jiffies(80 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
 
@@ -86,15 +92,18 @@ end test
 
 test DueMissilePrintsWithExistingChatLines()
     set_jiffies(0)
-    addToTextQueue(5, 1, 3, "TEST: MISSILE DETECTED")
+    addToTextQueue("TEST: MISSILE DETECTED")
     addWorldQueueEvent(MissileHitsOurCity, 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
+    reportQueue(0).reportTime = 0
 
     set_jiffies(20 * JIFFIES_PER_SECOND)
     checkWorldQueueEvents()
+    reportQueue(0).reportTime = 21 * JIFFIES_PER_SECOND
+    reportQueue(1).reportTime = 22 * JIFFIES_PER_SECOND
     set_jiffies(80 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
 
     assert_eq 0, worldQueueLength
-    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(chatBuffer$(0), len("INCOMING MISSILE: WASHINGTON D.C."))
+    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(chatBuffer$(1), len("INCOMING MISSILE: WASHINGTON D.C."))
     assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
 end test

@@ -63,7 +63,7 @@ function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
     end if
 
     if eventType = MissileHitsOurCity then
-        reportIndex = addReportQueueEvent(5, "INCOMING MISSILE: " + eventText$)
+        reportIndex = addReportQueueEvent("INCOMING MISSILE: " + eventText$)
         if reportIndex >= 0 then
             reportQueue(reportIndex).impactTime = eventTime
         end if
@@ -107,7 +107,7 @@ function resolveMissileHitEvent(eventIndex)
         return
     end if
 
-    addReportQueueEvent(7, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
+    addReportQueueEvent("MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
     removeWorldQueueEvent(eventIndex)
 end function
 

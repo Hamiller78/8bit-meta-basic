@@ -4,7 +4,6 @@ uses "mainscreen.mbas"
 ' Reports arrive independently of the world events that generated them.
 struct ReportQueueEvent
     reportTime
-    reportRow
     reportText$(64)
     reportTextLength
     impactTime
@@ -14,14 +13,14 @@ const reportQueueSize = 20
 dim reportQueue AS ReportQueueEvent(reportQueueSize)
 reportQueueLength = 0
 
-function addReportQueueEvent(row, text$)
+function addReportQueueEvent(text$)
     local deliveryTime
 
     deliveryTime = jiffies() + (20 + int(rnd() * 41)) * JIFFIES_PER_SECOND
-    return scheduleReportQueueEvent(deliveryTime, row, text$)
+    return scheduleReportQueueEvent(deliveryTime, text$)
 end function
 
-function scheduleReportQueueEvent(deliveryTime, row, text$)
+function scheduleReportQueueEvent(deliveryTime, text$)
     local index
     local i
 
@@ -39,7 +38,6 @@ function scheduleReportQueueEvent(deliveryTime, row, text$)
     i = reportQueueLength
     while i > index
         reportQueue(i).reportTime = reportQueue(i - 1).reportTime
-        reportQueue(i).reportRow = reportQueue(i - 1).reportRow
         reportQueue(i).reportText$ = reportQueue(i - 1).reportText$
         reportQueue(i).reportTextLength = reportQueue(i - 1).reportTextLength
         reportQueue(i).impactTime = reportQueue(i - 1).impactTime
@@ -47,7 +45,6 @@ function scheduleReportQueueEvent(deliveryTime, row, text$)
     wend
 
     reportQueue(index).reportTime = deliveryTime
-    reportQueue(index).reportRow = row
     reportQueue(index).reportText$ = text$
     reportQueue(index).reportTextLength = len(text$)
     reportQueue(index).impactTime = -1
@@ -65,14 +62,13 @@ function checkReportQueueEvents()
             return
         end if
 
-        addToTextQueue(reportQueue(0).reportRow, 1, 0, left$(reportQueue(0).reportText$, reportQueue(0).reportTextLength))
+        addToTextQueue(left$(reportQueue(0).reportText$, reportQueue(0).reportTextLength))
         if reportQueue(0).impactTime >= 0 then
             reportIncomingMissile(reportQueue(0).impactTime)
         end if
         reportQueueLength = reportQueueLength - 1
         for i = 0 to reportQueueLength - 1
             reportQueue(i).reportTime = reportQueue(i + 1).reportTime
-            reportQueue(i).reportRow = reportQueue(i + 1).reportRow
             reportQueue(i).reportText$ = reportQueue(i + 1).reportText$
             reportQueue(i).reportTextLength = reportQueue(i + 1).reportTextLength
             reportQueue(i).impactTime = reportQueue(i + 1).impactTime

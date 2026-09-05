@@ -100,7 +100,7 @@ describe("C64 compiler", () => {
   });
 
   it("mirrors the test runner output to C64 RS232 when selected", () => {
-    const output = compileSource("test Smoke()\nassert_true 1\nend test\n", {
+    const output = compileSource("dim values(12)\ntest Smoke()\nvalues(11) = 1\nassert_eq 1, values(11)\nend test\n", {
       filename: "rs232-tests.mbas",
       target: "c64",
       readability: 0,
@@ -112,10 +112,12 @@ describe("C64 compiler", () => {
     expect(output).toContain("MB=1");
     expect(output).not.toContain("OPEN 15,4,15");
     expect(output).toContain("OPEN 1,2,0,CHR$(10)");
+    expect(output.indexOf("OPEN 1,2,0,CHR$(10)")).toBeLessThan(output.search(/\bDIM /));
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
     expect(output).toContain('MB$="RUNNING Smoke..."');
     expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
+    expect(output).not.toMatch(/MBTJIF|MBTKC|MBTKP|MBTJX|MBTJY|MBTJF/);
   });
 
   it("renders FOR/NEXT with C64 compact variable mapping", () => {

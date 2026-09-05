@@ -2,34 +2,65 @@
 const chatFirstRow = 5
 const chatLastRow = TEXT_ROWS - 3
 const chatRows = chatLastRow - chatFirstRow + 1
+const chatScrollRows = 5
 const blankChatLine$ = string$(" ", TEXT_COLUMNS)
 
 dim chatBuffer$(chatRows, TEXT_COLUMNS)
-chatBlankLine$ = blankChatLine$
 txtQueueIndex = -1
 
-function addToTextQueue(row, column, delay, text$)
-    local bufferIndex
-    local printWidth
-    local textLength
+function addToTextQueue(text$)
+    local offset
+    local remaining
+    local chunkLength
+    local chunk$
+    local paddedChunk$
 
-    if row < chatFirstRow or row > chatLastRow then
-        print_at row, column, text$;
-        return
-    end if
+    offset = 1
+    remaining = len(text$)
+    repeat
+        if txtQueueIndex >= chatRows - 1 then
+            scrollTextQueue()
+        end if
+        txtQueueIndex = txtQueueIndex + 1
+        if remaining > 0 then
+            chunkLength = remaining
+            if chunkLength > TEXT_COLUMNS then
+                chunkLength = TEXT_COLUMNS
+            end if
+            chunk$ = mid$(text$, offset, chunkLength)
+            paddedChunk$ = chunk$ + blankChatLine$
+            chatBuffer$(txtQueueIndex) = left$(paddedChunk$, TEXT_COLUMNS)
+        else
+            chatBuffer$(txtQueueIndex) = blankChatLine$
+        end if
+        print_at chatFirstRow + txtQueueIndex, 1, chatBuffer$(txtQueueIndex);
+        offset = offset + TEXT_COLUMNS
+        remaining = remaining - TEXT_COLUMNS
+    until remaining <= 0
+end function
 
-    bufferIndex = row - chatFirstRow
-    chatBuffer$(bufferIndex) = text$
-    if bufferIndex > txtQueueIndex then
-        txtQueueIndex = bufferIndex
-    end if
+function scrollTextQueue()
+    local i
+    local rowsToScroll
 
-    printWidth = TEXT_COLUMNS - column + 1
-    textLength = len(text$)
-    print_at row, column, text$;
-    if textLength < printWidth then
-        print_at row, column + textLength, left$(chatBlankLine$, printWidth - textLength);
+    rowsToScroll = chatScrollRows
+    if rowsToScroll < 1 then
+        rowsToScroll = 1
     end if
+    if rowsToScroll > chatRows then
+        rowsToScroll = chatRows
+    end if
+    i = 0
+    while i < chatRows - rowsToScroll
+        chatBuffer$(i) = chatBuffer$(i + rowsToScroll)
+        i = i + 1
+    wend
+    while i < chatRows
+        chatBuffer$(i) = blankChatLine$
+        i = i + 1
+    wend
+    txtQueueIndex = chatRows - rowsToScroll - 1
+    drawTextQueue()
 end function
 
 function clearTextQueue()
@@ -42,7 +73,7 @@ function resetTextQueue()
 
     i = 0
     while i < chatRows
-        chatBuffer$(i) = ""
+        chatBuffer$(i) = blankChatLine$
         i = i + 1
     wend
 
@@ -61,20 +92,14 @@ end function
 
 function drawTextQueue()
     local i
-    local textLength
 
     i = 0
-    while i <= txtQueueIndex
-        if chatBuffer$(i) <> "" then
-            textLength = len(chatBuffer$(i))
+    while i < chatRows
+        if i <= txtQueueIndex then
             print_at chatFirstRow + i, 1, chatBuffer$(i);
-            if textLength < TEXT_COLUMNS then
-                print_at chatFirstRow + i, textLength + 1, left$(chatBlankLine$, TEXT_COLUMNS - textLength);
-            end if
+        else
+            print_at chatFirstRow + i, 1, blankChatLine$;
         end if
         i = i + 1
     wend
-end function
-
-function printQueues()
 end function

@@ -13,8 +13,8 @@ cls
 'begin program
 printIntroText()
 
-addToTextQueue(12, 1, 5, "Connecting to NORAD...")
-addToTextQueue(13, 1, 30, "User: RONALD REAGAN")
+print_at 12, 1, "Connecting to NORAD...";
+print_at 13, 1, "User: RONALD REAGAN";
 
 waitForKeyPress()
 resetTextQueue()
