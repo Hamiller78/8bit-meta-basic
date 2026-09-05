@@ -4,6 +4,7 @@
     "source/mainscreen.mbas",
     "source/textqueue.mbas",
     "source/worldqueue.mbas",
+    "source/reportqueue.mbas",
     "source/timehelper.mbas"
   ]
 }

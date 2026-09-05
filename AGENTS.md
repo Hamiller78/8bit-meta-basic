@@ -77,6 +77,7 @@ start:
 
 Supported constructs:
 
+- Module-level `USES "relative/path.mbas"` declarations for direct cross-file access
 - Blank lines
 - Comments beginning with an apostrophe; comments continue to the end of the source line
 - Labels written as `name:`
@@ -227,6 +228,8 @@ Precedence from highest to lowest:
 Binary operators are left-associative. `^` is implemented naively for now and renders to the native target exponentiation operator; target-specific precedence quirks may still need additional lowering after emulator testing. `MOD` lowers portably to `A - INT(A / B) * B`; avoid side-effecting operands such as `RND()` for now because the naive rendering may evaluate operands more than once. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
 
 ## Constants and semantic analysis
+
+Every source file is a module. `USES` declares direct access to another selected build input, with its path resolved relative to the declaring source file. It emits no code and does not load or reorder files. Reject missing dependencies, duplicate declarations and configured files, nested declarations, and all dependency cycles, including self-dependencies. Cross-file function, constant, enum member, global variable, array, struct type/value, label, and device-handle access requires direct `USES`, including writes and test fixtures/assertions. Dependencies are not transitive. Parameters and `LOCAL` names remain scoped. Module-level scalar initializers establish ownership before function/test writes; an importing module's assignment does not take ownership from a dependency's initializer. Preserve the independent function-recursion check. This is access control over the existing shared symbols, not namespaces or exports. See `src/module-semantics.ts` and `docs/language-reference.md`.
 
 `CONST` declarations are compile-time only and emit no BASIC line.
 
@@ -764,7 +767,7 @@ Do not claim support for machines or constructs that are only planned.
 
 - CPC or other additional backends
 - Variable declarations beyond the current implicit scalar variables, arrays, and function locals
-- Imports, modules, exports, namespaces, separate compilation, or linking
+- Exports, namespaces, automatic dependency loading, separate compilation, or linking beyond the implemented `USES` dependency checks
 - A type system beyond current limited compile-time checks
 - Variable-length string arrays
 - Labelled or line-targeted `RESTORE`

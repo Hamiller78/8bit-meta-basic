@@ -6,6 +6,7 @@ import { tokenize, type Token } from "./lexer.js";
 type StatementParser = (parser: Parser, location: SourceLocation) => Statement | "block-delimiter";
 
 const statementParsers = new Map<string, StatementParser>([
+  ["USES", (parser, location) => parser.parseUses(location)],
   ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseScreenBackgroundColor(location)],
@@ -90,6 +91,16 @@ class Parser {
 
   parseProgram(): Program {
     return { statements: this.parseBlock("eof") };
+  }
+
+  parseUses(location: SourceLocation): Statement {
+    const path = this.current();
+    if (path.kind !== "string" || !path.value.trim()) {
+      throw new DiagnosticError(path.location, 'Expected a nonempty quoted module path after USES.');
+    }
+    this.advance();
+    this.expectLineEnd();
+    return { kind: "uses", path: path.value, location };
   }
 
   parseConst(location: SourceLocation): Statement {

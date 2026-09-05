@@ -66,6 +66,7 @@ export const keywords = new Set([
   "TRUE",
   "TEST",
   "UNTIL",
+  "USES",
   "WEND",
   "WHILE"
 ]);

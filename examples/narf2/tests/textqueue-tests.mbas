@@ -1,3 +1,5 @@
+uses "../source/textqueue.mbas"
+
 globals
     txtQueueIndex = -1
 end globals

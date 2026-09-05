@@ -106,7 +106,7 @@ async function readBuildProgram(configuration: BuildConfiguration, baseDir: stri
     statements.push(...parseSource(ensureTrailingNewline(source), sourcePath).statements);
   }
 
-  return { statements };
+  return { statements, sourceFiles: configuration.files.map((file) => resolve(baseDir, file)) };
 }
 
 function ensureTrailingNewline(source: string): string {

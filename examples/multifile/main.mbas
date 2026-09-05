@@ -1,3 +1,6 @@
+uses "functions.mbas"
+uses "ui.mbas"
+
 screen_border_color BLUE
 screen_background_color BLACK
 screen_text_color WHITE

@@ -579,7 +579,7 @@ function collectFunctionCallsFromStatements(
   }
 }
 
-function statementExpressions(statement: Statement): readonly Expression[] {
+export function statementExpressions(statement: Statement): readonly Expression[] {
   switch (statement.kind) {
     case "const":
       return [statement.expression];
@@ -624,6 +624,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "if":
       return [statement.condition];
     case "label":
+    case "uses":
     case "comment":
     case "goto":
     case "gosub":

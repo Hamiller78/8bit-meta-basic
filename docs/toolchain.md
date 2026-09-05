@@ -70,7 +70,7 @@ project/
     math-tests.mbas
 ```
 
-Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. File order still controls ordinary startup code, but top-level constants, enums, and struct definitions are visible across the whole compilation unit before executable statements are analyzed. The compiler emits top-level `DIM` declarations before startup and also hoists top-level assignments from library-style files that contain only declarations, assignments, and functions. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
+Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. File order still controls ordinary startup code. Cross-file access requires a direct `USES "relative/path.mbas"` declaration in the accessing file, including test files. Paths in `USES` are relative to that source file; all referenced files must be selected build inputs. `USES` does not discover dependencies, reorder files, or bypass constant declaration order. Missing declarations and dependency cycles are compile-time errors. Top-level constants, enums, and struct definitions are collected before executable statements are analyzed. The compiler emits top-level `DIM` declarations before startup and also hoists top-level assignments from library-style files that contain only declarations, assignments, and functions. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
 
 ```text
 npm run build:spectrum -- --project examples/project-demo --profile debug
@@ -118,7 +118,7 @@ npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 ```
 
-The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`. Existing files are never overwritten.
+The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`; its generated test declares `uses "../source/scoring.mbas"`. Add `USES` declarations to other files that access the new module. When building from an explicit configuration, add the new source to its `files` list as well. Existing files are never overwritten.
 
 ## Instruction regression suite
 

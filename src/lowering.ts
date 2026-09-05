@@ -1200,6 +1200,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "struct":
     case "comment":
       return statement;
+    case "uses":
+      return statement;
     case "label":
     case "open-device":
     case "close-device":

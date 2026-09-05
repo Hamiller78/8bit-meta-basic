@@ -1,4 +1,5 @@
 test RandomNumberRange()
+    local Value
     randomize 123
     Value = rnd()
     assert_true Value >= 0
@@ -29,6 +30,7 @@ test FreeMemoryRead()
 end test
 
 test InlineFunctionExpansion()
+    local Result
     Result = InlineDouble(4)
     assert_eq 8, Result
 end test

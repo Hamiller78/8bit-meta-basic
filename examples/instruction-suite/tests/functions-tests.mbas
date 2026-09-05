@@ -1,4 +1,7 @@
+uses "../source/functions.mbas"
+
 test FunctionCallWithVariable()
+    local Value
     Value = 5
     assert_eq 8, AddValues(Value, 3)
 end test

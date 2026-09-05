@@ -1,5 +1,10 @@
+uses "../source/worldqueue.mbas"
+uses "../source/reportqueue.mbas"
+uses "../source/textqueue.mbas"
+
 globals
     worldQueueLength = 0
+    reportQueueLength = 0
     txtQueueIndex = -1
 end globals
 
@@ -12,8 +17,9 @@ test AddWorldQueueEventAnnouncesIncomingMissile()
     assert_eq 200, worldQueue(0).eventTime
     assert_eq "WASHINGTON D.C.", left$(worldQueue(0).eventText$, 15)
     assert_eq 15, worldQueue(0).eventTextLength
-    assert_eq 0, txtQueueIndex
-    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", chatBuffer$(0)
+    assert_eq -1, txtQueueIndex
+    assert_eq 1, reportQueueLength
+    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(reportQueue(0).reportText$, reportQueue(0).reportTextLength)
 end test
 
 test AddWorldQueueEventKeepsQueueSorted()
@@ -39,8 +45,12 @@ test CheckWorldQueueEventsResolvesDueMissile()
     set_jiffies(200)
     checkWorldQueueEvents()
     assert_eq 0, worldQueueLength
+    assert_eq -1, txtQueueIndex
+    assert_eq 2, reportQueueLength
+    set_jiffies(200 + 60 * JIFFIES_PER_SECOND)
+    checkReportQueueEvents()
     assert_eq 2, txtQueueIndex
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
 end test
 
 test MissileCountdownUsesNextEvent()
@@ -67,10 +77,11 @@ test DueMissileImpactTextPrintsInMainLoopOrder()
 
     set_jiffies(20 * JIFFIES_PER_SECOND)
     checkWorldQueueEvents()
-    printQueues()
+    set_jiffies(80 * JIFFIES_PER_SECOND)
+    checkReportQueueEvents()
 
     assert_eq 0, worldQueueLength
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
 end test
 
 test DueMissilePrintsWithExistingChatLines()
@@ -80,9 +91,10 @@ test DueMissilePrintsWithExistingChatLines()
 
     set_jiffies(20 * JIFFIES_PER_SECOND)
     checkWorldQueueEvents()
-    printQueues()
+    set_jiffies(80 * JIFFIES_PER_SECOND)
+    checkReportQueueEvents()
 
     assert_eq 0, worldQueueLength
-    assert_eq "TEST: MISSILE DETECTED", chatBuffer$(0)
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", chatBuffer$(2)
+    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(chatBuffer$(0), len("INCOMING MISSILE: WASHINGTON D.C."))
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
 end test

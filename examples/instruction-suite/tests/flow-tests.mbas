@@ -1,4 +1,5 @@
 test IfThenElse()
+    local Result
     Flag = 1
     if Flag then
         Result = 10

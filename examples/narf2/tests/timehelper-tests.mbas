@@ -1,3 +1,5 @@
+uses "../source/timehelper.mbas"
+
 globals
     startJiffies = 0
     nextUpdateJiffies = 0

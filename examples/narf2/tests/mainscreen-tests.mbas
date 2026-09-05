@@ -1,3 +1,9 @@
+uses "../source/mainscreen.mbas"
+uses "../source/timehelper.mbas"
+uses "../source/worldqueue.mbas"
+uses "../source/reportqueue.mbas"
+uses "../source/textqueue.mbas"
+
 globals
     icbms = 500
     submarines = 50
@@ -9,6 +15,9 @@ globals
     currentTime$ = "00:00:00"
     worldQueueLength = 0
     txtQueueIndex = -1
+    reportQueueLength = 0
+    reportedMissileCount = 0
+    redImpactTime = -1
 end globals
 
 test DrawMainClockPrintsCenteredTime()
@@ -40,8 +49,55 @@ end test
 test DrawRedCountdownShowsNextMissileImpact()
     set_jiffies(100)
     addWorldQueueEvent(MissileHitsOurCity, 1100, "WASHINGTON D.C.", 0)
+    drawRedCountdown()
+    assert_printat 2, TEXT_COLUMNS - 11, "RED:  --:--"
+    reportQueue(0).reportTime = 100
+    checkReportQueueEvents()
 
     drawRedCountdown()
 
     assert_printat 2, TEXT_COLUMNS - 11, "RED:  00:20"
+end test
+
+test ReportedCountdownUsesOriginalImpactTime()
+    addWorldQueueEvent(MissileHitsOurCity, 60 * JIFFIES_PER_SECOND, "CITY", 0)
+    reportQueue(0).reportTime = 20 * JIFFIES_PER_SECOND
+    set_jiffies(20 * JIFFIES_PER_SECOND - 1)
+    checkReportQueueEvents()
+    assert_eq -1, secondsUntilReportedMissileImpact()
+    set_jiffies(20 * JIFFIES_PER_SECOND)
+    checkReportQueueEvents()
+    assert_eq 40, secondsUntilReportedMissileImpact()
+end test
+
+test ReportedCountdownAdvances()
+    reportIncomingMissile(3000)
+    reportIncomingMissile(4000)
+    assert_eq 3000, redImpactTime
+    reportIncomingMissile(2000)
+    assert_eq 2000, redImpactTime
+    set_jiffies(2000)
+    assert_eq 20, secondsUntilReportedMissileImpact()
+    assert_eq 3000, redImpactTime
+    set_jiffies(4000)
+    assert_eq -1, secondsUntilReportedMissileImpact()
+    assert_eq 0, reportedMissileCount
+end test
+
+test LateIncomingReportDoesNotRestartCountdown()
+    addWorldQueueEvent(MissileHitsOurCity, 100, "CITY", 0)
+    reportQueue(0).reportTime = 200
+    set_jiffies(200)
+    checkWorldQueueEvents()
+    checkReportQueueEvents()
+    assert_eq 0, worldQueueLength
+    assert_eq 0, reportedMissileCount
+    assert_eq -1, secondsUntilReportedMissileImpact()
+end test
+
+test UnreportedEarlierMissileDoesNotChangeCountdown()
+    reportIncomingMissile(3000)
+    addWorldQueueEvent(MissileHitsOurCity, 1000, "SECRET", 0)
+    assert_eq 60, secondsUntilReportedMissileImpact()
+    assert_eq 3000, redImpactTime
 end test

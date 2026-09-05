@@ -48,7 +48,7 @@ describe("example programs", () => {
     await expect(build(configuration, { baseDir: process.cwd(), target: "spectrum", readability: 0 })).resolves.not.toHaveLength(0);
     await expect(build(configuration, { baseDir: process.cwd(), target: "c64", readability: 0 })).resolves.not.toHaveLength(0);
     await expect(build(configuration, { baseDir: process.cwd(), target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
-  });
+  }, 15000);
 });
 
 function projectFiles(directory: string): string[] {

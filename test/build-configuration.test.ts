@@ -80,7 +80,7 @@ describe("build configuration", () => {
 
   it("allows a function defined in a later file to be called from an earlier file", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "score = addBonus(10, 5)\nprint score\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "math.mbas"\nscore = addBonus(10, 5)\nprint score\n', "utf8");
       await writeFile(join(dir, "math.mbas"), "function addBonus(score, bonus)\nreturn score + bonus\nend function\n", "utf8");
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "math.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });
@@ -93,7 +93,7 @@ describe("build configuration", () => {
 
   it("allows earlier files to use enum constants declared in later files", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "AddEvent(MissileHitsOurCity)\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "events.mbas"\nAddEvent(MissileHitsOurCity)\n', "utf8");
       await writeFile(join(dir, "events.mbas"), "enum EventType\nMissileHitsOurCity = 1\nend enum\nfunction AddEvent(eventType)\nprint eventType\nend function\n", "utf8");
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "events.mbas"] }, { baseDir: dir, target: "c64", readability: 0 });
@@ -105,7 +105,7 @@ describe("build configuration", () => {
 
   it("runs global initializers from function-only source files before main code can call those functions", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "score = addBonus(5)\nprint score\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "math.mbas"\nscore = addBonus(5)\nprint score\n', "utf8");
       await writeFile(join(dir, "math.mbas"), "bonus = 10\nfunction addBonus(score)\nreturn score + bonus\nend function\n", "utf8");
 
       await expect(compileBuildConfiguration({ files: ["main.mbas", "math.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 })).resolves.toBe(
@@ -127,7 +127,7 @@ describe("build configuration", () => {
 
   it("runs global storage declarations from function-only source files before main code can call those functions", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "score = firstValue()\nprint score\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "storage.mbas"\nscore = firstValue()\nprint score\n', "utf8");
       await writeFile(join(dir, "storage.mbas"), "dim values(2)\nvalues(0) = 7\nfunction firstValue()\nreturn values(0)\nend function\n", "utf8");
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "storage.mbas"] }, { baseDir: dir, target: "c64", readability: 0 });
@@ -140,8 +140,8 @@ describe("build configuration", () => {
 
   it("allows functions in different files to call one another", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "total = outer(5)\nprint total\n", "utf8");
-      await writeFile(join(dir, "outer.mbas"), "function outer(value)\nreturn inner(value) + 1\nend function\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "outer.mbas"\ntotal = outer(5)\nprint total\n', "utf8");
+      await writeFile(join(dir, "outer.mbas"), 'uses "inner.mbas"\nfunction outer(value)\nreturn inner(value) + 1\nend function\n', "utf8");
       await writeFile(join(dir, "inner.mbas"), "function inner(value)\nreturn value * 2\nend function\n", "utf8");
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "outer.mbas", "inner.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });
@@ -153,7 +153,7 @@ describe("build configuration", () => {
 
   it("keeps FUNCTION and LOCAL lowering working across file boundaries", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "main.mbas"), "result = 999\ntotal = addBonus(1, 2)\nprint result; total\n", "utf8");
+      await writeFile(join(dir, "main.mbas"), 'uses "functions.mbas"\nresult = 999\ntotal = addBonus(1, 2)\nprint result; total\n', "utf8");
       await writeFile(join(dir, "functions.mbas"), "function addBonus(score, bonus)\nlocal result\nresult = score + bonus\nreturn result\nend function\n", "utf8");
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "functions.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });

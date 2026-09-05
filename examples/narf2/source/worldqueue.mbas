@@ -1,3 +1,5 @@
+uses "reportqueue.mbas"
+
 enum WorldQueueEventType
     None = 0
     MissileHitsOurCity = 1
@@ -17,6 +19,7 @@ worldQueueLength = 0
 
 function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
     local i
+    local reportIndex
 
     insertIndex = worldQueueLength
 
@@ -60,7 +63,10 @@ function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
     end if
 
     if eventType = MissileHitsOurCity then
-        addToTextQueue(5, 1, 10, "INCOMING MISSILE: " + eventText$)
+        reportIndex = addReportQueueEvent(5, "INCOMING MISSILE: " + eventText$)
+        if reportIndex >= 0 then
+            reportQueue(reportIndex).impactTime = eventTime
+        end if
     end if
 end function
 
@@ -101,7 +107,7 @@ function resolveMissileHitEvent(eventIndex)
         return
     end if
 
-    addToTextQueue(7, 1, 10, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
+    addReportQueueEvent(7, "MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
     removeWorldQueueEvent(eventIndex)
 end function
 

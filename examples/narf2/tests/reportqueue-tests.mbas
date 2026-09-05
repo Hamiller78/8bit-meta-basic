@@ -1,0 +1,76 @@
+uses "../source/reportqueue.mbas"
+uses "../source/textqueue.mbas"
+uses "../source/mainscreen.mbas"
+
+globals
+    reportQueueLength = 0
+    reportedMissileCount = 0
+    redImpactTime = -1
+end globals
+
+test ReportsWaitUntilDueAndDrainAllDueEvents()
+    resetTextQueue()
+    scheduleReportQueueEvent(200, 7, "SECOND")
+    scheduleReportQueueEvent(100, 5, "FIRST")
+    scheduleReportQueueEvent(300, 9, "LATER")
+    set_jiffies(99)
+    checkReportQueueEvents()
+    assert_eq 3, reportQueueLength
+    assert_eq -1, txtQueueIndex
+    set_jiffies(200)
+    checkReportQueueEvents()
+    assert_eq "FIRST", left$(chatBuffer$(0), 5)
+    assert_eq "SECOND", left$(chatBuffer$(2), 6)
+    assert_eq 1, reportQueueLength
+    assert_eq 300, reportQueue(0).reportTime
+end test
+
+test ImpactMetadataSurvivesQueueShifts()
+    scheduleReportQueueEvent(200, 5, "LATER")
+    reportQueue(0).impactTime = 3000
+    scheduleReportQueueEvent(100, 7, "ORDINARY")
+    assert_eq -1, reportQueue(0).impactTime
+    assert_eq 3000, reportQueue(1).impactTime
+    set_jiffies(100)
+    checkReportQueueEvents()
+    assert_eq -1, redImpactTime
+    assert_eq 3000, reportQueue(0).impactTime
+    set_jiffies(200)
+    checkReportQueueEvents()
+    assert_eq 3000, redImpactTime
+    assert_eq 1, reportedMissileCount
+end test
+
+test ReportsWithEqualTimesKeepInsertionOrder()
+    scheduleReportQueueEvent(100, 5, "FIRST")
+    scheduleReportQueueEvent(100, 5, "SECOND")
+    set_jiffies(100)
+    checkReportQueueEvents()
+    assert_eq 0, reportQueueLength
+    assert_eq "SECOND", left$(chatBuffer$(0), 6)
+    checkReportQueueEvents()
+    assert_eq 0, reportQueueLength
+end test
+
+test ReportDelayIsBetweenTwentyAndSixtySeconds()
+    local i
+    set_jiffies(500)
+    for i = 1 to 20
+        addReportQueueEvent(5, "REPORT")
+    next i
+    for i = 0 to reportQueueLength - 1
+        assert_true reportQueue(i).reportTime >= 500 + 20 * JIFFIES_PER_SECOND
+        assert_true reportQueue(i).reportTime <= 500 + 60 * JIFFIES_PER_SECOND
+    next i
+end test
+
+test FullReportQueueRejectsNewReportWithoutOverwriting()
+    local i
+    for i = 1 to reportQueueSize
+        scheduleReportQueueEvent(100, 5, "KEPT")
+    next i
+    scheduleReportQueueEvent(0, 5, "REJECTED")
+    assert_eq reportQueueSize, reportQueueLength
+    assert_eq 100, reportQueue(0).reportTime
+    assert_eq "KEPT", left$(reportQueue(0).reportText$, 4)
+end test

@@ -1,0 +1,82 @@
+uses "textqueue.mbas"
+uses "mainscreen.mbas"
+
+' Reports arrive independently of the world events that generated them.
+struct ReportQueueEvent
+    reportTime
+    reportRow
+    reportText$(64)
+    reportTextLength
+    impactTime
+end struct
+
+const reportQueueSize = 20
+dim reportQueue AS ReportQueueEvent(reportQueueSize)
+reportQueueLength = 0
+
+function addReportQueueEvent(row, text$)
+    local deliveryTime
+
+    deliveryTime = jiffies() + (20 + int(rnd() * 41)) * JIFFIES_PER_SECOND
+    return scheduleReportQueueEvent(deliveryTime, row, text$)
+end function
+
+function scheduleReportQueueEvent(deliveryTime, row, text$)
+    local index
+    local i
+
+    if reportQueueLength >= reportQueueSize then
+        return -1
+    end if
+
+    index = reportQueueLength
+    for i = 0 to reportQueueLength - 1
+        if deliveryTime < reportQueue(i).reportTime then
+            index = i
+            exit for
+        end if
+    next i
+    i = reportQueueLength
+    while i > index
+        reportQueue(i).reportTime = reportQueue(i - 1).reportTime
+        reportQueue(i).reportRow = reportQueue(i - 1).reportRow
+        reportQueue(i).reportText$ = reportQueue(i - 1).reportText$
+        reportQueue(i).reportTextLength = reportQueue(i - 1).reportTextLength
+        reportQueue(i).impactTime = reportQueue(i - 1).impactTime
+        i = i - 1
+    wend
+
+    reportQueue(index).reportTime = deliveryTime
+    reportQueue(index).reportRow = row
+    reportQueue(index).reportText$ = text$
+    reportQueue(index).reportTextLength = len(text$)
+    reportQueue(index).impactTime = -1
+    reportQueueLength = reportQueueLength + 1
+    return index
+end function
+
+function checkReportQueueEvents()
+    local now
+    local i
+
+    now = jiffies()
+    while reportQueueLength > 0
+        if reportQueue(0).reportTime > now then
+            return
+        end if
+
+        addToTextQueue(reportQueue(0).reportRow, 1, 0, left$(reportQueue(0).reportText$, reportQueue(0).reportTextLength))
+        if reportQueue(0).impactTime >= 0 then
+            reportIncomingMissile(reportQueue(0).impactTime)
+        end if
+        reportQueueLength = reportQueueLength - 1
+        for i = 0 to reportQueueLength - 1
+            reportQueue(i).reportTime = reportQueue(i + 1).reportTime
+            reportQueue(i).reportRow = reportQueue(i + 1).reportRow
+            reportQueue(i).reportText$ = reportQueue(i + 1).reportText$
+            reportQueue(i).reportTextLength = reportQueue(i + 1).reportTextLength
+            reportQueue(i).impactTime = reportQueue(i + 1).impactTime
+        next i
+        now = jiffies()
+    wend
+end function

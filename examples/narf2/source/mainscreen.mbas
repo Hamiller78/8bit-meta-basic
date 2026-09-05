@@ -1,3 +1,64 @@
+uses "timehelper.mbas"
+
+icbms = 500
+submarines = 50
+bombers = 100
+defcon = 1
+
+' Only delivered intelligence contributes to the red countdown.
+const reportedMissileCapacity = 50
+dim reportedImpactTimes(reportedMissileCapacity)
+reportedMissileCount = 0
+redImpactTime = -1
+
+function reportIncomingMissile(impactTime)
+    refreshRedCountdownTarget()
+    if impactTime <= jiffies() then
+        return
+    end if
+    if reportedMissileCount >= reportedMissileCapacity then
+        return
+    end if
+    reportedImpactTimes(reportedMissileCount) = impactTime
+    reportedMissileCount = reportedMissileCount + 1
+    if redImpactTime < 0 or impactTime < redImpactTime then
+        redImpactTime = impactTime
+    end if
+end function
+
+function refreshRedCountdownTarget()
+    local i
+    local now
+
+    now = jiffies()
+    redImpactTime = -1
+    i = 0
+    while i < reportedMissileCount
+        if reportedImpactTimes(i) <= now then
+            reportedMissileCount = reportedMissileCount - 1
+            reportedImpactTimes(i) = reportedImpactTimes(reportedMissileCount)
+        else
+            if redImpactTime < 0 or reportedImpactTimes(i) < redImpactTime then
+                redImpactTime = reportedImpactTimes(i)
+            end if
+            i = i + 1
+        end if
+    wend
+end function
+
+function secondsUntilReportedMissileImpact()
+    local now
+
+    now = jiffies()
+    if redImpactTime >= 0 and redImpactTime <= now then
+        refreshRedCountdownTarget()
+    end if
+    if redImpactTime < 0 then
+        return -1
+    end if
+    return int((redImpactTime - now) / JIFFIES_PER_SECOND)
+end function
+
 inline function drawMainScreen()
     cls
 
@@ -33,7 +94,7 @@ function drawRedCountdown()
     local minutesLeft
     local remainingSeconds
 
-    secondsLeft = secondsUntilNextMissileImpact()
+    secondsLeft = secondsUntilReportedMissileImpact()
     if secondsLeft < 0 then
         print_at 2, TEXT_COLUMNS - 11, "RED:  --:--";
     else

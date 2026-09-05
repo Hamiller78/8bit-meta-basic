@@ -1,14 +1,14 @@
+uses "mainscreen.mbas"
+uses "textqueue.mbas"
+uses "worldqueue.mbas"
+uses "reportqueue.mbas"
+uses "timehelper.mbas"
+
 program_mode
 screen_border_color BLUE
 screen_background_color BLUE
 screen_text_color WHITE
 cls
-
-'Variables for game logic
-icbms = 500
-submarines = 50
-bombers = 100
-defcon = 1
 
 'begin program
 printIntroText()
@@ -23,11 +23,12 @@ drawMainScreen()
 
 setClock("11:47:30") ' Set initial time for clock
 drawMainClock(currentTime$)
-addWorldQueueEvent(MissileHitsOurCity, jiffies() + 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
+addWorldQueueEvent(MissileHitsOurCity, jiffies() + 60 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
 drawRedCountdown()
 
 repeat
     checkWorldQueueEvents()
+    checkReportQueueEvents()
     updateMainScreen()
 until key_pressed()
 

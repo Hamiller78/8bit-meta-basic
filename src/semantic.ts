@@ -16,6 +16,7 @@ import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
 import { canonicalTestRuntimeSetterName } from "./test-runtime.js";
 import { isIntegerVariableName, isStringVariableName } from "./variables.js";
+import { validateModuleAccess } from "./module-semantics.js";
 
 type ConstantValue = number | string | boolean | ColorValue;
 
@@ -59,6 +60,7 @@ export interface AnalyzeOptions {
 }
 
 export function analyzeProgram(program: Program, environment: TargetEnvironment, options: AnalyzeOptions = {}): Program {
+  validateModuleAccess(program, environment);
   const constants = new Map<string, ConstantDefinition>();
   for (const [key, value] of environment.constants) {
     constants.set(key, { name: key.toUpperCase(), value, environment: true });
@@ -128,6 +130,8 @@ function analyzeStatements(
 
   for (const statement of statements) {
     switch (statement.kind) {
+      case "uses":
+        break;
       case "comment":
         analyzed.push(statement);
         break;
