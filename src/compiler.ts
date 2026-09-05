@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
 import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
@@ -464,6 +465,7 @@ function isGeneratedHousekeepingLet(instruction: Instruction | undefined): instr
 }
 
 const generatedHousekeepingNames = new Set([
+  ...testJoystickNames,
   "MBTOUT$",
   "MBTPOUT$",
   "MBTPROW",

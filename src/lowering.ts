@@ -10,6 +10,7 @@ import {
   type InlineFunctionImplementation
 } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
+import { builtinFunctions } from "./functions.js";
 import { canonicalTestRuntimeSetterName, replaceTestRuntimeFunctionCalls, setterStorageName } from "./test-runtime.js";
 import {
   capturedPrintExpression,
@@ -778,7 +779,8 @@ function lowerStatements(
         {
           const setter = canonicalTestRuntimeSetterName(statement.expression.name);
           if (setter) {
-            instructions.push({ kind: "let", name: setterStorageName(setter), expression: lowerExpression(statement.expression.args[0], instructions, context, options), location: statement.location });
+            const valueIndex = setter === builtinFunctions.setJoystick ? 1 : 0;
+            instructions.push({ kind: "let", name: setterStorageName(setter, statement.expression.args[0]), expression: lowerExpression(statement.expression.args[valueIndex], instructions, context, options), location: statement.location });
             break;
           }
           expandFunctionCallForSideEffect(statement.expression, instructions, context);

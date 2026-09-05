@@ -2,6 +2,7 @@ import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -204,6 +205,11 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.keyPressed, () => "(PEEK(198) > 0)"],
+    [builtinFunctions.getJoystick, expression => [
+      "((PEEK(56320) AND 4) / 4 - (PEEK(56320) AND 8) / 8)",
+      "((PEEK(56320) AND 1) - (PEEK(56320) AND 2) / 2)",
+      "(1 - (PEEK(56320) AND 16) / 16)"
+    ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderC64Left],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid],

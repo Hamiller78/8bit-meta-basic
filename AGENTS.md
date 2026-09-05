@@ -111,6 +111,8 @@ Supported constructs:
 - Runtime free BASIC memory reading with `free_memory()`
 - Non-blocking keyboard polling with `key_code()`
 - Non-blocking keyboard availability checks with `key_pressed()`
+- Non-blocking `get_joystick(JOY_X|JOY_Y|JOY_FIRE1)` with compile-time selectors; axes return -1/0/1, fire returns 0/1. C64 uses port 2, Atari uses joystick 0, Spectrum uses Q/A/O/P/Space keyboard-matrix reads. Opposite directions cancel; calls poll independently.
+- Test-only `set_joystick(control, value)` inside `TEST`; independent numeric fake controls reset to zero before each test and replace hardware reads in called functions too.
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Scalar struct values and struct arrays declared with `DIM name AS StructName` and `DIM name AS StructName(count)`
 - Struct field access such as `textQueue(i).textQueueRow` and `newElement.text$`

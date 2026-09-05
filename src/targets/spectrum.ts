@@ -2,6 +2,7 @@ import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -189,6 +190,12 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.int, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "(PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)"],
     [builtinFunctions.keyPressed, () => `(INKEY$ <> "")`],
+    // Active-low keyboard bits: P/O share a row; Q, A, and Space use bit zero.
+    [builtinFunctions.getJoystick, expression => [
+      "(3 * INT((IN 57342) / 2) - 2 * INT((IN 57342) / 4) - (IN 57342))",
+      "((IN 64510) - 2 * INT((IN 64510) / 2) - (IN 65022) + 2 * INT((IN 65022) / 2))",
+      "(1 - (IN 32766) + 2 * INT((IN 32766) / 2))"
+    ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderSpectrumLeft],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid],

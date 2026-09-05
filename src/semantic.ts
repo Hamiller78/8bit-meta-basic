@@ -12,6 +12,7 @@ import {
   validateFunctionRecursion
 } from "./function-semantics.js";
 import { builtinFunctions, canonicalFunctionName, isStringFunctionName } from "./functions.js";
+import { joystickControl } from "./joystick.js";
 import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
 import { canonicalTestRuntimeSetterName } from "./test-runtime.js";
@@ -666,11 +667,14 @@ function analyzeTestRuntimeSetterStatement(
     throw new DiagnosticError(statement.location, `${setter} can only be used inside a TEST when test mode is enabled.`);
   }
 
-  if (statement.expression.args.length !== 1) {
-    throw new DiagnosticError(statement.expression.location, `${setter} expects exactly one argument.`);
+  const isJoystick = setter === builtinFunctions.setJoystick;
+  if (statement.expression.args.length !== (isJoystick ? 2 : 1)) {
+    throw new DiagnosticError(statement.expression.location, `${setter} expects exactly ${isJoystick ? "two arguments" : "one argument"}.`);
   }
 
-  const value = foldExpression(statement.expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+  const args = statement.expression.args.map(arg => foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope, structValues));
+  if (isJoystick) joystickControl(args[0]);
+  const value = args[isJoystick ? 1 : 0];
   if (value.kind === "color" || isStringExpression(value)) {
     throw new DiagnosticError(statement.expression.args[0].location, `${setter} expects a numeric argument.`);
   }
@@ -680,7 +684,7 @@ function analyzeTestRuntimeSetterStatement(
     expression: {
       ...statement.expression,
       name: setter,
-      args: [value],
+      args,
       valueType: "number"
     }
   };
@@ -1336,7 +1340,16 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
-  if (name === builtinFunctions.setJiffies || name === builtinFunctions.setKeyCode || name === builtinFunctions.setKeyPressed) {
+  if (name === builtinFunctions.getJoystick) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "GET_JOYSTICK expects exactly one argument.");
+    }
+    const selector = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+    joystickControl(selector);
+    return { ...expression, name, args: [selector], valueType: "number" };
+  }
+
+  if (name === builtinFunctions.setJiffies || name === builtinFunctions.setKeyCode || name === builtinFunctions.setKeyPressed || name === builtinFunctions.setJoystick) {
     throw new DiagnosticError(expression.location, `${name} can only be used as a statement inside a TEST.`);
   }
 

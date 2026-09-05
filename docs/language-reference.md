@@ -216,6 +216,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `free_memory()` | Runtime | Return the target's current free BASIC memory in bytes |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 | `key_pressed()` | Runtime | Check whether a key is waiting without blocking |
+| `get_joystick(control)` | Runtime | Read a joystick axis or fire button without blocking |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
 `CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
@@ -259,6 +260,46 @@ end test
 ```
 
 `SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+
+## Joystick input
+
+```basic
+x = get_joystick(JOY_X)
+y = get_joystick(JOY_Y)
+fire = get_joystick(JOY_FIRE1)
+```
+
+The read-only selectors `JOY_X` (0), `JOY_Y` (1), and `JOY_FIRE1` (2) must be known at compile time. Constant aliases are allowed; runtime selector variables and unknown selector values are rejected. Use underscores, not hyphens, in selector names.
+
+| Selector | Negative | Neutral | Positive |
+| --- | --- | --- | --- |
+| `JOY_X` | -1: left | 0 | 1: right |
+| `JOY_Y` | -1: up | 0 | 1: down |
+| `JOY_FIRE1` | Not applicable | 0: released | 1: pressed |
+
+Diagonal movement and fire together are supported. Simultaneous opposing directions cancel to zero. Each call polls independently; separate calls are not an atomic snapshot. The function may appear in numeric expressions, conditions, and function return values, not just assignments.
+
+| Target | Input source |
+| --- | --- |
+| C64 | Joystick port 2, via `PEEK(56320)` and native bit masks |
+| Atari 800XL | First joystick, via `STICK(0)` and `STRIG(0)` |
+| Spectrum | Q/A for up/down, O/P for left/right, Space for fire, via direct keyboard-matrix `IN` reads |
+
+Spectrum does not require a joystick interface and does not consume buffered keyboard input. Only the three selectors above are currently supported; additional buttons are reserved for future extensions. Existing `GAME_*` constants remain keyboard key codes, not joystick selectors.
+
+In test mode, all `GET_JOYSTICK` calls, including calls in ordinary functions, read independent fake controls instead of hardware:
+
+```basic
+test MoveLeftAndFire()
+    set_joystick(JOY_X, -1)
+    set_joystick(JOY_FIRE1, 1)
+    assert_eq -1, get_joystick(JOY_X)
+    assert_eq 0, get_joystick(JOY_Y)
+    assert_eq 1, get_joystick(JOY_FIRE1)
+end test
+```
+
+`SET_JOYSTICK(control, value)` is a statement allowed only directly inside a `TEST` block. Its selector must be constant, and its value must be numeric. Supply normalized values from the table above; the fake stores the supplied value without conversion. Setting one control leaves the other controls unchanged. All three reset to zero before every test, independently of the keyboard fakes. Normal builds emit no joystick fake storage or resets.
 
 ## Data streams
 

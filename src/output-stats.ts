@@ -1,3 +1,5 @@
+import { testJoystickNames } from "./joystick.js";
+
 export interface OutputStats {
   readonly lineCount: number;
   readonly firstLineNumber?: number;
@@ -288,6 +290,7 @@ const ignoredIdentifiers = new Set([
   "GOSUB",
   "GOTO",
   "IF",
+  "IN",
   "LET",
   "NEXT",
   "NOT",
@@ -334,6 +337,8 @@ const ignoredCallNames = new Set([
   "SIN",
   "SQR",
   "STR",
+  "STICK",
+  "STRIG",
   "USR",
   "VAL",
 ]);
@@ -341,6 +346,7 @@ const ignoredCallNames = new Set([
 const variableNamePattern = /\b[A-Z][A-Z0-9]*(?:[%$])?(?![A-Z0-9])/gi;
 
 const testRuntimeVariables = new Set([
+  ...testJoystickNames,
   "MBTOUT$",
   "MBTPOUT$",
   "MBTPROW",

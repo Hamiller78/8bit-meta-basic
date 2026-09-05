@@ -1,6 +1,7 @@
 import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { builtinFunctions, isStringFunctionName } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
@@ -756,6 +757,12 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.int, renderAtariUnaryNumericFunction],
     [builtinFunctions.jiffies, () => "(PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536)"],
     [builtinFunctions.keyPressed, () => "(PEEK(764) <> 255)"],
+    // Active-low STICK bits: up, down, left, right. Subtract opposing bits.
+    [builtinFunctions.getJoystick, expression => [
+      "(INT(STICK(0) / 4) - 3 * INT(STICK(0) / 8))",
+      "(STICK(0) - 3 * INT(STICK(0) / 2) + 2 * INT(STICK(0) / 4))",
+      "(1 - STRIG(0))"
+    ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderAtariLeft],
     [builtinFunctions.len, renderAtariLen],
     [builtinFunctions.mid, renderAtariMid],

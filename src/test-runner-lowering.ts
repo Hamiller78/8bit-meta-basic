@@ -4,6 +4,7 @@ import { expandFunctionCalls, type FunctionCallLoweringContext } from "./functio
 import { builtinFunctions } from "./functions.js";
 import type { Instruction } from "./lowering.js";
 import { replaceTestRuntimeFunctionCalls, testJiffiesName, testKeyCodeName, testKeyPressedName } from "./test-runtime.js";
+import { testJoystickNames } from "./joystick.js";
 import { isStringVariableName } from "./variables.js";
 
 export const testOutputName = "MBTOUT$";
@@ -143,7 +144,8 @@ function testRuntimeResetLets(location: SourceLocation): Instruction[] {
   return [
     { kind: "let", name: testJiffiesName, expression: numberExpression(0, location), location },
     { kind: "let", name: testKeyCodeName, expression: numberExpression(0, location), location },
-    { kind: "let", name: testKeyPressedName, expression: numberExpression(0, location), location }
+    { kind: "let", name: testKeyPressedName, expression: numberExpression(0, location), location },
+    ...testJoystickNames.map((name): Instruction => ({ kind: "let", name, expression: numberExpression(0, location), location }))
   ];
 }
 

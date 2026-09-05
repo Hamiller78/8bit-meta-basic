@@ -1,4 +1,5 @@
 import type { TargetId } from "./target.js";
+import { joystickControls } from "../joystick.js";
 
 export type PortableColor = "BLACK" | "BLUE" | "RED" | "MAGENTA" | "GREEN" | "CYAN" | "YELLOW" | "WHITE";
 
@@ -153,6 +154,7 @@ function buildEnvironment(
   keyCodes: Readonly<Record<string, number>>
 ): TargetEnvironment {
   const constants = new Map<string, EnvironmentConstantValue>([
+    ...Object.entries(joystickControls).map(([name, value]): [string, number] => [name.toLowerCase(), value]),
     ["text_rows", textRows],
     ["text_columns", textColumns],
     ["jiffies_per_second", jiffiesPerSecond],
