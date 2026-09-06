@@ -1,0 +1,67 @@
+uses "../source/decision.mbas"
+uses "../source/textqueue.mbas"
+
+globals
+    txtQueueIndex = -1
+    decisionActive = 0
+    decisionType = NoDecision
+    decisionSelectedOption = 0
+    decisionMoveReady = 1
+    decisionFireReady = 0
+    decisionResultPending = 0
+    decisionResultType = NoDecision
+    decisionResultOption = -1
+end globals
+
+test DecisionStartsWithFirstOptionSelected()
+    resetTextQueue()
+    startDecision(IncomingMissileDecision)
+
+    assert_true decisionActive
+    assert_eq 0, decisionSelectedOption
+    assert_eq -1, txtQueueIndex
+    assert_printat decisionLastRow, 1, "  LAUNCH EVERYTHING"
+end test
+
+test DecisionMovesOnceForEachJoystickPress()
+    resetTextQueue()
+    startDecision(IncomingMissileDecision)
+
+    set_joystick(JOY_Y, 1)
+    updateDecision()
+    assert_eq 1, decisionSelectedOption
+    updateDecision()
+    assert_eq 1, decisionSelectedOption
+    set_joystick(JOY_Y, 0)
+    updateDecision()
+    set_joystick(JOY_Y, 1)
+    updateDecision()
+    assert_eq 2, decisionSelectedOption
+    assert_printat decisionLastRow, 1, "*"
+end test
+
+test FireSelectsAndRepeatsOptionInChat()
+    resetTextQueue()
+    startDecision(IncomingMissileDecision)
+
+    updateDecision()
+    set_joystick(JOY_FIRE1, 1)
+    updateDecision()
+
+    assert_false decisionActive
+    assert_true decisionResultPending
+    assert_eq IncomingMissileDecision, decisionResultType
+    assert_eq 0, decisionResultOption
+    assert_eq "SELECTED: DO NOTHING", left$(chatBuffer$(0), 20)
+end test
+
+test DecisionCanBeCancelled()
+    resetTextQueue()
+    startDecision(IncomingMissileDecision)
+    cancelDecision()
+
+    assert_false decisionActive
+    assert_eq NoDecision, decisionType
+    assert_eq -1, txtQueueIndex
+    assert_printat decisionLastRow, 1, blankChatLine$
+end test

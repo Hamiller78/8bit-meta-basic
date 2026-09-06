@@ -3,6 +3,7 @@ uses "textqueue.mbas"
 uses "worldqueue.mbas"
 uses "reportqueue.mbas"
 uses "timehelper.mbas"
+uses "decision.mbas"
 
 program_mode
 screen_border_color BLUE
@@ -29,8 +30,9 @@ drawRedCountdown()
 repeat
     checkWorldQueueEvents()
     checkReportQueueEvents()
+    updateDecision()
     updateMainScreen()
-until key_pressed()
+until false
 
 print free_memory();" bytes free"
 

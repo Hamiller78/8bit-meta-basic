@@ -1,5 +1,7 @@
 uses "textqueue.mbas"
 uses "mainscreen.mbas"
+uses "decision.mbas"
+uses "advisor.mbas"
 
 ' Reports arrive independently of the world events that generated them.
 struct ReportQueueEvent
@@ -62,9 +64,13 @@ function checkReportQueueEvents()
             return
         end if
 
+        cancelDecision()
         addToTextQueue(left$(reportQueue(0).reportText$, reportQueue(0).reportTextLength))
         if reportQueue(0).impactTime >= 0 then
             reportIncomingMissile(reportQueue(0).impactTime)
+            if reportQueue(0).impactTime > now then
+                adviseIncomingMissile()
+            end if
         end if
         reportQueueLength = reportQueueLength - 1
         for i = 0 to reportQueueLength - 1

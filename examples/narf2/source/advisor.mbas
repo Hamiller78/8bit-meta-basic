@@ -1,0 +1,7 @@
+uses "decision.mbas"
+uses "textqueue.mbas"
+
+function adviseIncomingMissile()
+    addToTextQueue("ADVISOR: SELECT OUR RESPONSE")
+    startDecision(IncomingMissileDecision)
+end function

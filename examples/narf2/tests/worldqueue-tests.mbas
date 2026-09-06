@@ -34,6 +34,8 @@ test AddWorldQueueEventKeepsQueueSorted()
 end test
 
 test CheckWorldQueueEventsResolvesDueMissile()
+    local impactLine
+
     addWorldQueueEvent(MissileHitsOurCity, 200, "WASHINGTON D.C.", 0)
     reportQueue(0).reportTime = 0
     clearTextQueue()
@@ -52,8 +54,9 @@ test CheckWorldQueueEventsResolvesDueMissile()
     reportQueue(1).reportTime = 202
     set_jiffies(200 + 60 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
-    assert_eq 1, txtQueueIndex
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(1), len("MISSILE HIT: WASHINGTON D.C."))
+    impactLine = int((len("INCOMING MISSILE: WASHINGTON D.C.") - 1) / TEXT_COLUMNS) + 1
+    assert_eq impactLine, txtQueueIndex
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(impactLine), len("MISSILE HIT: WASHINGTON D.C."))
 end test
 
 test MissileCountdownUsesNextEvent()
@@ -74,6 +77,8 @@ test MissileCountdownEmptyQueue()
 end test
 
 test DueMissileImpactTextPrintsInMainLoopOrder()
+    local impactLine
+
     set_jiffies(0)
     addToTextQueue("TEST: MISSILE DETECTED")
     addWorldQueueEvent(MissileHitsOurCity, 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
@@ -85,12 +90,15 @@ test DueMissileImpactTextPrintsInMainLoopOrder()
     reportQueue(1).reportTime = 22 * JIFFIES_PER_SECOND
     set_jiffies(80 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
+    impactLine = int((len("INCOMING MISSILE: WASHINGTON D.C.") - 1) / TEXT_COLUMNS) + 2
 
     assert_eq 0, worldQueueLength
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(impactLine), len("MISSILE HIT: WASHINGTON D.C."))
 end test
 
 test DueMissilePrintsWithExistingChatLines()
+    local impactLine
+
     set_jiffies(0)
     addToTextQueue("TEST: MISSILE DETECTED")
     addWorldQueueEvent(MissileHitsOurCity, 20 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
@@ -102,8 +110,9 @@ test DueMissilePrintsWithExistingChatLines()
     reportQueue(1).reportTime = 22 * JIFFIES_PER_SECOND
     set_jiffies(80 * JIFFIES_PER_SECOND)
     checkReportQueueEvents()
+    impactLine = int((len("INCOMING MISSILE: WASHINGTON D.C.") - 1) / TEXT_COLUMNS) + 2
 
     assert_eq 0, worldQueueLength
-    assert_eq "INCOMING MISSILE: WASHINGTON D.C.", left$(chatBuffer$(1), len("INCOMING MISSILE: WASHINGTON D.C."))
-    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(2), len("MISSILE HIT: WASHINGTON D.C."))
+    assert_eq "INCOMING MISSILE", left$(chatBuffer$(1), len("INCOMING MISSILE"))
+    assert_eq "MISSILE HIT: WASHINGTON D.C.", left$(chatBuffer$(impactLine), len("MISSILE HIT: WASHINGTON D.C."))
 end test

@@ -1,6 +1,9 @@
 ' Buffered text output for the main chat area
 const chatFirstRow = 5
-const chatLastRow = TEXT_ROWS - 3
+const decisionAreaRows = 3
+const decisionLastRow = TEXT_ROWS - 3
+const decisionFirstRow = decisionLastRow - decisionAreaRows + 1
+const chatLastRow = decisionFirstRow - 1
 const chatRows = chatLastRow - chatFirstRow + 1
 const chatScrollRows = 5
 const blankChatLine$ = string$(" ", TEXT_COLUMNS)

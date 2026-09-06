@@ -1,12 +1,15 @@
 uses "../source/reportqueue.mbas"
 uses "../source/textqueue.mbas"
 uses "../source/mainscreen.mbas"
+uses "../source/decision.mbas"
 
 globals
     reportQueueLength = 0
     reportedMissileCount = 0
     redImpactTime = -1
     txtQueueIndex = -1
+    decisionActive = 0
+    decisionType = NoDecision
 end globals
 
 test ReportsWaitUntilDueAndDrainAllDueEvents()
@@ -74,4 +77,32 @@ test FullReportQueueRejectsNewReportWithoutOverwriting()
     assert_eq reportQueueSize, reportQueueLength
     assert_eq 100, reportQueue(0).reportTime
     assert_eq "KEPT", left$(reportQueue(0).reportText$, 4)
+end test
+
+test NewReportCancelsActiveDecision()
+    resetTextQueue()
+    startDecision(IncomingMissileDecision)
+    scheduleReportQueueEvent(100, "NEW REPORT")
+
+    set_jiffies(100)
+    checkReportQueueEvents()
+
+    assert_false decisionActive
+    assert_eq "NEW REPORT", left$(chatBuffer$(0), 10)
+end test
+
+test IncomingMissileReportStartsAdvisorDecision()
+    resetTextQueue()
+    scheduleReportQueueEvent(100, "INCOMING MISSILE")
+    reportQueue(0).impactTime = 1000
+
+    set_jiffies(100)
+    checkReportQueueEvents()
+
+    assert_true decisionActive
+    assert_eq IncomingMissileDecision, decisionType
+    assert_eq "INCOMING MISSILE", left$(chatBuffer$(0), 16)
+    assert_eq "ADVISOR: SELECT OUR RESPONSE", left$(chatBuffer$(1), 28)
+    assert_eq 1, txtQueueIndex
+    assert_printat decisionLastRow, 1, "  LAUNCH EVERYTHING"
 end test
