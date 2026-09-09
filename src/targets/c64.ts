@@ -2,6 +2,7 @@ import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -25,7 +26,8 @@ export const c64Target: TargetBackend = {
     ]);
     const withScreenControls = expandScreenControls(expanded);
     const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls);
-    const withRs232Flush = expandRs232CloseFlush(withDeviceChecks);
+    const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
+    const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
     return withKeyboardInput;
   },
@@ -119,6 +121,21 @@ export const c64Target: TargetBackend = {
   }
 };
 
+function hoistTestRs232Open(program: LoweredProgram): LoweredProgram {
+  const index = program.instructions.findIndex(
+    instruction => instruction.kind === "open-device" && instruction.handle.toUpperCase() === "MBTPR" && instruction.device === "rs232"
+  );
+  if (index < 1) {
+    return program;
+  }
+
+  // Opening C64 RS-232 moves BASIC's memory boundary and clears existing arrays.
+  const instructions = [...program.instructions];
+  const [open] = instructions.splice(index, 1);
+  instructions.unshift(open);
+  return rebuildLabels(program, instructions);
+}
+
 let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
@@ -204,6 +221,11 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.keyPressed, () => "(PEEK(198) > 0)"],
+    [builtinFunctions.getJoystick, expression => [
+      "((PEEK(56320) AND 4) / 4 - (PEEK(56320) AND 8) / 8)",
+      "((PEEK(56320) AND 1) - (PEEK(56320) AND 2) / 2)",
+      "(1 - (PEEK(56320) AND 16) / 16)"
+    ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderC64Left],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid],
@@ -294,7 +316,11 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
   };
 
   for (const instruction of instructions) {
-    if (
+    if (instruction.kind === "multi-let") {
+      for (const assignment of instruction.assignments) {
+        addName(assignment.name);
+      }
+    } else if (
       instruction.kind === "let" ||
       instruction.kind === "array-let" ||
       instruction.kind === "dim-array" ||

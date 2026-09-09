@@ -1,4 +1,5 @@
 test ReadDataAndRestore()
+    local T$
     data 10, "TEN"
     data 20, "TWENTY"
     read DCode, T$

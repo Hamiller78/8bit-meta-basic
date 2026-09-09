@@ -6,6 +6,7 @@ import { tokenize, type Token } from "./lexer.js";
 type StatementParser = (parser: Parser, location: SourceLocation) => Statement | "block-delimiter";
 
 const statementParsers = new Map<string, StatementParser>([
+  ["USES", (parser, location) => parser.parseUses(location)],
   ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseScreenBackgroundColor(location)],
@@ -88,11 +89,22 @@ export function parseSource(source: string, filename: string): Program {
 
 class Parser {
   private index = 0;
+  private pendingTrailingComments: Statement[] = [];
 
   constructor(private readonly tokens: readonly Token[]) {}
 
   parseProgram(): Program {
     return { statements: this.parseBlock("eof") };
+  }
+
+  parseUses(location: SourceLocation): Statement {
+    const path = this.current();
+    if (path.kind !== "string" || !path.value.trim()) {
+      throw new DiagnosticError(path.location, 'Expected a nonempty quoted module path after USES.');
+    }
+    this.advance();
+    this.expectLineEnd();
+    return { kind: "uses", path: path.value, location };
   }
 
   parseConst(location: SourceLocation): Statement {
@@ -731,11 +743,19 @@ class Parser {
 
       const statement = this.parseStatement();
       statements.push(statement);
+      statements.push(...this.pendingTrailingComments);
+      this.pendingTrailingComments = [];
     }
   }
 
   private parseStatement(): Statement {
     const token = this.current();
+
+    if (token.kind === "comment") {
+      this.advance();
+      this.expectLineEnd();
+      return { kind: "comment", text: token.text, location: token.location };
+    }
 
     if (token.kind === "identifier" && this.nextIsPunctuation(":")) {
       this.advance();
@@ -1064,6 +1084,12 @@ class Parser {
     if (!this.isLineEnd()) {
       throw new DiagnosticError(this.current().location, `Expected end of line, found ${describeToken(this.current())}.`);
     }
+    const token = this.current();
+    if (token.kind === "comment") {
+      const comment = token;
+      this.pendingTrailingComments.push({ kind: "comment", text: comment.text, location: comment.location });
+      this.advance();
+    }
     if (this.matchKind("newline")) {
       this.advance();
     }
@@ -1076,7 +1102,7 @@ class Parser {
   }
 
   private isLineEnd(): boolean {
-    return this.matchKind("newline") || this.matchKind("eof");
+    return this.matchKind("comment") || this.matchKind("newline") || this.matchKind("eof");
   }
 
   private matchKeyword(text: string): boolean {
@@ -1122,5 +1148,7 @@ function describeToken(token: Token): string {
     case "operator":
     case "punctuation":
       return `"${token.text}"`;
+    case "comment":
+      return "comment";
   }
 }

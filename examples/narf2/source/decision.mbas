@@ -1,0 +1,152 @@
+uses "textqueue.mbas"
+
+enum DecisionType
+    NoDecision = 0
+    IncomingMissileDecision = 1
+end enum
+
+const decisionOptionCount = 3
+
+decisionActive = 0
+decisionType = NoDecision
+decisionSelectedOption = 0
+decisionMoveReady = 1
+decisionFireReady = 0
+decisionResultPending = 0
+decisionResultType = NoDecision
+decisionResultOption = -1
+
+function startDecision(newDecisionType)
+    cancelDecision()
+
+    if newDecisionType <> IncomingMissileDecision then
+        return
+    end if
+
+    decisionType = newDecisionType
+    decisionSelectedOption = 0
+    decisionMoveReady = 1
+    decisionFireReady = 0
+    decisionResultPending = 0
+    decisionActive = 1
+    drawDecision()
+end function
+
+function cancelDecision()
+    if not decisionActive then
+        return
+    end if
+
+    decisionActive = 0
+    clearDecisionArea()
+    decisionType = NoDecision
+end function
+
+function updateDecision()
+    local vertical
+    local fire
+    local previousOption
+
+    if not decisionActive then
+        return
+    end if
+
+    vertical = get_joystick(JOY_Y)
+    if vertical = 0 then
+        decisionMoveReady = 1
+    else
+        if decisionMoveReady then
+            previousOption = decisionSelectedOption
+            decisionSelectedOption = decisionSelectedOption + vertical
+            if decisionSelectedOption < 0 then
+                decisionSelectedOption = 0
+            end if
+            if decisionSelectedOption >= decisionOptionCount then
+                decisionSelectedOption = decisionOptionCount - 1
+            end if
+            decisionMoveReady = 0
+            if decisionSelectedOption <> previousOption then
+                moveDecisionMarker(previousOption)
+            end if
+        end if
+    end if
+
+    fire = get_joystick(JOY_FIRE1)
+    if fire = 0 then
+        decisionFireReady = 1
+    else
+        if decisionFireReady then
+            selectDecisionOption()
+        end if
+    end if
+end function
+
+function moveDecisionMarker(previousOption)
+    if previousOption = 0 then
+        print_at decisionFirstRow, 1, " ";
+    else
+        if previousOption = 1 then
+            print_at decisionFirstRow + 1, 1, " ";
+        else
+            print_at decisionLastRow, 1, " ";
+        end if
+    end if
+
+    if decisionSelectedOption = 0 then
+        print_at decisionFirstRow, 1, "*";
+    else
+        if decisionSelectedOption = 1 then
+            print_at decisionFirstRow + 1, 1, "*";
+        else
+            print_at decisionLastRow, 1, "*";
+        end if
+    end if
+end function
+
+function selectDecisionOption()
+    if not decisionActive then
+        return
+    end if
+
+    decisionResultType = decisionType
+    decisionResultOption = decisionSelectedOption
+    decisionResultPending = 1
+    cancelDecision()
+    if decisionResultOption = 0 then
+        addToTextQueue("SELECTED: DO NOTHING")
+    else
+        if decisionResultOption = 1 then
+            addToTextQueue("SELECTED: LAUNCH ONE ICBM")
+        else
+            addToTextQueue("SELECTED: LAUNCH EVERYTHING")
+        end if
+    end if
+end function
+
+function drawDecision()
+    if not decisionActive then
+        return
+    end if
+
+    if decisionSelectedOption = 0 then
+        print_at decisionFirstRow, 1, "* DO NOTHING";
+    else
+        print_at decisionFirstRow, 1, "  DO NOTHING";
+    end if
+    if decisionSelectedOption = 1 then
+        print_at decisionFirstRow + 1, 1, "* LAUNCH ONE ICBM";
+    else
+        print_at decisionFirstRow + 1, 1, "  LAUNCH ONE ICBM";
+    end if
+    if decisionSelectedOption = 2 then
+        print_at decisionLastRow, 1, "* LAUNCH EVERYTHING";
+    else
+        print_at decisionLastRow, 1, "  LAUNCH EVERYTHING";
+    end if
+end function
+
+function clearDecisionArea()
+    print_at decisionFirstRow, 1, blankChatLine$;
+    print_at decisionFirstRow + 1, 1, blankChatLine$;
+    print_at decisionLastRow, 1, blankChatLine$;
+end function

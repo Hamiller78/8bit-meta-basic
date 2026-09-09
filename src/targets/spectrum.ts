@@ -2,6 +2,7 @@ import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
 import type { ReadabilityLevel } from "../line-numbering.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
@@ -187,8 +188,14 @@ const renderKnownSpectrumFunction = createFunctionRenderer(
     [builtinFunctions.exp, renderSpectrumUnaryNumericFunction],
     [builtinFunctions.freeMemory, () => "(65536 - USR 7962)"],
     [builtinFunctions.int, renderSpectrumUnaryNumericFunction],
-    [builtinFunctions.jiffies, () => "PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674"],
+    [builtinFunctions.jiffies, () => "(PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)"],
     [builtinFunctions.keyPressed, () => `(INKEY$ <> "")`],
+    // Active-low keyboard bits: P/O share a row; Q, A, and Space use bit zero.
+    [builtinFunctions.getJoystick, expression => [
+      "(3 * INT((IN 57342) / 2) - 2 * INT((IN 57342) / 4) - (IN 57342))",
+      "((IN 64510) - 2 * INT((IN 64510) / 2) - (IN 65022) + 2 * INT((IN 65022) / 2))",
+      "(1 - (IN 32766) + 2 * INT((IN 32766) / 2))"
+    ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderSpectrumLeft],
     [builtinFunctions.len, renderSpectrumLen],
     [builtinFunctions.mid, renderSpectrumMid],
@@ -252,9 +259,9 @@ function renderSpectrumMid(expression: FunctionCallExpression, options: { readon
     return `${renderedName}(${index},${renderedStart} TO ${renderedStart} + ${renderExpression(length, options)} - 1)`;
   }
   if (!length) {
-    return `${renderExpression(source, options)}(${renderExpression(start, options)} TO )`;
+    return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO )`;
   }
-  return `${renderExpression(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }
 
 function renderSpectrumLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
@@ -264,17 +271,25 @@ function renderSpectrumLeft(expression: FunctionCallExpression, options: { reado
     const index = renderSpectrumArrayIndex(source.indices[0], options);
     return `${renderedName}(${index},1 TO ${renderExpression(length, options)})`;
   }
-  return `${renderExpression(source, options)}( TO ${renderExpression(length, options)})`;
+  return `${renderSpectrumSliceSource(source, options)}( TO ${renderExpression(length, options)})`;
 }
 
 function renderSpectrumRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
-  const renderedSource = renderExpression(source, options);
+  const renderedSource = renderSpectrumSliceSource(source, options);
   return `${renderedSource}(LEN ${renderSpectrumLenArgument(source, options)} - ${renderExpression(length, options)} + 1 TO )`;
 }
 
 function renderSpectrumLenArgument(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
-  if (expression.kind === "identifier" || expression.kind === "string" || expression.kind === "function-call") {
+  if (expression.kind === "identifier" || expression.kind === "string") {
+    return renderExpression(expression, options);
+  }
+
+  return `(${renderExpression(expression, options)})`;
+}
+
+function renderSpectrumSliceSource(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  if (expression.kind === "identifier" || expression.kind === "string") {
     return renderExpression(expression, options);
   }
 

@@ -77,6 +77,7 @@ start:
 
 Supported constructs:
 
+- Module-level `USES "relative/path.mbas"` declarations for direct cross-file access
 - Blank lines
 - Comments beginning with an apostrophe; comments continue to the end of the source line
 - Labels written as `name:`
@@ -110,9 +111,12 @@ Supported constructs:
 - Runtime free BASIC memory reading with `free_memory()`
 - Non-blocking keyboard polling with `key_code()`
 - Non-blocking keyboard availability checks with `key_pressed()`
+- Non-blocking `get_joystick(JOY_X|JOY_Y|JOY_FIRE1)` with compile-time selectors; axes return -1/0/1, fire returns 0/1. C64 uses port 2, Atari uses joystick 0, Spectrum uses Q/A/O/P/Space keyboard-matrix reads. Opposite directions cancel; calls poll independently.
+- Test-only `set_joystick(control, value)` inside `TEST`; independent numeric fake controls reset to zero before each test and replace hardware reads in called functions too.
 - Numeric, integer, and fixed-width string arrays declared with `DIM` and indexed from zero
 - Scalar struct values and struct arrays declared with `DIM name AS StructName` and `DIM name AS StructName(count)`
 - Struct field access such as `textQueue(i).textQueueRow` and `newElement.text$`
+- Whole-struct assignment from a scalar struct value of the same type, such as `queue(0) = newElement` or `copy = newElement`
 - Scalar struct function parameters written as `FUNCTION Foo(Item AS StructName)`
 - `insert_element(array, index, value)` and `remove_element(array, index)` for one-dimensional native arrays and struct arrays
 - Numeric assignments written canonically as `name = expression`
@@ -128,6 +132,7 @@ Supported constructs:
 - Test-mode `TEST name()` / `END TEST` blocks
 - Test-mode `GLOBALS` / `END GLOBALS` fixture blocks
 - Test-mode assertions `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and portable colour assertions
+- Test-mode runtime fakes `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)`
 - `cls` and `cls colour`
 - `border_color colour`
 - `text_color colour`
@@ -150,13 +155,13 @@ Keywords and symbol lookup are case-insensitive. Preserve the source spelling of
 
 `DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
-`STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`.
+`STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`. Whole-struct assignment copies every field from a scalar struct value of the same type; the right-hand side cannot be an arbitrary expression or struct array element.
 
 `FUNCTION Foo(Item AS StructName)` accepts a scalar struct parameter. Struct parameters are copied field-by-field into generated function storage before `GOSUB`, so assigning to `Item.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet.
 
 `INSERT_ELEMENT(array, index, value)` and `REMOVE_ELEMENT(array, index)` are supported for one-dimensional native arrays and struct arrays. Insert shifts elements from `index` upward and loses the last element. Remove shifts elements from `index + 1` downward and leaves the final slot unspecified. For struct-array insertion, `value` must currently be a scalar struct value of the same struct type.
 
-Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable 1-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
+Test-mode syntax is valid only when `testMode` is enabled. Normal builds reject `GLOBALS`, `TEST`, and `ASSERT_*` constructs and emit no test runner, counters, output capture, fixture reset, runtime fakes, or assertion support. In test mode, the compiler generates a runner instead of normal program startup, discovers all tests in source/build-configuration order, runs them via generated `GOSUB`s, prints a final summary, and terminates. `GLOBALS` blocks contain assignment statements whose initial values are replayed before each test, so module-level test fixtures can rebuild shared global state deterministically. `TEST name()` blocks take no parameters, return no value, may declare `LOCAL` variables, may contain normal statements, and may call normal `FUNCTION`s. Inside a `TEST`, `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)` set the fake values returned by `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()`. These fake values reset to zero before every test. `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output; semicolon-separated print items are concatenated into one captured value, for example `PRINT "A"; "B"` captures `AB`. For portable output assertions, prefer string output because numeric formatting still follows the target BASIC conversion rules. `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output's portable 1-based row, column, and semicolon-concatenated text. Colour assertions are `ASSERT_SCREEN_BORDER_COLOR`, `ASSERT_SCREEN_BACKGROUND_COLOR`, `ASSERT_SCREEN_TEXT_COLOR`, `ASSERT_CELL_TEXT_COLOR`, and `ASSERT_CELL_BACKGROUND_COLOR`; `CLS colour` updates the captured screen background colour.
 
 ## Tokenizer and parser
 
@@ -176,11 +181,11 @@ The tokenizer currently handles:
 - Newline
 - End of file
 
-Every token retains filename, line, and column. Comments are discarded by the tokenizer, but newlines remain available to the parser because statements are line-oriented.
+Every token retains filename, line, and column. Comments are tokenized so debug/profile output can preserve them, and newlines remain available to the parser because statements are line-oriented.
 
 Keywords are defined in one centralized, case-insensitive set. Do not add one lexer branch or regular expression per keyword. Keywords inside string literals or comments must never be interpreted as syntax.
 
-Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `FREE_MEMORY`, `KEY_CODE`, `KEY_PRESSED`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
+Built-in function names such as `STRING$`, `SPACE$`, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, `VAL`, `ABS`, `ATN`, `COS`, `EXP`, `INT`, `SGN`, `SIN`, `SQR`, `RND`, `JIFFIES`, `FREE_MEMORY`, `KEY_CODE`, `KEY_PRESSED`, `SET_JIFFIES`, `SET_KEY_CODE`, `SET_KEY_PRESSED`, and `DEVICE_AVAILABLE` are not lexer keywords. Tokenize them as identifiers followed by `(`, parse them as function-call expressions, and let semantic analysis decide whether the function is supported and whether its arguments are valid. Keep supported Meta-BASIC function names centralized in `src/functions.ts`; do not scatter hard-coded function-name checks across the parser, semantic analysis, or target renderers. Target renderers should use the shared helper in `src/targets/function-rendering.ts` to map supported functions to each dialect's final BASIC spelling.
 
 ## Expression grammar
 
@@ -225,6 +230,8 @@ Precedence from highest to lowest:
 Binary operators are left-associative. `^` is implemented naively for now and renders to the native target exponentiation operator; target-specific precedence quirks may still need additional lowering after emulator testing. `MOD` lowers portably to `A - INT(A / B) * B`; avoid side-effecting operands such as `RND()` for now because the naive rendering may evaluate operands more than once. Comparison chaining such as `a < b < c` is rejected with a diagnostic suggesting separate comparisons joined with `AND`.
 
 ## Constants and semantic analysis
+
+Every source file is a module. `USES` declares direct access to another selected build input, with its path resolved relative to the declaring source file. It emits no code and does not load or reorder files. Reject missing dependencies, duplicate declarations and configured files, nested declarations, and all dependency cycles, including self-dependencies. Cross-file function, constant, enum member, global variable, array, struct type/value, label, and device-handle access requires direct `USES`, including writes and test fixtures/assertions. Dependencies are not transitive. Parameters and `LOCAL` names remain scoped. Module-level scalar initializers establish ownership before function/test writes; an importing module's assignment does not take ownership from a dependency's initializer. Preserve the independent function-recursion check. This is access control over the existing shared symbols, not namespaces or exports. See `src/module-semantics.ts` and `docs/language-reference.md`.
 
 `CONST` declarations are compile-time only and emit no BASIC line.
 
@@ -564,7 +571,7 @@ The CLI also accepts a simple JSON build configuration:
 }
 ```
 
-The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Shared lowering emits top-level `DIM` declarations before ordinary startup code. A source file that contains only compile-time declarations, storage declarations, top-level assignments, and functions is treated as a library-style file; its top-level assignments are emitted in the startup prelude before normal code, so functions from that file can rely on their own scalar/global initialization even when called from an earlier file. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
+The order is significant and all listed files form one compilation unit. The first file contains startup code. Later files may define functions called by earlier files because semantic analysis runs over the combined program. Top-level constants, enums, and struct definitions are collected across the compilation unit before executable statements are analyzed, so earlier files can use declarations from later files; constant declarations themselves still evaluate in source/build order. Shared lowering emits top-level `DIM` declarations before ordinary startup code. A source file that contains only compile-time declarations, storage declarations, top-level assignments, and functions is treated as a library-style file; its top-level assignments are emitted in the startup prelude before normal code, so functions from that file can rely on their own scalar/global initialization even when called from an earlier file. Paths are resolved relative to the configuration JSON, not the current working directory. Keep JSON loading in `src/build-configuration.ts`; the compiler core should accept an internal `BuildConfiguration`/program representation and must not depend on JSON.
 
 Target build scripts:
 
@@ -602,6 +609,8 @@ Build profiles map to readability levels:
 - `debug`: readability `2`
 - `balanced`: readability `1`
 - `release`: readability `0`
+
+Debug profile builds also enable source-comment emission through `--source-comments`; readable multi-file output includes prominent module boundary `REM` lines.
 
 The Node ESM scripts in `scripts/` always generate `.bas` files under `build/<profile>/<target>/`. Atari 800XL builds also generate `.lst` files beside the `.bas` output and a `<source>.atr-files` staging directory containing the listing under an Atari DOS-compatible filename such as `COLORS.LST` or `NARF.LST`. These `.lst` files keep ASCII BASIC text and replace host line endings with Atari's `0x9B` listing line ending for import flows such as `ENTER "D:COLORS.LST"`; full ATASCII character-set conversion remains out of scope. Optional local conversion tools are configured through `scripts/tools.local.json`, copied from `scripts/tools.example.json`. The example config includes Spectrum `bas2tap`, AtariSIO `dir2atr`, and C64 `petcat -w2` entries with empty paths for local configuration. The Atari `dir2atr` entry uses `inputArtifact: "atariDiskDirectory"` so `{input}` points at the generated ATR staging directory. The C64 `petcat` entry uses `inputTransform: "lowercase"` because `petcat`'s text format treats lowercase ASCII as normal C64 uppercase/PETSCII text. Keep `tools.local.json` and generated `build/` output out of version control.
 
@@ -760,7 +769,7 @@ Do not claim support for machines or constructs that are only planned.
 
 - CPC or other additional backends
 - Variable declarations beyond the current implicit scalar variables, arrays, and function locals
-- Imports, modules, exports, namespaces, separate compilation, or linking
+- Exports, namespaces, automatic dependency loading, separate compilation, or linking beyond the implemented `USES` dependency checks
 - A type system beyond current limited compile-time checks
 - Variable-length string arrays
 - Labelled or line-targeted `RESTORE`

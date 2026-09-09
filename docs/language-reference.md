@@ -11,10 +11,33 @@ Blank lines are allowed. An apostrophe starts a comment that continues to the en
 ```basic
 ' Wait for confirmation
 start:
-    goto start
+    goto start ' Keep polling
 ```
 
+Source comments have no runtime effect. When source-comment emission is enabled, for example by the `debug` build profile or the direct `--source-comments` flag, full-line comments and trailing comments are emitted as generated `REM` lines. Otherwise they are discarded.
+
 Labels use `name:` and may be referenced by `goto` or `gosub`. Duplicate and undefined labels are compile-time errors.
+
+## Module dependencies: USES
+
+Each `.mbas` file is a module. Declare access to another module with a module-level `USES` statement:
+
+```basic
+uses "text.mbas"
+uses "../shared/clock.mbas"
+
+DrawText()
+```
+
+The quoted path is relative to the file containing `USES`, not to the build configuration. The referenced file must already be part of the build configuration or the source files selected by `--project`. `USES` does not load files, insert source text, emit BASIC, or change configured execution or initializer order. Use one declaration per dependency. Empty paths, duplicate declarations (including normalized path aliases), missing build inputs, and declarations inside blocks are errors.
+
+A module may access another module's functions, constants, enum members, global variables, arrays, struct types and values, labels, and device handles only with a direct `USES` declaration. This applies to writes as well as reads, including test assertions and `GLOBALS` fixtures. Built-in functions and target environment constants need no declaration. Parameters and `LOCAL` variables retain their existing function/test scope.
+
+Dependencies are not transitive: if A uses B and B uses C, A must also declare `USES` for C to access C's symbols. Circular dependencies are rejected even when the modules do not call each other: A using itself, A using B using A, and longer cycles are all compilation errors. Diagnostics identify the source location and the dependency cycle. The existing prohibition on recursive function calls remains in force.
+
+`USES` introduces access checking, not namespaces or exports. Existing global name uniqueness rules remain; symbols are still used without qualification. A scalar's module-level initialization determines ownership before assignments inside functions or tests. When an importing module also assigns that scalar, the dependency's initializer remains its owner. Otherwise, the first unscoped assignment in build order establishes ownership; a read-only implicit scalar belongs to its first referencing module. Initialize shared state in its owning module and use `LOCAL` for unrelated scratch variables that happen to share a name.
+
+Existing multi-file programs must add these declarations. Tests normally use paths such as `uses "../source/math.mbas"`; source modules should not depend on their tests.
 
 ## Constants
 
@@ -27,6 +50,8 @@ const borderLine$ = string$("*", TEXT_COLUMNS)
 ```
 
 A constant may reference an earlier constant. Names are case-insensitive. Duplicate constants, unknown references, invalid operations, and compile-time division by zero are rejected.
+
+Top-level constants, enums, and struct type definitions are collected across the whole compilation unit before executable statements are analyzed. With the required `USES` declaration, startup code in an earlier file can use an enum member or struct type declared in a later file. Constant declarations themselves still evaluate in source/build order, so a constant expression may only refer to constants that have already been declared.
 
 Enums are compile-time collections of integer constants:
 
@@ -118,6 +143,19 @@ newElement.textQueue$ = "READY"
 
 Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to one backing array per field, so a `TelegraphText(100)` queue becomes parallel native arrays behind the scenes. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`.
 
+Whole-struct assignment copies every field from a scalar struct value of the same type:
+
+```basic
+dim queue AS TelegraphText(100)
+dim nextText AS TelegraphText
+dim copyText AS TelegraphText
+
+queue(0) = nextText
+copyText = nextText
+```
+
+The right-hand side must be a scalar struct value, not an expression or struct array element.
+
 `insert_element(array, index, value)` inserts into a one-dimensional native array or struct array. Existing elements from `index` upward are moved one slot higher, and the last element is lost. For struct arrays, `value` must currently be a scalar struct value of the same type. `remove_element(array, index)` moves elements from `index + 1` downward and overwrites the element at `index`; the final slot is left as whatever value remains there.
 
 Functions can accept scalar struct parameters with `parameter AS StructName`. Struct parameters are copied field-by-field before the function call, so assigning to `parameter.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet. Struct definitions cannot be nested.
@@ -178,6 +216,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `free_memory()` | Runtime | Return the target's current free BASIC memory in bytes |
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 | `key_pressed()` | Runtime | Check whether a key is waiting without blocking |
+| `get_joystick(control)` | Runtime | Read a joystick axis or fire button without blocking |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
 `CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
@@ -202,6 +241,65 @@ value = rnd()
 ```basic
 key = key_code()
 ```
+
+In test mode, tests can replace the runtime values returned by the timer and keyboard helpers:
+
+```basic
+test FakesRuntimeInputs()
+    set_jiffies(123)
+    set_key_code(KEY_SPACE)
+    set_key_pressed(1)
+
+    assert_eq 123, jiffies()
+    assert_eq KEY_SPACE, key_code()
+    assert_true key_pressed()
+
+    set_key_pressed(0)
+    assert_false key_pressed()
+end test
+```
+
+`SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+
+## Joystick input
+
+```basic
+x = get_joystick(JOY_X)
+y = get_joystick(JOY_Y)
+fire = get_joystick(JOY_FIRE1)
+```
+
+The read-only selectors `JOY_X` (0), `JOY_Y` (1), and `JOY_FIRE1` (2) must be known at compile time. Constant aliases are allowed; runtime selector variables and unknown selector values are rejected. Use underscores, not hyphens, in selector names.
+
+| Selector | Negative | Neutral | Positive |
+| --- | --- | --- | --- |
+| `JOY_X` | -1: left | 0 | 1: right |
+| `JOY_Y` | -1: up | 0 | 1: down |
+| `JOY_FIRE1` | Not applicable | 0: released | 1: pressed |
+
+Diagonal movement and fire together are supported. Simultaneous opposing directions cancel to zero. Each call polls independently; separate calls are not an atomic snapshot. The function may appear in numeric expressions, conditions, and function return values, not just assignments.
+
+| Target | Input source |
+| --- | --- |
+| C64 | Joystick port 2, via `PEEK(56320)` and native bit masks |
+| Atari 800XL | First joystick, via `STICK(0)` and `STRIG(0)` |
+| Spectrum | Q/A for up/down, O/P for left/right, Space for fire, via direct keyboard-matrix `IN` reads |
+
+Spectrum does not require a joystick interface and does not consume buffered keyboard input. Only the three selectors above are currently supported; additional buttons are reserved for future extensions. Existing `GAME_*` constants remain keyboard key codes, not joystick selectors.
+
+In test mode, all `GET_JOYSTICK` calls, including calls in ordinary functions, read independent fake controls instead of hardware:
+
+```basic
+test MoveLeftAndFire()
+    set_joystick(JOY_X, -1)
+    set_joystick(JOY_FIRE1, 1)
+    assert_eq -1, get_joystick(JOY_X)
+    assert_eq 0, get_joystick(JOY_Y)
+    assert_eq 1, get_joystick(JOY_FIRE1)
+end test
+```
+
+`SET_JOYSTICK(control, value)` is a statement allowed only directly inside a `TEST` block. Its selector must be constant, and its value must be numeric. Supply normalized values from the table above; the fake stores the supplied value without conversion. Setting one control leaves the other controls unchanged. All three reset to zero before every test, independently of the keyboard fakes. Normal builds emit no joystick fake storage or resets.
 
 ## Data streams
 
@@ -400,6 +498,8 @@ end test
 
 `TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s.
 
+Runtime fakes for `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` are reset before each test. Use `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)` inside a test to make time and keyboard-dependent code deterministic.
+
 Supported assertions are:
 
 ```basic
@@ -529,4 +629,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function/test locals, procedures, imports/modules, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function/test locals, procedures, namespaces, exports, automatic dependency loading, separate compilation, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

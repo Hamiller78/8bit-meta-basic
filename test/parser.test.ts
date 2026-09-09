@@ -138,9 +138,10 @@ describe("parser", () => {
   });
 
   it("parses struct field access and element move commands", () => {
-    expect(parseSource("Queue(0).Row = 7\nprint Queue(0).Row\ninsert_element(Queue, 1, NewItem)\nremove_element(Queue, 0)\n", "struct-access.mbas")).toMatchObject({
+    expect(parseSource("Queue(0).Row = 7\nQueue(1) = NewItem\nprint Queue(0).Row\ninsert_element(Queue, 1, NewItem)\nremove_element(Queue, 0)\n", "struct-access.mbas")).toMatchObject({
       statements: [
         { kind: "struct-field-let", base: "Queue", field: "Row", indices: [{ kind: "number", value: 0 }] },
+        { kind: "array-let", name: "Queue", indices: [{ kind: "number", value: 1 }], expression: { kind: "identifier", name: "NewItem" } },
         { kind: "print", items: [{ kind: "struct-field-access", base: "Queue", field: "Row", indices: [{ kind: "number", value: 0 }] }] },
         { kind: "insert-element", target: { kind: "identifier", name: "Queue" }, index: { kind: "number", value: 1 }, value: { kind: "identifier", name: "NewItem" } },
         { kind: "remove-element", target: { kind: "identifier", name: "Queue" }, index: { kind: "number", value: 0 } }

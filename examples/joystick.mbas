@@ -1,0 +1,11 @@
+' C64 port 2; Atari first joystick; Spectrum Q/A/O/P and Space.
+cls
+
+poll:
+    x = get_joystick(JOY_X)
+    y = get_joystick(JOY_Y)
+    fire = get_joystick(JOY_FIRE1)
+    print_at 1, 1, "X: "; x; "   "
+    print_at 2, 1, "Y: "; y; "   "
+    print_at 3, 1, "FIRE: "; fire; "   "
+    goto poll

@@ -12,9 +12,12 @@ import {
   validateFunctionRecursion
 } from "./function-semantics.js";
 import { builtinFunctions, canonicalFunctionName, isStringFunctionName } from "./functions.js";
+import { joystickControl } from "./joystick.js";
 import { normalizeName } from "./symbols.js";
 import type { ColorValue, TargetEnvironment } from "./targets/environment.js";
+import { canonicalTestRuntimeSetterName } from "./test-runtime.js";
 import { isIntegerVariableName, isStringVariableName } from "./variables.js";
+import { validateModuleAccess } from "./module-semantics.js";
 
 type ConstantValue = number | string | boolean | ColorValue;
 
@@ -58,6 +61,7 @@ export interface AnalyzeOptions {
 }
 
 export function analyzeProgram(program: Program, environment: TargetEnvironment, options: AnalyzeOptions = {}): Program {
+  validateModuleAccess(program, environment);
   const constants = new Map<string, ConstantDefinition>();
   for (const [key, value] of environment.constants) {
     constants.set(key, { name: key.toUpperCase(), value, environment: true });
@@ -67,6 +71,7 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   const structValues = new Map<string, StructValueDefinition>();
   const scalarNames = new Set<string>();
   const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
+  predeclareTopLevelSymbols(statements, constants, arrays, structs, structValues);
   const functions = collectFunctionDefinitions(statements);
   const devices = collectOpenDevices(statements);
   validateFunctionRecursion(functions);
@@ -75,6 +80,37 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   return {
     statements: analyzeStatements(statements, constants, false, arrays, structs, structValues, scalarNames, functions, devices, undefined, options.testMode === true)
   };
+}
+
+function predeclareTopLevelSymbols(
+  statements: readonly Statement[],
+  constants: Map<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  structs: Map<string, StructDefinition>,
+  structValues: Map<string, StructValueDefinition>
+): void {
+  for (const statement of statements) {
+    if (statement.kind === "const") {
+      const value = evaluateConstant(statement.expression, constants);
+      addConstant(statement.name, value, statement.location, constants, "constant");
+      continue;
+    }
+
+    if (statement.kind === "enum") {
+      let nextValue = 0;
+      for (const member of statement.members) {
+        const value = member.expression ? evaluateEnumValue(member.expression, constants) : nextValue;
+        addConstant(member.name, value, member.location, constants, `enum ${statement.name}`);
+        nextValue = value + 1;
+      }
+    }
+  }
+
+  for (const statement of statements) {
+    if (statement.kind === "struct") {
+      addStructDefinition(statement, constants, arrays, structs, structValues);
+    }
+  }
 }
 
 function analyzeStatements(
@@ -95,6 +131,11 @@ function analyzeStatements(
 
   for (const statement of statements) {
     switch (statement.kind) {
+      case "uses":
+        break;
+      case "comment":
+        analyzed.push(statement);
+        break;
       case "function": {
         if (scope) {
           throw new DiagnosticError(statement.location, "Nested FUNCTION declarations are not supported.");
@@ -128,9 +169,14 @@ function analyzeStatements(
         break;
       }
       case "struct":
-        addStructDefinition(statement, constants, arrays, structs, structValues);
+        if (scope) {
+          addStructDefinition(statement, constants, arrays, structs, structValues);
+        }
         break;
       case "enum": {
+        if (!scope) {
+          break;
+        }
         let nextValue = 0;
         for (const member of statement.members) {
           const value = member.expression ? evaluateEnumValue(member.expression, constants) : nextValue;
@@ -145,6 +191,9 @@ function analyzeStatements(
         }
         break;
       case "const": {
+        if (!scope) {
+          break;
+        }
         const value = evaluateConstant(statement.expression, constants);
         addConstant(statement.name, value, statement.location, constants, "constant");
         break;
@@ -233,6 +282,22 @@ function analyzeStatements(
         analyzed.push(statement);
         break;
       case "let": {
+        const structTarget = structValues.get(normalizeName(resolveScopedName(statement.name, scope))) ?? structValues.get(normalizeName(statement.name));
+        if (structTarget) {
+          if (structTarget.dimensions.length !== 0) {
+            throw new DiagnosticError(statement.location, `Struct array "${statement.name}" requires an index for whole-struct assignment.`);
+          }
+          const valueDefinition = resolveAssignedStructValue(statement.expression, statement.name, structTarget, structValues, scope);
+          const lowered = structTarget.fields.map((field) => ({
+            kind: "let" as const,
+            name: structFieldStorageName(structTarget.name, field),
+            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), location: statement.expression.location },
+            sourceName: `${statement.name}.${field.name}`,
+            location: statement.location
+          }));
+          analyzed.push(...analyzeStatements(lowered, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
+          break;
+        }
         const targetName = resolveScopedName(statement.name, scope);
         const isScopedVariable = scope?.variables.has(normalizeName(statement.name)) ?? false;
         if (!isScopedVariable) {
@@ -269,6 +334,23 @@ function analyzeStatements(
         break;
       }
       case "array-let": {
+        const targetName = resolveScopedName(statement.name, scope);
+        const structTarget = structValues.get(normalizeName(targetName)) ?? structValues.get(normalizeName(statement.name));
+        if (structTarget) {
+          if (structTarget.dimensions.length !== 1) {
+            throw new DiagnosticError(statement.location, `Struct value "${statement.name}" is not an array.`);
+          }
+          const valueDefinition = resolveAssignedStructValue(statement.expression, targetName, structTarget, structValues, scope);
+          const lowered = structTarget.fields.map((field) => ({
+            kind: "array-let" as const,
+            name: structFieldStorageName(targetName, field),
+            indices: statement.indices,
+            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), location: statement.expression.location },
+            location: statement.location
+          }));
+          analyzed.push(...analyzeStatements(lowered, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
+          break;
+        }
         const definition = arrays.get(normalizeName(statement.name));
         if (!definition) {
           throw new DiagnosticError(statement.location, `Array "${statement.name}" must be declared with DIM before use.`);
@@ -306,6 +388,11 @@ function analyzeStatements(
         break;
       }
       case "function-call-statement": {
+        const setter = analyzeTestRuntimeSetterStatement(statement, constants, inConstantExpression, arrays, functions, scope, structValues, testMode);
+        if (setter) {
+          analyzed.push(setter);
+          break;
+        }
         if (canonicalFunctionName(statement.expression.name) || arrays.has(normalizeName(statement.expression.name))) {
           throw new DiagnosticError(statement.location, "Standalone calls are supported only for user-defined FUNCTIONs.");
         }
@@ -559,6 +646,49 @@ function analyzeStatements(
   }
 
   return analyzed;
+}
+
+function analyzeTestRuntimeSetterStatement(
+  statement: Extract<Statement, { kind: "function-call-statement" }>,
+  constants: Map<string, ConstantDefinition>,
+  unknownIdentifierIsError: boolean,
+  arrays: Map<string, ArrayDefinition>,
+  functions: ReadonlyMap<string, FunctionDefinition>,
+  scope: FunctionScope | undefined,
+  structValues: Map<string, StructValueDefinition>,
+  testMode: boolean
+): Statement | undefined {
+  const canonical = canonicalTestRuntimeSetterName(statement.expression.name);
+  const setter = canonical;
+  if (!setter) {
+    return undefined;
+  }
+
+  if (!testMode || scope?.kind !== "test") {
+    throw new DiagnosticError(statement.location, `${setter} can only be used inside a TEST when test mode is enabled.`);
+  }
+
+  const isJoystick = setter === builtinFunctions.setJoystick;
+  if (statement.expression.args.length !== (isJoystick ? 2 : 1)) {
+    throw new DiagnosticError(statement.expression.location, `${setter} expects exactly ${isJoystick ? "two arguments" : "one argument"}.`);
+  }
+
+  const args = statement.expression.args.map(arg => foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope, structValues));
+  if (isJoystick) joystickControl(args[0]);
+  const value = args[isJoystick ? 1 : 0];
+  if (value.kind === "color" || isStringExpression(value)) {
+    throw new DiagnosticError(statement.expression.args[0].location, `${setter} expects a numeric argument.`);
+  }
+
+  return {
+    ...statement,
+    expression: {
+      ...statement.expression,
+      name: setter,
+      args,
+      valueType: "number"
+    }
+  };
 }
 
 function validateGlobalsBody(statements: readonly Statement[]): void {
@@ -850,6 +980,27 @@ function resolveInsertedStructValue(
   }
   if (normalizeName(definition.typeName) !== normalizeName(target.typeName)) {
     throw new DiagnosticError(value.location, `Cannot insert STRUCT ${definition.typeName} into ${targetName} AS ${target.typeName}.`);
+  }
+  return definition;
+}
+
+function resolveAssignedStructValue(
+  value: Expression,
+  targetName: string,
+  target: StructValueDefinition,
+  structValues: ReadonlyMap<string, StructValueDefinition>,
+  scope?: FunctionScope
+): StructValueDefinition {
+  if (value.kind !== "identifier") {
+    throw new DiagnosticError(value.location, "Struct assignment requires a scalar struct value.");
+  }
+  const resolvedName = resolveScopedName(value.name, scope);
+  const definition = structValues.get(normalizeName(resolvedName)) ?? structValues.get(normalizeName(value.name));
+  if (!definition || definition.dimensions.length !== 0) {
+    throw new DiagnosticError(value.location, "Struct assignment requires a scalar struct value.");
+  }
+  if (normalizeName(definition.typeName) !== normalizeName(target.typeName)) {
+    throw new DiagnosticError(value.location, `Cannot assign STRUCT ${definition.typeName} to ${targetName} AS ${target.typeName}.`);
   }
   return definition;
 }
@@ -1188,6 +1339,19 @@ function foldFunctionCall(
     }
 
     return { ...expression, name, args: [] };
+  }
+
+  if (name === builtinFunctions.getJoystick) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "GET_JOYSTICK expects exactly one argument.");
+    }
+    const selector = foldExpression(expression.args[0], constants, unknownIdentifierIsError, arrays, functions, scope, structValues);
+    joystickControl(selector);
+    return { ...expression, name, args: [selector], valueType: "number" };
+  }
+
+  if (name === builtinFunctions.setJiffies || name === builtinFunctions.setKeyCode || name === builtinFunctions.setKeyPressed || name === builtinFunctions.setJoystick) {
+    throw new DiagnosticError(expression.location, `${name} can only be used as a statement inside a TEST.`);
   }
 
   if (name === builtinFunctions.rnd) {

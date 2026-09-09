@@ -61,7 +61,8 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
     testMode: options.testMode ?? configuration.testMode,
     testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
     testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice,
-    atariSharedDriveSpec: options.atariSharedDriveSpec
+    atariSharedDriveSpec: options.atariSharedDriveSpec,
+    sourceComments: options.sourceComments
   });
 }
 
@@ -120,7 +121,7 @@ async function readBuildProgram(configuration: BuildConfiguration, baseDir: stri
     statements.push(...parseSource(ensureTrailingNewline(source), sourcePath).statements);
   }
 
-  return { statements };
+  return { statements, sourceFiles: configuration.files.map((file) => resolve(baseDir, file)) };
 }
 
 function ensureTrailingNewline(source: string): string {

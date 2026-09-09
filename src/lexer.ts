@@ -70,6 +70,7 @@ export const keywords = new Set([
   "TRUE",
   "TEST",
   "UNTIL",
+  "USES",
   "WEND",
   "WHILE"
 ]);
@@ -81,6 +82,7 @@ export type Token =
   | KeywordToken
   | NumberToken
   | StringToken
+  | CommentToken
   | OperatorToken
   | PunctuationToken
   | NewlineToken
@@ -110,6 +112,11 @@ export interface StringToken extends BaseToken {
   readonly kind: "string";
   readonly text: string;
   readonly value: string;
+}
+
+export interface CommentToken extends BaseToken {
+  readonly kind: "comment";
+  readonly text: string;
 }
 
 export interface OperatorToken extends BaseToken {
@@ -147,9 +154,14 @@ export function tokenize(source: string, filename: string): Token[] {
     }
 
     if (char === "'") {
+      const start = location();
+      advance(char);
+      let text = "";
       while (index < source.length && source[index] !== "\r" && source[index] !== "\n") {
+        text += source[index];
         advance(source[index]);
       }
+      tokens.push({ kind: "comment", text: text.trim(), location: start });
       continue;
     }
 

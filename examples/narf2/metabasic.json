@@ -1,6 +1,12 @@
 {
   "files": [
     "source/main.mbas",
-    "source/newsticker.mbas"
+    "source/mainscreen.mbas",
+    "source/textqueue.mbas",
+    "source/decision.mbas",
+    "source/advisor.mbas",
+    "source/worldqueue.mbas",
+    "source/reportqueue.mbas",
+    "source/timehelper.mbas"
   ]
 }

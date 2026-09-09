@@ -1,4 +1,6 @@
 import { layoutText, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
+import { basename } from "node:path";
+import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
 import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
@@ -26,6 +28,7 @@ export interface CompileOptions extends TextOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
+  readonly sourceComments?: boolean;
 }
 
 export interface CompileResult {
@@ -70,7 +73,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     ]);
   }
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
-  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability);
+  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true);
 
   return {
     output: `${targetLowered.lines.join("\n")}\n`,
@@ -82,12 +85,12 @@ interface RenderedProgram {
   readonly lines: readonly string[];
 }
 
-function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel): RenderedProgram {
+function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean): RenderedProgram {
   let current = program;
   let nextTempId = nextLineReliefTempId(program.instructions);
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const targetLowered = compactGeneratedHousekeepingLets(target.lower(current, readability));
+    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(current, readability), includeSourceComments)), readability);
     setRenderProgram(target.id, targetLowered.instructions);
     const numbered = assignLineNumbers(targetLowered, readability, {
       maxLineNumber: target.maxLineNumber,
@@ -122,6 +125,53 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   }
 
   throw new Error("Internal error: line-length relief did not converge.");
+}
+
+function filterSourceComments(program: LoweredProgram, includeSourceComments: boolean): LoweredProgram {
+  if (includeSourceComments) {
+    return program;
+  }
+
+  return rebuildLabels(
+    program,
+    program.instructions.filter((instruction) => instruction.kind !== "rem" || instruction.sourceComment !== true)
+  );
+}
+
+function insertModuleBoundaryComments(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
+  if (readability === 0 || countSourceModules(program.instructions) < 2) {
+    return program;
+  }
+
+  const instructions: Instruction[] = [];
+  let currentModule: string | undefined;
+
+  for (const instruction of program.instructions) {
+    const moduleName = moduleCommentName(instruction.location.filename);
+    if (moduleName !== currentModule) {
+      instructions.push({
+        kind: "rem",
+        text: moduleBoundaryComment(moduleName),
+        location: instruction.location
+      });
+      currentModule = moduleName;
+    }
+    instructions.push(instruction);
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function countSourceModules(instructions: readonly Instruction[]): number {
+  return new Set(instructions.map((instruction) => moduleCommentName(instruction.location.filename))).size;
+}
+
+function moduleCommentName(filename: string): string {
+  return basename(filename).toUpperCase();
+}
+
+function moduleBoundaryComment(moduleName: string): string {
+  return `-------- MODULE ${moduleName} --------`;
 }
 
 function setRenderProgram(target: TargetId, instructions: readonly Instruction[]): void {
@@ -430,6 +480,7 @@ function isGeneratedHousekeepingLet(instruction: Instruction | undefined): instr
 }
 
 const generatedHousekeepingNames = new Set([
+  ...testJoystickNames,
   "MBTOUT$",
   "MBTPOUT$",
   "MBTPROW",
@@ -439,6 +490,9 @@ const generatedHousekeepingNames = new Set([
   "MBTCT",
   "MBTCC",
   "MBTCD",
+  "MBTJIF",
+  "MBTKC",
+  "MBTKP",
   "MBTMSG$",
   "MBTF0"
 ]);

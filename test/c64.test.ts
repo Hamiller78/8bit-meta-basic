@@ -100,7 +100,7 @@ describe("C64 compiler", () => {
   });
 
   it("mirrors the test runner output to C64 RS232 when selected", () => {
-    const output = compileSource("test Smoke()\nassert_true 1\nend test\n", {
+    const output = compileSource("dim values(12)\ntest Smoke()\nvalues(11) = 1\nassert_eq 1, values(11)\nend test\n", {
       filename: "rs232-tests.mbas",
       target: "c64",
       readability: 0,
@@ -112,10 +112,12 @@ describe("C64 compiler", () => {
     expect(output).toContain("MB=1");
     expect(output).not.toContain("OPEN 15,4,15");
     expect(output).toContain("OPEN 1,2,0,CHR$(10)");
+    expect(output.indexOf("OPEN 1,2,0,CHR$(10)")).toBeLessThan(output.search(/\bDIM /));
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
     expect(output).toContain('MB$="RUNNING Smoke..."');
     expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
+    expect(output).not.toMatch(/MBTJIF|MBTKC|MBTKP|MBTJX|MBTJY|MBTJF/);
   });
 
   it("renders FOR/NEXT with C64 compact variable mapping", () => {
@@ -432,6 +434,28 @@ describe("C64 compiler", () => {
         "250 V3=V3 + 1",
         "260 GOTO 220",
         "270 PRINT QU(0);QU$(0);QU(1)",
+        ""
+      ].join("\n")
+    );
+  });
+
+  it("lowers whole-struct assignments to field assignments", () => {
+    expect(
+      compileSource(
+        'STRUCT QueueItem\nRow\nText$(6)\nEND STRUCT\nDIM Queue AS QueueItem(3)\nDIM Source AS QueueItem\nDIM Copy AS QueueItem\nSource.Row = 9\nSource.Text$ = "NINE  "\nQueue(1) = Source\nCopy = Source\nprint Queue(1).Row; Queue(1).Text$; Copy.Row; Copy.Text$\n',
+        { filename: "struct-assign.mbas", target: "c64", readability: 0 }
+      )
+    ).toBe(
+      [
+        "10 DIM QU(2)",
+        "20 DIM QU$(2)",
+        "30 SO=9",
+        '40 SO$="NINE  "',
+        "50 QU(1)=SO",
+        "60 QU$(1)=SO$",
+        "70 CO=SO",
+        "80 CO$=SO$",
+        "90 PRINT QU(1);QU$(1);CO;CO$",
         ""
       ].join("\n")
     );

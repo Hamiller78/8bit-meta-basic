@@ -1,0 +1,130 @@
+uses "reportqueue.mbas"
+
+enum WorldQueueEventType
+    None = 0
+    MissileHitsOurCity = 1
+end enum
+
+struct WorldQueueEvent
+    eventType
+    eventTime
+    eventText$(40)  'Here with target city
+    eventTextLength
+    eventValue  'Number for event, here victim number
+end struct
+
+const worldQueueSize = 50
+dim worldQueue AS WorldQueueEvent(worldQueueSize)
+worldQueueLength = 0
+
+function addWorldQueueEvent(eventType, eventTime, eventText$, eventValue)
+    local i
+    local reportIndex
+
+    insertIndex = worldQueueLength
+
+    for i = 0 to worldQueueLength - 1
+        if eventTime < worldQueue(i).eventTime then
+            insertIndex = i
+            exit for
+        end if
+    next i
+
+    if insertIndex = worldQueueSize then
+        return
+    end if
+
+    if insertIndex < worldQueueLength then
+        i = worldQueueLength
+        while i > insertIndex
+            worldQueue(i).eventType = worldQueue(i - 1).eventType
+            worldQueue(i).eventTime = worldQueue(i - 1).eventTime
+            worldQueue(i).eventText$ = worldQueue(i - 1).eventText$
+            worldQueue(i).eventTextLength = worldQueue(i - 1).eventTextLength
+            worldQueue(i).eventValue = worldQueue(i - 1).eventValue
+            i = i - 1
+        wend
+
+        worldQueue(insertIndex).eventType = eventType
+        worldQueue(insertIndex).eventTime = eventTime
+        worldQueue(insertIndex).eventText$ = eventText$
+        worldQueue(insertIndex).eventTextLength = len(eventText$)
+        worldQueue(insertIndex).eventValue = eventValue
+    else
+        worldQueue(insertIndex).eventType = eventType
+        worldQueue(insertIndex).eventTime = eventTime
+        worldQueue(insertIndex).eventText$ = eventText$
+        worldQueue(insertIndex).eventTextLength = len(eventText$)
+        worldQueue(insertIndex).eventValue = eventValue
+    end if
+
+    if worldQueueLength < worldQueueSize then
+        worldQueueLength = worldQueueLength + 1
+    end if
+
+    if eventType = MissileHitsOurCity then
+        reportIndex = addReportQueueEvent("INCOMING MISSILE: " + eventText$)
+        if reportIndex >= 0 then
+            reportQueue(reportIndex).impactTime = eventTime
+        end if
+    end if
+end function
+
+function checkWorldQueueEvents()
+    local now
+
+    now = jiffies()
+    while worldQueueLength > 0 and now >= worldQueue(0).eventTime
+        if worldQueue(0).eventType = MissileHitsOurCity then
+            resolveMissileHitEvent(0)
+        else
+            removeWorldQueueEvent(0)
+        end if
+        now = jiffies()
+    wend
+end function
+
+function secondsUntilNextMissileImpact()
+    local i
+    local now
+
+    now = jiffies()
+    for i = 0 to worldQueueLength - 1
+        if worldQueue(i).eventType = MissileHitsOurCity then
+            if now >= worldQueue(i).eventTime then
+                return 0
+            end if
+
+            return int((worldQueue(i).eventTime - now) / JIFFIES_PER_SECOND)
+        end if
+    next i
+
+    return -1
+end function
+
+function resolveMissileHitEvent(eventIndex)
+    if eventIndex < 0 or eventIndex >= worldQueueLength then
+        return
+    end if
+
+    addReportQueueEvent("MISSILE HIT: " + left$(worldQueue(eventIndex).eventText$, worldQueue(eventIndex).eventTextLength))
+    removeWorldQueueEvent(eventIndex)
+end function
+
+function removeWorldQueueEvent(eventIndex)
+    local i
+
+    if eventIndex < worldQueueLength - 1 then
+        i = eventIndex
+        while i < worldQueueLength - 1
+            worldQueue(i).eventType = worldQueue(i + 1).eventType
+            worldQueue(i).eventTime = worldQueue(i + 1).eventTime
+            worldQueue(i).eventText$ = worldQueue(i + 1).eventText$
+            worldQueue(i).eventTextLength = worldQueue(i + 1).eventTextLength
+            worldQueue(i).eventValue = worldQueue(i + 1).eventValue
+            i = i + 1
+        wend
+    end if
+
+    worldQueueLength = worldQueueLength - 1
+end function

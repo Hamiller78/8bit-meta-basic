@@ -488,6 +488,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("parenthesizes Spectrum string slices of function-call results", () => {
+    expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "spectrum" })).toBe(
+      ["10 PRINT (STR$ DEFCON)(LEN (STR$ DEFCON) - 1 + 1 TO )", ""].join("\n")
+    );
+  });
+
   it("renders STR$ and VAL as Spectrum conversion functions", () => {
     expect(compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', { filename: "convert.mbas", target: "spectrum" })).toBe(
       ["10 LET A$=STR$ (SCORE + 10)", "20 LET SCORE=VAL A$", "30 PRINT A$;SCORE", ""].join("\n")
@@ -580,9 +586,15 @@ describe("Spectrum compiler", () => {
     );
   });
 
-  it("keeps apostrophe comments everywhere, including after PRINT", () => {
+  it("keeps apostrophe comments out unless source comments are enabled", () => {
     expect(compileSource("' ignored\nvalue = 1 ' trailing\nprint value ' trailing print comment\n", { filename: "comments.mbas", target: "spectrum", readability: 0 })).toBe(
       ["10 LET VALUE=1", "20 PRINT VALUE", ""].join("\n")
+    );
+  });
+
+  it("emits source comments as REM lines when source comments are enabled", () => {
+    expect(compileSource("' heading\nvalue = 1 ' trailing\nprint value ' trailing print comment\n", { filename: "comments.mbas", target: "spectrum", readability: 2, sourceComments: true })).toBe(
+      ["10 REM HEADING", "20 LET VALUE=1", "30 REM TRAILING", "40 PRINT VALUE", "50 REM TRAILING PRINT COMMENT", ""].join("\n")
     );
   });
 
@@ -609,7 +621,13 @@ describe("Spectrum compiler", () => {
 
   it("renders JIFFIES from the Spectrum FRAMES counter", () => {
     expect(compileSource("lastTick = jiffies()\nprint JIFFIES_PER_SECOND\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
-      ["10 LET LASTTICK=PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674", "20 PRINT 50", ""].join("\n")
+      ["10 LET LASTTICK=(PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)", "20 PRINT 50", ""].join("\n")
+    );
+  });
+
+  it("keeps Spectrum JIFFIES grouped inside binary expressions", () => {
+    expect(compileSource("remaining = targetTime - jiffies()\n", { filename: "jiffies.mbas", target: "spectrum" })).toBe(
+      ["10 LET REMAINING=TARGETTIME - (PEEK 23672 + 256 * PEEK 23673 + 65536 * PEEK 23674)", ""].join("\n")
     );
   });
 

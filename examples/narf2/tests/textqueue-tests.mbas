@@ -1,0 +1,103 @@
+uses "../source/textqueue.mbas"
+
+globals
+    txtQueueIndex = -1
+end globals
+
+test ChatAppendsWholePaddedLines()
+    local expected$
+    addToTextQueue("FIRST")
+    addToTextQueue("SECOND")
+    expected$ = "SECOND" + blankChatLine$
+    expected$ = left$(expected$, TEXT_COLUMNS)
+    assert_eq 1, txtQueueIndex
+    assert_eq "FIRST", left$(chatBuffer$(0), 5)
+    assert_eq "SECOND", left$(chatBuffer$(1), 6)
+    assert_printat chatFirstRow + 1, 1, expected$
+end test
+
+test ChatFillsBottomBeforeScrolling()
+    local i
+    resetTextQueue()
+    for i = 0 to chatRows - 1
+        addToTextQueue(chr$(65 + i))
+    next i
+    assert_eq chatRows - 1, txtQueueIndex
+    assert_eq "A", left$(chatBuffer$(0), 1)
+    assert_printat chatLastRow, 1, chatBuffer$(chatRows - 1)
+end test
+
+test ChatScrollsAndDiscardsOldestRows()
+    local i
+    resetTextQueue()
+    for i = 0 to chatRows - 1
+        addToTextQueue(chr$(65 + i))
+    next i
+    addToTextQueue("NEW")
+    assert_eq chatRows - chatScrollRows, txtQueueIndex
+    for i = 0 to chatRows - chatScrollRows - 1
+        assert_eq chr$(65 + chatScrollRows + i), left$(chatBuffer$(i), 1)
+    next i
+    assert_eq "NEW", left$(chatBuffer$(txtQueueIndex), 3)
+    assert_printat chatFirstRow + txtQueueIndex, 1, chatBuffer$(txtQueueIndex)
+    for i = txtQueueIndex + 1 to chatRows - 1
+        assert_eq blankChatLine$, chatBuffer$(i)
+    next i
+end test
+
+test ChatScrollsRepeatedly()
+    local i
+    resetTextQueue()
+    for i = 1 to chatRows + chatScrollRows + 1
+        addToTextQueue(chr$(64 + i))
+    next i
+    assert_eq chatRows - chatScrollRows, txtQueueIndex
+    assert_eq chr$(65 + 2 * chatScrollRows), left$(chatBuffer$(0), 1)
+end test
+
+test ChatWrapsAcrossScrollBoundary()
+    local i
+    resetTextQueue()
+    for i = 1 to chatRows - 1
+        addToTextQueue("OLD")
+    next i
+    addToTextQueue(string$("X", TEXT_COLUMNS) + "TAIL")
+    assert_eq chatRows - chatScrollRows, txtQueueIndex
+    assert_eq string$("X", TEXT_COLUMNS), chatBuffer$(txtQueueIndex - 1)
+    assert_eq "TAIL", left$(chatBuffer$(txtQueueIndex), 4)
+end test
+
+test ExactWidthAndBlankChatLines()
+    addToTextQueue(string$("X", TEXT_COLUMNS))
+    assert_eq 0, txtQueueIndex
+    addToTextQueue("")
+    assert_eq 1, txtQueueIndex
+    assert_eq blankChatLine$, chatBuffer$(1)
+end test
+
+test ClearTextQueueResetsBuffer()
+    addToTextQueue("ABC")
+    clearTextQueue()
+    assert_eq -1, txtQueueIndex
+    assert_eq blankChatLine$, chatBuffer$(0)
+    assert_printat chatLastRow, 1, blankChatLine$
+    addToTextQueue("NEW")
+    assert_eq 0, txtQueueIndex
+end test
+
+test ResetTextQueueDoesNotPrint()
+    local expected$
+    addToTextQueue("ABC")
+    expected$ = "ABC" + blankChatLine$
+    expected$ = left$(expected$, TEXT_COLUMNS)
+    resetTextQueue()
+    assert_eq -1, txtQueueIndex
+    assert_eq blankChatLine$, chatBuffer$(0)
+    assert_printat chatFirstRow, 1, expected$
+end test
+
+test DrawTextQueueClearsUnusedRows()
+    addToTextQueue("FIRST")
+    drawTextQueue()
+    assert_printat chatLastRow, 1, blankChatLine$
+end test

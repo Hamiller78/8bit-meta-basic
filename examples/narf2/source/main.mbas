@@ -1,49 +1,38 @@
+uses "mainscreen.mbas"
+uses "textqueue.mbas"
+uses "worldqueue.mbas"
+uses "reportqueue.mbas"
+uses "timehelper.mbas"
+uses "decision.mbas"
+
 program_mode
 screen_border_color BLUE
 screen_background_color BLUE
 screen_text_color WHITE
 cls
 
-' struct for telegraph text being printed one character at a time
-struct TextQueueItem
-    row
-    column
-    delay
-    text$(40)
-    length
-    nextTime
-end struct
-
-'Variables for telegraph text output queue, several in parallel can be printed at once, each with its own delay
-const txtQueueSize = 20
-dim txtQueue AS TextQueueItem(txtQueueSize)
-txtQueueIndex = -1
-
-'Variables for game logic
-icbms = 500
-submarines = 50
-bombers = 100
-defcon = 1
-
 'begin program
 printIntroText()
 
-addToTextQueue(12, 1, 10, "Connecting to NORAD...")
-addToTextQueue(13, 7, 50, "RONALD REAGAN")
+print_at 12, 1, "Connecting to NORAD...";
+print_at 13, 1, "User: RONALD REAGAN";
 
-'main loop: add text output queue for telegraph effect
-repeat
-    printQueues()
-until key_pressed()
-
-txtQueueIndex = -1 ' Clear the queue for next screen
+waitForKeyPress()
+resetTextQueue()
 waitForKeyRelease()
-setUpMainScreen()
+drawMainScreen()
 
-setupTicker()
+setClock("11:47:30") ' Set initial time for clock
+drawMainClock(currentTime$)
+addWorldQueueEvent(MissileHitsOurCity, jiffies() + 60 * JIFFIES_PER_SECOND, "WASHINGTON D.C.", 0)
+drawRedCountdown()
+
 repeat
-    updateTicker()
-until key_pressed()
+    checkWorldQueueEvents()
+    checkReportQueueEvents()
+    updateDecision()
+    updateMainScreen()
+until false
 
 print free_memory();" bytes free"
 
@@ -53,73 +42,11 @@ inline function printIntroText()
     printCentered(5, "Nuclear Attack")
     printCentered(7, "Reaction Failsafe")
     printCentered(9, "(N.A.R.F.)")
-
-    print_at 13, 1, "User:"
-end function
-
-inline function setUpMainScreen()
-    cls
-
-    print_at 1, 1, "DEFCON: " + str$(defcon);
-    print_at 1, 20, "ICBMS:   " + str$(icbms);
-    print_at 2, 1, "SUBS:   " + str$(submarines);
-    print_at 2, 20, "BOMBERS: " + str$(bombers);
-    print_at 3,1, string$("-", TEXT_COLUMNS);
-    text_color YELLOW
-    print_at TEXT_ROWS - 1, 1, "***";
-    print_at TEXT_ROWS - 1, TEXT_COLUMNS -4, "***";
-    text_color WHITE
 end function
 
 function printCentered(row, text$)
     column = (TEXT_COLUMNS - len(text$)) / 2 + 1
-    print_at row, column, text$
-end function
-
-function addToTextQueue(row, column, delay, text$)
-    if txtQueueIndex = txtQueueSize - 1 then
-        'Queue is full, emergency flush one text to make room
-        print_at txtQueue(txtQueueIndex).row, txtQueue(txtQueueIndex).column, left$(txtQueue(txtQueueIndex).text$, txtQueue(txtQueueIndex).length)
-        txtQueueIndex = txtQueueSize - 2
-    end if
-
-    txtQueueIndex = txtQueueIndex + 1
-    txtQueue(txtQueueIndex).row = row
-    txtQueue(txtQueueIndex).column = column
-    txtQueue(txtQueueIndex).delay = delay
-    txtQueue(txtQueueIndex).text$ = text$
-    txtQueue(txtQueueIndex).length = len(text$)
-    txtQueue(txtQueueIndex).nextTime = jiffies()
-end function
-
-function printQueues()
-    for i = 0 to txtQueueIndex
-        if txtQueueIndex < 0 or i > txtQueueIndex then
-            exit for
-        end if
-
-        if jiffies() < txtQueue(i).nextTime then
-            continue for
-        end if
-
-        print_at txtQueue(i).row, txtQueue(i).column, left$(txtQueue(i).text$, 1) ' Print one character at a time
-        txtQueue(i).length = txtQueue(i).length - 1
-
-        if txtQueue(i).length = 0 then
-            remove_element(txtQueue, i)
-            txtQueueIndex = txtQueueIndex - 1
-            i = i - 1 ' Adjust index since we removed an item
-            continue for
-        end if
-
-        advanceQueueItem(i)
-    next i
-end function
-
-inline function advanceQueueItem(queueIndex)
-    txtQueue(queueIndex).text$ = mid$(txtQueue(queueIndex).text$, 2, txtQueue(queueIndex).length) ' Remove the printed character from the string
-    txtQueue(queueIndex).column = txtQueue(queueIndex).column + 1
-    txtQueue(queueIndex).nextTime = jiffies() + txtQueue(queueIndex).delay
+    print_at row, column, text$;
 end function
 
 function waitForKeyRelease()
@@ -127,4 +54,12 @@ function waitForKeyRelease()
     repeat
         key = key_code()
     until not key_pressed()
+end function
+
+function waitForKeyPress()
+    local pressed
+
+    repeat
+        pressed = key_pressed()
+    until pressed
 end function

@@ -40,6 +40,89 @@ describe("Meta-BASIC test mode", () => {
     expect(output).toContain("LET MBF1R=MBF1P1 + BONUS");
   });
 
+  it("uses test-set runtime values for jiffies and keyboard helpers", () => {
+    const output = compileSource(
+      [
+        "test FakeRuntime()",
+        "set_jiffies(123)",
+        "set_key_code(65)",
+        "set_key_pressed(1)",
+        "assert_eq 123, jiffies()",
+        "assert_eq 65, key_code()",
+        "assert_true key_pressed()",
+        "set_key_pressed(0)",
+        "assert_false key_pressed()",
+        "end test"
+      ].join("\n"),
+      { filename: "fake-runtime.mbas", target: "spectrum", readability: 0, testMode: true }
+    );
+
+    expect(output).toContain("LET MBTJIF=123");
+    expect(output).toContain("LET MBTKC=65");
+    expect(output).toContain("LET MBTKP=1");
+    expect(output).toContain("LET MBTKP=0");
+    expect(output).toContain("LET MBAVAC=MBTJIF");
+    expect(output).toContain("LET MBAVAC=MBTKC");
+    expect(output).toContain("LET MBAB=MBTKP");
+    expect(output).not.toContain("PEEK 23672");
+    expect(output).not.toContain("INKEY$");
+  });
+
+  it("resets test-set runtime values before each test", () => {
+    const output = compileSource(
+      [
+        "test First()",
+        "set_jiffies(321)",
+        "assert_eq 321, jiffies()",
+        "end test",
+        "test Second()",
+        "assert_eq 0, jiffies()",
+        "assert_eq 0, key_code()",
+        "assert_false key_pressed()",
+        "end test"
+      ].join("\n"),
+      { filename: "fake-runtime-reset.mbas", target: "spectrum", readability: 0, testMode: true }
+    );
+
+    expect(count(output, "LET MBTJIF=0")).toBeGreaterThanOrEqual(2);
+    expect(count(output, "LET MBTKC=0")).toBeGreaterThanOrEqual(2);
+    expect(count(output, "LET MBTKP=0")).toBeGreaterThanOrEqual(2);
+  });
+
+  it("rejects test runtime setters outside TEST blocks", () => {
+    expect(() =>
+      compileSource("set_jiffies(1)\n", {
+        filename: "fake-runtime-top-level.mbas",
+        target: "spectrum",
+        testMode: true
+      })
+    ).toThrow("SET_JIFFIES can only be used inside a TEST when test mode is enabled.");
+
+    expect(() =>
+      compileSource("test Bad()\nset_key_code(\"A\")\nend test\n", {
+        filename: "fake-runtime-type.mbas",
+        target: "spectrum",
+        testMode: true
+      })
+    ).toThrow("SET_KEY_CODE expects a numeric argument.");
+
+    expect(() =>
+      compileSource("test Bad()\nset_key_pressed()\nend test\n", {
+        filename: "fake-runtime-arity.mbas",
+        target: "spectrum",
+        testMode: true
+      })
+    ).toThrow("SET_KEY_PRESSED expects exactly one argument.");
+
+    expect(() =>
+      compileSource("test Bad()\nkey_pressed(1)\nend test\n", {
+        filename: "fake-runtime-confusing-alias.mbas",
+        target: "spectrum",
+        testMode: true
+      })
+    ).toThrow("Standalone calls are supported only for user-defined FUNCTIONs.");
+  });
+
   it("prints M.C.P. runner banners, marks failure with a red final border, and lists failed tests in the summary", () => {
     const output = compileSource(
       ["test Good()", "assert_true 1", "end test", "test Bad()", "assert_true 0", "end test"].join("\n"),

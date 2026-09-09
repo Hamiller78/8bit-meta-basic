@@ -1,3 +1,5 @@
+uses "intro.mbas"
+
 program_mode
 screen_border_color BLACK
 screen_background_color BLACK

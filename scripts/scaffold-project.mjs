@@ -64,7 +64,7 @@ function moduleSource(moduleName) {
 
 function moduleTestSource(moduleName) {
   const functionName = exampleFunctionName(moduleName);
-  return [`test ${functionName}Works()`, `    assert_eq 8, ${functionName}(4)`, `end test`, ""].join("\n");
+  return [`uses "../source/${moduleName}.mbas"`, "", `test ${functionName}Works()`, `    assert_eq 8, ${functionName}(4)`, `end test`, ""].join("\n");
 }
 
 function exampleFunctionName(moduleName) {

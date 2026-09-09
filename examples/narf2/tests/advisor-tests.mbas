@@ -1,0 +1,20 @@
+uses "../source/advisor.mbas"
+uses "../source/decision.mbas"
+uses "../source/textqueue.mbas"
+
+globals
+    txtQueueIndex = -1
+    decisionActive = 0
+    decisionType = NoDecision
+end globals
+
+test IncomingMissileAdviceStartsDecision()
+    resetTextQueue()
+    adviseIncomingMissile()
+
+    assert_true decisionActive
+    assert_eq IncomingMissileDecision, decisionType
+    assert_eq "ADVISOR: SELECT OUR RESPONSE", left$(chatBuffer$(0), 28)
+    assert_eq 0, txtQueueIndex
+    assert_printat decisionLastRow, 1, "  LAUNCH EVERYTHING"
+end test

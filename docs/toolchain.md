@@ -36,6 +36,29 @@ The build and launch scripts accept exactly one program input mode:
 - `--build-config metabasic.json` for an explicit ordered file list
 - `--project folder` for a conventional project folder
 
+Build profiles select how much readability scaffolding is kept in generated BASIC:
+
+| Profile | Readability | Generated comments |
+| --- | ---: | --- |
+| `debug` | 2 | Source comments as `REM`, prominent module separators, source labels, and generated labels |
+| `balanced` | 1 | Prominent module separators and source labels |
+| `release` | 0 | Compact output without generated comments |
+
+The debug profile passes `.mbas` apostrophe comments through as generated `REM` lines. Trailing comments are emitted after the generated statement they annotate, so:
+
+```basic
+print "READY" ' shown after startup
+```
+
+can become:
+
+```basic
+10 PRINT "READY"
+20 REM SHOWN AFTER STARTUP
+```
+
+The direct compiler flag for this behavior is `--source-comments`; the profile scripts add it automatically for `debug`. Long source comments may be split into multiple `REM` lines to stay within target line-length limits. In multi-file programs, readable profiles also insert prominent module separators such as `REM -------- MODULE MAIN.MBAS --------` when the generated output crosses from one source file to another.
+
 A project folder contains `source/` and `tests/` side by side:
 
 ```text
@@ -47,7 +70,7 @@ project/
     math-tests.mbas
 ```
 
-Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. File order still controls ordinary startup code, but the compiler emits top-level `DIM` declarations before startup and also hoists top-level assignments from library-style files that contain only declarations, assignments, and functions. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
+Normal project builds compile the `.mbas` files directly inside `source/`, sorted by filename. File order still controls ordinary startup code. Cross-file access requires a direct `USES "relative/path.mbas"` declaration in the accessing file, including test files. Paths in `USES` are relative to that source file; all referenced files must be selected build inputs. `USES` does not discover dependencies, reorder files, or bypass constant declaration order. Missing declarations and dependency cycles are compile-time errors. Top-level constants, enums, and struct definitions are collected before executable statements are analyzed. The compiler emits top-level `DIM` declarations before startup and also hoists top-level assignments from library-style files that contain only declarations, assignments, and functions. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
 
 ```text
 npm run build:spectrum -- --project examples/project-demo --profile debug
@@ -95,7 +118,7 @@ npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 ```
 
-The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`. Existing files are never overwritten.
+The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`; its generated test declares `uses "../source/scoring.mbas"`. Add `USES` declarations to other files that access the new module. When building from an explicit configuration, add the new source to its `files` list as well. Existing files are never overwritten.
 
 ## Instruction regression suite
 

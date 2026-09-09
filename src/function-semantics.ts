@@ -579,7 +579,7 @@ function collectFunctionCallsFromStatements(
   }
 }
 
-function statementExpressions(statement: Statement): readonly Expression[] {
+export function statementExpressions(statement: Statement): readonly Expression[] {
   switch (statement.kind) {
     case "const":
       return [statement.expression];
@@ -594,7 +594,7 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "cell-background-color":
       return [statement.color];
     case "print":
-      return [...(statement.at ? [statement.at.row, statement.at.column] : []), ...statement.items];
+      return [...(statement.at ? [statement.at.row, statement.at.column] : []), ...(statement.wrapWidth ? [statement.wrapWidth] : []), ...statement.items];
     case "print-device":
       return statement.items;
     case "data":
@@ -624,6 +624,8 @@ function statementExpressions(statement: Statement): readonly Expression[] {
     case "if":
       return [statement.condition];
     case "label":
+    case "uses":
+    case "comment":
     case "goto":
     case "gosub":
     case "exit-for":

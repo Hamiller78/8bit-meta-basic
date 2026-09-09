@@ -14,6 +14,7 @@ export interface FunctionCallLoweringContext {
     destinationName: string | undefined,
     instructions: Instruction[]
   ) => Expression | undefined;
+  readonly transformExpandedExpression?: (expression: Expression) => Expression;
   nextTempId: number;
 }
 
@@ -61,7 +62,7 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
         if (!inlineImplementation.returnsValue) {
           throw new DiagnosticError(expression.location, `FUNCTION ${inlineImplementation.name} does not return a value and can only be called as a statement.`);
         }
-        const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+        const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
         validateArgumentCount(expression, inlineImplementation.implementation);
         const tempName = nextTempName(context, inlineImplementation.implementation.returnName);
         const result = context.expandInlineFunctionCall?.(inlineImplementation, args, tempName, instructions);
@@ -69,7 +70,7 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
       }
 
       const implementation = context.functions.get(normalizeName(expression.name));
-      const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+      const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
       if (!implementation) {
         return { ...expression, args };
       }
@@ -86,9 +87,9 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
       return { kind: "identifier", name: tempName, location: expression.location };
     }
     case "array-access":
-      return { ...expression, indices: expression.indices.map((index) => expandFunctionCalls(index, instructions, context)) };
+      return { ...expression, indices: expression.indices.map((index) => transformExpandedExpression(expandFunctionCalls(index, instructions, context), context)) };
     case "struct-field-access":
-      return { ...expression, indices: expression.indices.map((index) => expandFunctionCalls(index, instructions, context)) };
+      return { ...expression, indices: expression.indices.map((index) => transformExpandedExpression(expandFunctionCalls(index, instructions, context), context)) };
     case "parenthesized":
       return { ...expression, expression: expandFunctionCalls(expression.expression, instructions, context) };
     case "unary":
@@ -130,7 +131,7 @@ export function expandFunctionCallIntoDestination(
     if (!inlineImplementation.returnsValue) {
       throw new DiagnosticError(expression.location, `FUNCTION ${inlineImplementation.name} does not return a value and can only be called as a statement.`);
     }
-    const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+    const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
     validateArgumentCount(expression, inlineImplementation.implementation);
     context.expandInlineFunctionCall?.(inlineImplementation, args, destinationName, instructions);
     return true;
@@ -140,7 +141,7 @@ export function expandFunctionCallIntoDestination(
     return false;
   }
 
-  const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+  const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
   validateArgumentCount(expression, implementation);
   emitParameterAssignments(expression.name, implementation, args, instructions, expression.location);
   instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
@@ -162,7 +163,7 @@ export function expandFunctionCallForSideEffect(
   const implementation = context.functions.get(normalizeName(expression.name));
   const inlineImplementation = context.inlineFunctions?.get(normalizeName(expression.name));
   if (inlineImplementation) {
-    const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+    const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
     validateArgumentCount(expression, inlineImplementation.implementation);
     context.expandInlineFunctionCall?.(inlineImplementation, args, undefined, instructions);
     return;
@@ -172,7 +173,7 @@ export function expandFunctionCallForSideEffect(
     throw new DiagnosticError(expression.location, `Unknown FUNCTION "${expression.name}".`);
   }
 
-  const args = expression.args.map((arg) => expandFunctionCalls(arg, instructions, context));
+  const args = expression.args.map((arg) => transformExpandedExpression(expandFunctionCalls(arg, instructions, context), context));
   validateArgumentCount(expression, implementation);
   emitParameterAssignments(expression.name, implementation, args, instructions, expression.location);
   instructions.push({ kind: "gosub", label: implementation.entryLabel, location: expression.location });
@@ -224,6 +225,10 @@ function nextTempName(context: FunctionCallLoweringContext, returnName: string):
   const name = `MBT${context.nextTempId}${suffix}`;
   context.nextTempId += 1;
   return name;
+}
+
+function transformExpandedExpression(expression: Expression, context: FunctionCallLoweringContext): Expression {
+  return context.transformExpandedExpression ? context.transformExpandedExpression(expression) : expression;
 }
 
 function validateArgumentCount(expression: Extract<Expression, { kind: "function-call" }>, implementation: FunctionImplementation): void {

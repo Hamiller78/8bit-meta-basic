@@ -1,0 +1,108 @@
+' Buffered text output for the main chat area
+const chatFirstRow = 5
+const decisionAreaRows = 3
+const decisionLastRow = TEXT_ROWS - 3
+const decisionFirstRow = decisionLastRow - decisionAreaRows + 1
+const chatLastRow = decisionFirstRow - 1
+const chatRows = chatLastRow - chatFirstRow + 1
+const chatScrollRows = 5
+const blankChatLine$ = string$(" ", TEXT_COLUMNS)
+
+dim chatBuffer$(chatRows, TEXT_COLUMNS)
+txtQueueIndex = -1
+
+function addToTextQueue(text$)
+    local offset
+    local remaining
+    local chunkLength
+    local chunk$
+    local paddedChunk$
+
+    offset = 1
+    remaining = len(text$)
+    repeat
+        if txtQueueIndex >= chatRows - 1 then
+            scrollTextQueue()
+        end if
+        txtQueueIndex = txtQueueIndex + 1
+        if remaining > 0 then
+            chunkLength = remaining
+            if chunkLength > TEXT_COLUMNS then
+                chunkLength = TEXT_COLUMNS
+            end if
+            chunk$ = mid$(text$, offset, chunkLength)
+            paddedChunk$ = chunk$ + blankChatLine$
+            chatBuffer$(txtQueueIndex) = left$(paddedChunk$, TEXT_COLUMNS)
+        else
+            chatBuffer$(txtQueueIndex) = blankChatLine$
+        end if
+        print_at chatFirstRow + txtQueueIndex, 1, chatBuffer$(txtQueueIndex);
+        offset = offset + TEXT_COLUMNS
+        remaining = remaining - TEXT_COLUMNS
+    until remaining <= 0
+end function
+
+function scrollTextQueue()
+    local i
+    local rowsToScroll
+
+    rowsToScroll = chatScrollRows
+    if rowsToScroll < 1 then
+        rowsToScroll = 1
+    end if
+    if rowsToScroll > chatRows then
+        rowsToScroll = chatRows
+    end if
+    i = 0
+    while i < chatRows - rowsToScroll
+        chatBuffer$(i) = chatBuffer$(i + rowsToScroll)
+        i = i + 1
+    wend
+    while i < chatRows
+        chatBuffer$(i) = blankChatLine$
+        i = i + 1
+    wend
+    txtQueueIndex = chatRows - rowsToScroll - 1
+    drawTextQueue()
+end function
+
+function clearTextQueue()
+    resetTextQueue()
+    clearTextQueueArea()
+end function
+
+function resetTextQueue()
+    local i
+
+    i = 0
+    while i < chatRows
+        chatBuffer$(i) = blankChatLine$
+        i = i + 1
+    wend
+
+    txtQueueIndex = -1
+end function
+
+function clearTextQueueArea()
+    local i
+
+    i = 0
+    while i < chatRows
+        print_at chatFirstRow + i, 1, blankChatLine$;
+        i = i + 1
+    wend
+end function
+
+function drawTextQueue()
+    local i
+
+    i = 0
+    while i < chatRows
+        if i <= txtQueueIndex then
+            print_at chatFirstRow + i, 1, chatBuffer$(i);
+        else
+            print_at chatFirstRow + i, 1, blankChatLine$;
+        end if
+        i = i + 1
+    wend
+end function

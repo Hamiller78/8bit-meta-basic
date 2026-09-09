@@ -9,9 +9,12 @@ export interface SourceLocation {
 
 export interface Program {
   readonly statements: readonly Statement[];
+  readonly sourceFiles?: readonly string[];
 }
 
 export type Statement =
+  | UsesStatement
+  | CommentStatement
   | ConstStatement
   | DimStatement
   | LabelStatement
@@ -54,6 +57,18 @@ export type Statement =
   | WhileStatement
   | RepeatUntilStatement
   | IfStatement;
+
+export interface UsesStatement {
+  readonly kind: "uses";
+  readonly path: string;
+  readonly location: SourceLocation;
+}
+
+export interface CommentStatement {
+  readonly kind: "comment";
+  readonly text: string;
+  readonly location: SourceLocation;
+}
 
 export interface LabelStatement {
   readonly kind: "label";
