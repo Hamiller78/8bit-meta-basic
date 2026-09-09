@@ -1,4 +1,5 @@
-import { readFile, stat } from "node:fs/promises";
+import { requireLanguage, requireTextFont, type TextFont } from "./text-support.js";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Program } from "./ast.js";
 import { compileProgramDetailed, type CompileOptions, type CompileResult } from "./compiler.js";
@@ -6,6 +7,9 @@ import { deviceCliList, isDeviceKind, type DeviceKind } from "./devices.js";
 import { parseSource } from "./parser.js";
 
 export interface BuildConfiguration {
+  readonly textsDir?: string;
+  readonly language?: string;
+  readonly font?: TextFont;
   readonly files: readonly string[];
   readonly testMode?: boolean;
   readonly testPrinterOutput?: boolean;
@@ -13,6 +17,7 @@ export interface BuildConfiguration {
 }
 
 export interface BuildOptions extends Omit<CompileOptions, "filename"> {
+  readonly textsDir?: string;
   readonly configPath?: string;
   readonly baseDir?: string;
 }
@@ -46,6 +51,9 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
   const baseDir = options.baseDir ?? (options.configPath ? dirname(resolve(options.configPath)) : process.cwd());
   const program = await readBuildProgram(configuration, baseDir);
   return compileProgramDetailed(program, {
+    texts: options.texts ?? await loadTexts(options.textsDir ?? (configuration.textsDir ? resolve(baseDir, configuration.textsDir) : resolve(baseDir, "texts")), options.language ?? configuration.language ?? "en"),
+    language: options.language ?? configuration.language ?? "en",
+    font: options.font ?? configuration.font,
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,
@@ -87,7 +95,14 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be ${deviceCliList} when present.`);
   }
 
+  const { textsDir, language, font } = value as { textsDir?: unknown; language?: unknown; font?: unknown };
+  for (const [name, field] of Object.entries({ textsDir, language, font })) {
+    if (field !== undefined && (typeof field !== "string" || !field)) throw new Error(`Invalid build configuration "${configPath}": "${name}" must be a nonempty string.`);
+  }
   return {
+    ...(textsDir !== undefined ? { textsDir: textsDir as string } : {}),
+    ...(language !== undefined ? { language: requireLanguage(language as string) } : {}),
+    ...(font !== undefined ? { font: requireTextFont(font as string) } : {}),
     files,
     ...(testMode !== undefined ? { testMode } : {}),
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
@@ -134,4 +149,16 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 
 function formatErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+export async function loadTexts(textsDir: string, language: string): Promise<Readonly<Record<string, string>>> {
+  const directory = resolve(textsDir, requireLanguage(language));
+  let entries;
+  try { entries = await readdir(directory, { withFileTypes: true }); }
+  catch (error) { if (isNodeError(error) && error.code === "ENOENT") return {}; throw error; }
+  const texts: Record<string, string> = Object.create(null);
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.isFile() && entry.name.endsWith(".txt")) texts[entry.name.slice(0, -4)] = await readFile(resolve(directory, entry.name), "utf8");
+  }
+  return texts;
 }

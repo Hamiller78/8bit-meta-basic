@@ -50,6 +50,8 @@ async function launchAll(options) {
   }
 
   const commonArgs = [
+    ...(options.language ? ["--language", options.language] : []),
+    ...(options.font ? ["--font", options.font] : []),
     ...(options.projectPath ? ["--project", options.projectPath] : options.buildConfigPath ? ["--build-config", options.buildConfigPath] : ["--source", options.source]),
     "--profile",
     options.profile,
@@ -118,6 +120,12 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--language" || arg === "--font") {
+      const value = readValue(argv, index, arg);
+      options[arg === "--language" ? "language" : "font"] = value;
+      index += 1;
+      continue;
+    }
 
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);

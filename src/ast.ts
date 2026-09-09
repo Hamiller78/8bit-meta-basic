@@ -77,6 +77,11 @@ export interface DimStatement {
 }
 
 export interface PrintStatement {
+  readonly layout?: "wrap" | "center";
+  readonly textResource?: boolean;
+  readonly positionOnly?: boolean;
+  readonly layoutOutput?: boolean;
+  readonly wrapWidth?: Expression;
   readonly kind: "print";
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;

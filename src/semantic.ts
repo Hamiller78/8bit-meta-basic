@@ -342,6 +342,7 @@ function analyzeStatements(
       case "print":
         analyzed.push({
           ...statement,
+          ...(statement.wrapWidth ? { wrapWidth: foldExpression(statement.wrapWidth, constants, inConstantExpression, arrays, functions, scope, structValues) } : {}),
           items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT")),
           ...(statement.at
             ? {

@@ -23,6 +23,10 @@ const statementParsers = new Map<string, StatementParser>([
   ["CLOSE_DEVICE", (parser, location) => parser.parseCloseDevice(location)],
   ["OPEN_DEVICE", (parser, location) => parser.parseOpenDevice(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
+  ["PRINT_WRAP", (parser, location) => parser.parseTextPrint(location, "wrap")],
+  ["PRINT_TEXT", (parser, location) => parser.parseTextPrint(location, "wrap", true)],
+  ["PRINT_CENTERED", (parser, location) => parser.parseTextPrint(location, "center")],
+  ["SET_POS", (parser, location) => parser.parseSetPos(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
   ["PRINT_DEVICE", (parser, location) => parser.parsePrintDevice(location)],
   ["PROGRAM_MODE", (parser, location) => parser.parseProgramMode(location)],
@@ -149,9 +153,32 @@ class Parser {
   }
 
   parsePrint(location: SourceLocation): PrintStatement {
+    if (this.isLineEnd()) {
+      this.expectLineEnd();
+      return { kind: "print", items: [{ kind: "string", value: "", location }], trailingSemicolon: false, location };
+    }
     const { items, trailingSemicolon } = this.parsePrintItems("PRINT");
     this.expectLineEnd();
     return { kind: "print", items, trailingSemicolon, location };
+  }
+
+  parseTextPrint(location: SourceLocation, layout: "wrap" | "center", textResource = false): PrintStatement {
+    const expression = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    let wrapWidth: Expression | undefined;
+    if (this.matchPunctuation(",")) {
+      this.advance();
+      wrapWidth = this.parseExpressionUntilLine();
+    }
+    this.expectLineEnd();
+    return { kind: "print", items: [expression], trailingSemicolon: false, layout, textResource, wrapWidth, location };
+  }
+
+  parseSetPos(location: SourceLocation): PrintStatement {
+    const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "SET_POS requires row, column.");
+    const column = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "print", items: [{ kind: "string", value: "", location }], trailingSemicolon: true, positionOnly: true, at: { row, column, location }, location };
   }
 
   parseOpenDevice(location: SourceLocation): Statement {

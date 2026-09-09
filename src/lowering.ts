@@ -1,3 +1,4 @@
+import { splitTextItems } from "./text-support.js";
 import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import {
@@ -622,6 +623,7 @@ function lowerStatements(
               }
             : undefined;
           const items = statement.items.map((item) => expandFunctionCalls(item, instructions, context));
+          if (options.capturePrints && statement.positionOnly) break;
           if (options.capturePrints && at) {
             instructions.push({ kind: "let", name: testPrintAtRowName, expression: at.row, location: statement.location });
             instructions.push({ kind: "let", name: testPrintAtColumnName, expression: at.column, location: statement.location });
@@ -642,13 +644,14 @@ function lowerStatements(
           if (options.capturePrints) {
             break;
           }
-          instructions.push({
+          const groups = statement.layoutOutput ? splitTextItems(items) : [items];
+          groups.forEach((group, index) => instructions.push({
             kind: "print",
-            items,
-            trailingSemicolon: statement.trailingSemicolon,
+            items: group,
+            trailingSemicolon: index < groups.length - 1 || statement.trailingSemicolon,
             ...(at ? { at } : {}),
             location: statement.location
-          });
+          }));
         }
         break;
       case "open-device":

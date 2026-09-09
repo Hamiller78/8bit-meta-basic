@@ -50,6 +50,8 @@ export async function buildDirectory(options) {
           target,
           profile,
           source,
+          language: options.language,
+          font: options.font,
           testMode: options.testMode === true,
           testPrinterOutput: options.testPrinterOutput === true,
           testOutputDevice: options.testOutputDevice,
@@ -81,6 +83,11 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--language" || arg === "--font") {
+      options[arg === "--language" ? "language" : "font"] = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
 
     if (arg === "--source-dir" || arg === "--dir") {
       options.sourceDir = readValue(argv, index, arg);

@@ -1,3 +1,4 @@
+import { layoutText, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
 import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
@@ -16,7 +17,7 @@ import { isStringVariableName } from "./variables.js";
 
 export type Target = TargetId;
 
-export interface CompileOptions {
+export interface CompileOptions extends TextOptions {
   readonly filename: string;
   readonly target: Target;
   readonly readability?: ReadabilityLevel;
@@ -48,12 +49,26 @@ export function compileProgram(ast: ReturnType<typeof parseSource>, options: Com
 export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, options: CompileOptions): CompileResult {
   const target = getTarget(options.target);
   const readability = options.readability ?? options.comments ?? 2;
-  const analyzed = analyzeProgram(ast, targetEnvironments[options.target], { testMode: options.testMode });
-  const lowered = lowerProgram(analyzed, {
+  if (options.language) requireLanguage(options.language);
+  if (options.font) requireTextFont(options.font);
+  const analyzed = analyzeProgram(resolveTextResources(ast, options), targetEnvironments[options.target], { testMode: options.testMode });
+  let lowered = lowerProgram(layoutText(analyzed, options.target, options), {
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice
   });
+  if (options.target === "c64" && options.font && options.font !== "default") {
+    const location = { filename: options.filename, line: 1 };
+    lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: options.font === "mixed" ? 14 : 142, trailingSemicolon: true, location }, ...lowered.instructions]);
+  }
+  if (options.target === "atari800xl" && usesTextLayout(ast)) {
+    const location = { filename: options.filename, line: 1 };
+    lowered = rebuildLabels(lowered, [
+      { kind: "poke", address: 82, value: { kind: "number", value: 0, raw: "0", location }, location },
+      { kind: "poke", address: 83, value: { kind: "number", value: 39, raw: "39", location }, location },
+      ...lowered.instructions
+    ]);
+  }
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability);
 

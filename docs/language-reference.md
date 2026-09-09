@@ -283,6 +283,71 @@ print_at warningRow, 1, "SECONDS: "; countdown
 
 The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet. Target renderers lower these human-facing coordinates to each machine's native zero-based positioning.
 
+### Cursor positioning and blank lines
+
+Bare `PRINT` emits a blank line. `SET_POS row, column` moves the cursor without visible output or a newline:
+
+```basic
+set_pos 3, 5
+print "READY"
+print
+```
+
+Coordinates are numeric expressions in 1-based row, column order, as with `PRINT_AT`. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. `SET_POS` does not replace the last captured output used by test-mode print assertions.
+
+### Compile-time text layout
+
+| Statement | Text source | Behavior |
+| --- | --- | --- |
+| `PRINT_WRAP expression [, width]` | String literal or compile-time string constant/expression | Wraps text without localization files |
+| `PRINT_TEXT "name" [, width]` | Selected-language text resource | Loads localized text and wraps it |
+| `PRINT_CENTERED expression [, width]` | String literal or compile-time string constant/expression | Wraps text and centers each resulting line |
+
+```basic
+const welcome$ = "Welcome to San-Golpe!"
+set_pos 1, 1
+print_centered welcome$
+print_wrap "This paragraph is wrapped during compilation."
+print_wrap welcome$, 28
+print_text "intro"
+```
+
+These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, or C64 40 columns.
+
+Words stay together when possible; words longer than the width are split. Single line breaks inside paragraphs become spaces, and blank lines separate paragraphs. Layout begins at the current cursor position and does not track cursor state across statements or branches. Start full-width output at column 1. A narrower width limits line length but does not establish a persistent left indent: ordinary BASIC line endings return to the left margin. Atari programs using these statements initialize the screen margins to columns 0 and 39.
+
+Text is not automatically paginated. Split long pages into separate resources and position them explicitly to avoid native screen scrolling.
+
+### Localized text resources and fonts
+
+A conventional project can include an optional `texts/` folder beside `source/`:
+
+```text
+source/main.mbas
+texts/en/intro.txt
+texts/de/intro.txt
+```
+
+`PRINT_TEXT "intro"` selects the UTF-8 file `intro.txt` from the chosen language folder. English (`en`) is the default; pass `--language de` for German. Resource names are case-sensitive file stems and must be written as string literals. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
+
+```sh
+npm run build:c64 -- --project examples/san-golpe --language de --font mixed --no-tools
+```
+
+The CLI and build/launch scripts accept `--language` and `--font`. Font choices are:
+
+- `default`: use the normal target font; C64 layout text is uppercase and assumes the uppercase/graphics character set.
+- `uppercase`: capitalize layout text and explicitly select the C64 uppercase/graphics character set.
+- `mixed`: preserve layout text case and select the C64 uppercase/lowercase character set. Spectrum and Atari retain their normal fonts.
+
+Font conversion applies to `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Ordinary `PRINT` retains its existing native string behavior. C64 mixed-case text uses PETSCII `CHR$` expressions where needed so case survives the existing packaging transform.
+
+German characters are transliterated before measuring and wrapping text: `ä` → `ae`, `ö` → `oe`, `ü` → `ue`, `Ä` → `Ae`, `Ö` → `Oe`, `Ü` → `Ue`, `ß` → `ss`, and `ẞ` → `SS`. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics. Custom fonts and general Unicode conversion are not supported.
+
+JSON build configurations accept optional `textsDir`, `language`, and `font` fields. `textsDir` defaults to `texts` relative to the configuration file. CLI language/font options override configuration defaults. Conventional project builds automatically use the project's `texts/` folder. Single-source CLI builds look for `texts/` beside the source; `--texts-dir path` overrides resource discovery. Compiler library callers supply a selected-language `texts` dictionary through `CompileOptions`, keeping filesystem access outside the compiler core.
+
+### Device output
+
 Device output is available for printer-like logging and emulator capture workflows:
 
 ```basic

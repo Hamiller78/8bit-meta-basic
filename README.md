@@ -170,3 +170,42 @@ See [vscode-extension/README.md](vscode-extension/README.md) for the current dev
 - External tools and physical-device procedures are platform-dependent. Consult the running guide for verification status.
 
 This project does not attempt to erase the differences between its target computers. Portable operations share one source form; machine-specific behaviour remains visible in the generated BASIC.
+
+### Localized text and compile-time layout
+
+Projects may include an optional `texts/` folder containing UTF-8 text files:
+
+```text
+my-project/
+  source/main.mbas
+  texts/en/intro.txt
+  texts/de/intro.txt
+```
+
+`PRINT_TEXT "intro"` loads `intro.txt` for the selected language and generates word-wrapped BASIC `PRINT` statements. English (`en`) is the default. Resource names are case-sensitive file stems. A missing resource in the selected language produces a source-location diagnostic; there is no implicit fallback to English. Single line breaks inside a paragraph become spaces; blank lines separate paragraphs. Long words split when necessary.
+
+```basic
+set_pos 1, 1
+print_text "intro"
+print_wrap "This literal or a compile-time string constant wraps automatically."
+print_wrap "A narrower text block.", TEXT_COLUMNS - 4
+print_centered "SAN-GOLPE"
+print
+```
+
+`PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40). Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
+
+`SET_POS row, column` sets the cursor without printing visible text or advancing to the next line. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
+
+```sh
+npm run build:all-targets -- --project examples/san-golpe --language de --no-tools
+npm run build:c64 -- --project examples/san-golpe --language en --font mixed --no-tools
+npm run launch:c64 -- --project examples/san-golpe --language de --font mixed
+npm run dev -- --config examples/san-golpe/metabasic.json --target spectrum --language de
+```
+
+Build and launch scripts accept `--language` and `--font`. Fonts are `default`, `uppercase`, and `mixed`. On C64, `mixed` emits the character-set switch and preserves mixed-case layout text with PETSCII `CHR$` expressions where needed, including through the existing lowercase `petcat` input transform. `uppercase` selects the C64 uppercase/graphics font. C64 `default` assumes the normal uppercase/graphics font. Spectrum and Atari keep their normal fonts; `uppercase` capitalizes layout text and `mixed` preserves its case. Font conversion applies to the three layout commands; ordinary `PRINT` strings retain their existing native behavior.
+
+German umlauts and ß are transliterated before wrapping (`ä` → `ae`, `Ä` → `Ae`, `ß` → `ss`), and common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. This is portable text support, not a custom font loader or general character-set converter. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
+
+For JSON builds, optional `textsDir`, `language`, and `font` fields set defaults. `textsDir` is relative to the configuration file and defaults to `texts`; CLI options override language/font defaults. Conventional `--project` builds automatically use the project's sibling `texts/` folder. Single-source CLI builds look beside the source for `texts/`, or use `--texts-dir path`. Library callers pass a selected-language `texts` dictionary in `CompileOptions`; the compiler core performs no filesystem I/O.

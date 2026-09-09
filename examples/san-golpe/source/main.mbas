@@ -1,0 +1,8 @@
+program_mode
+screen_border_color BLACK
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+showIntro()
+end

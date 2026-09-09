@@ -25,6 +25,8 @@ async function launchSpectrum(options) {
     source: options.source,
     buildConfigPath: options.buildConfigPath,
     projectPath: options.projectPath,
+    language: options.language,
+    font: options.font,
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice,
@@ -111,6 +113,12 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--language" || arg === "--font") {
+      const value = readValue(argv, index, arg);
+      options[arg === "--language" ? "language" : "font"] = value;
+      index += 1;
+      continue;
+    }
 
     if (arg === "--source") {
       options.source = readValue(argv, index, arg);

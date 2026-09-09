@@ -1,7 +1,8 @@
 #!/usr/bin/env node
+import { requireLanguage, requireTextFont, type TextFont } from "./text-support.js";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { buildDetailed, loadBuildConfiguration } from "./build-configuration.js";
+import { dirname, resolve } from "node:path";
+import { buildDetailed, loadBuildConfiguration, loadTexts } from "./build-configuration.js";
 import { compileSourceDetailed, type Target } from "./compiler.js";
 import { formatCause } from "./diagnostics.js";
 import { deviceCliUsage, requireDeviceKind, type DeviceKind } from "./devices.js";
@@ -10,6 +11,9 @@ import { formatOutputStats } from "./output-stats.js";
 import { isTargetId } from "./targets/index.js";
 
 interface CliOptions {
+  readonly language?: string;
+  readonly font?: TextFont;
+  readonly textsDir?: string;
   readonly inputPath?: string;
   readonly configPath?: string;
   readonly target: Target;
@@ -27,6 +31,9 @@ async function main(argv: readonly string[]): Promise<number> {
     const result = options.configPath
       ? await buildDetailed(await loadBuildConfiguration(options.configPath), {
           configPath: options.configPath,
+          language: options.language,
+          font: options.font,
+          textsDir: options.textsDir,
           target: options.target,
           readability: options.readability,
           testMode: options.testMode,
@@ -36,6 +43,9 @@ async function main(argv: readonly string[]): Promise<number> {
         })
       : compileSourceDetailed(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
+          language: options.language,
+          font: options.font,
+          texts: await loadTexts(options.textsDir ?? resolve(dirname(requiredInputPath(options)), "texts"), options.language ?? "en"),
           target: options.target,
           readability: options.readability,
           testMode: options.testMode,
@@ -60,6 +70,9 @@ async function main(argv: readonly string[]): Promise<number> {
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
+  let language: string | undefined;
+  let font: TextFont | undefined;
+  let textsDir: string | undefined;
   let inputPath: string | undefined;
   let configPath: string | undefined;
   let target: Target | undefined;
@@ -73,6 +86,14 @@ function parseArgs(argv: readonly string[]): CliOptions {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
+    if (arg === "--language" || arg === "--font" || arg === "--texts-dir") {
+      const value = argv[++index];
+      if (!value) throw new Error(`Missing value for ${arg}.`);
+      if (arg === "--language") language = requireLanguage(value);
+      else if (arg === "--font") font = requireTextFont(value);
+      else textsDir = value;
+      continue;
+    }
     if (arg === "--target") {
       const value = argv[index + 1];
       if (!value) {
@@ -157,7 +178,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--language en|de] [--font default|uppercase|mixed] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT]`);
   }
 
   if (inputPath && configPath) {
@@ -171,7 +192,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   const parsed: CliOptions = configPath
     ? { configPath, target, readability, testMode, testPrinterOutput, atariSharedDriveSpec }
     : { inputPath: inputPath ?? "", target, readability, testMode, testPrinterOutput, atariSharedDriveSpec };
-  const parsedWithDevice = { ...parsed, testOutputDevice };
+  const parsedWithDevice = { ...parsed, testOutputDevice, language, font, textsDir };
   return outputPath ? { ...parsedWithDevice, outputPath } : parsedWithDevice;
 }
 

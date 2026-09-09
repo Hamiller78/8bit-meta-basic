@@ -1,0 +1,9 @@
+function showIntro()
+    set_pos 1, 1
+    print_text "intro"
+    set_pos TEXT_ROWS - 1, 1
+    print_text "continue"
+
+    repeat
+    until key_pressed()
+end function
