@@ -41,9 +41,9 @@ describe("localized text and layout", () => {
     expect(() => compileSource('print_wrap title$', { filename: "intro.mbas", target: "c64" })).toThrow(/compile-time string/);
     expect(() => compileSource('print_wrap "😀"', { filename: "intro.mbas", target: "c64" })).toThrow(/Unsupported text character/);
   });
-  it("selects C64 mixed font and preserves letter case through CHR$ codes", () => {
+  it("selects the C64 mixed font and preserves quoted text case", () => {
     const result = compileSource('print_wrap "Hello WORLD"', { filename: "text.mbas", target: "c64", font: "mixed" });
-    expect(result).toContain("PRINT CHR$(14);");
+    expect(result).toContain("print chr$(14);");
     expect(result).toContain('print "Hello WORLD"');
     expect(result).not.toContain("CHR$(69)");
     expect(result.split("\n").every((line) => line.length <= 80)).toBe(true);

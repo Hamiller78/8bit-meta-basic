@@ -14,9 +14,9 @@ describe("C64 compiler", () => {
     );
   });
 
-  it("renders PROGRAM_MODE as C64 RUN/STOP disabling setup", () => {
+  it("renders PROGRAM_MODE as LIST-safe C64 RUN/STOP disabling setup", () => {
     expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "c64", readability: 0 })).toBe(
-      ["10 POKE 808,234", '20 PRINT "OK"', ""].join("\n")
+      ["10 POKE 808,239", '20 PRINT "OK"', ""].join("\n")
     );
   });
 

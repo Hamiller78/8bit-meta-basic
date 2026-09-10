@@ -433,7 +433,7 @@ Target lowering:
 - Cell text colour lowers to Spectrum `INK targetColour`, C64 `POKE 646,targetColour`, and no Atari 800XL output.
 - Cell background colour lowers to Spectrum `PAPER targetColour` and no C64 or Atari 800XL output.
 - Scroll-prompt suppression lowers to Spectrum `POKE 23692,255` and no output on Atari 800XL or C64.
-- Program mode lowers to Spectrum `POKE 23692,255`, Atari `POKE 752,1`, and C64 `POKE 808,234`.
+- Program mode lowers to Spectrum `POKE 23692,255`, Atari `POKE 752,1`, and C64 `POKE 808,239`.
 
 Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 

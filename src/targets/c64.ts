@@ -619,13 +619,14 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
     } else if (instruction.kind === "cell-background-color" || instruction.kind === "suppress-scroll-prompt") {
       continue;
     } else if (instruction.kind === "program-mode") {
+      // $F6EF disables RUN/STOP without clobbering Y, which the BASIC LIST routine uses.
       instructions.push({
         kind: "poke",
         address: 808,
         value: {
           kind: "number",
-          value: 234,
-          raw: "234",
+          value: 239,
+          raw: "239",
           location: instruction.location
         },
         location: instruction.location

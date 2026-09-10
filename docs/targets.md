@@ -113,7 +113,7 @@ Atari colour values are deterministic approximations and can look different betw
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
-- `PROGRAM_MODE` emits `POKE 808,234` to disable the simple RUN/STOP check.
+- `PROGRAM_MODE` emits `POKE 808,239` to disable the simple RUN/STOP check without breaking `LIST`.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
 - `SHARED_DRIVE` is not supported on C64.
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.

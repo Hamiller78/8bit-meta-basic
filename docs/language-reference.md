@@ -625,7 +625,7 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 `suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL or C64.
 
-`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
+`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check through a vector entry that preserves `LIST`. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
 
 ## Current omissions
 
