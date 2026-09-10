@@ -75,10 +75,23 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true);
 
+  const outputLines = options.target === "c64" && options.font === "mixed"
+    ? targetLowered.lines.map(lowercaseBasicSyntaxPreservingStrings)
+    : targetLowered.lines;
   return {
-    output: `${targetLowered.lines.join("\n")}\n`,
+    output: `${outputLines.join("\n")}\n`,
     stats: analyzeBasicOutput(targetLowered.lines, options.target)
   };
+}
+
+function lowercaseBasicSyntaxPreservingStrings(line: string): string {
+  let result = "";
+  let inString = false;
+  for (const char of line) {
+    if (char === '"') inString = !inString;
+    result += inString || char === '"' ? char : char.toLowerCase();
+  }
+  return result;
 }
 
 interface RenderedProgram {

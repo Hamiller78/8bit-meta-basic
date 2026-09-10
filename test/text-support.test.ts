@@ -44,8 +44,8 @@ describe("localized text and layout", () => {
   it("selects C64 mixed font and preserves letter case through CHR$ codes", () => {
     const result = compileSource('print_wrap "Hello WORLD"', { filename: "text.mbas", target: "c64", font: "mixed" });
     expect(result).toContain("PRINT CHR$(14);");
-    expect(result).toContain('CHR$(200);"ELLO "');
-    expect(result).toContain("CHR$(215)");
+    expect(result).toContain('print "Hello WORLD"');
+    expect(result).not.toContain("CHR$(69)");
     expect(result.split("\n").every((line) => line.length <= 80)).toBe(true);
   });
   it("supports explicit constant widths and rejects invalid widths", () => {

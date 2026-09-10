@@ -226,8 +226,14 @@ async function prepareToolInput({ tool, inputPath, outputPath }) {
 }
 
 function transformInput(text, transform) {
-  if (transform === "lowercase") {
-    return text.toLowerCase();
+  if (transform === "lowercase" || transform === "lowercase-syntax") {
+    let result = "";
+    let inString = false;
+    for (const char of text) {
+      if (char === '"') inString = !inString;
+      result += inString || char === '"' ? char : char.toLowerCase();
+    }
+    return result;
   }
 
   throw new Error(`Unknown tool input transform "${transform}".`);

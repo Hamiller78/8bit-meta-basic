@@ -436,9 +436,9 @@ The CLI and build/launch scripts accept `--language` and `--font`. Font choices 
 
 - `default`: use the normal target font; C64 layout text is uppercase and assumes the uppercase/graphics character set.
 - `uppercase`: capitalize layout text and explicitly select the C64 uppercase/graphics character set.
-- `mixed`: preserve layout text case and select the C64 uppercase/lowercase character set. Spectrum and Atari retain their normal fonts.
+- `mixed`: preserve layout text case and select the C64 uppercase/lowercase character set. Generated BASIC syntax is lowercase while quoted strings retain their original case. Spectrum and Atari retain their normal fonts.
 
-Font conversion applies to `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Ordinary `PRINT` retains its existing native string behavior. C64 mixed-case text uses PETSCII `CHR$` expressions where needed so case survives the existing packaging transform.
+Font conversion applies to `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Ordinary `PRINT` retains its existing native string behavior. C64 mixed mode lowercases BASIC syntax outside quoted strings so the generated listing matches the selected character set; string contents remain unchanged.
 
 German characters are transliterated before measuring and wrapping text: `ä` → `ae`, `ö` → `oe`, `ü` → `ue`, `Ä` → `Ae`, `Ö` → `Oe`, `Ü` → `Ue`, `ß` → `ss`, and `ẞ` → `SS`. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics. Custom fonts and general Unicode conversion are not supported.
 

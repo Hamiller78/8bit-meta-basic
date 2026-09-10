@@ -102,14 +102,13 @@ function encodeText(text: string, target: TargetId, font: TextFont, statement: P
   for (const char of text) {
     let code: number | undefined;
     if (char === '"') code = 34;
-    else if (target === "c64" && font === "mixed" && /[A-Z]/.test(char)) code = char.charCodeAt(0) + 128;
     else if ((target === "c64" && /[\\^_`{|}~]/.test(char)) || (target === "spectrum" && /[\\^`]/.test(char)) || (target === "atari800xl" && /[`{|}~]/.test(char))) {
       throw new DiagnosticError(location, `Character "${char}" is not available in the selected ${target} text font.`);
     }
     if (code !== undefined) {
       flush();
       items.push({ kind: "function-call", name: builtinFunctions.chr, args: [{ kind: "number", value: code, raw: String(code), location }], valueType: "string", location });
-    } else literal += target === "c64" ? char.toUpperCase() : char;
+    } else literal += target === "c64" && font !== "mixed" ? char.toUpperCase() : char;
   }
   flush();
   return items.length ? items : [{ kind: "string", value: "", location }];
