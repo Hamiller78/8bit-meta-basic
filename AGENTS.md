@@ -102,6 +102,7 @@ Supported constructs:
 - `read` statements targeting scalar variables
 - Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
+- Compile-time selected-language text lookup with `text$("key")` in output expressions
 - Runtime string slicing with `mid$(text$, start, length)`, `mid$(text$, start)`, `left$(text$, length)`, and `right$(text$, length)`
 - Runtime string/number conversion with `str$(number)` and `val(text$)`
 - Runtime numeric math helpers `abs(x)`, `atn(x)`, `cos(x)`, `exp(x)`, `int(x)`, `sgn(x)`, `sin(x)`, and `sqr(x)`
@@ -196,7 +197,7 @@ Supported expression forms:
 - Numeric literals, including decimal fractions
 - String literals
 - Identifiers
-- Compile-time function calls `STRING$(char$, count)` and `SPACE$(count)`
+- Compile-time function calls `STRING$(char$, count)`, `SPACE$(count)`, and selected-language `TEXT$("key")` in output expressions
 - Runtime string function calls `MID$(text$, start, length)`, `MID$(text$, start)`, `LEFT$(text$, length)`, `RIGHT$(text$, length)`, and `LEN(text$)`
 - Runtime character-code function calls `CHR$(code)`, `CODE(text$)`, and `ASC(text$)`
 - Runtime string/number conversion function calls `STR$(number)` and `VAL(text$)`

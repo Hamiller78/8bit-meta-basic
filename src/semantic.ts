@@ -1413,6 +1413,10 @@ function foldFunctionCall(
     return { ...expression, name, args: [value] };
   }
 
+  if (name === builtinFunctions.text) {
+    throw new DiagnosticError(expression.location, "TEXT$ can only be used in PRINT, PRINT_WRAP, or PRINT_CENTERED output.");
+  }
+
   if (name === builtinFunctions.val) {
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "VAL expects exactly one argument.");

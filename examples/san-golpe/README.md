@@ -1,6 +1,6 @@
 # San-Golpe
 
-The fictional intro is stored in `texts/en/intro.txt` and `texts/de/intro.txt`; the continuation prompt is a separate resource. Source files contain presentation and keyboard handling.
+The fictional intro is stored in `texts/en/intro.txt` and `texts/de/intro.txt`. Short translations such as the continuation prompt are grouped in each language's `strings.json` and referenced with expressions such as `TEXT$("continue")`. Source files contain presentation and keyboard handling.
 
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language en --no-tools

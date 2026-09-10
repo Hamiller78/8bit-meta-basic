@@ -3,7 +3,7 @@ import { compileSource } from "../src/compiler.js";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { build, loadBuildConfiguration } from "../src/build-configuration.js";
+import { build, loadBuildConfiguration, loadTexts } from "../src/build-configuration.js";
 import { wrapText } from "../src/text-support.js";
 
 const targets = ["spectrum", "atari800xl", "c64"] as const;
@@ -38,6 +38,8 @@ describe("localized text and layout", () => {
   }
   it("reports missing translations and runtime wrapping with source locations", () => {
     expect(() => compileSource('print_text "missing"', { filename: "intro.mbas", target: "c64", language: "de" })).toThrow(/intro.mbas:1.*missing.*de/);
+    expect(() => compileSource('print_centered text$("missing")', { filename: "intro.mbas", target: "c64", language: "de" })).toThrow(/intro.mbas:1.*missing.*de/);
+    expect(() => compileSource("print_centered text$(key$)", { filename: "intro.mbas", target: "c64", texts: { continue: "Continue" } })).toThrow(/TEXT\$ expects exactly one literal resource name/);
     expect(() => compileSource('print_wrap title$', { filename: "intro.mbas", target: "c64" })).toThrow(/compile-time string/);
     expect(() => compileSource('print_wrap "😀"', { filename: "intro.mbas", target: "c64" })).toThrow(/Unsupported text character/);
   });
@@ -60,6 +62,41 @@ describe("localized text and layout", () => {
   });
   it("encodes embedded quotes without breaking BASIC literals", () => {
     expect(compileSource('print_text "quote"', { filename: "text.mbas", target: "c64", texts: { quote: 'Say "hi"' } })).toContain("CHR$(34)");
+  });
+  it("uses keyed text in centered and ordinary output", () => {
+    const texts = { continue: "PRESS ANY KEY TO CONTINUE" };
+    const centered = compileSource('print_centered text$("continue")', { filename: "text.mbas", target: "spectrum", texts });
+    expect(centered).toContain('PRINT "   PRESS ANY KEY TO CONTINUE"');
+    expect(centered).not.toContain('"continue"');
+    expect(compileSource('print text$("continue")', { filename: "text.mbas", target: "c64", texts })).toContain('PRINT "PRESS ANY KEY TO CONTINUE"');
+  });
+  it("loads keyed short texts beside long text files", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "mbas-text-resources-"));
+    try {
+      await mkdir(join(directory, "en"), { recursive: true });
+      await writeFile(join(directory, "en", "intro.txt"), "A long introduction.");
+      await writeFile(join(directory, "en", "strings.json"), JSON.stringify({ continue: "PRESS ANY KEY", quit: "QUIT" }));
+      await expect(loadTexts(directory, "en")).resolves.toEqual({
+        continue: "PRESS ANY KEY",
+        intro: "A long introduction.",
+        quit: "QUIT"
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+  it("rejects invalid and duplicate keyed text resources", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "mbas-text-resources-"));
+    try {
+      await mkdir(join(directory, "en"), { recursive: true });
+      await writeFile(join(directory, "en", "strings.json"), JSON.stringify({ intro: 42 }));
+      await expect(loadTexts(directory, "en")).rejects.toThrow(/strings\.json.*every value must be a string/);
+      await writeFile(join(directory, "en", "strings.json"), JSON.stringify({ intro: "Short intro" }));
+      await writeFile(join(directory, "en", "intro.txt"), "Long intro");
+      await expect(loadTexts(directory, "en")).rejects.toThrow(/Duplicate text resource "intro".*en.*strings\.json/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
   it("honors configuration defaults, explicit overrides, and relative resource paths", async () => {
     const directory = await mkdtemp(join(tmpdir(), "mbas-texts-"));

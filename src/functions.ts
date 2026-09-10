@@ -27,6 +27,7 @@ export const builtinFunctions = {
   space: "SPACE$",
   sqr: "SQR",
   str: "STR$",
+  text: "TEXT$",
   val: "VAL",
   string: "STRING$"
 } as const;
@@ -53,6 +54,7 @@ export function isStringFunctionName(name: string): boolean {
     canonical === builtinFunctions.right ||
     canonical === builtinFunctions.space ||
     canonical === builtinFunctions.str ||
+    canonical === builtinFunctions.text ||
     canonical === builtinFunctions.string
   );
 }

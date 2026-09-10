@@ -1,6 +1,6 @@
 import type { Expression, PrintStatement, Program, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
-import { builtinFunctions } from "./functions.js";
+import { builtinFunctions, canonicalFunctionName } from "./functions.js";
 import type { TargetId } from "./targets/index.js";
 import { targetEnvironments } from "./targets/environment.js";
 
@@ -38,13 +38,43 @@ function mapStatements(program: Program, transform: (statement: PrintStatement) 
 /** Resource I/O belongs to the build shell; the compiler only consumes text values. */
 export function resolveTextResources(program: Program, options: TextOptions): Program {
   return mapStatements(program, (statement) => {
-    if (!statement.textResource) return [statement];
+    if (!statement.textResource) return [{ ...statement, items: statement.items.map((item) => resolveTextExpression(item, options)) }];
     const key = statement.items[0];
     if (key?.kind !== "string") throw new DiagnosticError(statement.location, "PRINT_TEXT requires a literal resource name, such as PRINT_TEXT \"intro\".");
-    const value = Object.hasOwn(options.texts ?? {}, key.value) ? options.texts![key.value] : undefined;
-    if (value === undefined) throw new DiagnosticError(statement.location, `Missing text resource "${key.value}" for language "${options.language ?? "en"}".`);
+    const value = resolveTextValue(key.value, statement.location, options);
     return [{ ...statement, textResource: false, items: [{ kind: "string", value, location: statement.location }] }];
   });
+}
+
+function resolveTextExpression(expression: Expression, options: TextOptions): Expression {
+  switch (expression.kind) {
+    case "function-call": {
+      if (canonicalFunctionName(expression.name) === builtinFunctions.text) {
+        if (expression.args.length !== 1 || expression.args[0]?.kind !== "string") {
+          throw new DiagnosticError(expression.location, "TEXT$ expects exactly one literal resource name, such as TEXT$(\"continue\").");
+        }
+        return { kind: "string", value: resolveTextValue(expression.args[0].value, expression.location, options), location: expression.location };
+      }
+      return { ...expression, args: expression.args.map((arg) => resolveTextExpression(arg, options)) };
+    }
+    case "array-access":
+    case "struct-field-access":
+      return { ...expression, indices: expression.indices.map((index) => resolveTextExpression(index, options)) };
+    case "parenthesized":
+      return { ...expression, expression: resolveTextExpression(expression.expression, options) };
+    case "unary":
+      return { ...expression, operand: resolveTextExpression(expression.operand, options) };
+    case "binary":
+      return { ...expression, left: resolveTextExpression(expression.left, options), right: resolveTextExpression(expression.right, options) };
+    default:
+      return expression;
+  }
+}
+
+function resolveTextValue(key: string, location: PrintStatement["location"], options: TextOptions): string {
+  const value = Object.hasOwn(options.texts ?? {}, key) ? options.texts![key] : undefined;
+  if (value === undefined) throw new DiagnosticError(location, `Missing text resource "${key}" for language "${options.language ?? "en"}".`);
+  return value;
 }
 
 /** Runs after constant folding, before control-flow lowering. */

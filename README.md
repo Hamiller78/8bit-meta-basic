@@ -190,14 +190,17 @@ Projects may include an optional `texts/` folder containing UTF-8 text files:
 my-project/
   source/main.mbas
   texts/en/intro.txt
+  texts/en/strings.json
   texts/de/intro.txt
+  texts/de/strings.json
 ```
 
-`PRINT_TEXT "intro"` loads `intro.txt` for the selected language and generates word-wrapped BASIC `PRINT` statements. English (`en`) is the default. Resource names are case-sensitive file stems. A missing resource in the selected language produces a source-location diagnostic; there is no implicit fallback to English. Single line breaks inside a paragraph become spaces; blank lines separate paragraphs. Long words split when necessary.
+Each language's optional `strings.json` groups short translations as string-valued key/value pairs. Longer prose stays in individual UTF-8 `.txt` files, whose filename stems become resource keys. `PRINT_TEXT` resolves either form and generates word-wrapped BASIC `PRINT` statements. Duplicate keys across `strings.json` and `.txt` files are rejected. English (`en`) is the default. Resource keys are case-sensitive. A missing resource in the selected language produces a source-location diagnostic; there is no implicit fallback to English. Single line breaks inside a paragraph become spaces; blank lines separate paragraphs. Long words split when necessary.
 
 ```basic
 set_pos 1, 1
 print_text "intro"
+print_centered text$("continue")
 print_wrap "This literal or a compile-time string constant wraps automatically."
 print_wrap "A narrower text block.", TEXT_COLUMNS - 4
 print_centered "SAN-GOLPE"

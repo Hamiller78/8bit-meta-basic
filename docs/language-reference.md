@@ -193,6 +193,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | --- | --- | --- |
 | `string$(text$, count)` | Compile time | Repeat a string |
 | `space$(count)` | Compile time | Produce spaces |
+| `text$("key")` | Compile time | Resolve a selected-language resource for output |
 | `mid$(text$, start, length)` | Runtime | Extract a string section |
 | `mid$(text$, start)` | Runtime | Extract from a position through the end of the string |
 | `left$(text$, length)` | Runtime | Extract the left part of a string |
@@ -408,6 +409,7 @@ print_centered welcome$
 print_wrap "This paragraph is wrapped during compilation."
 print_wrap welcome$, 28
 print_text "intro"
+print_centered text$("continue")
 ```
 
 These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, or C64 40 columns.
@@ -423,10 +425,23 @@ A conventional project can include an optional `texts/` folder beside `source/`:
 ```text
 source/main.mbas
 texts/en/intro.txt
+texts/en/strings.json
 texts/de/intro.txt
+texts/de/strings.json
 ```
 
-`PRINT_TEXT "intro"` selects the UTF-8 file `intro.txt` from the chosen language folder. English (`en`) is the default; pass `--language de` for German. Resource names are case-sensitive file stems and must be written as string literals. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
+Each language directory may contain a `strings.json` object for short texts:
+
+```json
+{
+  "continue": "PRESS ANY KEY TO CONTINUE",
+  "new_game": "NEW GAME"
+}
+```
+
+Use one UTF-8 `.txt` file per long text when editing paragraphs is more convenient. Its filename stem becomes the resource key, so `intro.txt` provides `intro`. `PRINT_TEXT "intro"` resolves a resource and wraps it directly. The compile-time expression `TEXT$("continue")` resolves a resource for other output forms, such as `PRINT_CENTERED TEXT$("continue")` or `PRINT TEXT$("continue")`. Both resource forms use the same lookup. Keys are case-sensitive and must be written as string literals. Defining the same key in `strings.json` and a `.txt` file is an error.
+
+English (`en`) is the default; pass `--language de` for German. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
 
 ```sh
 npm run build:c64 -- --project examples/san-golpe --language de --font mixed --no-tools

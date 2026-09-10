@@ -153,13 +153,46 @@ function formatErrorMessage(error: unknown): string {
 }
 
 export async function loadTexts(textsDir: string, language: string): Promise<Readonly<Record<string, string>>> {
-  const directory = resolve(textsDir, requireLanguage(language));
+  const selectedLanguage = requireLanguage(language);
+  const directory = resolve(textsDir, selectedLanguage);
   let entries;
   try { entries = await readdir(directory, { withFileTypes: true }); }
   catch (error) { if (isNodeError(error) && error.code === "ENOENT") return {}; throw error; }
   const texts: Record<string, string> = Object.create(null);
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.isFile() && entry.name.endsWith(".txt")) texts[entry.name.slice(0, -4)] = await readFile(resolve(directory, entry.name), "utf8");
+    if (!entry.isFile()) continue;
+    const resourcePath = resolve(directory, entry.name);
+    if (entry.name.endsWith(".txt")) {
+      addTextResource(texts, entry.name.slice(0, -4), await readFile(resourcePath, "utf8"), selectedLanguage, resourcePath);
+    } else if (entry.name === "strings.json") {
+      const strings = await loadShortTexts(resourcePath);
+      for (const [key, value] of Object.entries(strings)) addTextResource(texts, key, value, selectedLanguage, resourcePath);
+    }
   }
   return texts;
+}
+
+async function loadShortTexts(resourcePath: string): Promise<Readonly<Record<string, string>>> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(resourcePath, "utf8"));
+  } catch (error) {
+    throw new Error(`Invalid JSON in text resource file "${resourcePath}": ${formatErrorMessage(error)}.`);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`Invalid text resource file "${resourcePath}": expected a JSON object containing string values.`);
+  }
+  for (const [key, value] of Object.entries(parsed)) {
+    if (!key || typeof value !== "string") {
+      throw new Error(`Invalid text resource file "${resourcePath}": every key must be nonempty and every value must be a string.`);
+    }
+  }
+  return parsed as Readonly<Record<string, string>>;
+}
+
+function addTextResource(texts: Record<string, string>, key: string, value: string, language: string, resourcePath: string): void {
+  if (Object.hasOwn(texts, key)) {
+    throw new Error(`Duplicate text resource "${key}" for language "${language}" in "${resourcePath}".`);
+  }
+  texts[key] = value;
 }
