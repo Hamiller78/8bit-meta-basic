@@ -1,0 +1,46 @@
+uses "characters.mbas"
+uses "characternames.mbas"
+
+function createAllCharacters()
+    resetCharacterFactory()
+end function
+
+function resetCharacterFactory()
+    randomize
+    initNameArrays()
+    createdCharacterCount = 0
+    characterFactoryInitialized = 1
+end function
+
+'Returns an index into characters(), or noCharacterIndex when no name is available.
+function createCharacter(nationality, gender)
+    local characterIndex, actualGender, firstName$, lastName$
+
+    if characterFactoryInitialized = 0 then
+        resetCharacterFactory()
+    end if
+
+    if createdCharacterCount >= characterCapacity then
+        return noCharacterIndex
+    end if
+
+    actualGender = chooseGender(nationality, gender)
+    if actualGender = any then
+        return noCharacterIndex
+    end if
+    if availableFirstNames(nationality, actualGender) = 0 or availableLastNames(nationality) = 0 then
+        return noCharacterIndex
+    end if
+
+    firstName$ = takeFirstName$(nationality, actualGender)
+    lastName$ = takeLastName$(nationality)
+    characterIndex = createdCharacterCount
+
+    characters(characterIndex).gender = actualGender
+    characters(characterIndex).nationality = nationality
+    characters(characterIndex).first$ = firstName$
+    characters(characterIndex).last$ = lastName$
+
+    createdCharacterCount = createdCharacterCount + 1
+    return characterIndex
+end function

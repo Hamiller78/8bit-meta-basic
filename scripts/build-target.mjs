@@ -291,7 +291,7 @@ export function programIdentity(cwd, source, buildConfigPath, projectPath) {
 
 export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, testPrinterOutput = false, testOutputDevice = "printer", moduleName } = {}) {
   const projectRoot = resolve(cwd, projectPath);
-  const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
+  const sourceFiles = await findProjectSourceFiles(projectRoot);
   const testFiles = testMode ? filterProjectTestFiles(await findProjectMbasFiles(resolve(projectRoot, "tests")), moduleName) : [];
 
   if (sourceFiles.length === 0) {
@@ -311,6 +311,27 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
     "utf8"
   );
   return configPath;
+}
+
+async function findProjectSourceFiles(projectRoot) {
+  const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
+  const projectConfigPath = resolve(projectRoot, "metabasic.json");
+  if (!(await exists(projectConfigPath))) {
+    return sourceFiles;
+  }
+
+  const config = JSON.parse(await readFile(projectConfigPath, "utf8"));
+  if (!config || typeof config !== "object" || !Array.isArray(config.files)) {
+    throw new Error(`Invalid project build configuration "${projectConfigPath}": "files" must be an array.`);
+  }
+
+  const discovered = new Set(sourceFiles);
+  const configured = config.files
+    .filter((file) => typeof file === "string")
+    .map((file) => resolve(projectRoot, file))
+    .filter((file) => discovered.has(file));
+  const configuredSet = new Set(configured);
+  return [...configured, ...sourceFiles.filter((file) => !configuredSet.has(file))];
 }
 
 export function filterProjectTestFiles(testFiles, moduleName) {

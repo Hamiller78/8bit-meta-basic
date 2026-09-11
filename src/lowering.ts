@@ -476,7 +476,7 @@ function isTopLevelDeclarationOrInitializer(statement: Statement): boolean {
 }
 
 function isTopLevelStorageDeclaration(statement: Statement): boolean {
-  return statement.kind === "dim";
+  return statement.kind === "dim" || statement.kind === "data";
 }
 
 function isTopLevelInitializer(statement: Statement): boolean {

@@ -6,6 +6,26 @@ import { compileBuildConfiguration } from "../src/build-configuration.js";
 import { compileSource } from "../src/compiler.js";
 
 describe("Meta-BASIC test mode", () => {
+  it("retains top-level DATA for tests that READ through helper functions", () => {
+    const output = compileSource(
+      [
+        "data 10, \"TEN\"",
+        "function LoadData()",
+        "restore",
+        "read DataCode, DataText$",
+        "return DataCode",
+        "end function",
+        "test DataIsAvailable()",
+        "assert_eq 10, LoadData()",
+        "end test"
+      ].join("\n"),
+      { filename: "data.mbas", target: "c64", testMode: true }
+    );
+
+    expect(output).toContain('DATA 10,"TEN"');
+    expect(output.indexOf('DATA 10,"TEN"')).toBeLessThan(output.indexOf("READ"));
+  });
+
   it("discovers one TEST and emits a generated runner instead of normal startup", () => {
     const output = compileSource('print "MAIN"\ntest Smoke()\nassert_true 1\nend test\n', {
       filename: "one-test.mbas",

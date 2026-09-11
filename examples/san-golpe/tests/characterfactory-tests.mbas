@@ -1,0 +1,21 @@
+uses "../source/characters.mbas"
+uses "../source/characternames.mbas"
+uses "../source/characterfactory.mbas"
+
+test CharacterNamesAreUsedOnlyOnce()
+    local characterIndex, firstIndex, secondIndex
+
+    resetCharacterFactory()
+
+    for characterIndex = 0 to englishMaleFirstNames - 1
+        assert_eq characterIndex, createCharacter(us, male)
+    next characterIndex
+    assert_eq noCharacterIndex, createCharacter(us, male)
+
+    for firstIndex = 0 to englishMaleFirstNames - 2
+        for secondIndex = firstIndex + 1 to englishMaleFirstNames - 1
+            assert_ne characters(firstIndex).first$, characters(secondIndex).first$
+            assert_ne characters(firstIndex).last$, characters(secondIndex).last$
+        next secondIndex
+    next firstIndex
+end test

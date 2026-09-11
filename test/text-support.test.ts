@@ -60,6 +60,15 @@ describe("localized text and layout", () => {
     const output = compileSource('test cursor()\nprint "Hello"\nset_pos 1, 1\nassert_print "Hello"\nend test', { filename: "cursor.mbas", target: "spectrum", testMode: true });
     expect(output).not.toContain('LET MBTPOUT$=""');
   });
+  it("keeps captured wrapped text within each target's line limit", () => {
+    const source = 'function show()\nprint_text "intro"\nend function\ntest names()\nassert_true 1\nend test';
+    const intro = "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.";
+    for (const target of targets) {
+      const output = compileSource(source, { filename: "intro.mbas", target, testMode: true, texts: { intro } });
+      const limit = target === "spectrum" ? 204 : target === "atari800xl" ? 120 : 80;
+      expect(output.trimEnd().split("\n").every((line) => line.length <= limit)).toBe(true);
+    }
+  });
   it("encodes embedded quotes without breaking BASIC literals", () => {
     expect(compileSource('print_text "quote"', { filename: "text.mbas", target: "c64", texts: { quote: 'Say "hi"' } })).toContain("CHR$(34)");
   });

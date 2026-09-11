@@ -1,0 +1,36 @@
+enum Gender
+    any = 0
+    male
+    female
+end enum
+
+enum Nationality
+    native = 0
+    us
+    russian
+end enum
+
+enum Role
+    none = 0
+    usagent
+    ussragent
+    president
+    daughter
+    advisor
+    priest
+    bartender
+    landowner
+    ustourist
+end enum
+
+struct Character
+    first$(10)
+    last$(10)
+    gender
+    nationality
+end struct
+
+const characterCapacity = 11
+const noCharacterIndex = -1
+
+dim characters as Character(characterCapacity)

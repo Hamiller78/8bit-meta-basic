@@ -485,7 +485,9 @@ function compactGeneratedHousekeepingLets(program: LoweredProgram): LoweredProgr
 }
 
 function isCompactableGeneratedHousekeepingLet(instruction: Instruction | undefined): instruction is Extract<Instruction, { kind: "let" }> {
-  return isGeneratedHousekeepingLet(instruction) && isSimpleExpression(instruction.expression);
+  return isGeneratedHousekeepingLet(instruction) &&
+    isSimpleExpression(instruction.expression) &&
+    !(instruction.expression.kind === "string" && instruction.expression.value.length > 0);
 }
 
 function isGeneratedHousekeepingLet(instruction: Instruction | undefined): instruction is Extract<Instruction, { kind: "let" }> {
