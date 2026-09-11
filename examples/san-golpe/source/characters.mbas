@@ -28,6 +28,7 @@ struct Character
     last$(10)
     gender
     nationality
+    role
 end struct
 
 const characterCapacity = 11

@@ -2,7 +2,36 @@ uses "characters.mbas"
 uses "characternames.mbas"
 
 function createAllCharacters()
+    local presidentIndex, daughterIndex
+
     resetCharacterFactory()
+
+    createRoleCharacter(usagent, us, male)
+    createRoleCharacter(usagent, us, female)
+    createRoleCharacter(ussragent, russian, male)
+    createRoleCharacter(ussragent, russian, female)
+
+    presidentIndex = createRoleCharacter(president, native, male)
+    daughterIndex = createRoleCharacter(daughter, native, female)
+    createRoleCharacter(advisor, native, any)
+    createRoleCharacter(priest, native, male)
+    createRoleCharacter(bartender, native, any)
+    createRoleCharacter(landowner, native, any)
+    createRoleCharacter(ustourist, us, any)
+
+    if presidentIndex <> noCharacterIndex and daughterIndex <> noCharacterIndex then
+        characters(daughterIndex).last$ = characters(presidentIndex).last$
+    end if
+end function
+
+function createRoleCharacter(characterRole, nationality, gender)
+    local characterIndex
+
+    characterIndex = createCharacter(nationality, gender)
+    if characterIndex <> noCharacterIndex then
+        characters(characterIndex).role = characterRole
+    end if
+    return characterIndex
 end function
 
 function resetCharacterFactory()
