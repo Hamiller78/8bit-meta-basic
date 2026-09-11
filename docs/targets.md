@@ -119,7 +119,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
-- `RND()` lowers to `RND(1)`; `RANDOMIZE seed` lowers to a generated assignment using `RND(-seed)`.
+- `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.

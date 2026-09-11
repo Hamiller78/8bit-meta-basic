@@ -493,7 +493,7 @@ describe("C64 compiler", () => {
 
   it("renders RANDOMIZE and RND with C64 RND argument semantics", () => {
     expect(compileSource("randomize 123\nvalue = rnd()\nrandomize\nprint value\n", { filename: "rnd.mbas", target: "c64", readability: 0 })).toBe(
-      ["10 MB=RND(-(123))", "20 VA=RND(1)", "30 MB=RND(0)", "40 PRINT VA", ""].join("\n")
+      ["10 MB=RND(-(123))", "20 VA=RND(1)", "30 MB=RND(-(TI+1))", "40 PRINT VA", ""].join("\n")
     );
   });
 

@@ -63,6 +63,9 @@ function createCharacter(nationality, gender)
 
     firstName$ = takeFirstName$(nationality, actualGender)
     lastName$ = takeLastName$(nationality)
+    if nationality = russian and actualGender = female then
+        lastName$ = lastName$ + "a"
+    end if
     characterIndex = createdCharacterCount
 
     characters(characterIndex).gender = actualGender

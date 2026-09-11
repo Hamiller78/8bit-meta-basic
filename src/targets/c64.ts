@@ -104,7 +104,7 @@ export const c64Target: TargetBackend = {
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
       case "randomize":
-        return instruction.seed ? `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(${renderExpression(instruction.seed, renderOptions)}))` : `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(0)`;
+        return instruction.seed ? `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(${renderExpression(instruction.seed, renderOptions)}))` : `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(TI+1))`;
       case "position":
         throw new Error("Internal error: unexpected position instruction for C64.");
       case "poke":
