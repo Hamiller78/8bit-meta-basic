@@ -468,7 +468,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 DATA 10,"READY",1', "20 READ SC,V0$,CO", "30 PRINT SC;V0$;CO", "40 RESTORE", "50 READ SC", ""].join("\n"));
+    ).toBe(["10 READ SC,V0$,CO", "20 PRINT SC;V0$;CO", "30 RESTORE", "40 READ SC", '50 DATA 10,"READY",1', ""].join("\n"));
   });
 
   it("renders END for C64 BASIC V2", () => {

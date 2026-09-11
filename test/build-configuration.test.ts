@@ -29,6 +29,24 @@ describe("build configuration", () => {
     });
   });
 
+  it("keeps each module together when more than one module has executable code and functions", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), 'print "MAIN"\nfunction MainHelper()\nprint "MAIN HELPER"\nend function\n', "utf8");
+      await writeFile(join(dir, "ui.mbas"), 'print "UI"\nfunction UiHelper()\nprint "UI HELPER"\nend function\n', "utf8");
+
+      const output = await compileBuildConfiguration(
+        { files: ["main.mbas", "ui.mbas"] },
+        { baseDir: dir, target: "c64", readability: 1 }
+      );
+
+      expect(output.match(/MODULE [A-Z.]+/gu)).toEqual(["MODULE MAIN.MBAS", "MODULE UI.MBAS"]);
+      expect(output.indexOf('PRINT "MAIN"')).toBeLessThan(output.indexOf('PRINT "MAIN HELPER"'));
+      expect(output.indexOf('PRINT "MAIN HELPER"')).toBeLessThan(output.indexOf("MODULE UI.MBAS"));
+      expect(output.indexOf("MODULE UI.MBAS")).toBeLessThan(output.indexOf('PRINT "UI"'));
+      expect(output.indexOf('PRINT "UI"')).toBeLessThan(output.indexOf('PRINT "UI HELPER"'));
+    });
+  });
+
   it("emits module boundary comments for balanced and debug readability", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), 'print "MAIN"\n', "utf8");
@@ -103,6 +121,37 @@ describe("build configuration", () => {
     });
   });
 
+  it("keeps the entry module first while declaring later struct storage and emitting DATA last", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(
+        join(dir, "main.mbas"),
+        'uses "model.mbas"\nuses "names.mbas"\nitems(0).value = NextValue()\nprint items(0).value\n',
+        "utf8"
+      );
+      await writeFile(join(dir, "model.mbas"), "struct Item\nvalue\nend struct\ndim items as Item(1)\n", "utf8");
+      await writeFile(
+        join(dir, "names.mbas"),
+        "function NextValue()\nlocal loadedValue\nrestore\nread loadedValue\nreturn loadedValue\nend function\ndata 42\n",
+        "utf8"
+      );
+
+      const output = await compileBuildConfiguration(
+        { files: ["main.mbas", "model.mbas", "names.mbas"] },
+        { baseDir: dir, target: "c64", readability: 1 }
+      );
+
+      const main = output.indexOf("MODULE MAIN.MBAS");
+      const model = output.indexOf("MODULE MODEL.MBAS");
+      const names = output.indexOf("MODULE NAMES.MBAS");
+      const data = output.indexOf("MODULE DATA");
+      expect(main).toBeGreaterThanOrEqual(0);
+      expect(main).toBeLessThan(model);
+      expect(model).toBeLessThan(names);
+      expect(names).toBeLessThan(data);
+      expect(output.trimEnd().endsWith("DATA 42")).toBe(true);
+    });
+  });
+
   it("runs global initializers from function-only source files before main code can call those functions", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), 'uses "math.mbas"\nscore = addBonus(5)\nprint score\n', "utf8");
@@ -110,15 +159,17 @@ describe("build configuration", () => {
 
       await expect(compileBuildConfiguration({ files: ["main.mbas", "math.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 })).resolves.toBe(
         [
-          "10 LET BONUS=10",
+          "10 GO SUB 70",
           "20 LET MBF1P1=5",
-          "30 GO SUB 70",
+          "30 GO SUB 90",
           "40 LET SCORE=MBF1R",
           "50 PRINT SCORE",
-          "60 GO TO 90",
-          "70 LET MBF1R=MBF1P1 + BONUS",
+          "60 GO TO 110",
+          "70 LET BONUS=10",
           "80 RETURN",
-          "90 REM END",
+          "90 LET MBF1R=MBF1P1 + BONUS",
+          "100 RETURN",
+          "110 REM END",
           ""
         ].join("\n")
       );
@@ -132,8 +183,12 @@ describe("build configuration", () => {
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "storage.mbas"] }, { baseDir: dir, target: "c64", readability: 0 });
 
-      expect(output.indexOf("DIM VA(1)")).toBeLessThan(output.indexOf("GOSUB"));
-      expect(output.indexOf("VA(0)=7")).toBeLessThan(output.indexOf("GOSUB"));
+      const initializationCall = output.indexOf("GOSUB");
+      const mainFunctionCall = output.indexOf("GOSUB", initializationCall + 1);
+      expect(initializationCall).toBeGreaterThanOrEqual(0);
+      expect(mainFunctionCall).toBeGreaterThan(initializationCall);
+      expect(output.indexOf("DIM VA(1)")).toBeGreaterThan(mainFunctionCall);
+      expect(output.indexOf("VA(0)=7")).toBeGreaterThan(mainFunctionCall);
       expect(output).toContain("=VA(0)");
     });
   });

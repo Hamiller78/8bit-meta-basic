@@ -23,7 +23,7 @@ describe("Meta-BASIC test mode", () => {
     );
 
     expect(output).toContain('DATA 10,"TEN"');
-    expect(output.indexOf('DATA 10,"TEN"')).toBeLessThan(output.indexOf("READ"));
+    expect(output.indexOf('DATA 10,"TEN"')).toBeGreaterThan(output.indexOf("READ"));
   });
 
   it("discovers one TEST and emits a generated runner instead of normal startup", () => {

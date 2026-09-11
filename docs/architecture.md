@@ -33,7 +33,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/devices.ts` is the central list of portable device constants.
 - `src/function-semantics.ts` analyzes user functions, local variables, parameters, and recursion.
 - `src/function-call-lowering.ts` expands Meta-BASIC function calls into generated parameter assignments, `GOSUB`, and return-value reads.
-- `src/lowering.ts` performs shared structural lowering for ordinary statements. It also creates the generated startup prelude: top-level storage declarations are emitted before ordinary executable code, and library-style source files can contribute global initializers before startup.
+- `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, and C64.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
@@ -59,7 +59,7 @@ There are three input shapes:
 - `--build-config metabasic.json` compiles an explicit ordered file list.
 - `--project folder` compiles a conventional project with `source/` and optional `tests/`.
 
-Multi-file compilation currently creates one compilation unit. File order still matters for startup code, but shared lowering emits top-level storage declarations first. Source files that contain only compile-time declarations, storage declarations, simple top-level assignments, and functions are treated as library-style files; their top-level assignments are emitted before normal startup code so functions in that file can depend on their initialized globals. There are no namespaces, imports, exports, or separate compilation yet.
+Multi-file compilation currently creates one compilation unit. The configured file order is also the module order in generated BASIC, and the first file is the entry module. Semantic analysis collects top-level type and storage declarations across the unit, so entry code can use a struct, enum, array, or struct value declared by a later module when access is granted through `USES`. Generated startup calls initialize module storage and globals before the entry body runs without moving the later module ahead of the entry module in the listing. All `DATA` statements are collected in source order and emitted in a final data section. There are no namespaces, imports, exports, or separate compilation yet.
 
 ## Test Mode
 

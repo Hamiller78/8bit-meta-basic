@@ -57,7 +57,7 @@ uses "ui.mbas"
 
 `USES` paths are relative to the declaring source file, and dependencies must already be included in the build. Dependencies are not transitive; circular dependencies are compile-time errors. `USES` emits no code and does not change file order. See [module dependencies](docs/language-reference.md#module-dependencies-uses) for the access and ownership rules.
 
-With those declarations, top-level constants, enums, and struct definitions can be accessed before executable statements are analyzed. Top-level `DIM` declarations are emitted before normal startup code. In library-style files that contain only declarations, initializers, and functions, top-level assignments are also emitted before startup code, so functions from that file can rely on their own global setup when called from an earlier file.
+With those declarations, top-level constants, enums, struct definitions, and `DIM` declarations can be accessed before executable statements are analyzed. The configured file order becomes the module order in generated BASIC, with the first file as the entry module. Startup calls initialize module storage and globals before entry code runs, and `DATA` statements are collected at the end of the generated program.
 See `examples/multifile/metabasic.json` for a small working example.
 
 The build and launch helper scripts use `--build-config` for Meta-BASIC project files, leaving `--config` for local tool/emulator configuration:
@@ -173,7 +173,7 @@ See [vscode-extension/README.md](vscode-extension/README.md) for the current dev
 
 ## Important limitations
 
-- Multi-file builds require explicit, acyclic `USES` dependencies and form one compilation unit with a generated startup prelude for storage declarations and library-style global initializers. There are no namespaces, exports, automatic dependency loading, or separate compilation.
+- Multi-file builds require explicit, acyclic `USES` dependencies and form one compilation unit. Generated startup calls initialize module storage and globals while preserving configured module order, and `DATA` is emitted at the end. There are no namespaces, exports, automatic dependency loading, or separate compilation.
 - User functions use statically allocated storage and do not support recursion.
 - There is no general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.

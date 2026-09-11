@@ -51,7 +51,7 @@ const borderLine$ = string$("*", TEXT_COLUMNS)
 
 A constant may reference an earlier constant. Names are case-insensitive. Duplicate constants, unknown references, invalid operations, and compile-time division by zero are rejected.
 
-Top-level constants, enums, and struct type definitions are collected across the whole compilation unit before executable statements are analyzed. With the required `USES` declaration, startup code in an earlier file can use an enum member or struct type declared in a later file. Constant declarations themselves still evaluate in source/build order, so a constant expression may only refer to constants that have already been declared.
+Top-level constants, enums, struct type definitions, and `DIM` storage declarations are collected across the whole compilation unit before executable statements are analyzed. With the required `USES` declaration, startup code in an earlier file can use an enum member, struct type, native array, or struct value declared in a later file. Constant declarations themselves still evaluate in source/build order, so a constant expression may only refer to constants that have already been declared.
 
 Enums are compile-time collections of integer constants:
 
@@ -161,6 +161,8 @@ The right-hand side must be a scalar struct value, not an expression or struct a
 Functions can accept scalar struct parameters with `parameter AS StructName`. Struct parameters are copied field-by-field before the function call, so assigning to `parameter.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet. Struct definitions cannot be nested.
 
 `dim messages$(3, 12)` creates three string slots with a maximum width of 12 characters. String array use still supplies only the element index; the width is part of the storage declaration. String literal assignments longer than the fixed width are rejected at compile time.
+
+Top-level `DIM` declarations are resolved before executable statements across a multi-file compilation unit. Their generated storage setup runs before entry-module code, while each module's generated section remains in the order configured by `metabasic.json`.
 
 ## Expressions
 
@@ -317,7 +319,7 @@ restore
 read itemCode, message$
 ```
 
-`DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
+`DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. The compiler preserves their source order but emits all `DATA` statements together at the end of generated BASIC. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
 
 ## User-defined functions
 

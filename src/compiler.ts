@@ -61,11 +61,11 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     testOutputDevice: options.testOutputDevice
   });
   if (options.target === "c64" && options.font && options.font !== "default") {
-    const location = { filename: options.filename, line: 1 };
+    const location = entrySourceLocation(ast, options.filename);
     lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: options.font === "mixed" ? 14 : 142, trailingSemicolon: true, location }, ...lowered.instructions]);
   }
   if (options.target === "atari800xl" && usesTextLayout(ast)) {
-    const location = { filename: options.filename, line: 1 };
+    const location = entrySourceLocation(ast, options.filename);
     lowered = rebuildLabels(lowered, [
       { kind: "poke", address: 82, value: { kind: "number", value: 0, raw: "0", location }, location },
       { kind: "poke", address: 83, value: { kind: "number", value: 39, raw: "39", location }, location },
@@ -82,6 +82,10 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     output: `${outputLines.join("\n")}\n`,
     stats: analyzeBasicOutput(targetLowered.lines, options.target)
   };
+}
+
+function entrySourceLocation(ast: ReturnType<typeof parseSource>, fallbackFilename: string): { readonly filename: string; readonly line: number } {
+  return { filename: ast.sourceFiles?.[0] ?? fallbackFilename, line: 1 };
 }
 
 function lowercaseBasicSyntaxPreservingStrings(line: string): string {
@@ -160,7 +164,7 @@ function insertModuleBoundaryComments(program: LoweredProgram, readability: Read
   let currentModule: string | undefined;
 
   for (const instruction of program.instructions) {
-    const moduleName = moduleCommentName(instruction.location.filename);
+    const moduleName = instruction.kind === "data" ? "DATA" : moduleCommentName(instruction.location.filename);
     if (moduleName !== currentModule) {
       instructions.push({
         kind: "rem",

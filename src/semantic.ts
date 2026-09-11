@@ -71,13 +71,14 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   const structValues = new Map<string, StructValueDefinition>();
   const scalarNames = new Set<string>();
   const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
-  predeclareTopLevelSymbols(statements, constants, arrays, structs, structValues);
+  predeclareTopLevelSymbols(statements, constants, arrays, structs, structValues, scalarNames);
   const functions = collectFunctionDefinitions(statements);
   const devices = collectOpenDevices(statements);
   validateFunctionRecursion(functions);
   validateControlFlowBoundaries(statements);
 
   return {
+    ...program,
     statements: analyzeStatements(statements, constants, false, arrays, structs, structValues, scalarNames, functions, devices, undefined, options.testMode === true)
   };
 }
@@ -87,7 +88,8 @@ function predeclareTopLevelSymbols(
   constants: Map<string, ConstantDefinition>,
   arrays: Map<string, ArrayDefinition>,
   structs: Map<string, StructDefinition>,
-  structValues: Map<string, StructValueDefinition>
+  structValues: Map<string, StructValueDefinition>,
+  scalarNames: Set<string>
 ): void {
   for (const statement of statements) {
     if (statement.kind === "const") {
@@ -109,6 +111,17 @@ function predeclareTopLevelSymbols(
   for (const statement of statements) {
     if (statement.kind === "struct") {
       addStructDefinition(statement, constants, arrays, structs, structValues);
+    }
+  }
+
+  for (const statement of statements) {
+    if (statement.kind !== "dim") {
+      continue;
+    }
+    if (statement.asType) {
+      analyzeStructDim(statement, constants, arrays, structs, structValues, scalarNames);
+    } else {
+      declareNativeArray(statement, constants, arrays, scalarNames);
     }
   }
 }
@@ -222,27 +235,10 @@ function analyzeStatements(
           break;
         }
         const key = normalizeName(statement.name);
-        if (constants.has(key)) {
-          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a constant.`);
-        }
-        if (arrays.has(key)) {
-          throw new DiagnosticError(statement.location, `Duplicate array "${statement.name}".`);
-        }
-        if (scalarNames.has(key)) {
-          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" after using it as a scalar variable.`);
-        }
-        if (canonicalFunctionName(statement.name)) {
-          throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a built-in function.`);
-        }
-        if (statement.dimensions.length === 0) {
-          throw new DiagnosticError(statement.location, "DIM requires at least one dimension.");
-        }
-
-        const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
-        if (isStringVariableName(statement.name) && dimensions.length !== 2) {
-          throw new DiagnosticError(statement.location, "String arrays require element count and fixed width, for example DIM NAME$(10, 32).");
-        }
-        arrays.set(key, { name: statement.name, valueType: isStringVariableName(statement.name) ? "string" : "number", dimensions, location: statement.location });
+        const existing = arrays.get(key);
+        const dimensions = existing?.location === statement.location
+          ? existing.dimensions
+          : declareNativeArray(statement, constants, arrays, scalarNames).dimensions;
         analyzed.push({
           ...statement,
           dimensions: dimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location }))
@@ -753,6 +749,10 @@ function analyzeStructDim(
   scalarNames: Set<string>
 ): readonly Statement[] {
   const key = normalizeName(statement.name);
+  const existing = structValues.get(key);
+  if (existing?.location === statement.location) {
+    return structBackingDimStatements(statement, existing);
+  }
   if (constants.has(key)) {
     throw new DiagnosticError(statement.location, `Cannot declare struct value "${statement.name}" with the same name as a constant.`);
   }
@@ -772,7 +772,8 @@ function analyzeStructDim(
   }
 
   const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
-  structValues.set(key, { name: statement.name, typeName: struct.name, dimensions, fields: struct.fields, location: statement.location });
+  const definition = { name: statement.name, typeName: struct.name, dimensions, fields: struct.fields, location: statement.location };
+  structValues.set(key, definition);
 
   if (dimensions.length === 0) {
     for (const field of struct.fields) {
@@ -781,10 +782,24 @@ function analyzeStructDim(
     return [];
   }
 
-  return struct.fields.map((field) => {
+  for (const field of struct.fields) {
     const fieldDimensions = field.valueType === "string" ? [dimensions[0], field.dimensions[0]] : dimensions;
     const fieldName = structFieldStorageName(statement.name, field);
     arrays.set(normalizeName(fieldName), { name: fieldName, valueType: field.valueType, dimensions: fieldDimensions, location: statement.location });
+  }
+  return structBackingDimStatements(statement, definition);
+}
+
+function structBackingDimStatements(
+  statement: Extract<Statement, { kind: "dim" }>,
+  definition: StructValueDefinition
+): readonly Statement[] {
+  if (definition.dimensions.length === 0) {
+    return [];
+  }
+  return definition.fields.map((field): Statement => {
+    const fieldDimensions = field.valueType === "string" ? [definition.dimensions[0], field.dimensions[0]] : definition.dimensions;
+    const fieldName = structFieldStorageName(statement.name, field);
     return {
       kind: "dim",
       name: fieldName,
@@ -792,6 +807,38 @@ function analyzeStructDim(
       location: statement.location
     };
   });
+}
+
+function declareNativeArray(
+  statement: Extract<Statement, { kind: "dim" }>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  scalarNames: ReadonlySet<string>
+): ArrayDefinition {
+  const key = normalizeName(statement.name);
+  if (constants.has(key)) {
+    throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a constant.`);
+  }
+  if (arrays.has(key)) {
+    throw new DiagnosticError(statement.location, `Duplicate array "${statement.name}".`);
+  }
+  if (scalarNames.has(key)) {
+    throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" after using it as a scalar variable.`);
+  }
+  if (canonicalFunctionName(statement.name)) {
+    throw new DiagnosticError(statement.location, `Cannot declare array "${statement.name}" with the same name as a built-in function.`);
+  }
+  if (statement.dimensions.length === 0) {
+    throw new DiagnosticError(statement.location, "DIM requires at least one dimension.");
+  }
+
+  const dimensions = statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
+  if (isStringVariableName(statement.name) && dimensions.length !== 2) {
+    throw new DiagnosticError(statement.location, "String arrays require element count and fixed width, for example DIM NAME$(10, 32).");
+  }
+  const definition = { name: statement.name, valueType: isStringVariableName(statement.name) ? "string" as const : "number" as const, dimensions, location: statement.location };
+  arrays.set(key, definition);
+  return definition;
 }
 
 function structFieldStorageName(base: string, field: StructFieldDefinition): string {

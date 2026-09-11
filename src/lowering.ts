@@ -359,10 +359,12 @@ export interface LowerOptions {
 }
 
 export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
-  const userLabels = collectUserLabels(program.statements);
+  const dataStatements: Extract<Statement, { kind: "data" }>[] = [];
+  const statements = extractDataStatements(program.statements, dataStatements);
+  const userLabels = collectUserLabels(statements);
   const generator = internalLabelGenerator(userLabels);
-  const functions = collectFunctionImplementations(program.statements);
-  const inlineFunctions = collectInlineFunctionImplementations(program.statements);
+  const functions = collectFunctionImplementations(statements);
+  const inlineFunctions = collectInlineFunctionImplementations(statements);
   const context: FunctionCallLoweringContext = {
     functions,
     inlineFunctions,
@@ -373,11 +375,13 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   };
   const instructions: Instruction[] = [];
 
-  const mainStatements = program.statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test" && statement.kind !== "globals");
-  const functionStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function" && !statement.inline);
-  const testStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
-  const globalsStatements = program.statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
+  const mainStatements = statements.filter((statement) => statement.kind !== "function" && statement.kind !== "test" && statement.kind !== "globals");
+  const functionStatements = statements.filter((statement): statement is Extract<Statement, { kind: "function" }> => statement.kind === "function" && !statement.inline);
+  const testStatements = statements.filter((statement): statement is Extract<Statement, { kind: "test" }> => statement.kind === "test");
+  const globalsStatements = statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
   const mainLayout = partitionTopLevelStatementsForInitialization(mainStatements);
+  const multiModule = (program.sourceFiles?.length ?? 0) > 1;
+  let functionsEmitted = false;
 
   if (options.testMode) {
     const globalResetInstructions: Instruction[] = [];
@@ -390,8 +394,101 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
       outputDevice: options.testOutputDevice ?? "printer",
       globalResetInstructions
     });
-  } else {
+  } else if (!multiModule) {
     lowerStatements([...mainLayout.declarations, ...mainLayout.initializers, ...mainLayout.body], instructions, generator, context);
+  } else {
+    const moduleOrder = orderedModuleFiles(program, statements);
+    const entryFilename = moduleOrder[0];
+    const runtimeByModule = new Map<string, Instruction[]>();
+    const initializationByModule = new Map<string, Instruction[]>();
+    for (const filename of moduleOrder) {
+      const runtime: Instruction[] = [];
+      lowerStatements(mainLayout.body.filter((statement) => statement.location.filename === filename), runtime, generator, context);
+      runtimeByModule.set(filename, runtime);
+
+      const moduleInitialization = [...mainLayout.declarations, ...mainLayout.initializers]
+        .filter((statement) => statement.location.filename === filename);
+      if (moduleInitialization.length === 0) {
+        continue;
+      }
+      const lowered: Instruction[] = [];
+      lowerStatements(moduleInitialization, lowered, generator, context);
+      if (lowered.length > 0) {
+        initializationByModule.set(filename, lowered);
+      }
+    }
+
+    const entryLocation = runtimeByModule.get(entryFilename)?.[0]?.location ??
+      initializationByModule.values().next().value?.[0]?.location ??
+      functionStatements[0]?.location ?? dataStatements[0]?.location ??
+      { filename: program.sourceFiles?.[0] ?? "<program>", line: 1, column: 1 };
+    const initializationLabels = new Map<string, string>();
+    for (const filename of moduleOrder) {
+      if (!initializationByModule.has(filename)) {
+        continue;
+      }
+      const label = generator();
+      initializationLabels.set(filename, label);
+      instructions.push({ kind: "gosub", label, location: entryLocation });
+    }
+
+    const runtimeModuleIndexes = moduleOrder
+      .map((filename, index) => ({ filename, index }))
+      .filter(({ index, filename }) => index === 0 || runtimeByModule.get(filename)?.some((instruction) => instruction.kind !== "rem" || !instruction.sourceComment));
+    const runtimeLabels = new Map<string, string>();
+    const runtimeRoutes = new Map<string, string>();
+    let endLabel: string | undefined;
+    for (const [runtimeIndex, current] of runtimeModuleIndexes.entries()) {
+      const next = runtimeModuleIndexes[runtimeIndex + 1];
+      const sectionEnd = next?.index ?? moduleOrder.length;
+      const mustSkipPrivateSections = moduleOrder.slice(current.index, sectionEnd).some((filename) =>
+        initializationByModule.has(filename) || functionStatements.some((statement) => statement.location.filename === filename)
+      );
+      if (!mustSkipPrivateSections) {
+        continue;
+      }
+      if (next) {
+        const label = runtimeLabels.get(next.filename) ?? generator();
+        runtimeLabels.set(next.filename, label);
+        runtimeRoutes.set(current.filename, label);
+      } else {
+        endLabel ??= generator();
+        runtimeRoutes.set(current.filename, endLabel);
+      }
+    }
+
+    for (const filename of moduleOrder) {
+      const runtimeLabel = runtimeLabels.get(filename);
+      if (runtimeLabel) {
+        instructions.push({ kind: "label", name: runtimeLabel, internal: true, location: runtimeByModule.get(filename)?.[0]?.location ?? entryLocation });
+      }
+      instructions.push(...(runtimeByModule.get(filename) ?? []));
+
+      const runtimeRoute = runtimeRoutes.get(filename);
+      if (runtimeRoute) {
+        instructions.push({
+          kind: "goto",
+          label: runtimeRoute,
+          location: runtimeByModule.get(filename)?.at(-1)?.location ?? entryLocation
+        });
+      }
+
+      const initializationLabel = initializationLabels.get(filename);
+      const moduleInitialization = initializationByModule.get(filename);
+      if (initializationLabel && moduleInitialization) {
+        instructions.push({ kind: "label", name: initializationLabel, internal: true, location: moduleInitialization[0].location });
+        instructions.push(...moduleInitialization);
+        instructions.push({ kind: "return", location: moduleInitialization.at(-1)!.location });
+      }
+      for (const statement of functionStatements.filter((candidate) => candidate.location.filename === filename)) {
+        lowerFunctionStatement(statement, instructions, generator, context, false);
+      }
+    }
+    functionsEmitted = true;
+    if (endLabel) {
+      const lastLocation = instructions.at(-1)?.location ?? entryLocation;
+      instructions.push({ kind: "label", name: endLabel, internal: true, location: lastLocation });
+    }
   }
 
   if (testStatements.length > 0) {
@@ -407,33 +504,81 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     }
   }
 
-  if (functionStatements.length > 0) {
+  if (!functionsEmitted && functionStatements.length > 0) {
     const endLabel = generator();
     if (!options.testMode) {
       instructions.push({ kind: "goto", label: endLabel, location: functionStatements[0].location });
     }
     for (const statement of functionStatements) {
-      if (!statement.implementation) {
-        throw new DiagnosticError(statement.location, `Internal error: FUNCTION ${statement.name} was not analyzed before lowering.`);
-      }
-      instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
-      lowerStatements(statement.body, instructions, generator, context, statement.implementation, {
-        testMode: options.testMode === true,
-        capturePrints: options.testMode === true
-      });
-      if (instructions[instructions.length - 1]?.kind !== "return") {
-        instructions.push({ kind: "return", location: statement.location });
-      }
+      lowerFunctionStatement(statement, instructions, generator, context, options.testMode === true);
     }
     if (!options.testMode) {
       instructions.push({ kind: "label", name: endLabel, internal: true, location: functionStatements[0].location });
     }
   }
 
+  lowerStatements(dataStatements, instructions, generator, context);
+
   const labels = buildLabelMap(instructions);
   validateReferences(instructions, labels);
 
   return { instructions, labels };
+}
+
+function lowerFunctionStatement(
+  statement: Extract<Statement, { kind: "function" }>,
+  instructions: Instruction[],
+  nextInternalLabel: () => string,
+  context: FunctionCallLoweringContext,
+  testMode: boolean
+): void {
+  if (!statement.implementation) {
+    throw new DiagnosticError(statement.location, `Internal error: FUNCTION ${statement.name} was not analyzed before lowering.`);
+  }
+  instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
+  lowerStatements(statement.body, instructions, nextInternalLabel, context, statement.implementation, {
+    testMode,
+    capturePrints: testMode
+  });
+  if (instructions[instructions.length - 1]?.kind !== "return") {
+    instructions.push({ kind: "return", location: statement.location });
+  }
+}
+
+function orderedModuleFiles(program: Program, statements: readonly Statement[]): readonly string[] {
+  const files = [...(program.sourceFiles ?? [])];
+  const seen = new Set(files);
+  for (const statement of statements) {
+    if (!seen.has(statement.location.filename)) {
+      seen.add(statement.location.filename);
+      files.push(statement.location.filename);
+    }
+  }
+  return files;
+}
+
+function extractDataStatements(
+  statements: readonly Statement[],
+  dataStatements: Extract<Statement, { kind: "data" }>[]
+): readonly Statement[] {
+  const result: Statement[] = [];
+  for (const statement of statements) {
+    if (statement.kind === "data") {
+      dataStatements.push(statement);
+    } else if (statement.kind === "if") {
+      result.push({
+        ...statement,
+        thenBranch: extractDataStatements(statement.thenBranch, dataStatements),
+        elseBranch: extractDataStatements(statement.elseBranch, dataStatements)
+      });
+    } else if (statement.kind === "function" || statement.kind === "test" || statement.kind === "globals" ||
+               statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until") {
+      result.push({ ...statement, body: extractDataStatements(statement.body, dataStatements) });
+    } else {
+      result.push(statement);
+    }
+  }
+  return result;
 }
 
 interface TopLevelStatementLayout {
@@ -476,7 +621,7 @@ function isTopLevelDeclarationOrInitializer(statement: Statement): boolean {
 }
 
 function isTopLevelStorageDeclaration(statement: Statement): boolean {
-  return statement.kind === "dim" || statement.kind === "data";
+  return statement.kind === "dim";
 }
 
 function isTopLevelInitializer(statement: Statement): boolean {

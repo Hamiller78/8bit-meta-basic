@@ -424,7 +424,7 @@ describe("Atari 800XL compiler", () => {
 
   it("renders DATA, READ, and RESTORE for Atari BASIC", () => {
     expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "atari800xl" })).toBe(
-      ["10 DIM STATUS$(255)", "20 DATA 10,READY,1", "30 READ SCORE,STATUS$,CONFIRMED", "40 PRINT SCORE;STATUS$;CONFIRMED", "50 RESTORE", "60 READ SCORE", ""].join("\n")
+      ["10 DIM STATUS$(255)", "20 READ SCORE,STATUS$,CONFIRMED", "30 PRINT SCORE;STATUS$;CONFIRMED", "40 RESTORE", "50 READ SCORE", "60 DATA 10,READY,1", ""].join("\n")
     );
   });
 

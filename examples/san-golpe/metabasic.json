@@ -1,9 +1,9 @@
 {
   "files": [
+    "source/main.mbas",
     "source/characters.mbas",
     "source/characternames.mbas",
     "source/characterfactory.mbas",
-    "source/main.mbas",
     "source/intro.mbas"
   ],
   "textsDir": "texts"

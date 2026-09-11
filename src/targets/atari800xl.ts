@@ -230,6 +230,7 @@ function hoistAtariStringDimensions(instructions: readonly Instruction[]): reado
   const dimStrings: Extract<Instruction, { kind: "dim-string" }>[] = [];
   const seen = new Set<string>();
   const body: Instruction[] = [];
+  const entryLocation = instructions[0]?.location;
 
   for (const instruction of instructions) {
     if (instruction.kind !== "dim-string") {
@@ -240,7 +241,7 @@ function hoistAtariStringDimensions(instructions: readonly Instruction[]): reado
     const key = instruction.name.toLowerCase();
     if (!seen.has(key)) {
       seen.add(key);
-      dimStrings.push(instruction);
+      dimStrings.push(entryLocation ? { ...instruction, location: entryLocation } : instruction);
     }
   }
 

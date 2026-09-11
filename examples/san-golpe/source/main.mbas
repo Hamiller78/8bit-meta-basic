@@ -1,3 +1,5 @@
+uses "characterfactory.mbas"
+uses "characters.mbas"
 uses "intro.mbas"
 
 program_mode
@@ -7,4 +9,15 @@ screen_text_color WHITE
 cls
 
 showIntro()
+
+cls
+createAllCharacters()
+for i=0 to characterCapacity - 1
+    print_at 2 + i, 1, characters(i).first$; " ";
+    print characters(i).last$; " (";
+    print str$(characters(i).gender); ", ";
+    print str$(characters(i).nationality); ", ";
+    print str$(characters(i).role); ")"
+next i
+
 end

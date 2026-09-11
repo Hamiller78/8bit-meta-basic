@@ -570,7 +570,7 @@ describe("Spectrum compiler", () => {
 
   it("renders DATA, READ, and RESTORE for Spectrum", () => {
     expect(compileSource('data 10, "READY", true\nread score, status$, confirmed\nprint score; status$; confirmed\nrestore\nread score\n', { filename: "data.mbas", target: "spectrum" })).toBe(
-      ['10 DATA 10,"READY",1', "20 READ SCORE,A$,CONFIRMED", "30 PRINT SCORE;A$;CONFIRMED", "40 RESTORE", "50 READ SCORE", ""].join("\n")
+      ["10 READ SCORE,A$,CONFIRMED", "20 PRINT SCORE;A$;CONFIRMED", "30 RESTORE", "40 READ SCORE", '50 DATA 10,"READY",1', ""].join("\n")
     );
   });
 

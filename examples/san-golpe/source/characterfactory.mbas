@@ -13,10 +13,10 @@ function createAllCharacters()
 
     presidentIndex = createRoleCharacter(president, native, male)
     daughterIndex = createRoleCharacter(daughter, native, female)
-    createRoleCharacter(advisor, native, any)
+    createRoleCharacter(advisor, native, male)
     createRoleCharacter(priest, native, male)
     createRoleCharacter(bartender, native, any)
-    createRoleCharacter(landowner, native, any)
+    createRoleCharacter(landowner, native, male)
     createRoleCharacter(ustourist, us, any)
 
     if presidentIndex <> noCharacterIndex and daughterIndex <> noCharacterIndex then

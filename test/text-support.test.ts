@@ -128,10 +128,17 @@ describe("localized text and layout", () => {
     }
   });
   it("loads the San-Golpe translations from optional project texts", async () => {
+    const configPath = "examples/san-golpe/metabasic.json";
+    const configuration = await loadBuildConfiguration(configPath);
     for (const target of targets) for (const language of ["en", "de"]) {
-      const result = await build({ files: ["source/main.mbas", "source/intro.mbas"] }, { baseDir: "examples/san-golpe", target, language });
+      const result = await build(configuration, { configPath, target, language });
       expect(result).toContain(language === "de" ? (target === "c64" ? "VEROEFFENTLICHTE" : "veroeffentlichte") : (target === "c64" ? "SMALL" : "small"));
       expect(result).not.toContain("PRINT_TEXT");
+      const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTRO.MBAS", "DATA"];
+      const moduleOffsets = moduleNames.map((name) => result.indexOf(`MODULE ${name}`));
+      expect(moduleOffsets.every((offset) => offset >= 0)).toBe(true);
+      expect(moduleOffsets).toEqual([...moduleOffsets].sort((left, right) => left - right));
+      expect(result.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
     }
   });
 });
