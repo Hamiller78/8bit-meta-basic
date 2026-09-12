@@ -510,7 +510,7 @@ Font conversion applies to `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Ord
 
 German characters are transliterated before measuring and wrapping text: `ä` → `ae`, `ö` → `oe`, `ü` → `ue`, `Ä` → `Ae`, `Ö` → `Oe`, `Ü` → `Ue`, `ß` → `ss`, and `ẞ` → `SS`. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics. Custom fonts and general Unicode conversion are not supported.
 
-JSON build configurations accept optional `textsDir`, `language`, and `font` fields. `textsDir` defaults to `texts` relative to the configuration file. CLI language/font options override configuration defaults. Conventional project builds automatically use the project's `texts/` folder. Single-source CLI builds look for `texts/` beside the source; `--texts-dir path` overrides resource discovery. Compiler library callers supply a selected-language `texts` dictionary through `CompileOptions`, keeping filesystem access outside the compiler core.
+JSON build configurations accept optional `textsDir`, `language`, and `font` fields. `textsDir` defaults to `texts` relative to the configuration file. CLI language/font options override configuration defaults. Conventional project builds preserve these fields from the project's `metabasic.json`, or use the project's `texts/` folder when `textsDir` is omitted. Single-source CLI builds look for `texts/` beside the source; `--texts-dir path` overrides resource discovery. Compiler library callers supply a selected-language `texts` dictionary through `CompileOptions`, keeping filesystem access outside the compiler core.
 
 ### Device output
 

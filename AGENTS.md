@@ -587,7 +587,7 @@ npm run build:all-targets -- --build-config examples/multifile/metabasic.json --
 npm run build:all-targets -- --project examples/project-demo --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
-npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run test:language:build
 npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 npm run build:directory -- --source-dir examples --profile debug
@@ -597,7 +597,7 @@ npm run launch:all-targets -- --source examples/narf.mbas --restart
 npm run launch:all-targets -- --build-config examples/multifile/metabasic.json --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
 npm run launch:all-targets -- --project examples/project-demo --run-tests --module math --restart
-npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run test:language:c64 -- --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -620,7 +620,7 @@ The build and launch scripts accept exactly one input selector: `--source file.m
 
 `scripts/scaffold-project.mjs` backs `npm run new:project` and `npm run new:module`. It creates conventional `source/` and `tests/` folders plus starter `.mbas` files, and refuses to overwrite existing files.
 
-`examples/instruction-suite` is a conventional project containing a portable Meta-BASIC instruction-set regression suite. It should compile in test mode for all targets. Use `--module` to run focused slices such as `--module strings` when emulator memory or debugging workflow makes the full suite inconvenient.
+`language-tests/instruction-suite` is the Meta-BASIC language conformance and regression suite, not an application example. Any change that adds or modifies language syntax, commands, semantics, shared lowering, or target lowering must add or update a focused test there. Run the affected module often during development, for example `npm run test:language:c64 -- --module strings --restart`, then build the complete suite for every target and run it in every locally available emulator before considering the language change complete. If a target emulator is unavailable, still generate and inspect its artifacts and state that the emulator run was unavailable.
 
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 

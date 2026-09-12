@@ -291,7 +291,8 @@ export function programIdentity(cwd, source, buildConfigPath, projectPath) {
 
 export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, testPrinterOutput = false, testOutputDevice = "printer", moduleName } = {}) {
   const projectRoot = resolve(cwd, projectPath);
-  const sourceFiles = await findProjectSourceFiles(projectRoot);
+  const projectConfiguration = await readProjectConfiguration(projectRoot);
+  const sourceFiles = await findProjectSourceFiles(projectRoot, projectConfiguration);
   const testFiles = testMode ? filterProjectTestFiles(await findProjectMbasFiles(resolve(projectRoot, "tests")), moduleName) : [];
 
   if (sourceFiles.length === 0) {
@@ -305,24 +306,45 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
   await mkdir(configDir, { recursive: true });
   const mode = testMode ? `${moduleName ? `${safeProjectPart(moduleName)}.` : ""}tests` : "source";
   const configPath = resolve(configDir, `${basename(projectRoot)}.${mode}.metabasic.json`);
+  const textsDir = projectConfiguration?.textsDir === undefined ? resolve(projectRoot, "texts") : resolveProjectTextDirectory(projectRoot, projectConfiguration.textsDir);
   await writeFile(
     configPath,
-    `${JSON.stringify({ textsDir: resolve(projectRoot, "texts"), testMode, ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}), files: [...sourceFiles, ...testFiles] }, null, 2)}\n`,
+    `${JSON.stringify({
+      textsDir,
+      ...(projectConfiguration?.language !== undefined ? { language: projectConfiguration.language } : {}),
+      ...(projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
+      testMode,
+      ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}),
+      files: [...sourceFiles, ...testFiles]
+    }, null, 2)}\n`,
     "utf8"
   );
   return configPath;
 }
 
-async function findProjectSourceFiles(projectRoot) {
-  const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
+async function readProjectConfiguration(projectRoot) {
   const projectConfigPath = resolve(projectRoot, "metabasic.json");
   if (!(await exists(projectConfigPath))) {
-    return sourceFiles;
+    return undefined;
   }
-
   const config = JSON.parse(await readFile(projectConfigPath, "utf8"));
   if (!config || typeof config !== "object" || !Array.isArray(config.files)) {
     throw new Error(`Invalid project build configuration "${projectConfigPath}": "files" must be an array.`);
+  }
+  return config;
+}
+
+function resolveProjectTextDirectory(projectRoot, textsDir) {
+  if (typeof textsDir !== "string" || textsDir.length === 0) {
+    throw new Error(`Invalid project build configuration "${resolve(projectRoot, "metabasic.json")}": "textsDir" must be a nonempty string.`);
+  }
+  return resolve(projectRoot, textsDir);
+}
+
+async function findProjectSourceFiles(projectRoot, config) {
+  const sourceFiles = await findProjectMbasFiles(resolve(projectRoot, "source"));
+  if (!config) {
+    return sourceFiles;
   }
 
   const discovered = new Set(sourceFiles);

@@ -1,0 +1,8 @@
+{
+  "font": "mixed",
+  "files": [
+    "source/main.mbas",
+    "source/functions.mbas",
+    "source/data.mbas"
+  ]
+}

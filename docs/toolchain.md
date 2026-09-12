@@ -14,7 +14,7 @@ npm run build:all-targets -- --build-config examples/multifile/metabasic.json --
 npm run build:all-targets -- --project examples/project-demo --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
-npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
+npm run test:language:build
 npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 npm run build:directory -- --source-dir examples --profile debug
@@ -70,7 +70,7 @@ project/
     math-tests.mbas
 ```
 
-Normal project builds use the file list from the project's `metabasic.json` when present; otherwise they compile the `.mbas` files directly inside `source/`, sorted by filename. The configured order is preserved in generated BASIC, with the first file serving as the entry module. Cross-file access requires a direct `USES "relative/path.mbas"` declaration in the accessing file, including test files. Paths in `USES` are relative to that source file; all referenced files must be selected build inputs. `USES` does not discover dependencies, reorder files, or bypass constant declaration order. Missing declarations and dependency cycles are compile-time errors. Top-level constants, enums, struct definitions, and `DIM` declarations are collected before executable statements are analyzed. Multi-file output uses startup calls so module storage and global initializers execute before the entry body while the module sections remain in configured order. All `DATA` statements are emitted in a final data section. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
+Normal project builds use the file list from the project's `metabasic.json` when present; otherwise they compile the `.mbas` files directly inside `source/`, sorted by filename. Project builds also preserve optional `textsDir`, `language`, and `font` defaults from `metabasic.json`. The configured order is preserved in generated BASIC, with the first file serving as the entry module. Cross-file access requires a direct `USES "relative/path.mbas"` declaration in the accessing file, including test files. Paths in `USES` are relative to that source file; all referenced files must be selected build inputs. `USES` does not discover dependencies, reorder files, or bypass constant declaration order. Missing declarations and dependency cycles are compile-time errors. Top-level constants, enums, struct definitions, and `DIM` declarations are collected before executable statements are analyzed. Multi-file output uses startup calls so module storage and global initializers execute before the entry body while the module sections remain in configured order. All `DATA` statements are emitted in a final data section. Project test-mode builds compile `source/` and then `tests/`, with `testMode` enabled:
 
 ```text
 npm run build:spectrum -- --project examples/project-demo --profile debug
@@ -92,8 +92,9 @@ Recognized test-file names are `tests/math.mbas`, `tests/math-tests.mbas`, and `
 To mirror the generated test-runner log to an emulator device, add `--printer-output`. Launch scripts default to the currently verified transport for each target: Spectrum uses `text-printer`, Atari uses `shared-drive`, and C64 uses `rs232`. You can override this with `--test-output-device printer`, `--test-output-device text-printer`, `--test-output-device shared-drive`, or `--test-output-device rs232`:
 
 ```text
-npm run launch:all-targets -- --project examples/instruction-suite --run-tests --printer-output --restart
-npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device shared-drive --restart
+npm run test:language:spectrum -- --restart
+npm run test:language:c64 -- --restart
+npm run test:language:atari -- --restart
 ```
 
 The captured host file path is controlled by the emulator block in `scripts/tools.local.json`:
@@ -103,7 +104,7 @@ The captured host file path is controlled by the emulator block in `scripts/tool
 "rs232OutputPath": "build/rs232/{profile}/{target}/{sourceName}.txt"
 ```
 
-For a release C64 run of `examples/instruction-suite`, the RS-232 log is written to:
+For a release C64 run of `language-tests/instruction-suite`, the RS-232 log is written to:
 
 ```text
 build/rs232/release/c64/instruction-suite.txt
@@ -122,22 +123,25 @@ npm run new:module -- --project examples/my-game --module scoring
 
 The project command creates `source/main.mbas`, `tests/main-tests.mbas`, and a simple `metabasic.json`. The module command creates `source/scoring.mbas` and `tests/scoring-tests.mbas`; its generated test declares `uses "../source/scoring.mbas"`. Add `USES` declarations to other files that access the new module. When building from an explicit configuration, add the new source to its `files` list as well. Existing files are never overwritten.
 
-## Instruction regression suite
+## Language conformance suite
 
-`examples/instruction-suite` is a conventional Meta-BASIC project that tests the portable instruction set using the Meta-BASIC test runner. It is intended for compiler regression checks and emulator/device smoke tests:
-
-```text
-npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
-npm run launch:all-targets -- --project examples/instruction-suite --run-tests --restart
-```
-
-For memory-constrained targets or focused debugging, run one module's tests:
+`language-tests/instruction-suite` is the primary Meta-BASIC language conformance project. It lives outside `examples` because it tests language syntax, commands, semantics, compiler lowering, and target behavior rather than demonstrating an application. Add or update a focused suite test whenever one of those areas changes, and run that module often while developing:
 
 ```text
-npm run build:spectrum -- --project examples/instruction-suite --run-tests --module strings --profile debug
+npm run test:language:c64 -- --module strings --restart
+npm run test:language:spectrum -- --module strings --restart
 ```
 
-The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
+Before finishing a language change, build the full suite for every target and run it in each available emulator:
+
+```text
+npm run test:language:build
+npm run test:language:c64 -- --restart
+npm run test:language:spectrum -- --restart
+npm run test:language:atari -- --restart
+```
+
+The suite's project configuration selects the mixed C64 font. Project builds preserve this setting and emit the character-set switch before the test runner begins. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
 
 Generated files normally appear below:
 
@@ -291,7 +295,7 @@ npm run launch:c64 -- --source examples/input-demo.mbas --restart
 For test-runner output inspection in VICE, prefer RS-232 capture over the printer path:
 
 ```text
-npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run test:language:c64 -- --restart
 ```
 
 The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, converts the received PETSCII test log to readable UTF-8 text, and writes it to `build/rs232/<profile>/c64/<source-name>.txt`.

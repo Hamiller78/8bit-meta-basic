@@ -82,18 +82,20 @@ npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 ```
 
-The portable instruction-set regression suite lives in `examples/instruction-suite`:
+The language conformance and regression suite lives in `language-tests/instruction-suite`, outside the application examples. Use it whenever language syntax, commands, semantics, or target lowering changes:
 
 ```text
-npm run build:all-targets -- --project examples/instruction-suite --run-tests --profile debug
-npm run launch:all-targets -- --project examples/instruction-suite --run-tests --module strings --restart
+npm run test:language:build
+npm run test:language:spectrum -- --module strings --restart
+npm run test:language:c64 -- --module strings --restart
 ```
 
-Test runs can also mirror the generated test-runner output to a configured emulator device:
+The target launch scripts mirror the generated test-runner output to the configured emulator device. Run the full suite before finishing a language change:
 
 ```text
-npm run launch:all-targets -- --project examples/instruction-suite --run-tests --printer-output --restart
-npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run test:language:spectrum -- --restart
+npm run test:language:c64 -- --restart
+npm run test:language:atari -- --restart
 ```
 
 The launch scripts default to the verified capture transport for each target: Spectrum uses `TEXT_PRINTER`/Fuse ZX Printer text output, Atari uses `SHARED_DRIVE`/Altirra H: output below `build/altirra_drive/`, and C64 uses a small local RS-232 capture endpoint below `build/rs232/<profile>/c64/`.
@@ -223,4 +225,4 @@ Build and launch scripts accept `--language` and `--font`. Fonts are `default`, 
 
 German umlauts and ß are transliterated before wrapping (`ä` → `ae`, `Ä` → `Ae`, `ß` → `ss`), and common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. This is portable text support, not a custom font loader or general character-set converter. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
 
-For JSON builds, optional `textsDir`, `language`, and `font` fields set defaults. `textsDir` is relative to the configuration file and defaults to `texts`; CLI options override language/font defaults. Conventional `--project` builds automatically use the project's sibling `texts/` folder. Single-source CLI builds look beside the source for `texts/`, or use `--texts-dir path`. Library callers pass a selected-language `texts` dictionary in `CompileOptions`; the compiler core performs no filesystem I/O.
+For JSON builds, optional `textsDir`, `language`, and `font` fields set defaults. `textsDir` is relative to the configuration file and defaults to `texts`; CLI options override language/font defaults. Conventional `--project` builds preserve these fields from the project's `metabasic.json`, or use the project's sibling `texts/` folder when `textsDir` is omitted. Single-source CLI builds look beside the source for `texts/`, or use `--texts-dir path`. Library callers pass a selected-language `texts` dictionary in `CompileOptions`; the compiler core performs no filesystem I/O.

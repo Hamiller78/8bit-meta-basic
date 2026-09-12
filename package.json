@@ -25,6 +25,10 @@
     "new:module": "node scripts/scaffold-project.mjs new-module",
     "prepare:vscode-extension": "npm run build && node scripts/package-vscode-extension.mjs",
     "test": "vitest run test",
+    "test:language:build": "node scripts/build-all.mjs --project language-tests/instruction-suite --run-tests --profile release",
+    "test:language:spectrum": "node scripts/launch-spectrum.mjs --project language-tests/instruction-suite --run-tests --profile release --printer-output",
+    "test:language:atari": "node scripts/launch-atari.mjs --project language-tests/instruction-suite --run-tests --profile release --printer-output",
+    "test:language:c64": "node scripts/launch-c64.mjs --project language-tests/instruction-suite --run-tests --profile release --printer-output",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"
   },

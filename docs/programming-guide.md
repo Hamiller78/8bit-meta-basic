@@ -436,6 +436,7 @@ Keep runtime strings within the portable 255-character limit. `PRINT` uses semic
 | Data streams | [`examples/data-demo.mbas`](../examples/data-demo.mbas) |
 | Multi-file program | [`examples/multifile`](../examples/multifile) |
 | Localization and a larger project | [`examples/san-golpe`](../examples/san-golpe) |
-| Portable test examples | [`examples/instruction-suite`](../examples/instruction-suite) |
 
 For normal application work, consult this guide, the language reference, and the examples before relying on generated output or compiler implementation details. If accepted compiler behavior is missing from the reference, treat that as a documentation gap and update the reference with the code change.
+
+The compiler's portable language conformance tests live separately in [`language-tests/instruction-suite`](../language-tests/instruction-suite). They are regression tests for language and target behavior rather than programming examples.

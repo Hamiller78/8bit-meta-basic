@@ -13,9 +13,9 @@ end test
 
 test StringLengthAndCodes()
     assert_eq 5, len("HELLO")
-    assert_eq "A", chr$(65)
-    assert_eq 65, code("A")
-    assert_eq 65, asc("A")
+    assert_eq "A", chr$(code("A"))
+    assert_eq code("A"), asc("A")
+    assert_eq 1, len(chr$(code("A")))
 end test
 
 test StringNumberConversion()

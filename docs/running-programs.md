@@ -97,7 +97,7 @@ Status: **verified locally with Fuse 1.6.0 on Linux, including a project test ru
 For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
 
 ```text
-npm run launch:spectrum -- --project examples/instruction-suite --run-tests --printer-output --test-output-device text-printer --restart
+npm run test:language:spectrum -- --restart
 ```
 
 If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64.
@@ -256,20 +256,20 @@ This H: mapping is currently a manual Altirra setting. The JSON config only tell
 For Atari800, the launcher configures the H: host device on the command line. The default Atari800 test path is `H1:MCP.TXT`, mapped to `build/atari800_drive/MCP.TXT`:
 
 ```text
-npm run launch:atari800 -- --project examples/instruction-suite --run-tests --printer-output --restart
+npm run launch:atari800 -- --project language-tests/instruction-suite --run-tests --printer-output --restart
 ```
 
 Shared-drive capture:
 
 ```text
-npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --restart
+npm run test:language:atari -- --restart
 ```
 
 Printer and serial hooks remain available for experiments:
 
 ```text
-npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device printer --restart
-npm run launch:atari -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device printer --restart
+npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 ```
 
 ## Commodore 64 emulator
@@ -311,7 +311,7 @@ Status: **verified locally with VICE and a localhost RS-232 capture endpoint**.
 Run:
 
 ```text
-npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
+npm run test:language:c64 -- --restart
 ```
 
 The launch script starts a small local TCP capture helper, passes VICE a dynamic `127.0.0.1:<port>` Serial 1 endpoint, and writes the test-runner output to:

@@ -195,7 +195,12 @@ describe("build scripts", () => {
     await writeFile(join(dir, "demo", "source", "main.mbas"), 'print "MAIN"\n', "utf8");
     await writeFile(join(dir, "demo", "source", "math.mbas"), "function Double(Value)\nreturn Value * 2\nend function\n", "utf8");
     await writeFile(join(dir, "demo", "tests", "math-tests.mbas"), "test DoubleWorks()\nassert_eq 8, Double(4)\nend test\n", "utf8");
-    await writeFile(join(dir, "demo", "metabasic.json"), JSON.stringify({ files: ["source/math.mbas", "source/main.mbas"] }), "utf8");
+    await writeFile(join(dir, "demo", "metabasic.json"), JSON.stringify({
+      textsDir: "translations",
+      language: "de",
+      font: "mixed",
+      files: ["source/math.mbas", "source/main.mbas"]
+    }), "utf8");
 
     const sourceConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build" });
     const testConfigPath = await writeProjectBuildConfig({ cwd: dir, projectPath: "demo", outDir: "build", testMode: true });
@@ -205,9 +210,14 @@ describe("build scripts", () => {
     const printerConfig = JSON.parse(await readFile(printerConfigPath, "utf8"));
 
     expect(sourceConfig.testMode).toBe(false);
+    expect(sourceConfig.textsDir).toBe(join(dir, "demo", "translations"));
+    expect(sourceConfig.language).toBe("de");
+    expect(sourceConfig.font).toBe("mixed");
     expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
+    expect(testConfig.language).toBe("de");
+    expect(testConfig.font).toBe("mixed");
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
     expect(printerConfig.testPrinterOutput).toBe(true);
