@@ -1,8 +1,57 @@
 # Meta-BASIC language reference
 
-This document describes the implemented source language. Target-specific rendering is documented in [targets.md](targets.md).
+This document describes the implemented source language. Start with the [programming guide](programming-guide.md) for project structure and copyable application patterns. Target-specific rendering is documented in [targets.md](targets.md).
+
+The forms documented here are the supported Meta-BASIC source syntax. Do not infer additional source syntax from generated Spectrum, Atari, or C64 BASIC. In particular, target output may contain `LET`, native functions, `POKE`, `SYS`, compact variable names, and zero-based coordinates that are not written that way in Meta-BASIC.
 
 Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may contain ASCII letters, digits, and underscores, must begin with a letter or underscore, and may end in `$` to denote a string variable or `%` to denote an integer numeric variable.
+
+## Contents
+
+- [Program structure](#program-structure)
+- [Module dependencies: USES](#module-dependencies-uses)
+- [Constants](#constants)
+- [Variables and assignment](#variables-and-assignment)
+- [Arrays and structs](#arrays)
+- [Expressions and built-in functions](#expressions)
+- [Joystick input](#joystick-input)
+- [Data streams](#data-streams)
+- [User-defined functions](#user-defined-functions)
+- [Output, layout, localization, and devices](#output)
+- [Test Mode](#test-mode)
+- [Control flow](#control-flow)
+- [Screen and colour commands](#screen-and-colour-commands)
+- [Current omissions](#current-omissions)
+
+## Syntax summary
+
+| Purpose | Source form |
+| --- | --- |
+| Dependency | `uses "module.mbas"` |
+| Constant | `const name = expression` |
+| Enum | `enum Name ... end enum` |
+| Struct type | `struct Name ... end struct` |
+| Array | `dim values(count)` or `dim names$(count, width)` |
+| Struct storage | `dim value AS Type` or `dim values AS Type(count)` |
+| Assignment | `name = expression`, `name% = expression`, `name$ = expression` |
+| Array/field assignment | `values(index) = expression`, `item.field = expression` |
+| Function | `function Name(parameters) ... end function` |
+| Inline function | `inline function Name(parameters) ... end function` |
+| Function local | `local first, second$` |
+| Conditional | `if expression then ... else ... end if` |
+| Counted loop | `for index = start to limit [step amount] ... next index` |
+| Conditional loops | `while expression ... wend`, `repeat ... until expression` |
+| Loop control | `exit for`, `continue for` |
+| Label and jumps | `name:`, `goto name`, `gosub name`, `return` |
+| Program termination | `end` |
+| Output | `print`, `print items`, `print_at row, column, items` |
+| Cursor | `set_pos row, column` |
+| Compile-time layout | `print_wrap text`, `print_centered text`, `print_text "key"` |
+| Data stream | `data values`, `read variables`, `restore` |
+| Random numbers | `randomize [seed]`, `rnd()` |
+| Test | `test Name() ... end test` |
+
+Statements are line-oriented. Write one source statement per line; a colon is used for a label, not as a general statement separator.
 
 ## Program structure
 
@@ -361,7 +410,7 @@ inline function PrintCell(row, column, text$)
     print_at row, column, text$
 end function
 
-PrintCell(4, 0, "READY")
+PrintCell(4, 1, "READY")
 ```
 
 Inline functions are intentionally limited to predictable expansion. They cannot contain labels, `GOTO`, `GOSUB`, `EXIT FOR`, or `CONTINUE FOR`; they cannot assign to their parameters; and if they return a value, the `RETURN expression` must be the final statement.
@@ -646,4 +695,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function/test locals, procedures, namespaces, exports, automatic dependency loading, separate compilation, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function/test locals, a separate `PROCEDURE` declaration, namespaces, exports, automatic dependency loading, separate compilation, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

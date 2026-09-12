@@ -16,6 +16,7 @@ Generated BASIC is a development artifact, not merely an opaque intermediate fil
 
 ## Working principles
 
+- For ordinary Meta-BASIC application work, use `docs/programming-guide.md`, `docs/language-reference.md`, `docs/targets.md`, and the examples as the source of truth. Read compiler implementation code when diagnosing or changing compiler behavior, or when the documentation has a concrete gap. When implementation inspection reveals user-visible behavior that the documentation does not cover, update the documentation as part of the change.
 - Keep the compiler core independent of VS Code. A future extension will call the same library and CLI.
 - Prefer a small functional core: parse source into immutable data, transform it, then render a target dialect.
 - Maintain the explicit pipeline: source text, tokens, syntax tree, semantic analysis, shared lowering, target lowering, line numbering, and target rendering.

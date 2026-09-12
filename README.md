@@ -157,6 +157,7 @@ Spectrum output begins like this:
 
 ## Documentation
 
+- [Programming guide](docs/programming-guide.md)
 - [Language reference](docs/language-reference.md)
 - [Architecture](docs/architecture.md)
 - [Target machines and generated output](docs/targets.md)
