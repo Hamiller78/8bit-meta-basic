@@ -174,6 +174,8 @@ messages$(2) = "STANDBY"
 print messages$(0); messages$(2)
 ```
 
+The declared width is observable on targets that use fixed slices for storage. Spectrum and Atari reads can include trailing spaces up to that width, while C64 native string-array entries retain their runtime length. When later code concatenates a fixed-width value, first remove trailing padding with `LEN`, `MID$`, and `LEFT$`, or store its logical length separately. Otherwise text appended after the padding can be truncated when it is assigned to another fixed-width array or struct field.
+
 Use `STRUCT` blocks to define small record-like storage shapes:
 
 ```basic

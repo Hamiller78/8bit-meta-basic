@@ -624,7 +624,7 @@ The build and launch scripts accept exactly one input selector: `--source file.m
 
 `scripts/launch-c64.mjs` backs `npm run launch:c64`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the configured C64 packaging tool, and launches the configured emulator with the generated `.prg`. The C64 emulator path and arguments live in the `c64.emulator` block of `scripts/tools.local.json`; `{artifact}` expands to the generated `.prg`. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
-For C64 test-runner capture, prefer `--printer-output` with the launcher default or `--printer-output --test-output-device rs232`. The launch script starts `scripts/rs232-capture.mjs`, creates a dynamic localhost endpoint, expands `{rs232Endpoint}` in `c64.emulator.rs232Args`, and writes captured bytes to `build/rs232/<profile>/c64/<source-name>.txt`. VICE should show Serial 1 as `127.0.0.1:<port>` with userport RS-232 enabled and `IP232` unchecked. Do not point VICE directly at `{rs232Output}` for RS-232 capture; local file paths in that field may create empty files.
+For C64 test-runner capture, prefer `--printer-output` with the launcher default or `--printer-output --test-output-device rs232`. The launch script starts `scripts/rs232-capture.mjs`, creates a dynamic localhost endpoint, expands `{rs232Endpoint}` in `c64.emulator.rs232Args`, converts the PETSCII stream to readable host text, and writes it to `build/rs232/<profile>/c64/<source-name>.txt`. VICE should show Serial 1 as `127.0.0.1:<port>` with userport device 2 (RS-232/modem) enabled and `IP232` unchecked. Use `-userportdevice 2`; `-rsuser` is ambiguous in VICE 3.7.1. Do not point VICE directly at `{rs232Output}` for RS-232 capture; local file paths in that field may create empty files.
 
 `scripts/launch-atari.mjs` backs `npm run launch:atari`. It builds the selected `--source`, `--build-config`, or `--project` input with the release profile by default, runs the shared Atari packaging tools from `atari800xl.tools`, and launches Altirra. Altirra's path and arguments live in the `atari800xl.emulators.altirra` block of `scripts/tools.local.json`; `{artifact}` expands to the selected artifact. The default artifact is `tokenized-bas`, which uses Altirra `/runbas`. `--artifact atr`, `--artifact lst`, and `--artifact disk-directory` are available for experiments; the generated ATR is a data disk and is not bootable. Passing `--restart` or `--kill-existing` terminates existing processes with the configured emulator executable name before launching the new program.
 
@@ -704,6 +704,8 @@ Keep target-independent parsing and semantic analysis separate from all target r
 ## Testing expectations
 
 Preserve existing tests when changing behavior, updating goldens only when the behavioral change is intentional.
+
+For changes to executable Meta-BASIC application code, add or update focused Meta-BASIC `TEST` blocks where the behavior can be asserted. After host-side tests and compilation pass, launch the affected runner in every configured and working target emulator using `--run-tests --printer-output` and the program's intended language, font, and profile, then read the captured host log. A completed emulator test reaches the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, reports zero for both `FAILED` and `FAILURES`, and has a passed count equal to its test count. The launch command returning is not an emulator result because launchers detach after starting the emulator. Build unavailable targets and report their emulator run as unavailable; do not present a build-only result as runtime verification. Use `docs/running-programs.md#complete-emulator-test-workflow` for commands, transport details, and capture paths.
 
 Coverage currently includes:
 
@@ -799,5 +801,7 @@ For ordinary implementation changes, finish with:
 - `npm run build`
 
 When behavior affects CLI output or target rendering, also verify relevant `npm run dev -- ...` and `npm start -- ...` commands for the affected target or targets.
+
+When changing executable `.mbas` program code, also complete the available target-emulator test workflow described under Testing expectations. If the change cannot be covered by an automated Meta-BASIC test, run the program in each available target emulator and state what was inspected manually.
 
 The final report should list changed files, verification commands, and any remaining limitations or known warnings.

@@ -105,8 +105,16 @@ describe("build scripts", () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
     expect(config.c64.emulator.rs232OutputPath).toBe("build/rs232/{profile}/{target}/{sourceName}.txt");
+    expect(config.c64.emulator.rs232Args).toContain("-userportdevice");
+    expect(config.c64.emulator.rs232Args).not.toContain("-rsuser");
     expect(config.c64.emulator.rs232Args).toContain("{rs232Endpoint}");
     expect(config.c64.emulator.rs232Args).not.toContain("{rs232Output}");
+  });
+
+  it("decodes C64 PETSCII RS232 test output as readable host text", async () => {
+    const { decodePetsciiText } = await import("../scripts/rs232-capture.mjs");
+
+    expect(decodePetsciiText(Buffer.from([0xcd, 0xc5, 0xd4, 0xc1, 0x20, 0xc3, 0x68, 0x61, 0x72, 0x0d]))).toBe("META Char\n");
   });
 
   it("configures the Spectrum emulator launch command", async () => {

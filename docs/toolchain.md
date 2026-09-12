@@ -109,6 +109,8 @@ For a release C64 run of `examples/instruction-suite`, the RS-232 log is written
 build/rs232/release/c64/instruction-suite.txt
 ```
 
+The launch scripts detach after starting an emulator. Their successful exit does not mean that the Meta-BASIC tests passed. Read the selected host capture and wait for the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, allowing for target line wrapping; a successful run reports zero for both `FAILED` and `FAILURES`. See the [complete emulator test workflow](running-programs.md#complete-emulator-test-workflow) for the target log paths, completion criteria, and unavailable-target handling.
+
 ## Project scaffolding
 
 Use the scaffolding scripts to create the conventional folder layout:
@@ -292,15 +294,15 @@ For test-runner output inspection in VICE, prefer RS-232 capture over the printe
 npm run launch:c64 -- --project examples/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 ```
 
-The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, and writes received bytes to `build/rs232/<profile>/c64/<source-name>.txt`.
+The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, converts the received PETSCII test log to readable UTF-8 text, and writes it to `build/rs232/<profile>/c64/<source-name>.txt`.
 
 The example VICE arguments are:
 
 ```json
-"rs232Args": ["-rsuser", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
+"rs232Args": ["-userportdevice", "2", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
 ```
 
-In the VICE GUI this appears under RS232 as Serial 1 set to a localhost port. Leave `IP232` unchecked for this capture helper. The userport RS-232 emulation must be enabled; ACIA/SwiftLink settings are separate from the BASIC `OPEN 1,2,...` path used here.
+In the VICE GUI this appears under RS232 as Serial 1 set to a localhost port. Leave `IP232` unchecked for this capture helper. `-userportdevice 2` attaches the RS-232/modem device to the C64 user port; `-rsuser` is not a complete option and is ambiguous in VICE 3.7.1. ACIA/SwiftLink settings are separate from the BASIC `OPEN 1,2,...` path used here.
 
 The older printer capture config remains available, but local VICE printer-to-file behavior can vary by version and settings.
 

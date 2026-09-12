@@ -63,6 +63,7 @@ function createCharacter(nationality, gender)
 
     firstName$ = takeFirstName$(nationality, actualGender)
     lastName$ = takeLastName$(nationality)
+    lastName$ = trimName$(lastName$)
     if nationality = russian and actualGender = female then
         lastName$ = lastName$ + "a"
     end if
@@ -75,4 +76,17 @@ function createCharacter(nationality, gender)
 
     createdCharacterCount = createdCharacterCount + 1
     return characterIndex
+end function
+
+function trimName$(name$)
+    local nameLength
+
+    nameLength = len(name$)
+    while nameLength > 0
+        if mid$(name$, nameLength, 1) <> " " then
+            return left$(name$, nameLength)
+        end if
+        nameLength = nameLength - 1
+    wend
+    return ""
 end function

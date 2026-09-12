@@ -21,6 +21,8 @@ test CharacterNamesAreUsedOnlyOnce()
 end test
 
 test AllCharacterRolesAreCreated()
+    local russianMaleLast$, russianFemaleLast$, femaleNameHasSuffix
+
     createAllCharacters()
 
     assert_eq characterCapacity, createdCharacterCount
@@ -30,10 +32,20 @@ test AllCharacterRolesAreCreated()
     assert_eq female, characters(1).gender
     assert_eq ussragent, characters(2).role
     assert_eq male, characters(2).gender
-    assert_ne "a", right$(characters(2).last$, 1)
+    russianMaleLast$ = characters(2).last$
+    assert_ne "a", mid$(russianMaleLast$, 7, 1)
+    assert_ne "a", mid$(russianMaleLast$, 8, 1)
     assert_eq ussragent, characters(3).role
     assert_eq female, characters(3).gender
-    assert_eq "a", right$(characters(3).last$, 1)
+    russianFemaleLast$ = characters(3).last$
+    femaleNameHasSuffix = 0
+    if mid$(russianFemaleLast$, 7, 1) = "a" then
+        femaleNameHasSuffix = 1
+    end if
+    if mid$(russianFemaleLast$, 8, 1) = "a" then
+        femaleNameHasSuffix = 1
+    end if
+    assert_true femaleNameHasSuffix
     assert_eq president, characters(4).role
     assert_eq daughter, characters(5).role
     assert_eq characters(4).last$, characters(5).last$

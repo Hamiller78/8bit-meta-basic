@@ -130,6 +130,8 @@ names$(0) = name$
 
 An array dimension is an element count rather than the largest index. Constant indexes are checked by the compiler; dynamic indexes remain the program's responsibility.
 
+Treat values read from fixed-width string arrays and string fields as padded to their declared width. Spectrum and Atari can preserve trailing spaces that C64 native strings do not. Trim that padding or keep a separate logical length before concatenating more text; [`examples/san-golpe/source/characterfactory.mbas`](../examples/san-golpe/source/characterfactory.mbas) contains a small `trimName$` example.
+
 Structs group related values at source level:
 
 ```basic
@@ -380,12 +382,23 @@ test RollStaysInRange()
 end test
 ```
 
-Build or launch the generated runner:
+Build the generated runner first, then run it in the target emulators:
 
 ```text
 npm run build:all-targets -- --project my-game --run-tests --profile debug
-npm run launch:c64 -- --project my-game --run-tests --restart
+npm run launch:spectrum -- --project my-game --run-tests --profile debug --printer-output --restart
+npm run launch:c64 -- --project my-game --run-tests --profile debug --printer-output --restart
 ```
+
+`--printer-output` mirrors the test runner through the target's verified host transport. Spectrum/Fuse uses ZX Printer text output, C64/VICE uses RS-232, and Atari uses a shared-drive file. The launch command returning only confirms that the emulator started. Wait for the captured file to reach the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, then check that the reported values for both `FAILED` and `FAILURES` are zero:
+
+```text
+cat build/printer/debug/spectrum/my-game.txt
+cat build/rs232/debug/c64/my-game.txt
+cat build/altirra_drive/MCP.TXT
+```
+
+Use `--module dice` on both the build and launch commands to select a matching test file when a focused runner is more useful. Keep `--language` and `--font` consistent too; C64 test output containing mixed case is readable on the emulated screen when launched with `--font mixed`. Test the profile that will be used for the program; `debug` is convenient while diagnosing generated BASIC, while `release` catches problems caused by compact naming or memory pressure. Run every locally configured target emulator that is available. If an emulator cannot be run, report that target separately rather than treating a successful build as an emulator result. The complete setup and troubleshooting workflow is in [Running generated programs](running-programs.md#complete-emulator-test-workflow).
 
 Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
 

@@ -8,6 +8,53 @@ This is a practical field guide for loading generated programs into emulators an
 
 Record emulator/device version, host operating system, target video mode, and relevant menu settings whenever a procedure is verified.
 
+## Complete emulator test workflow
+
+Use this workflow after changing executable Meta-BASIC application code or user-visible compiler behavior. A compiler build proves that source can be lowered. The emulator run checks the generated artifact, target BASIC runtime, packaging tool, emulator configuration, and output transport together.
+
+1. Put deterministic behavior in a `TEST ... END TEST` block under the project's `tests/` directory. Use `--module name` when only one matching test file is relevant.
+2. Compile the runner for all targets before opening an emulator:
+
+   ```text
+   npm run build:all-targets -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed
+   ```
+
+3. Launch each locally configured emulator with host output capture enabled. Use the same project, module, and profile options as the build:
+
+   ```text
+   npm run launch:spectrum -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
+   npm run launch:c64 -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
+   npm run launch:atari -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
+   ```
+
+   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Pass the program's intended `--language` and `--font` values as well as its profile. In particular, a C64 program designed for the mixed character set should run its tests with `--font mixed`, or mixed-case test names are difficult to read on the emulated display.
+
+4. Wait for the target runner to finish, then read the captured host file:
+
+   | Target | Emulator | Transport | Default release log |
+   | --- | --- | --- | --- |
+   | ZX Spectrum | Fuse | ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum/san-golpe.txt` |
+   | Commodore 64 | VICE | user-port RS-232 at 2400 baud | `build/rs232/release/c64/san-golpe.txt` |
+   | Atari 800XL | Altirra | writable H: shared drive | `build/altirra_drive/MCP.TXT` |
+
+   Replace `release` with the selected profile and `san-golpe` with the project or source name. The launcher clears the selected log before starting. C64 output arrives slowly because it is sent through emulated 2400-baud RS-232.
+
+5. Treat the run as complete only when the capture reaches this final block:
+
+   ```text
+   META CONTROL PROGRAM (M.C.P.) RUN FINISHED
+   TESTS: ...
+   PASSED: ...
+   FAILED: 0
+   ASSERTIONS: ...
+   FAILURES: 0
+   FREE MEMORY: ...
+   ```
+
+   Also inspect each test's `PASSED`/`FAILED` result and the optional `FAILED TESTS` list, then confirm that the passed count equals the test count. Fuse's printer capture wraps at the Spectrum's text width, so the final banner can appear as `... RU` followed by `N FINISHED` on the next line. The launch command returning is not a test result because launchers detach after starting the emulator. An empty or partial file means the run is still in progress or the transport is misconfigured.
+
+Run every target emulator that is configured and working on the current machine. If one is unavailable, still compile its runner and record the missing emulator run explicitly. Do not describe a build-only check as emulator verification. Target-specific configuration and troubleshooting follow below.
+
 ## ZX Spectrum with Fuse
 
 Status: **partly verified**.
@@ -42,11 +89,10 @@ Still to verify:
 - Exact menu command for attaching the tape
 - Whether the generated file autoloads or requires `RUN`
 - Procedure on The Spectrum physical device
-- Full project test-runner capture using `--printer-output`
 
 ## ZX Spectrum test output capture with Fuse
 
-Status: **minimal path verified locally with Fuse**.
+Status: **verified locally with Fuse 1.6.0 on Linux, including a project test runner**.
 
 For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
 
@@ -82,6 +128,8 @@ The minimal verified experiment was:
 ```
 
 with Fuse launched as a 48K Spectrum and ZX Printer text output enabled. The host text file became visible while Fuse was still running. The Interface 1 RS-232 path was not usable on this Windows/Fuse setup because the receive-file option raised a "Not yet implemented on Win32" dialog, and the transmit path did not produce reliable live output.
+
+On 2026-09-12, the focused San-Golpe character runner completed in Fuse 1.6.0 on Linux/aarch64 with 2 tests passed, 46 assertions, and 0 failures. The printer capture wrapped long runner lines at 32 columns as described above.
 
 ## Atari 800XL with an ATR listing
 
@@ -286,7 +334,11 @@ ACIA/SwiftLink RS-232 settings are separate from this workflow. C64 BASIC V2 `OP
 
 The launcher supplies the dynamic localhost endpoint through `rs232Args`. In normal use you do not need to type that port into VICE yourself; the GUI is only useful for checking that the placeholder was expanded correctly.
 
+The example configuration uses `-userportdevice 2` to attach the RS-232/modem device to the C64 user port. The shorter `-rsuser` spelling is ambiguous in VICE 3.7.1 and makes that emulator exit before launch. The capture helper converts the PETSCII stream to readable UTF-8 text before writing the host log.
+
 If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
+
+On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with `--font mixed`: 2 tests passed, 46 assertions, and 0 failures. The decoded host log was readable while the emulated screen used the intended mixed character set.
 
 ## The C64 Mini
 

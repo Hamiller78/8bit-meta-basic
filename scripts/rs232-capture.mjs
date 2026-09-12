@@ -17,7 +17,7 @@ async function run(options) {
   const server = createServer((socket) => {
     resetIdleTimer();
     socket.on("data", (chunk) => {
-      output.write(chunk);
+      output.write(decodePetsciiText(chunk));
       resetIdleTimer();
     });
     socket.on("close", resetIdleTimer);
@@ -55,6 +55,24 @@ async function run(options) {
     }, options.idleTimeoutMs);
     idleTimer.unref();
   }
+}
+
+export function decodePetsciiText(bytes) {
+  let text = "";
+  for (const byte of bytes) {
+    if (byte === 0x0d) {
+      text += "\n";
+    } else if (byte >= 0xc1 && byte <= 0xda) {
+      text += String.fromCharCode(byte - 0x80);
+    } else if (byte >= 0x41 && byte <= 0x5a) {
+      text += String.fromCharCode(byte + 0x20);
+    } else if (byte === 0xa0) {
+      text += " ";
+    } else if (byte >= 0x20 && byte <= 0x7e) {
+      text += String.fromCharCode(byte);
+    }
+  }
+  return text;
 }
 
 function parseArgs(argv) {

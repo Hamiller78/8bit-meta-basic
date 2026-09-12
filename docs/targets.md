@@ -66,7 +66,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter names for strings, arrays, and `FOR` counters. Readability `2` keeps readable uppercase numeric scalar names where practical.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
-- Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`.
+- Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`; reads can retain right-padding spaces up to the declared width.
 - `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
 - `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `SHARED_DRIVE` is not supported on Spectrum.
@@ -91,7 +91,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `SHARED_DRIVE` opens `H6:MCP.TXT` by default for Altirra H: host-device text capture. The Atari800 launcher overrides it to `H1:MCP.TXT`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
-- Fixed-width string arrays render as one backing Atari string. In readable output, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`. In compact output, the backing name is shortened like other variables.
+- Fixed-width string arrays render as one backing Atari string. In readable output, `dim messages$(3,12)` becomes `DIM MESSAGES$(36)`, and `messages$(2)` renders as the substring `MESSAGES$(25,36)`. In compact output, the backing name is shortened like other variables. Reads can retain right-padding spaces up to the declared width.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
