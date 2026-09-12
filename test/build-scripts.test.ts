@@ -97,8 +97,30 @@ describe("build scripts", () => {
     expect(config.c64.emulator).toMatchObject({
       name: "x64sc",
       testOutputDevice: "rs232",
-      args: ["-autostart", "{artifact}", "-autostart-warp"]
+      args: ["-autostart", "{artifact}", "-autostart-warp"],
+      testArgs: ["-warp"]
     });
+  });
+
+  it("adds VICE warp arguments for C64 test launches only", async () => {
+    const { c64EmulatorArgsTemplate } = await import("../scripts/launch-c64.mjs");
+    const emulator = {
+      args: ["-autostart", "{artifact}", "-autostart-warp"],
+      testArgs: ["-warp"],
+      rs232Args: ["-rsuserbaud", "2400", "-rsdev1baud", "2400"]
+    };
+
+    expect(c64EmulatorArgsTemplate(emulator, { testMode: false, testPrinterOutput: false })).toEqual(emulator.args);
+    expect(c64EmulatorArgsTemplate(emulator, { testMode: true, testPrinterOutput: true, deviceArgs: emulator.rs232Args })).toEqual([
+      "-autostart",
+      "{artifact}",
+      "-autostart-warp",
+      "-warp",
+      "-rsuserbaud",
+      "2400",
+      "-rsdev1baud",
+      "2400"
+    ]);
   });
 
   it("configures C64 RS232 capture through a local endpoint", async () => {
@@ -124,7 +146,7 @@ describe("build scripts", () => {
       name: "Fuse",
       testOutputDevice: "text-printer",
       args: ["-tape", "{artifact}", "-auto-play"],
-      testArgs: ["--speed", "500"],
+      testArgs: ["--speed", "1000"],
       printerArgs: ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
     });
   });
@@ -138,7 +160,7 @@ describe("build scripts", () => {
       "-tape",
       "{artifact}",
       "--speed",
-      "500",
+      "1000",
       "--textfile",
       "{printerOutput}",
       "--graphicsfile",

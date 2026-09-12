@@ -233,7 +233,7 @@ Configure Fuse in `scripts/tools.local.json`:
   "name": "Fuse",
   "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
   "args": ["-tape", "{artifact}", "-auto-play"],
-  "testArgs": ["--speed", "500"]
+  "testArgs": ["--speed", "1000"]
 }
 ```
 
@@ -272,7 +272,8 @@ Configure VICE in `scripts/tools.local.json`:
 "emulator": {
   "name": "x64sc",
   "path": "C:\\Emulator\\C64\\GTK3VICE-3.5-win64\\bin\\x64sc.exe",
-  "args": ["-autostart", "{artifact}", "-autostart-warp"]
+  "args": ["-autostart", "{artifact}", "-autostart-warp"],
+  "testArgs": ["-warp"]
 }
 ```
 
@@ -283,6 +284,7 @@ npm run launch:c64 -- --source examples/narf.mbas
 ```
 
 The launch script defaults to the `release` profile because it is intended for emulator/device runs rather than inspecting generated BASIC.
+When `--run-tests` is active, the C64 launcher appends the configurable `testArgs`; the default `-warp` keeps VICE in warp mode after autostart. `-autostart-warp` alone accelerates loading only. RS-232 capture remains configured at 2400 baud.
 
 When another VICE instance is already running:
 
@@ -317,11 +319,11 @@ The configuration file has matching `printerOutputPath`, `printerArgs`, `rs232Ou
 For Spectrum/Fuse, use `--test-output-device text-printer` for host text capture. The Spectrum backend then emits `LPRINT`, and the example printer config uses Fuse's ZX Printer/text-file options:
 
 ```json
-"testArgs": ["--speed", "500"],
+"testArgs": ["--speed", "1000"],
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
 ```
 
-Spectrum test launches append `testArgs` automatically when `--run-tests` is active; the default is Fuse `--speed 500`. Normal Spectrum launches keep the configured `args` only.
+Spectrum test launches append `testArgs` automatically when `--run-tests` is active; the default is Fuse `--speed 1000`. Normal Spectrum launches keep the configured `args` only. Change the percentage in the local tool configuration to match the host's available CPU.
 `{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere, which prevents Fuse from appending ZX Printer bitmap data to the default `printout.pbm` while still writing OCR-style text to `{printerOutput}`.
 
 The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO MCP"`, launched with ZX Printer text output enabled. The host file was updated while Fuse was still running. The older Spectrum `PRINTER` stream path (`OPEN #...,"P"` plus `PRINT #...`) did not produce text output in that experiment.

@@ -90,7 +90,7 @@ async function launchSpectrum(options) {
 
 export function spectrumEmulatorArgsTemplate(emulator = {}, options = {}) {
   const baseArgs = emulator.args ?? ["-tape", "{artifact}", "-auto-play"];
-  const testArgs = options.testMode ? emulator.testArgs ?? ["--speed", "500"] : [];
+  const testArgs = options.testMode ? emulator.testArgs ?? ["--speed", "1000"] : [];
   const deviceArgs = options.testPrinterOutput ? options.deviceArgs ?? [] : [];
   return [...baseArgs, ...testArgs, ...deviceArgs];
 }

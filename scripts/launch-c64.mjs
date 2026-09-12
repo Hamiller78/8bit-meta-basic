@@ -74,7 +74,11 @@ async function launchC64(options) {
     replacements.rs232Endpoint = await startRs232Capture(cwd, replacements.rs232Output, options, emulator, program.name);
   }
   const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
-  const argsTemplate = [...(emulator.args ?? ["-autostart", "{artifact}"]), ...(options.testPrinterOutput ? deviceArgs : [])];
+  const argsTemplate = c64EmulatorArgsTemplate(emulator, {
+    testMode: options.testMode,
+    testPrinterOutput: options.testPrinterOutput,
+    deviceArgs
+  });
   const args = argsTemplate.map((arg) => replacePlaceholders(arg, replacements));
 
   const child = spawn(emulatorPath, args, {
@@ -86,6 +90,13 @@ async function launchC64(options) {
   child.unref();
 
   console.log(`launched ${emulator.name ?? "c64 emulator"} with ${relativeToCwd(cwd, artifact)}`);
+}
+
+export function c64EmulatorArgsTemplate(emulator = {}, options = {}) {
+  const baseArgs = emulator.args ?? ["-autostart", "{artifact}", "-autostart-warp"];
+  const testArgs = options.testMode ? emulator.testArgs ?? ["-warp"] : [];
+  const deviceArgs = options.testPrinterOutput ? options.deviceArgs ?? [] : [];
+  return [...baseArgs, ...testArgs, ...deviceArgs];
 }
 
 function parseArgs(argv) {

@@ -105,11 +105,11 @@ If no explicit `--test-output-device` is passed to a launch script, the helper u
 The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
 
 ```json
-"testArgs": ["--speed", "500"],
+"testArgs": ["--speed", "1000"],
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
 ```
 
-When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this runs Fuse at `500%` speed. Normal Spectrum launches do not receive this speed override.
+When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this asks Fuse for `1000%` speed. Adjust the percentage in `scripts/tools.local.json` for the host machine. Normal Spectrum launches do not receive this speed override.
 `{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere so Fuse does not grow the default `printout.pbm` ZX Printer bitmap file while the text capture is active.
 
 Manual Fuse printer setup is not required for this path when the launcher arguments are configured as above. Keep `--zxprinter`; without it, the verified 48K text-file capture did not produce output. The `--graphicsfile {nullDevice}` part is what prevents the unwanted bitmap printout file.
@@ -278,7 +278,7 @@ Status: **artifact generation available; exact repeatable procedure still to doc
 
 Configuration split:
 
-- JSON: set `petcat`, VICE executable path, autostart arguments, and optional printer/RS-232 capture arguments in `scripts/tools.local.json`.
+- JSON: set `petcat`, VICE executable path, autostart arguments, optional test-only `testArgs`, and printer/RS-232 capture arguments in `scripts/tools.local.json`.
 - Manual: install VICE; use `--restart` when changing programs if you want the launcher to replace an existing VICE window.
 
 1. Build and launch with:
@@ -313,6 +313,8 @@ Run:
 ```text
 npm run test:language:c64 -- --restart
 ```
+
+The C64 launcher appends `testArgs` only when `--run-tests` is active. The example configuration uses `-warp`, which keeps VICE in warp mode after the accelerated autostart completes. The RS-232 arguments continue to select 2400 baud; do not raise that rate because it is part of the emulated user-port connection.
 
 The launch script starts a small local TCP capture helper, passes VICE a dynamic `127.0.0.1:<port>` Serial 1 endpoint, and writes the test-runner output to:
 
