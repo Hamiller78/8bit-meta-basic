@@ -23,12 +23,24 @@ enum Role
     ustourist
 end enum
 
+enum Agenda
+    doDuty = 0
+    usurpRole
+    findLove
+    secretSpy
+end enum
+
 struct Character
     first$(10)
     last$(10)
-    gender
-    nationality
-    role
+    gender%
+    nationality%
+    role%
+    money
+    agenda%     'most get doDuty, but some may have secret agendas
+    target%     'the character's agenda target if applicable
+    integrity%  'meaning depends on role, but 0 to 10, where 10 truly believes in their role and 0 is a complete fraud
+    weapons%    'weapons the characters has at their disposal to equip an army, we abstract in the number of times he has acquired some
 end struct
 
 const characterCapacity = 11

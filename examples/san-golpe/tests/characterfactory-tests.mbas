@@ -20,23 +20,39 @@ test CharacterNamesAreUsedOnlyOnce()
     next firstIndex
 end test
 
+test CharacterAttributesHaveSafeDefaults()
+    local characterIndex
+
+    resetCharacterFactory()
+    characterIndex = createCharacter(us, male)
+
+    assert_ne noCharacterIndex, characterIndex
+    assert_eq none, characters(characterIndex).role%
+    assert_eq 0, characters(characterIndex).money
+    assert_eq doDuty, characters(characterIndex).agenda%
+    assert_eq noCharacterIndex, characters(characterIndex).target%
+    assert_true characters(characterIndex).integrity% >= 0
+    assert_true characters(characterIndex).integrity% <= 10
+    assert_eq 0, characters(characterIndex).weapons%
+end test
+
 test AllCharacterRolesAreCreated()
-    local russianMaleLast$, russianFemaleLast$, femaleNameHasSuffix
+    local characterIndex, russianMaleLast$, russianFemaleLast$, femaleNameHasSuffix
 
     createAllCharacters()
 
     assert_eq characterCapacity, createdCharacterCount
-    assert_eq usagent, characters(0).role
-    assert_eq male, characters(0).gender
-    assert_eq usagent, characters(1).role
-    assert_eq female, characters(1).gender
-    assert_eq ussragent, characters(2).role
-    assert_eq male, characters(2).gender
+    assert_eq usagent, characters(0).role%
+    assert_eq male, characters(0).gender%
+    assert_eq usagent, characters(1).role%
+    assert_eq female, characters(1).gender%
+    assert_eq ussragent, characters(2).role%
+    assert_eq male, characters(2).gender%
     russianMaleLast$ = characters(2).last$
     assert_ne "a", mid$(russianMaleLast$, 7, 1)
     assert_ne "a", mid$(russianMaleLast$, 8, 1)
-    assert_eq ussragent, characters(3).role
-    assert_eq female, characters(3).gender
+    assert_eq ussragent, characters(3).role%
+    assert_eq female, characters(3).gender%
     russianFemaleLast$ = characters(3).last$
     femaleNameHasSuffix = 0
     if mid$(russianFemaleLast$, 7, 1) = "a" then
@@ -46,12 +62,29 @@ test AllCharacterRolesAreCreated()
         femaleNameHasSuffix = 1
     end if
     assert_true femaleNameHasSuffix
-    assert_eq president, characters(4).role
-    assert_eq daughter, characters(5).role
+    assert_eq president, characters(4).role%
+    assert_eq daughter, characters(5).role%
     assert_eq characters(4).last$, characters(5).last$
-    assert_eq advisor, characters(6).role
-    assert_eq priest, characters(7).role
-    assert_eq bartender, characters(8).role
-    assert_eq landowner, characters(9).role
-    assert_eq ustourist, characters(10).role
+    assert_eq advisor, characters(6).role%
+    assert_eq priest, characters(7).role%
+    assert_eq bartender, characters(8).role%
+    assert_eq landowner, characters(9).role%
+    assert_eq ustourist, characters(10).role%
+
+    for characterIndex = 0 to createdCharacterCount - 1
+        assert_eq 0, characters(characterIndex).money
+        assert_true characters(characterIndex).agenda% >= doDuty
+        assert_true characters(characterIndex).agenda% <= secretSpy
+        assert_true characters(characterIndex).integrity% >= 0
+        assert_true characters(characterIndex).integrity% <= 10
+        assert_eq 0, characters(characterIndex).weapons%
+
+        if characters(characterIndex).agenda% = usurpRole or characters(characterIndex).agenda% = findLove then
+            assert_true characters(characterIndex).target% >= 0
+            assert_true characters(characterIndex).target% < createdCharacterCount
+            assert_ne characterIndex, characters(characterIndex).target%
+        else
+            assert_eq noCharacterIndex, characters(characterIndex).target%
+        end if
+    next characterIndex
 end test

@@ -22,6 +22,8 @@ function createAllCharacters()
     if presidentIndex <> noCharacterIndex and daughterIndex <> noCharacterIndex then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
     end if
+
+    assignSecretAgendas()
 end function
 
 function createRoleCharacter(characterRole, nationality, gender)
@@ -29,7 +31,7 @@ function createRoleCharacter(characterRole, nationality, gender)
 
     characterIndex = createCharacter(nationality, gender)
     if characterIndex <> noCharacterIndex then
-        characters(characterIndex).role = characterRole
+        characters(characterIndex).role% = characterRole
     end if
     return characterIndex
 end function
@@ -69,13 +71,51 @@ function createCharacter(nationality, gender)
     end if
     characterIndex = createdCharacterCount
 
-    characters(characterIndex).gender = actualGender
-    characters(characterIndex).nationality = nationality
+    characters(characterIndex).gender% = actualGender
+    characters(characterIndex).nationality% = nationality
     characters(characterIndex).first$ = firstName$
     characters(characterIndex).last$ = lastName$
+    characters(characterIndex).role% = none
+    characters(characterIndex).money = 0
+    characters(characterIndex).agenda% = doDuty
+    characters(characterIndex).target% = noCharacterIndex
+    characters(characterIndex).integrity% = int(rnd() * 11)
+    characters(characterIndex).weapons% = 0
 
     createdCharacterCount = createdCharacterCount + 1
     return characterIndex
+end function
+
+function assignSecretAgendas()
+    local characterIndex, agendaRoll
+
+    for characterIndex = 0 to createdCharacterCount - 1
+        characters(characterIndex).agenda% = doDuty
+        characters(characterIndex).target% = noCharacterIndex
+
+        'Nine of twelve results keep the character focused on their normal duty.
+        agendaRoll = int(rnd() * 12)
+        if agendaRoll >= 9 then
+            characters(characterIndex).agenda% = agendaRoll - 8
+            if characters(characterIndex).agenda% = usurpRole or characters(characterIndex).agenda% = findLove then
+                characters(characterIndex).target% = chooseAgendaTarget(characterIndex)
+            end if
+        end if
+    next characterIndex
+end function
+
+function chooseAgendaTarget(characterIndex)
+    local targetIndex
+
+    if createdCharacterCount < 2 then
+        return noCharacterIndex
+    end if
+
+    targetIndex = int(rnd() * (createdCharacterCount - 1))
+    if targetIndex >= characterIndex then
+        targetIndex = targetIndex + 1
+    end if
+    return targetIndex
 end function
 
 function trimName$(name$)
