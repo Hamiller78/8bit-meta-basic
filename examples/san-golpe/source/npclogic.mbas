@@ -1,9 +1,11 @@
 uses "characters.mbas"
 
-dim npcEvents$(characterCapacity, 30)
+dim npcEventActors%(numberOfCharacters)
+dim npcEventTargets%(numberOfCharacters)
 numberOfNpcEvents% = 0
 
 function doNpcActions()
+    local eventNpcIndex%, eventTargetIndex%
     cls
     numberOfNpcEvents% = 0
     for npcIndex% = 0 to numberOfCharacters - 1
@@ -12,12 +14,15 @@ function doNpcActions()
         end if
     next npcIndex%
 
+    print_text "npcEventsHeading"
     if numberOfNpcEvents% > 0 then
         for i% = 0 to numberOfNpcEvents% - 1
-            print npcEvents$(i%)
+            eventNpcIndex% = npcEventActors%(i%)
+            eventTargetIndex% = npcEventTargets%(i%)
+            print characters(eventNpcIndex%).first$; " "; characters(eventNpcIndex%).last$; text$("npcRanAwayWith"); characters(eventTargetIndex%).first$; " "; characters(eventTargetIndex%).last$; text$("npcRanAwaySuffix")
         next i%
     else
-        print "It was a quite month on San Golpe."
+        print_text "npcQuietMonth"
     end if
 end function
 
@@ -29,7 +34,8 @@ function doNpcAction(npcIndex%)
 
     if npcAgenda% = Agenda.findLove and characters(npcIndex%).money > 0 then
         if targetIndex% <> -1 and characters(targetIndex%).isAlive% = 1 then
-            npcEvents$(numberOfNpcEvents%) = characters(npcIndex%).first$ + " " + characters(npcIndex%).last$ + " ran away with " + characters(targetIndex%).first$ + " " + characters(targetIndex%).last$ + "."
+            npcEventActors%(numberOfNpcEvents%) = npcIndex%
+            npcEventTargets%(numberOfNpcEvents%) = targetIndex%
         end if
     end if
     'TODO: Implement other NPC agendas and actions here.

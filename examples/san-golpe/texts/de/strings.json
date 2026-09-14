@@ -1,3 +1,7 @@
 {
-  "continue": "WEITER MIT BELIEBIGER TASTE"
+  "continue": "WEITER MIT BELIEBIGER TASTE",
+  "npcEventsHeading": "Die Menschen in San Golpe sprechen über diese Ereignisse:",
+  "npcQuietMonth": "Es war ein ruhiger Monat in San Golpe.",
+  "npcRanAwayWith": " ist mit ",
+  "npcRanAwaySuffix": " durchgebrannt."
 }
