@@ -1,0 +1,37 @@
+uses "characters.mbas"
+
+dim npcEvents$(characterCapacity, 30)
+numberOfNpcEvents% = 0
+
+function doNpcActions()
+    cls
+    numberOfNpcEvents% = 0
+    for npcIndex% = 0 to numberOfCharacters - 1
+        if characters(npcIndex%).isAlive% = 1 then
+            doNpcAction(npcIndex%)
+        end if
+    next npcIndex%
+
+    if numberOfNpcEvents% > 0 then
+        for i% = 0 to numberOfNpcEvents% - 1
+            print npcEvents$(i%)
+        next i%
+    else
+        print "It was a quite month on San Golpe."
+    end if
+end function
+
+function doNpcAction(npcIndex%)
+    local npcRole%, npcAgenda%, targetIndex%
+    npcRole% = characters(npcIndex%).role%
+    npcAgenda% = characters(npcIndex%).agenda%
+    targetIndex% = characters(npcIndex%).target%
+
+    if npcAgenda% = Agenda.findLove and characters(npcIndex%).money > 0 then
+        if targetIndex% <> -1 and characters(targetIndex%).isAlive% = 1 then
+            npcEvents$(numberOfNpcEvents%) = characters(npcIndex%).first$ + " " + characters(npcIndex%).last$ + " ran away with " + characters(targetIndex%).first$ + " " + characters(targetIndex%).last$ + "."
+        end if
+    end if
+    'TODO: Implement other NPC agendas and actions here.
+
+end function

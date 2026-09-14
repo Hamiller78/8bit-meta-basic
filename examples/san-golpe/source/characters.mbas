@@ -1,3 +1,5 @@
+const numberOfCharacters = 11
+
 enum Gender
     any = 0
     male
@@ -36,6 +38,7 @@ struct Character
     gender%
     nationality%
     role%
+    isAlive%   '0 = dead, 1 = alive
     money
     agenda%     'most get doDuty, but some may have secret agendas
     target%     'the character's agenda target if applicable
@@ -43,7 +46,4 @@ struct Character
     weapons%    'weapons the characters has at their disposal to equip an army, we abstract in the number of times he has acquired some
 end struct
 
-const characterCapacity = 11
-const noCharacterIndex = -1
-
-dim characters as Character(characterCapacity)
+dim characters as Character(numberOfCharacters)

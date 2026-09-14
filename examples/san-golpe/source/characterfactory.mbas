@@ -19,7 +19,7 @@ function createAllCharacters()
     createRoleCharacter(landowner, native, male)
     createRoleCharacter(ustourist, us, any)
 
-    if presidentIndex <> noCharacterIndex and daughterIndex <> noCharacterIndex then
+    if presidentIndex <> -1 and daughterIndex <> -1 then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
     end if
 
@@ -43,7 +43,7 @@ function resetCharacterFactory()
     characterFactoryInitialized = 1
 end function
 
-'Returns an index into characters(), or noCharacterIndex when no name is available.
+'Returns an index into characters(), or -1 when no name is available.
 function createCharacter(nationality, gender)
     local characterIndex, actualGender, firstName$, lastName$
 
@@ -76,9 +76,10 @@ function createCharacter(nationality, gender)
     characters(characterIndex).first$ = firstName$
     characters(characterIndex).last$ = lastName$
     characters(characterIndex).role% = none
+    characters(characterIndex).isAlive% = 1
     characters(characterIndex).money = 0
     characters(characterIndex).agenda% = doDuty
-    characters(characterIndex).target% = noCharacterIndex
+    characters(characterIndex).target% = -1
     characters(characterIndex).integrity% = int(rnd() * 11)
     characters(characterIndex).weapons% = 0
 
