@@ -19,9 +19,9 @@ turnover% = 0
 repeat
     doNpcActions()
     repeat
-        showOverview()
-        showMenu()
-        getInput()
+        'showOverview()
+        'showMenu()
+        'getInput()
     until gameover% = 1 or turnover% = 1
 until gameover% = 1
 

@@ -99,6 +99,17 @@ describe("localized text and layout", () => {
     expect(result).toContain('PRINT "arrived"');
     expect(result.trimEnd().split("\n")).toHaveLength(2);
   });
+  it("transliterates before wrapping and suppresses a second newline after a full C64 row", () => {
+    const result = compileSource('print_text "heading"', {
+      filename: "text.mbas",
+      target: "c64",
+      font: "mixed",
+      texts: { heading: "Die Menschen in San Golpe sprechen über diese Ereignisse:" }
+    });
+    expect(result).toContain('print "Die Menschen in San Golpe sprechen ueber";');
+    expect(result).toContain('print "diese Ereignisse:"');
+    expect(result).not.toContain('print ""');
+  });
   it("validates localized template placeholders and maximum lengths", () => {
     const compile = (source: string, text: string) => compileSource(source, { filename: "template.mbas", target: "spectrum", texts: { message: text } });
     expect(() => compile('print_text "message"', "Hello {name}")).toThrow(/placeholder.*name.*no PRINT_TEXT binding/i);

@@ -105,7 +105,7 @@ export function layoutText(program: Program, target: TargetId, options: TextOpti
     }
     const available = width?.kind === "number" ? width.value : columns;
     if (statement.textBindings) {
-      return layoutTextTemplate(value, available, target, font, statement);
+      return layoutTextTemplate(value, available, columns, target, font, statement);
     }
     const lines = wrapText(value, available);
     return lines.flatMap((line): PrintStatement[] => {
@@ -133,6 +133,7 @@ type TemplatePart = TemplateLiteralPart | TemplateValuePart;
 function layoutTextTemplate(
   value: string,
   available: number,
+  columns: number,
   target: TargetId,
   font: TextFont,
   statement: PrintStatement
@@ -168,14 +169,16 @@ function layoutTextTemplate(
     : part);
   const lines = wrapTemplate(transformed, available, statement);
   return lines.map((line) => {
-    const items = mergeTemplateLiterals(line).flatMap((part): Expression[] => part.kind === "value"
+    const merged = mergeTemplateLiterals(line);
+    const items = merged.flatMap((part): Expression[] => part.kind === "value"
       ? [part.expression]
       : encodeText(part.value, target, font, statement));
+    const staticLength = merged.every((part) => part.kind === "literal") ? templateLength(merged) : undefined;
     return {
       kind: "print",
       items: items.length ? items : [{ kind: "string", value: "", location: statement.location }],
       layoutOutput: true,
-      trailingSemicolon: false,
+      trailingSemicolon: target !== "spectrum" && staticLength === columns,
       location: statement.location
     };
   });
