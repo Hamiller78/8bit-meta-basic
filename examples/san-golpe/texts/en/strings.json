@@ -2,5 +2,10 @@
   "continue": "PRESS ANY KEY TO CONTINUE",
   "npcEventsHeading": "The people of San Golpe talk about these events:",
   "npcQuietMonth": "It was a quiet month in San Golpe.",
-  "npcRanAway": "{actor} ran away with {target}."
+  "npcRanAway": "{actor} ran away with {target}.",
+  "overviewHeading": "SAN GOLPE OVERVIEW",
+  "overviewBudget": "Budget: {amount}",
+  "overviewColumns": "NAME          STATUS M I W",
+  "overviewAlive": "ALIVE",
+  "overviewDead": "DEAD "
 }

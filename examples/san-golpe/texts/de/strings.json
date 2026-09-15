@@ -2,5 +2,10 @@
   "continue": "WEITER MIT BELIEBIGER TASTE",
   "npcEventsHeading": "Die Menschen in San Golpe sprechen über diese Ereignisse:",
   "npcQuietMonth": "Es war ein ruhiger Monat in San Golpe.",
-  "npcRanAway": "{actor} ist mit {target} durchgebrannt."
+  "npcRanAway": "{actor} ist mit {target} durchgebrannt.",
+  "overviewHeading": "SAN GOLPE - Übersicht",
+  "overviewBudget": "Budget: {amount}",
+  "overviewColumns": "NAME          STATUS G I W",
+  "overviewAlive": "LEBT ",
+  "overviewDead": "TOT  "
 }

@@ -10,7 +10,7 @@ test CharacterNamesAreUsedOnlyOnce()
     for characterIndex = 0 to englishMaleFirstNames - 1
         assert_eq characterIndex, createCharacter(us, male)
     next characterIndex
-    assert_eq noCharacterIndex, createCharacter(us, male)
+    assert_eq -1, createCharacter(us, male)
 
     for firstIndex = 0 to englishMaleFirstNames - 2
         for secondIndex = firstIndex + 1 to englishMaleFirstNames - 1
@@ -26,11 +26,11 @@ test CharacterAttributesHaveSafeDefaults()
     resetCharacterFactory()
     characterIndex = createCharacter(us, male)
 
-    assert_ne noCharacterIndex, characterIndex
+    assert_ne -1, characterIndex
     assert_eq none, characters(characterIndex).role%
     assert_eq 0, characters(characterIndex).money
     assert_eq doDuty, characters(characterIndex).agenda%
-    assert_eq noCharacterIndex, characters(characterIndex).target%
+    assert_eq -1, characters(characterIndex).target%
     assert_true characters(characterIndex).integrity% >= 0
     assert_true characters(characterIndex).integrity% <= 10
     assert_eq 0, characters(characterIndex).weapons%
@@ -41,7 +41,7 @@ test AllCharacterRolesAreCreated()
 
     createAllCharacters()
 
-    assert_eq characterCapacity, createdCharacterCount
+    assert_eq numberOfCharacters, createdCharacterCount
     assert_eq usagent, characters(0).role%
     assert_eq male, characters(0).gender%
     assert_eq usagent, characters(1).role%
@@ -84,7 +84,7 @@ test AllCharacterRolesAreCreated()
             assert_true characters(characterIndex).target% < createdCharacterCount
             assert_ne characterIndex, characters(characterIndex).target%
         else
-            assert_eq noCharacterIndex, characters(characterIndex).target%
+            assert_eq -1, characters(characterIndex).target%
         end if
     next characterIndex
 end test

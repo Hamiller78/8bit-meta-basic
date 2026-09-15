@@ -1,0 +1,36 @@
+uses "characters.mbas"
+uses "characterfactory.mbas"
+
+budget = 0
+
+function showOverview()
+    local characterIndex, displayName$
+
+    cls
+    print_centered text$("overviewHeading")
+    print_text "overviewBudget"; amount = budget, 8
+    print
+    print text$("overviewColumns")
+
+    for characterIndex = 0 to numberOfCharacters - 1
+        displayName$ = left$(characters(characterIndex).first$ + "        ", 8) + " " + left$(characters(characterIndex).last$ + "    ", 4)
+        if characters(characterIndex).isAlive% = 1 then
+            print displayName$; " "; text$("overviewAlive"); " ";
+        else
+            print displayName$; " "; text$("overviewDead"); " ";
+        end if
+        print characters(characterIndex).money; characters(characterIndex).integrity%; characters(characterIndex).weapons%
+    next characterIndex
+end function
+
+function getInput()
+    local inputKey
+
+    repeat
+        inputKey = key_code()
+    until inputKey = KEY_NONE
+
+    repeat
+        inputKey = key_code()
+    until inputKey <> KEY_NONE
+end function

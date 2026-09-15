@@ -30,7 +30,7 @@ function createRoleCharacter(characterRole, nationality, gender)
     local characterIndex
 
     characterIndex = createCharacter(nationality, gender)
-    if characterIndex <> noCharacterIndex then
+    if characterIndex <> -1 then
         characters(characterIndex).role% = characterRole
     end if
     return characterIndex
@@ -51,16 +51,16 @@ function createCharacter(nationality, gender)
         resetCharacterFactory()
     end if
 
-    if createdCharacterCount >= characterCapacity then
-        return noCharacterIndex
+    if createdCharacterCount >= numberOfCharacters then
+        return -1
     end if
 
     actualGender = chooseGender(nationality, gender)
     if actualGender = any then
-        return noCharacterIndex
+        return -1
     end if
     if availableFirstNames(nationality, actualGender) = 0 or availableLastNames(nationality) = 0 then
-        return noCharacterIndex
+        return -1
     end if
 
     firstName$ = takeFirstName$(nationality, actualGender)
@@ -92,7 +92,7 @@ function assignSecretAgendas()
 
     for characterIndex = 0 to createdCharacterCount - 1
         characters(characterIndex).agenda% = doDuty
-        characters(characterIndex).target% = noCharacterIndex
+        characters(characterIndex).target% = -1
 
         'Nine of twelve results keep the character focused on their normal duty.
         agendaRoll = int(rnd() * 12)
@@ -109,7 +109,7 @@ function chooseAgendaTarget(characterIndex)
     local targetIndex
 
     if createdCharacterCount < 2 then
-        return noCharacterIndex
+        return -1
     end if
 
     targetIndex = int(rnd() * (createdCharacterCount - 1))

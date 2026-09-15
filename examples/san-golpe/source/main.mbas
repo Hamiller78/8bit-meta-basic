@@ -11,6 +11,7 @@ screen_text_color WHITE
 
 cls
 showIntro()
+createAllCharacters()
 
 gameover% = 0
 turn% = 1
@@ -19,9 +20,9 @@ turnover% = 0
 repeat
     doNpcActions()
     repeat
-        'showOverview()
+        showOverview()
         'showMenu()
-        'getInput()
+        getInput()
     until gameover% = 1 or turnover% = 1
 until gameover% = 1
 
