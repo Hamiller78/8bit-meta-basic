@@ -594,7 +594,12 @@ export function statementExpressions(statement: Statement): readonly Expression[
     case "cell-background-color":
       return [statement.color];
     case "print":
-      return [...(statement.at ? [statement.at.row, statement.at.column] : []), ...(statement.wrapWidth ? [statement.wrapWidth] : []), ...statement.items];
+      return [
+        ...(statement.at ? [statement.at.row, statement.at.column] : []),
+        ...(statement.wrapWidth ? [statement.wrapWidth] : []),
+        ...(statement.textBindings?.flatMap((binding) => [binding.expression, binding.maxLength]) ?? []),
+        ...statement.items
+      ];
     case "print-device":
       return statement.items;
     case "data":

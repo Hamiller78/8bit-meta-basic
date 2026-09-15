@@ -94,6 +94,7 @@ export interface DimStatement {
 export interface PrintStatement {
   readonly layout?: "wrap" | "center";
   readonly textResource?: boolean;
+  readonly textBindings?: readonly TextBinding[];
   readonly positionOnly?: boolean;
   readonly layoutOutput?: boolean;
   readonly wrapWidth?: Expression;
@@ -101,6 +102,13 @@ export interface PrintStatement {
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
   readonly at?: PrintAtPosition;
+  readonly location: SourceLocation;
+}
+
+export interface TextBinding {
+  readonly name: string;
+  readonly expression: Expression;
+  readonly maxLength: Expression;
   readonly location: SourceLocation;
 }
 

@@ -308,10 +308,25 @@ Use `PRINT_TEXT` for localized resources. Long text belongs in an individual UTF
 
 ```basic
 print_text "intro"
+print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
 print_centered text$("continue")
 ```
 
 `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` wrap during compilation, using the selected target's column count and the optional width. They require compile-time text; they do not wrap a runtime string variable.
+
+For short localized templates, put named placeholders in the resource and bind them in `PRINT_TEXT`:
+
+```json
+{
+  "npcRanAway": "{actor} ran away with {target}."
+}
+```
+
+```basic
+print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
+```
+
+The number after each expression is its maximum possible display length. The compiler uses those maxima when choosing line breaks, while the target evaluates and prints the expressions at runtime. Translations may reorder the placeholders. The declared maximum must be a positive compile-time integer no larger than the output width; runtime values should not exceed it.
 
 English (`en`) is the default language. Select a translation and C64 font from the build command:
 

@@ -1,4 +1,4 @@
-import type { BinaryOperator, EnumMember, Expression, ParameterType, PrintStatement, Program, SourceLocation, Statement, StructField, UnaryOperator } from "./ast.js";
+import type { BinaryOperator, EnumMember, Expression, ParameterType, PrintStatement, Program, SourceLocation, Statement, StructField, TextBinding, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { deviceSourceList, parseSourceDeviceName } from "./devices.js";
 import { tokenize, type Token } from "./lexer.js";
@@ -175,14 +175,37 @@ class Parser {
   }
 
   parseTextPrint(location: SourceLocation, layout: "wrap" | "center", textResource = false): PrintStatement {
-    const expression = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    const expression = this.parseExpression(() => this.matchPunctuation(",") || this.matchPunctuation(";") || this.isLineEnd());
     let wrapWidth: Expression | undefined;
     if (this.matchPunctuation(",")) {
       this.advance();
-      wrapWidth = this.parseExpressionUntilLine();
+      wrapWidth = this.parseExpression(() => this.matchPunctuation(";") || this.isLineEnd());
+    }
+    const textBindings: TextBinding[] = [];
+    while (this.matchPunctuation(";")) {
+      if (!textResource) {
+        throw new DiagnosticError(this.current().location, "Placeholder bindings are supported only by PRINT_TEXT.");
+      }
+      this.advance();
+      const bindingToken = this.current();
+      const name = this.expectIdentifier("Expected placeholder name after semicolon in PRINT_TEXT.").text;
+      this.expectPunctuation("=", `Expected = after PRINT_TEXT placeholder "${name}".`);
+      const value = this.parseExpression(() => this.matchPunctuation(",") || this.matchPunctuation(";") || this.isLineEnd());
+      this.expectPunctuation(",", `PRINT_TEXT placeholder "${name}" requires a maximum length after its expression.`);
+      const maxLength = this.parseExpression(() => this.matchPunctuation(";") || this.isLineEnd());
+      textBindings.push({ name, expression: value, maxLength, location: bindingToken.location });
     }
     this.expectLineEnd();
-    return { kind: "print", items: [expression], trailingSemicolon: false, layout, textResource, wrapWidth, location };
+    return {
+      kind: "print",
+      items: [expression],
+      trailingSemicolon: false,
+      layout,
+      textResource,
+      ...(wrapWidth ? { wrapWidth } : {}),
+      ...(textBindings.length ? { textBindings } : {}),
+      location
+    };
   }
 
   parseSetPos(location: SourceLocation): PrintStatement {

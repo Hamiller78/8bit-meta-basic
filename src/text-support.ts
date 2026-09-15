@@ -38,11 +38,23 @@ function mapStatements(program: Program, transform: (statement: PrintStatement) 
 /** Resource I/O belongs to the build shell; the compiler only consumes text values. */
 export function resolveTextResources(program: Program, options: TextOptions): Program {
   return mapStatements(program, (statement) => {
-    if (!statement.textResource) return [{ ...statement, items: statement.items.map((item) => resolveTextExpression(item, options)) }];
+    const textBindings = statement.textBindings?.map((binding) => ({
+      ...binding,
+      expression: resolveTextExpression(binding.expression, options),
+      maxLength: resolveTextExpression(binding.maxLength, options)
+    }));
+    if (!statement.textResource) {
+      return [{ ...statement, items: statement.items.map((item) => resolveTextExpression(item, options)), ...(textBindings ? { textBindings } : {}) }];
+    }
     const key = statement.items[0];
     if (key?.kind !== "string") throw new DiagnosticError(statement.location, "PRINT_TEXT requires a literal resource name, such as PRINT_TEXT \"intro\".");
     const value = resolveTextValue(key.value, statement.location, options);
-    return [{ ...statement, textResource: false, items: [{ kind: "string", value, location: statement.location }] }];
+    return [{
+      ...statement,
+      textResource: false,
+      items: [{ kind: "string", value, location: statement.location }],
+      textBindings: textBindings ?? []
+    }];
   });
 }
 
@@ -86,12 +98,15 @@ export function layoutText(program: Program, target: TargetId, options: TextOpti
     const item = statement.items[0];
     if (item?.kind !== "string") throw new DiagnosticError(statement.location, "Text layout requires a compile-time string; runtime text cannot be wrapped at compile time.");
     let value = portableText(item.value, statement);
-    if (font === "uppercase" || (target === "c64" && font !== "mixed")) value = value.toUpperCase();
+    if (!statement.textBindings && (font === "uppercase" || (target === "c64" && font !== "mixed"))) value = value.toUpperCase();
     const width = statement.wrapWidth;
     if (width && (width.kind !== "number" || !Number.isInteger(width.value) || width.value < 1 || width.value > columns)) {
       throw new DiagnosticError(statement.location, `Text width must be a compile-time integer in 1..${columns}.`);
     }
     const available = width?.kind === "number" ? width.value : columns;
+    if (statement.textBindings) {
+      return layoutTextTemplate(value, available, target, font, statement);
+    }
     const lines = wrapText(value, available);
     return lines.flatMap((line): PrintStatement[] => {
       const text = statement.layout === "center" ? " ".repeat(Math.floor((available - line.length) / 2)) + line : line;
@@ -99,6 +114,216 @@ export function layoutText(program: Program, target: TargetId, options: TextOpti
       return [{ kind: "print", items, layoutOutput: true, trailingSemicolon: target !== "spectrum" && text.length === columns, location: statement.location }];
     });
   });
+}
+
+interface TemplateLiteralPart {
+  readonly kind: "literal";
+  readonly value: string;
+}
+
+interface TemplateValuePart {
+  readonly kind: "value";
+  readonly expression: Expression;
+  readonly maxLength: number;
+  readonly name: string;
+}
+
+type TemplatePart = TemplateLiteralPart | TemplateValuePart;
+
+function layoutTextTemplate(
+  value: string,
+  available: number,
+  target: TargetId,
+  font: TextFont,
+  statement: PrintStatement
+): PrintStatement[] {
+  const bindings = new Map<string, TemplateValuePart>();
+  for (const binding of statement.textBindings ?? []) {
+    const key = binding.name.toLowerCase();
+    if (bindings.has(key)) {
+      throw new DiagnosticError(binding.location, `Duplicate PRINT_TEXT placeholder binding "${binding.name}".`);
+    }
+    if (binding.maxLength.kind !== "number" || !Number.isInteger(binding.maxLength.value) || binding.maxLength.value < 1) {
+      throw new DiagnosticError(binding.maxLength.location, `PRINT_TEXT placeholder "${binding.name}" maximum length must be a positive compile-time integer.`);
+    }
+    if (binding.maxLength.value > available) {
+      throw new DiagnosticError(
+        binding.maxLength.location,
+        `PRINT_TEXT placeholder "${binding.name}" maximum length ${binding.maxLength.value} exceeds the available text width ${available}.`
+      );
+    }
+    bindings.set(key, { kind: "value", expression: binding.expression, maxLength: binding.maxLength.value, name: binding.name });
+  }
+
+  const used = new Set<string>();
+  const template = parseTextTemplate(value, bindings, used, statement);
+  for (const [key, binding] of bindings) {
+    if (!used.has(key)) {
+      throw new DiagnosticError(statement.location, `PRINT_TEXT placeholder binding "${binding.name}" is not used by the selected text resource.`);
+    }
+  }
+
+  const transformed = template.map((part): TemplatePart => part.kind === "literal"
+    ? { ...part, value: font === "uppercase" || (target === "c64" && font !== "mixed") ? part.value.toUpperCase() : part.value }
+    : part);
+  const lines = wrapTemplate(transformed, available, statement);
+  return lines.map((line) => {
+    const items = mergeTemplateLiterals(line).flatMap((part): Expression[] => part.kind === "value"
+      ? [part.expression]
+      : encodeText(part.value, target, font, statement));
+    return {
+      kind: "print",
+      items: items.length ? items : [{ kind: "string", value: "", location: statement.location }],
+      layoutOutput: true,
+      trailingSemicolon: false,
+      location: statement.location
+    };
+  });
+}
+
+function mergeTemplateLiterals(parts: readonly TemplatePart[]): TemplatePart[] {
+  const merged: TemplatePart[] = [];
+  for (const part of parts) {
+    const previous = merged[merged.length - 1];
+    if (part.kind === "literal" && previous?.kind === "literal") {
+      merged[merged.length - 1] = { kind: "literal", value: previous.value + part.value };
+    } else {
+      merged.push(part);
+    }
+  }
+  return merged;
+}
+
+function parseTextTemplate(
+  value: string,
+  bindings: ReadonlyMap<string, TemplateValuePart>,
+  used: Set<string>,
+  statement: PrintStatement
+): TemplatePart[] {
+  const parts: TemplatePart[] = [];
+  let literal = "";
+  const flush = () => {
+    if (literal) {
+      parts.push({ kind: "literal", value: literal });
+      literal = "";
+    }
+  };
+
+  for (let index = 0; index < value.length;) {
+    if (value.startsWith("{{", index)) {
+      literal += "{";
+      index += 2;
+      continue;
+    }
+    if (value.startsWith("}}", index)) {
+      literal += "}";
+      index += 2;
+      continue;
+    }
+    if (value[index] === "}") {
+      throw new DiagnosticError(statement.location, "Unexpected } in localized text template; use }} for a literal brace.");
+    }
+    if (value[index] !== "{") {
+      literal += value[index];
+      index += 1;
+      continue;
+    }
+
+    const end = value.indexOf("}", index + 1);
+    if (end < 0) {
+      throw new DiagnosticError(statement.location, "Unclosed placeholder in localized text template; use {{ for a literal brace.");
+    }
+    const name = value.slice(index + 1, end);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      throw new DiagnosticError(statement.location, `Invalid localized text placeholder "{${name}}"; use an identifier name.`);
+    }
+    const key = name.toLowerCase();
+    const binding = bindings.get(key);
+    if (!binding) {
+      throw new DiagnosticError(statement.location, `Localized text placeholder "{${name}}" has no PRINT_TEXT binding.`);
+    }
+    flush();
+    parts.push(binding);
+    used.add(key);
+    index = end + 1;
+  }
+  flush();
+  return parts;
+}
+
+function wrapTemplate(parts: readonly TemplatePart[], columns: number, statement: PrintStatement): TemplatePart[][] {
+  const markerStart = "\uE000";
+  const markerEnd = "\uE001";
+  const values: TemplateValuePart[] = [];
+  const encoded = parts.map((part) => {
+    if (part.kind === "literal") return part.value;
+    const index = values.push(part) - 1;
+    return `${markerStart}${index}${markerEnd}`;
+  }).join("").replace(/\r\n?/g, "\n").replace(/\n$/, "");
+
+  const lines: TemplatePart[][] = [];
+  for (const paragraph of encoded.split(/\n\s*\n/)) {
+    if (lines.length) lines.push([{ kind: "literal", value: "" }]);
+    let line: TemplatePart[] = [];
+    let lineLength = 0;
+    for (const encodedWord of paragraph.trim().split(/\s+/).filter(Boolean)) {
+      let word = decodeTemplateWord(encodedWord, values, markerStart, markerEnd);
+      let wordLength = templateLength(word);
+      const hasValue = word.some((part) => part.kind === "value");
+      if (hasValue && wordLength > columns) {
+        const names = word.filter((part): part is TemplateValuePart => part.kind === "value").map((part) => `{${part.name}}`).join(", ");
+        throw new DiagnosticError(statement.location, `Localized text word containing ${names} can be up to ${wordLength} characters, exceeding text width ${columns}.`);
+      }
+      if (lineLength && lineLength + 1 + wordLength > columns) {
+        lines.push(line);
+        line = [];
+        lineLength = 0;
+      }
+      while (!hasValue && wordLength > columns) {
+        const literal = word.map((part) => part.kind === "literal" ? part.value : "").join("");
+        lines.push([{ kind: "literal", value: literal.slice(0, columns) }]);
+        word = [{ kind: "literal", value: literal.slice(columns) }];
+        wordLength = templateLength(word);
+      }
+      if (wordLength) {
+        if (lineLength) {
+          line.push({ kind: "literal", value: " " });
+          lineLength += 1;
+        }
+        line.push(...word);
+        lineLength += wordLength;
+      }
+    }
+    if (line.length || !paragraph.trim()) lines.push(line.length ? line : [{ kind: "literal", value: "" }]);
+  }
+  return lines;
+}
+
+function decodeTemplateWord(
+  encodedWord: string,
+  values: readonly TemplateValuePart[],
+  markerStart: string,
+  markerEnd: string
+): TemplatePart[] {
+  const parts: TemplatePart[] = [];
+  let index = 0;
+  while (index < encodedWord.length) {
+    const marker = encodedWord.indexOf(markerStart, index);
+    if (marker < 0) {
+      parts.push({ kind: "literal", value: encodedWord.slice(index) });
+      break;
+    }
+    if (marker > index) parts.push({ kind: "literal", value: encodedWord.slice(index, marker) });
+    const end = encodedWord.indexOf(markerEnd, marker + markerStart.length);
+    const valueIndex = Number(encodedWord.slice(marker + markerStart.length, end));
+    parts.push(values[valueIndex]);
+    index = end + markerEnd.length;
+  }
+  return parts;
+}
+
+function templateLength(parts: readonly TemplatePart[]): number {
+  return parts.reduce((length, part) => length + (part.kind === "literal" ? part.value.length : part.maxLength), 0);
 }
 
 export function wrapText(value: string, columns: number): string[] {

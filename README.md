@@ -200,6 +200,13 @@ my-project/
 
 Each language's optional `strings.json` groups short translations as string-valued key/value pairs. Longer prose stays in individual UTF-8 `.txt` files, whose filename stems become resource keys. `PRINT_TEXT` resolves either form and generates word-wrapped BASIC `PRINT` statements. Duplicate keys across `strings.json` and `.txt` files are rejected. English (`en`) is the default. Resource keys are case-sensitive. A missing resource in the selected language produces a source-location diagnostic; there is no implicit fallback to English. Single line breaks inside a paragraph become spaces; blank lines separate paragraphs. Long words split when necessary.
 
+Translations may include named placeholders such as `{name}`. Bind each value after a semicolon and declare its maximum display length so wrapping can reserve enough room. Translations may reorder the names:
+
+```basic
+print_text "welcome"; name = playerName$, 20
+print_text "meeting", 32; host = hostName$, 20; guest = guestName$, 20
+```
+
 ```basic
 set_pos 1, 1
 print_text "intro"
@@ -210,7 +217,7 @@ print_centered "SAN-GOLPE"
 print
 ```
 
-`PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40). Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
+`PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40). Placeholder maxima are positive compile-time integers no larger than that width. Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
 
 `SET_POS row, column` sets the cursor without printing visible text or advancing to the next line. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
 

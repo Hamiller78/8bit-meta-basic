@@ -426,6 +426,18 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           ...(statement.wrapWidth ? { wrapWidth: foldExpression(statement.wrapWidth, constants, inConstantExpression, arrays, functions, scope, structValues) } : {}),
+          ...(statement.textBindings
+            ? {
+                textBindings: statement.textBindings.map((binding) => ({
+                  ...binding,
+                  expression: rejectColorExpression(
+                    foldExpression(binding.expression, constants, inConstantExpression, arrays, functions, scope, structValues),
+                    "PRINT_TEXT"
+                  ),
+                  maxLength: foldExpression(binding.maxLength, constants, inConstantExpression, arrays, functions, scope, structValues)
+                }))
+              }
+            : {}),
           items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT")),
           ...(statement.at
             ? {

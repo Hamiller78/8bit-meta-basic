@@ -79,6 +79,37 @@ describe("localized text and layout", () => {
     expect(centered).not.toContain('"continue"');
     expect(compileSource('print text$("continue")', { filename: "text.mbas", target: "c64", texts })).toContain('PRINT "PRESS ANY KEY TO CONTINUE"');
   });
+  it("inserts named values and lets translations reorder them", () => {
+    const source = 'print_text "event"; actor = "ALPHA", 5; target = "BETA", 4';
+    for (const target of targets) {
+      const result = compileSource(source, { filename: "text.mbas", target, texts: { event: "{target} joined {actor}." }, font: "mixed" });
+      expect(result).not.toContain("{target}");
+      expect(result.indexOf("BETA")).toBeLessThan(result.indexOf("ALPHA"));
+      expect(result).toContain(" joined ");
+    }
+  });
+  it("wraps templates using declared maximum value lengths", () => {
+    const result = compileSource('const maxName = 8\nprint_text "arrival", 12; name = "Al", maxName', {
+      filename: "text.mbas",
+      target: "spectrum",
+      font: "mixed",
+      texts: { arrival: "{name} arrived" }
+    });
+    expect(result).toContain('PRINT "Al"');
+    expect(result).toContain('PRINT "arrived"');
+    expect(result.trimEnd().split("\n")).toHaveLength(2);
+  });
+  it("validates localized template placeholders and maximum lengths", () => {
+    const compile = (source: string, text: string) => compileSource(source, { filename: "template.mbas", target: "spectrum", texts: { message: text } });
+    expect(() => compile('print_text "message"', "Hello {name}")).toThrow(/placeholder.*name.*no PRINT_TEXT binding/i);
+    expect(() => compile('print_text "message"; name = name$, 10', "Hello")).toThrow(/binding.*name.*not used/i);
+    expect(() => compile('print_text "message"; name = name$, 10; NAME = other$, 10', "{name}")).toThrow(/Duplicate.*name/i);
+    expect(() => compile('print_text "message"; name = name$, limit', "{name}")).toThrow(/maximum length.*compile-time integer/i);
+    expect(() => compile('print_text "message", 8; name = name$, 9', "{name}")).toThrow(/exceeds.*width 8/i);
+    expect(() => compile('print_text "message", 8; name = name$, 8', "ID:{name}")).toThrow(/can be up to 11 characters.*width 8/i);
+    expect(() => compile('print_text "message"; name = name$, 10', "Hello {bad-name}")).toThrow(/Invalid localized text placeholder/i);
+    expect(compile('print_text "message"', "Use {{name}}")).toContain('PRINT "Use {name}"');
+  });
   it("loads keyed short texts beside long text files", async () => {
     const directory = await mkdtemp(join(tmpdir(), "mbas-text-resources-"));
     try {

@@ -2,6 +2,5 @@
   "continue": "PRESS ANY KEY TO CONTINUE",
   "npcEventsHeading": "The people of San Golpe talk about these events:",
   "npcQuietMonth": "It was a quiet month in San Golpe.",
-  "npcRanAwayWith": " ran away with ",
-  "npcRanAwaySuffix": "."
+  "npcRanAway": "{actor} ran away with {target}."
 }

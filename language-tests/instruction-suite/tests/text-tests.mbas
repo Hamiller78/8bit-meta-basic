@@ -1,0 +1,4 @@
+test localizedTextPlaceholder()
+    print_text "languagePlaceholder"; name = "ADA", 8
+    assert_print "HELLO ADA!"
+end test

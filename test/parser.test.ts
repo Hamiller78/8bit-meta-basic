@@ -17,6 +17,21 @@ describe("parser", () => {
     });
   });
 
+  it("parses named localized-text placeholders with maximum lengths", () => {
+    expect(parseSource('print_text "event", 30; actor = first$ + " " + last$, 21; target = other$, 10\n', "text.mbas")).toMatchObject({
+      statements: [{
+        kind: "print",
+        layout: "wrap",
+        textResource: true,
+        wrapWidth: { kind: "number", value: 30 },
+        textBindings: [
+          { name: "actor", expression: { kind: "binary", operator: "+" }, maxLength: { kind: "number", value: 21 } },
+          { name: "target", expression: { kind: "identifier", name: "other$" }, maxLength: { kind: "number", value: 10 } }
+        ]
+      }]
+    });
+  });
+
   it("parses GOSUB and RETURN statements", () => {
     expect(parseSource('gosub drawHeader\nprint "DONE"\ndrawHeader:\nreturn\n', "sub.mbas")).toMatchObject({
       statements: [

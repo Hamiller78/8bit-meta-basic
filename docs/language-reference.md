@@ -452,7 +452,7 @@ Coordinates are numeric expressions in 1-based row, column order, as with `PRINT
 | Statement | Text source | Behavior |
 | --- | --- | --- |
 | `PRINT_WRAP expression [, width]` | String literal or compile-time string constant/expression | Wraps text without localization files |
-| `PRINT_TEXT "name" [, width]` | Selected-language text resource | Loads localized text and wraps it |
+| `PRINT_TEXT "name" [, width] [; name = expression, maxLength ...]` | Selected-language text resource | Loads localized text, inserts named values, and wraps it |
 | `PRINT_CENTERED expression [, width]` | String literal or compile-time string constant/expression | Wraps text and centers each resulting line |
 
 ```basic
@@ -462,6 +462,7 @@ print_centered welcome$
 print_wrap "This paragraph is wrapped during compilation."
 print_wrap welcome$, 28
 print_text "intro"
+print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
 print_centered text$("continue")
 ```
 
@@ -494,6 +495,23 @@ Each language directory may contain a `strings.json` object for short texts:
 
 Use one UTF-8 `.txt` file per long text when editing paragraphs is more convenient. Its filename stem becomes the resource key, so `intro.txt` provides `intro`. `PRINT_TEXT "intro"` resolves a resource and wraps it directly. The compile-time expression `TEXT$("continue")` resolves a resource for other output forms, such as `PRINT_CENTERED TEXT$("continue")` or `PRINT TEXT$("continue")`. Both resource forms use the same lookup. Keys are case-sensitive and must be written as string literals. Defining the same key in `strings.json` and a `.txt` file is an error.
 
+Localized resources used by `PRINT_TEXT` may contain named placeholders:
+
+```json
+{
+  "npcRanAway": "{actor} ran away with {target}."
+}
+```
+
+Bind each placeholder after a semicolon and give the inserted expression's maximum possible display length:
+
+```basic
+print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
+print_text "npcRanAway", 30; actor = actorName$, 21; target = targetName$, 21
+```
+
+The compiler reserves the declared maximum length while wrapping, then emits ordinary runtime `PRINT` expressions in place of the placeholders. The maximum must be a positive compile-time integer no larger than the selected output width. It is a promise about the runtime value rather than an instruction to truncate it. A placeholder and surrounding punctuation form one word and must fit within the output width at its maximum size. Every placeholder in the selected translation needs one binding, and every binding must be used. Names are case-insensitive and translations may reorder or repeat them. Use `{{` and `}}` for literal braces.
+
 English (`en`) is the default; pass `--language de` for German. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
 
 ```sh
@@ -506,7 +524,7 @@ The CLI and build/launch scripts accept `--language` and `--font`. Font choices 
 - `uppercase`: capitalize layout text and explicitly select the C64 uppercase/graphics character set.
 - `mixed`: preserve layout text case and select the C64 uppercase/lowercase character set. Generated BASIC syntax is lowercase while quoted strings retain their original case. Spectrum and Atari retain their normal fonts.
 
-Font conversion applies to `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Ordinary `PRINT` retains its existing native string behavior. C64 mixed mode lowercases BASIC syntax outside quoted strings so the generated listing matches the selected character set; string contents remain unchanged.
+Font conversion applies to the static parts of `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Inserted placeholder values retain their runtime contents. Ordinary `PRINT` retains its existing native string behavior. C64 mixed mode lowercases BASIC syntax outside quoted strings so the generated listing matches the selected character set; string contents remain unchanged.
 
 German characters are transliterated before measuring and wrapping text: `ä` → `ae`, `ö` → `oe`, `ü` → `ue`, `Ä` → `Ae`, `Ö` → `Oe`, `Ü` → `Ue`, `ß` → `ss`, and `ẞ` → `SS`. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics. Custom fonts and general Unicode conversion are not supported.
 
