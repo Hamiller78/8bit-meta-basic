@@ -174,7 +174,7 @@ messages$(2) = "STANDBY"
 print messages$(0); messages$(2)
 ```
 
-The declared width is observable on targets that use fixed slices for storage. Spectrum and Atari reads can include trailing spaces up to that width, while C64 native string-array entries retain their runtime length. When later code concatenates a fixed-width value, first remove trailing padding with `LEN`, `MID$`, and `LEFT$`, or store its logical length separately. Otherwise text appended after the padding can be truncated when it is assigned to another fixed-width array or struct field.
+The declared width is the element's storage capacity. It is not part of the string value: `"READY"` retains length 5, while `"READY "` retains length 6 and preserves its deliberate trailing space. Reads, `LEN`, slicing, comparisons, output, and concatenation use that logical value consistently on every target. Spectrum and Atari generated code stores hidden element lengths beside its fixed-width character storage; C64 uses the native length of each string-array element. String fields in struct arrays use the same rules.
 
 Use `STRUCT` blocks to define small record-like storage shapes:
 
@@ -715,4 +715,4 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 ## Current omissions
 
-The language does not yet implement variable declarations beyond `DIM` and function/test locals, a separate `PROCEDURE` declaration, namespaces, exports, automatic dependency loading, separate compilation, variable-length string arrays, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.
+The language does not yet implement variable declarations beyond `DIM` and function/test locals, a separate `PROCEDURE` declaration, namespaces, exports, automatic dependency loading, separate compilation, dynamically resizable string-array element capacities, labelled `RESTORE`, general function calls beyond documented built-ins and Meta-BASIC functions, or `PRINT` comma/apostrophe separators.

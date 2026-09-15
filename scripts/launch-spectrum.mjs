@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, readlink, realpath, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
@@ -53,7 +53,7 @@ async function launchSpectrum(options) {
   }
 
   if (options.restart) {
-    await terminateExistingEmulator(emulatorPath);
+    await terminateExistingSpectrumEmulator(emulatorPath, emulator);
   }
 
   const replacements = {
@@ -72,6 +72,7 @@ async function launchSpectrum(options) {
   const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
   const argsTemplate = spectrumEmulatorArgsTemplate(emulator, {
     testMode: options.testMode,
+    fast: options.fast,
     testPrinterOutput: options.testPrinterOutput,
     deviceArgs
   });
@@ -90,7 +91,7 @@ async function launchSpectrum(options) {
 
 export function spectrumEmulatorArgsTemplate(emulator = {}, options = {}) {
   const baseArgs = emulator.args ?? ["-tape", "{artifact}", "-auto-play"];
-  const testArgs = options.testMode ? emulator.testArgs ?? ["--speed", "1000"] : [];
+  const testArgs = options.testMode || options.fast ? emulator.testArgs ?? ["--speed", "1000"] : [];
   const deviceArgs = options.testPrinterOutput ? options.deviceArgs ?? [] : [];
   return [...baseArgs, ...testArgs, ...deviceArgs];
 }
@@ -108,7 +109,8 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
-    restart: false
+    restart: false,
+    fast: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -172,6 +174,10 @@ function parseArgs(argv) {
       options.runBuild = false;
       continue;
     }
+    if (arg === "--fast") {
+      options.fast = true;
+      continue;
+    }
     if (arg === "--restart" || arg === "--kill-existing") {
       options.restart = true;
       continue;
@@ -230,14 +236,91 @@ async function prepareDeviceOutput(path) {
   await writeFile(path, "", "utf8");
 }
 
-async function terminateExistingEmulator(emulatorPath) {
-  const executableName = basename(emulatorPath);
+export function spectrumEmulatorProcessNames(emulatorPath, emulator = {}) {
+  const configuredNames = Array.isArray(emulator.processNames) ? emulator.processNames : [];
+  const displayName = typeof emulator.name === "string" && /^[A-Za-z0-9._+-]+$/.test(emulator.name) ? emulator.name.toLowerCase() : undefined;
+  return [...new Set([basename(emulatorPath), displayName, ...configuredNames].filter((name) => typeof name === "string" && name.length > 0))];
+}
+
+export async function linuxProcessIdsForExecutable(executablePath, procRoot = "/proc") {
+  const targetPath = await realpath(executablePath);
+  const entries = await readdir(procRoot, { withFileTypes: true });
+  const matches = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory() && /^\d+$/.test(entry.name))
+      .map(async (entry) => {
+        try {
+          const linkedPath = (await readlink(join(procRoot, entry.name, "exe"))).replace(/ \(deleted\)$/, "");
+          return linkedPath === targetPath ? Number(entry.name) : undefined;
+        } catch {
+          return undefined;
+        }
+      })
+  );
+  return matches.filter((pid) => pid !== undefined).sort((left, right) => left - right);
+}
+
+export async function terminateExistingSpectrumEmulator(emulatorPath, emulator = {}) {
+  const processNames = spectrumEmulatorProcessNames(emulatorPath, emulator);
   if (process.platform === "win32") {
-    await runBestEffort("taskkill", ["/F", "/IM", executableName]);
+    for (const processName of processNames) {
+      await runBestEffort("taskkill", ["/F", "/IM", processName]);
+    }
     return;
   }
 
-  await runBestEffort("pkill", ["-x", executableName]);
+  if (process.platform === "linux") {
+    const matchingPids = (await linuxProcessIdsForExecutable(emulatorPath)).filter((pid) => pid !== process.pid);
+    await terminateProcessIds(matchingPids);
+  }
+
+  for (const processName of processNames) {
+    await runBestEffort("pkill", ["-x", processName]);
+  }
+}
+
+async function terminateProcessIds(pids) {
+  for (const pid of pids) {
+    signalProcess(pid, "SIGTERM");
+  }
+
+  let survivors = await waitForProcessExit(pids, 1000);
+  for (const pid of survivors) {
+    signalProcess(pid, "SIGKILL");
+  }
+  survivors = await waitForProcessExit(survivors, 1000);
+  if (survivors.length > 0) {
+    throw new Error(`Could not terminate existing Spectrum emulator process${survivors.length === 1 ? "" : "es"}: ${survivors.join(", ")}.`);
+  }
+}
+
+function signalProcess(pid, signal) {
+  try {
+    process.kill(pid, signal);
+  } catch (error) {
+    if (!(error instanceof Error) || !Reflect.has(error, "code") || error.code !== "ESRCH") {
+      throw error;
+    }
+  }
+}
+
+async function waitForProcessExit(pids, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let survivors = pids.filter(isProcessRunning);
+  while (survivors.length > 0 && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+    survivors = survivors.filter(isProcessRunning);
+  }
+  return survivors;
+}
+
+function isProcessRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error instanceof Error && Reflect.has(error, "code") && error.code === "EPERM";
+  }
 }
 
 function runBestEffort(command, args) {

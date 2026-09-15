@@ -1,23 +1,23 @@
 uses "characters.mbas"
 uses "characternames.mbas"
 
-function createAllCharacters()
+function createAllCharacters(showProgress)
     local presidentIndex, daughterIndex
 
     resetCharacterFactory()
 
-    createRoleCharacter(usagent, us, male)
-    createRoleCharacter(usagent, us, female)
-    createRoleCharacter(ussragent, russian, male)
-    createRoleCharacter(ussragent, russian, female)
+    createRoleCharacter(usagent, us, male, showProgress)
+    createRoleCharacter(usagent, us, female, showProgress)
+    createRoleCharacter(ussragent, russian, male, showProgress)
+    createRoleCharacter(ussragent, russian, female, showProgress)
 
-    presidentIndex = createRoleCharacter(president, native, male)
-    daughterIndex = createRoleCharacter(daughter, native, female)
-    createRoleCharacter(advisor, native, male)
-    createRoleCharacter(priest, native, male)
-    createRoleCharacter(bartender, native, any)
-    createRoleCharacter(landowner, native, male)
-    createRoleCharacter(ustourist, us, any)
+    presidentIndex = createRoleCharacter(president, native, male, showProgress)
+    daughterIndex = createRoleCharacter(daughter, native, female, showProgress)
+    createRoleCharacter(advisor, native, male, showProgress)
+    createRoleCharacter(priest, native, male, showProgress)
+    createRoleCharacter(bartender, native, any, showProgress)
+    createRoleCharacter(landowner, native, male, showProgress)
+    createRoleCharacter(ustourist, us, any, showProgress)
 
     if presidentIndex <> -1 and daughterIndex <> -1 then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
@@ -26,12 +26,16 @@ function createAllCharacters()
     assignSecretAgendas()
 end function
 
-function createRoleCharacter(characterRole, nationality, gender)
+function createRoleCharacter(characterRole, nationality, gender, showProgress)
     local characterIndex
 
     characterIndex = createCharacter(nationality, gender)
     if characterIndex <> -1 then
         characters(characterIndex).role% = characterRole
+        if showProgress then
+            set_pos int(TEXT_ROWS / 2) + 2, int((TEXT_COLUMNS - 16) / 2) + 1
+            print_text "creatingCharactersProgress"; created = createdCharacterCount, 2; total = numberOfCharacters, 2
+        end if
     end if
     return characterIndex
 end function
@@ -65,7 +69,6 @@ function createCharacter(nationality, gender)
 
     firstName$ = takeFirstName$(nationality, actualGender)
     lastName$ = takeLastName$(nationality)
-    lastName$ = trimName$(lastName$)
     if nationality = russian and actualGender = female then
         lastName$ = lastName$ + "a"
     end if
@@ -117,17 +120,4 @@ function chooseAgendaTarget(characterIndex)
         targetIndex = targetIndex + 1
     end if
     return targetIndex
-end function
-
-function trimName$(name$)
-    local nameLength
-
-    nameLength = len(name$)
-    while nameLength > 0
-        if mid$(name$, nameLength, 1) <> " " then
-            return left$(name$, nameLength)
-        end if
-        nameLength = nameLength - 1
-    wend
-    return ""
 end function

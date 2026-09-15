@@ -1,5 +1,7 @@
 {
   "continue": "WEITER MIT BELIEBIGER TASTE",
+  "creatingCharacters": "Charaktere werden erstellt...",
+  "creatingCharactersProgress": "Erstellt: {created}/{total}",
   "npcEventsHeading": "Die Menschen in San Golpe sprechen über diese Ereignisse:",
   "npcQuietMonth": "Es war ein ruhiger Monat in San Golpe.",
   "npcRanAway": "{actor} ist mit {target} durchgebrannt.",

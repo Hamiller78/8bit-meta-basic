@@ -14,7 +14,7 @@ This roadmap records attractive directions rather than promises. New work should
 - Multiple source files and linking
 - Procedures and functions
 - Local variables with deterministic target name allocation
-- Variable-length string arrays and richer array utilities
+- Dynamically resizable string-array capacities and richer array utilities
 - More string operations
 - Target-specific libraries or namespaces for machine capabilities
 - Optional optimization and minification passes

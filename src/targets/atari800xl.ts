@@ -10,6 +10,15 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
+import {
+  allocateGeneratedVariableName,
+  attachStringArrayLengthDimension,
+  buildStringArrayStorage,
+  createGeneratedVariableNameAllocator,
+  logicalLengthAccess,
+  stringArrayStorageFor,
+  type StringArrayStorage
+} from "./string-array-lengths.js";
 import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
@@ -18,12 +27,33 @@ export const atari800xlTarget: TargetBackend = {
   maxLineLength: 120,
   maxLineNumber: 32767,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const expanded = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
+    const positioned = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
+    const stringArrayStorage = buildStringArrayStorage(positioned.instructions);
+    const allocateInternalLabel = createInternalLabelAllocator(positioned);
+    const stringArrayTempName = allocateGeneratedVariableName(positioned.instructions, "MBARRAY", "$");
+    const stringArrayIndexTempName = allocateGeneratedVariableName(positioned.instructions, "MBARRAYINDEX");
+    const lengthInitializationLoopName = allocateGeneratedVariableName(positioned.instructions, "MBLENGTHINIT");
+    const expanded = expandAtariLogicalStringArrays(
+      positioned,
+      stringArrayStorage,
+      stringArrayTempName,
+      stringArrayIndexTempName,
+      lengthInitializationLoopName,
+      allocateInternalLabel
+    );
     const allocateTempStringName = createTempStringNameAllocator(expanded.instructions);
-    const allocateInternalLabel = createInternalLabelAllocator(expanded);
+    const allocateReadTempName = createGeneratedVariableNameAllocator(expanded.instructions, "MBREAD", "$");
+    const readIndexTempName = allocateGeneratedVariableName(expanded.instructions, "MBRI");
+    const readLengthTempName = allocateGeneratedVariableName(expanded.instructions, "MBRL");
+    const readStartTempName = allocateGeneratedVariableName(expanded.instructions, "MBRS");
+    const readTempNames: string[] = [];
+    const readTempNameAt = (index: number): string => {
+      while (readTempNames.length <= index) readTempNames.push(allocateReadTempName());
+      return readTempNames[index];
+    };
     const dimmedStrings = new Set<string>();
     const instructions: Instruction[] = [];
 
@@ -41,7 +71,24 @@ export const atari800xlTarget: TargetBackend = {
       instructions.push(...expandAtariStringAssignment(instruction, allocateTempStringName, ensureStringDim));
     };
 
-    for (const instruction of expanded.instructions) {
+    const pending = [...expanded.instructions];
+    while (pending.length > 0) {
+      let instruction = pending.shift()!;
+      const materialized = materializeAtariStringArrayReads(
+        instruction,
+        stringArrayStorage,
+        readTempNameAt,
+        readIndexTempName,
+        readLengthTempName,
+        readStartTempName,
+        allocateInternalLabel
+      );
+      if (materialized.prefix.length > 0) {
+        pending.unshift(...materialized.prefix, materialized.instruction);
+        continue;
+      }
+      instruction = materialized.instruction;
+
       if (instruction.kind === "cls") {
         if (instruction.color) {
           const color = atariColorCodes[instruction.color.color];
@@ -106,7 +153,12 @@ export const atari800xlTarget: TargetBackend = {
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
       } else if (instruction.kind === "let" && isStringVariableName(instruction.name)) {
         pushStringAssignment(instruction);
-      } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name) && instruction.expression.kind !== "string") {
+      } else if (
+        instruction.kind === "array-let" &&
+        isStringVariableName(instruction.name) &&
+        instruction.expression.kind !== "string" &&
+        instruction.expression.kind !== "identifier"
+      ) {
         const tempName = allocateTempStringName();
         pushStringAssignment({ kind: "let", name: tempName, expression: instruction.expression, location: instruction.location });
         instructions.push({ ...instruction, expression: { kind: "identifier", name: tempName, location: instruction.location } });
@@ -225,6 +277,335 @@ export const atari800xlTarget: TargetBackend = {
     }
   }
 };
+
+function expandAtariLogicalStringArrays(
+  program: LoweredProgram,
+  storage: ReadonlyMap<string, StringArrayStorage>,
+  stringTempName: string,
+  indexTempName: string,
+  initializationLoopName: string,
+  allocateInternalLabel: () => string
+): LoweredProgram {
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+      const definition = stringArrayStorageFor(instruction.name, storage);
+      if (!definition) throw new Error(`Internal error: missing Atari string array storage for ${instruction.name}.`);
+      instructions.push(...attachStringArrayLengthDimension(instruction, definition));
+      instructions.push(
+        {
+          kind: "for",
+          variable: initializationLoopName,
+          start: { kind: "number", value: 0, raw: "0", location: instruction.location },
+          limit: { kind: "number", value: definition.count - 1, raw: (definition.count - 1).toString(), location: instruction.location },
+          location: instruction.location
+        },
+        {
+          kind: "array-let",
+          name: definition.lengthArrayName,
+          indices: [{ kind: "identifier", name: initializationLoopName, location: instruction.location }],
+          expression: { kind: "number", value: 0, raw: "0", location: instruction.location },
+          location: instruction.location
+        },
+        { kind: "next", variable: initializationLoopName, location: instruction.location }
+      );
+      continue;
+    }
+
+    if (instruction.kind !== "array-let" || !isStringVariableName(instruction.name)) {
+      instructions.push(instruction);
+      continue;
+    }
+
+    const definition = stringArrayStorageFor(instruction.name, storage);
+    if (!definition) throw new Error(`Internal error: missing Atari string array storage for ${instruction.name}.`);
+    instructions.push(
+      ...expandAtariStringArrayAssignment(
+        instruction,
+        definition,
+        stringTempName,
+        indexTempName,
+        allocateInternalLabel
+      )
+    );
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function expandAtariStringArrayAssignment(
+  instruction: Extract<Instruction, { kind: "array-let" }>,
+  definition: StringArrayStorage,
+  stringTempName: string,
+  indexTempName: string,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const instructions: Instruction[] = [];
+  let index = instruction.indices[0];
+  if (index.kind !== "number" && index.kind !== "identifier") {
+    instructions.push({ kind: "let", name: indexTempName, expression: index, location: index.location });
+    index = { kind: "identifier", name: indexTempName, location: index.location };
+  }
+
+  if (instruction.expression.kind === "string") {
+    const length = [...instruction.expression.value].length;
+    instructions.push({ ...instruction, indices: [index] });
+    instructions.push({
+      kind: "array-let",
+      name: definition.lengthArrayName,
+      indices: [index],
+      expression: { kind: "number", value: length, raw: length.toString(), location: instruction.location },
+      location: instruction.location
+    });
+    return instructions;
+  }
+
+  instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
+  instructions.push({ ...instruction, indices: [index], expression: { kind: "identifier", name: stringTempName, location: instruction.location } });
+  const length = logicalLengthAccess(definition, index);
+  instructions.push({
+    kind: "array-let",
+    name: definition.lengthArrayName,
+    indices: [index],
+    expression: { kind: "function-call", name: builtinFunctions.len, args: [{ kind: "identifier", name: stringTempName, location: instruction.location }], location: instruction.location },
+    location: instruction.location
+  });
+  const doneLabel = allocateInternalLabel();
+  instructions.push({
+    kind: "if-goto",
+    condition: {
+      kind: "binary",
+      operator: "<=",
+      left: length,
+      right: { kind: "number", value: definition.width, raw: definition.width.toString(), location: instruction.location },
+      location: instruction.location
+    },
+    label: doneLabel,
+    location: instruction.location
+  });
+  instructions.push({
+    kind: "array-let",
+    name: definition.lengthArrayName,
+    indices: [index],
+    expression: { kind: "number", value: definition.width, raw: definition.width.toString(), location: instruction.location },
+    location: instruction.location
+  });
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location: instruction.location });
+  return instructions;
+}
+
+interface MaterializedAtariInstruction {
+  readonly prefix: readonly Instruction[];
+  readonly instruction: Instruction;
+}
+
+function materializeAtariStringArrayReads(
+  instruction: Instruction,
+  storage: ReadonlyMap<string, StringArrayStorage>,
+  readTempNameAt: (index: number) => string,
+  readIndexTempName: string,
+  readLengthTempName: string,
+  readStartTempName: string,
+  allocateInternalLabel: () => string
+): MaterializedAtariInstruction {
+  const prefix: Instruction[] = [];
+  let nextReadTemp = 0;
+  const rewrite = (expression: Expression): Expression =>
+    rewriteAtariStringArrayReads(
+      expression,
+      storage,
+      prefix,
+      () => readTempNameAt(nextReadTemp++),
+      readIndexTempName,
+      readLengthTempName,
+      readStartTempName,
+      allocateInternalLabel
+    );
+
+  switch (instruction.kind) {
+    case "print":
+      return {
+        prefix,
+        instruction: {
+          ...instruction,
+          items: instruction.items.map(rewrite),
+          ...(instruction.at ? { at: { row: rewrite(instruction.at.row), column: rewrite(instruction.at.column) } } : {})
+        }
+      };
+    case "print-device":
+      return { prefix, instruction: { ...instruction, items: instruction.items.map(rewrite) } };
+    case "data":
+      return { prefix, instruction: { ...instruction, values: instruction.values.map(rewrite) } };
+    case "let":
+      return { prefix, instruction: { ...instruction, expression: rewrite(instruction.expression) } };
+    case "multi-let":
+      return {
+        prefix,
+        instruction: { ...instruction, assignments: instruction.assignments.map((assignment) => ({ ...assignment, expression: rewrite(assignment.expression) })) }
+      };
+    case "array-let":
+      return {
+        prefix,
+        instruction: { ...instruction, indices: instruction.indices.map(rewrite), expression: rewrite(instruction.expression) }
+      };
+    case "for":
+      return { prefix, instruction: { ...instruction, start: rewrite(instruction.start), limit: rewrite(instruction.limit), ...(instruction.step ? { step: rewrite(instruction.step) } : {}) } };
+    case "if-goto":
+      return { prefix, instruction: { ...instruction, condition: rewrite(instruction.condition) } };
+    case "position":
+      return { prefix, instruction: { ...instruction, row: rewrite(instruction.row), column: rewrite(instruction.column) } };
+    case "poke":
+      return { prefix, instruction: { ...instruction, value: rewrite(instruction.value) } };
+    case "randomize":
+      return { prefix, instruction: instruction.seed ? { ...instruction, seed: rewrite(instruction.seed) } : instruction };
+    case "label":
+    case "rem":
+    case "cls":
+    case "border-color":
+    case "text-color":
+    case "screen-background-color":
+    case "cell-text-color":
+    case "cell-background-color":
+    case "suppress-scroll-prompt":
+    case "program-mode":
+    case "paper":
+    case "open-device":
+    case "close-device":
+    case "check-device":
+    case "read":
+    case "restore":
+    case "dim-array":
+    case "dim-string":
+    case "read-key":
+    case "goto":
+    case "gosub":
+    case "return":
+    case "end":
+    case "next":
+    case "setcolor":
+    case "print-chr":
+    case "sys":
+    case "trap":
+    case "wait-rs232-transmit":
+      return { prefix, instruction };
+  }
+}
+
+function rewriteAtariStringArrayReads(
+  expression: Expression,
+  storage: ReadonlyMap<string, StringArrayStorage>,
+  prefix: Instruction[],
+  allocateReadTempName: () => string,
+  readIndexTempName: string,
+  readLengthTempName: string,
+  readStartTempName: string,
+  allocateInternalLabel: () => string
+): Expression {
+  const rewrite = (child: Expression): Expression =>
+    rewriteAtariStringArrayReads(
+      child,
+      storage,
+      prefix,
+      allocateReadTempName,
+      readIndexTempName,
+      readLengthTempName,
+      readStartTempName,
+      allocateInternalLabel
+    );
+
+  switch (expression.kind) {
+    case "function-call": {
+      if (
+        expression.name === builtinFunctions.len &&
+        expression.args[0]?.kind === "array-access" &&
+        isStringVariableName(expression.args[0].name) &&
+        !expression.args[0].fixedWidthStorageLength
+      ) {
+        const source = expression.args[0];
+        const definition = stringArrayStorageFor(source.name, storage);
+        if (!definition) throw new Error(`Internal error: missing Atari logical length array for ${source.name}.`);
+        return logicalLengthAccess(definition, rewrite(source.indices[0]));
+      }
+      return { ...expression, args: expression.args.map(rewrite) };
+    }
+    case "array-access": {
+      const indices = expression.indices.map(rewrite);
+      if (!isStringVariableName(expression.name) || expression.fixedWidthStorageLength) {
+        return {
+          ...expression,
+          indices,
+          ...(expression.fixedWidthStorageLength ? { fixedWidthStorageLength: rewrite(expression.fixedWidthStorageLength) } : {}),
+          ...(expression.fixedWidthStorageStart ? { fixedWidthStorageStart: rewrite(expression.fixedWidthStorageStart) } : {})
+        };
+      }
+      const definition = stringArrayStorageFor(expression.name, storage);
+      if (!definition) throw new Error(`Internal error: missing Atari logical length array for ${expression.name}.`);
+      const index: Expression = { kind: "identifier", name: readIndexTempName, location: expression.location };
+      const length: Expression = { kind: "identifier", name: readLengthTempName, location: expression.location };
+      const start: Expression = { kind: "identifier", name: readStartTempName, location: expression.location };
+      const tempName = allocateReadTempName();
+      const doneLabel = allocateInternalLabel();
+      prefix.push(
+        { kind: "let", name: readIndexTempName, expression: indices[0], location: expression.location },
+        { kind: "let", name: readLengthTempName, expression: logicalLengthAccess(definition, index), location: expression.location },
+        { kind: "let", name: tempName, expression: { kind: "string", value: "", location: expression.location }, location: expression.location },
+        {
+          kind: "if-goto",
+          condition: {
+            kind: "binary",
+            operator: "=",
+            left: length,
+            right: { kind: "number", value: 0, raw: "0", location: expression.location },
+            location: expression.location
+          },
+          label: doneLabel,
+          location: expression.location
+        },
+        {
+          kind: "let",
+          name: readStartTempName,
+          expression: {
+            kind: "binary",
+            operator: "+",
+            left: {
+              kind: "binary",
+              operator: "*",
+              left: index,
+              right: { kind: "number", value: definition.width, raw: definition.width.toString(), location: expression.location },
+              location: expression.location
+            },
+            right: { kind: "number", value: 1, raw: "1", location: expression.location },
+            location: expression.location
+          },
+          location: expression.location
+        },
+        {
+          kind: "let",
+          name: tempName,
+          expression: { ...expression, indices: [index], fixedWidthStorageStart: start, fixedWidthStorageLength: length },
+          location: expression.location
+        },
+        { kind: "label", name: doneLabel, internal: true, location: expression.location }
+      );
+      return { kind: "identifier", name: tempName, location: expression.location };
+    }
+    case "struct-field-access":
+      return { ...expression, indices: expression.indices.map(rewrite) };
+    case "parenthesized":
+      return { ...expression, expression: rewrite(expression.expression) };
+    case "unary":
+      return { ...expression, operand: rewrite(expression.operand) };
+    case "binary":
+      return { ...expression, left: rewrite(expression.left), right: rewrite(expression.right) };
+    case "identifier":
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      return expression;
+  }
+}
 
 function hoistAtariStringDimensions(instructions: readonly Instruction[]): readonly Instruction[] {
   const dimStrings: Extract<Instruction, { kind: "dim-string" }>[] = [];
@@ -361,7 +742,13 @@ function renderAtariArrayAccess(
 ): string {
   if (isStringVariableName(expression.name)) {
     const width = atariStringArrayWidth(expression.name);
-    return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${renderAtariStringArrayStart(expression.indices[0], width, options)},${renderAtariStringArrayEnd(expression.indices[0], width, options)})`;
+    const start = expression.fixedWidthStorageStart
+      ? renderExpression(expression.fixedWidthStorageStart, options)
+      : renderAtariStringArrayStart(expression.indices[0], width, options);
+    const end = expression.fixedWidthStorageLength
+      ? renderAtariStringArrayOffset(start, [expression.fixedWidthStorageLength], -1, options)
+      : renderAtariStringArrayEnd(expression.indices[0], width, options);
+    return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${start},${end})`;
   }
 
   return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderExpression(index, options)).join(",")})`;
@@ -563,7 +950,13 @@ function preserveComputedAtariSliceSources(
       if (isAtariStringSliceFunction(expression.name) && args[0] && !isDirectAtariSliceSource(args[0])) {
         const tempName = allocateTempStringName();
         ensureStringDim(tempName, args[0].location);
-        instructions.push({ kind: "let", name: tempName, expression: args[0], location: args[0].location });
+        instructions.push(
+          ...expandAtariStringAssignment(
+            { kind: "let", name: tempName, expression: args[0], location: args[0].location },
+            allocateTempStringName,
+            ensureStringDim
+          )
+        );
         return { ...expression, args: [{ kind: "identifier", name: tempName, location: args[0].location }, ...args.slice(1)] };
       }
       return { ...expression, args };

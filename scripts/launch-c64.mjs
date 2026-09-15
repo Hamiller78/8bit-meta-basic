@@ -76,6 +76,7 @@ async function launchC64(options) {
   const deviceArgs = testOutputDevice === "rs232" ? emulator.rs232Args ?? [] : emulator.printerArgs ?? [];
   const argsTemplate = c64EmulatorArgsTemplate(emulator, {
     testMode: options.testMode,
+    fast: options.fast,
     testPrinterOutput: options.testPrinterOutput,
     deviceArgs
   });
@@ -94,7 +95,7 @@ async function launchC64(options) {
 
 export function c64EmulatorArgsTemplate(emulator = {}, options = {}) {
   const baseArgs = emulator.args ?? ["-autostart", "{artifact}", "-autostart-warp"];
-  const testArgs = options.testMode ? emulator.testArgs ?? ["-warp"] : [];
+  const testArgs = options.testMode || options.fast ? emulator.testArgs ?? ["-warp"] : [];
   const deviceArgs = options.testPrinterOutput ? options.deviceArgs ?? [] : [];
   return [...baseArgs, ...testArgs, ...deviceArgs];
 }
@@ -112,7 +113,8 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     runBuild: true,
-    restart: false
+    restart: false,
+    fast: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -174,6 +176,10 @@ function parseArgs(argv) {
     }
     if (arg === "--skip-build") {
       options.runBuild = false;
+      continue;
+    }
+    if (arg === "--fast") {
+      options.fast = true;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

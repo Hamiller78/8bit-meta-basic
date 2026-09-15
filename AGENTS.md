@@ -319,8 +319,8 @@ String arrays require exactly two declaration dimensions: element count and fixe
 
 Target array lowering:
 
-- Spectrum maps Meta-BASIC numeric array names to single-letter numeric array names, maps string arrays to single-letter string array names, and shifts every Meta-BASIC index by `+ 1`.
-- Atari 800XL renders native numeric arrays and lowers each declared count to the native zero-based upper bound, so `dim values(3)` becomes `DIM VALUES(2)`. Fixed-width string arrays render as one backing string, so `dim messages$(3, 12)` becomes `DIM MESSAGES$(36)` and each element access renders as a substring slice.
+- Spectrum maps Meta-BASIC numeric array names to single-letter numeric array names, maps string arrays to single-letter string array names, and shifts every Meta-BASIC index by `+ 1`. String arrays also receive hidden numeric arrays that preserve each element's logical length.
+- Atari 800XL renders native numeric arrays and lowers each declared count to the native zero-based upper bound, so `dim values(3)` becomes `DIM VALUES(2)`. Fixed-width string arrays render as one packed backing string, so `dim messages$(3, 12)` reserves `DIM MESSAGES$(36)`, plus a hidden numeric array that preserves each element's logical length.
 - C64 renders native numeric and string arrays, applies deterministic variable-name mapping, preserves `%` for integer arrays where safe, and lowers each declared count to the native zero-based upper bound. For string arrays, the fixed width is used for Meta-BASIC diagnostics and is not emitted as a C64 dimension.
 
 Target keyboard lowering:
@@ -490,7 +490,7 @@ Meaning:
 - Use `GO SUB` and `RETURN`.
 - Render assignments as `LET NAME=expression`.
 - Render `FOR` loop variables as single-letter numeric variables.
-- Render numeric arrays as single-letter numeric arrays, string arrays as single-letter string arrays, and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
+- Render numeric arrays as single-letter numeric arrays, string arrays as single-letter string arrays with hidden logical-length arrays, and shift zero-based Meta-BASIC indexes to Spectrum's one-based array indexes.
 - Render `REM` label text in uppercase for emulator-friendly Spectrum BASIC listings. Map string identifiers to single-letter Spectrum string variables. At readability `0` and `1`, compact long numeric scalar identifiers to save memory and avoid oversized generated code. At readability `2`, render readable uppercase numeric scalar names where practical. Preserve string literal contents exactly.
 - Render positioned output as native zero-based `PRINT AT row,column;...`, subtracting one from Meta-BASIC source coordinates.
 - Constant source coordinates must satisfy row `1..22` and column `1..32`.
@@ -506,7 +506,7 @@ Meaning:
 - Render `REM` label text in uppercase for emulator-friendly Atari BASIC listings. Preserve string literal contents exactly. At readability `0` and `1`, render variables with deterministic compact names to save memory and avoid native tokenizer keyword-name warnings. At readability `2`, render readable uppercase variable names where practical.
 - Emit `DIM NAME$(255)` before the first assignment to each Atari string variable.
 - Render numeric arrays with native `DIM NAME(maxIndex)` syntax where `maxIndex` is one less than the Meta-BASIC element count.
-- Render fixed-width string arrays as one backing string with substring slices for element reads and writes.
+- Render fixed-width string arrays as one packed backing string with substring slices and a hidden numeric array holding logical element lengths.
 - Lower string concatenation in assignments and `PRINT` items into Atari substring assignments such as `NAME$(LEN(NAME$)+1)="more"` because Atari BASIC does not support the same `+` string concatenation form as the C64 and Spectrum outputs.
 - Lower positioned output into native zero-based coordinates:
 

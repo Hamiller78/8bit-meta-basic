@@ -57,3 +57,36 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [];
   }
 }
+
+export function mapInstructionExpressions(instruction: Instruction, map: (expression: Expression) => Expression): Instruction {
+  switch (instruction.kind) {
+    case "print":
+      return {
+        ...instruction,
+        items: instruction.items.map(map),
+        ...(instruction.at ? { at: { row: map(instruction.at.row), column: map(instruction.at.column) } } : {})
+      };
+    case "print-device":
+      return { ...instruction, items: instruction.items.map(map) };
+    case "data":
+      return { ...instruction, values: instruction.values.map(map) };
+    case "let":
+      return { ...instruction, expression: map(instruction.expression) };
+    case "multi-let":
+      return { ...instruction, assignments: instruction.assignments.map((assignment) => ({ ...assignment, expression: map(assignment.expression) })) };
+    case "array-let":
+      return { ...instruction, indices: instruction.indices.map(map), expression: map(instruction.expression) };
+    case "for":
+      return { ...instruction, start: map(instruction.start), limit: map(instruction.limit), ...(instruction.step ? { step: map(instruction.step) } : {}) };
+    case "if-goto":
+      return { ...instruction, condition: map(instruction.condition) };
+    case "position":
+      return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
+    case "poke":
+      return { ...instruction, value: map(instruction.value) };
+    case "randomize":
+      return instruction.seed ? { ...instruction, seed: map(instruction.seed) } : instruction;
+    default:
+      return instruction;
+  }
+}

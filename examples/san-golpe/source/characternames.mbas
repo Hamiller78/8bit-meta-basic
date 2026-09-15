@@ -21,7 +21,7 @@ dim russianFemaleNames$(russianFemaleFirstNames, 10)
 dim russianLastNames$(russianLastNames, 10)
 
 function initNameArrays()
-    local nameIndex, randomIndex, name$
+    local nameIndex, name$
 
     'RESTORE is program-wide; these must be the first DATA values.
     restore
@@ -71,68 +71,15 @@ function initNameArrays()
         russianLastNames$(nameIndex) = name$
     next nameIndex
 
-    for nameIndex = spanishMaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = spanishMaleNames$(nameIndex)
-        spanishMaleNames$(nameIndex) = spanishMaleNames$(randomIndex)
-        spanishMaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = spanishFemaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = spanishFemaleNames$(nameIndex)
-        spanishFemaleNames$(nameIndex) = spanishFemaleNames$(randomIndex)
-        spanishFemaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = spanishLastNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = spanishLastNames$(nameIndex)
-        spanishLastNames$(nameIndex) = spanishLastNames$(randomIndex)
-        spanishLastNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = englishMaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = englishMaleNames$(nameIndex)
-        englishMaleNames$(nameIndex) = englishMaleNames$(randomIndex)
-        englishMaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = englishFemaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = englishFemaleNames$(nameIndex)
-        englishFemaleNames$(nameIndex) = englishFemaleNames$(randomIndex)
-        englishFemaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = englishLastNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = englishLastNames$(nameIndex)
-        englishLastNames$(nameIndex) = englishLastNames$(randomIndex)
-        englishLastNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = russianMaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = russianMaleNames$(nameIndex)
-        russianMaleNames$(nameIndex) = russianMaleNames$(randomIndex)
-        russianMaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = russianFemaleFirstNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = russianFemaleNames$(nameIndex)
-        russianFemaleNames$(nameIndex) = russianFemaleNames$(randomIndex)
-        russianFemaleNames$(randomIndex) = name$
-    next nameIndex
-
-    for nameIndex = russianLastNames - 1 to 1 step -1
-        randomIndex = int(rnd() * (nameIndex + 1))
-        name$ = russianLastNames$(nameIndex)
-        russianLastNames$(nameIndex) = russianLastNames$(randomIndex)
-        russianLastNames$(randomIndex) = name$
-    next nameIndex
+    spanishMaleNameIndex = int(rnd() * spanishMaleFirstNames)
+    spanishFemaleNameIndex = int(rnd() * spanishFemaleFirstNames)
+    spanishLastNameIndex = int(rnd() * spanishLastNames)
+    englishMaleNameIndex = int(rnd() * englishMaleFirstNames)
+    englishFemaleNameIndex = int(rnd() * englishFemaleFirstNames)
+    englishLastNameIndex = int(rnd() * englishLastNames)
+    russianMaleNameIndex = int(rnd() * russianMaleFirstNames)
+    russianFemaleNameIndex = int(rnd() * russianFemaleFirstNames)
+    russianLastNameIndex = int(rnd() * russianLastNames)
 
     spanishMaleNamesRemaining = spanishMaleFirstNames
     spanishFemaleNamesRemaining = spanishFemaleFirstNames
@@ -201,53 +148,102 @@ function chooseGender(nationality, requestedGender)
 end function
 
 function takeFirstName$(nationality, gender)
+    local selectedName$
+
     if availableFirstNames(nationality, gender) = 0 then
         return ""
     end if
 
     if nationality = native and gender = male then
+        selectedName$ = spanishMaleNames$(spanishMaleNameIndex)
+        spanishMaleNameIndex = spanishMaleNameIndex + 1
+        if spanishMaleNameIndex = spanishMaleFirstNames then
+            spanishMaleNameIndex = 0
+        end if
         spanishMaleNamesRemaining = spanishMaleNamesRemaining - 1
-        return spanishMaleNames$(spanishMaleNamesRemaining)
+        return selectedName$
     end if
     if nationality = native and gender = female then
+        selectedName$ = spanishFemaleNames$(spanishFemaleNameIndex)
+        spanishFemaleNameIndex = spanishFemaleNameIndex + 1
+        if spanishFemaleNameIndex = spanishFemaleFirstNames then
+            spanishFemaleNameIndex = 0
+        end if
         spanishFemaleNamesRemaining = spanishFemaleNamesRemaining - 1
-        return spanishFemaleNames$(spanishFemaleNamesRemaining)
+        return selectedName$
     end if
     if nationality = us and gender = male then
+        selectedName$ = englishMaleNames$(englishMaleNameIndex)
+        englishMaleNameIndex = englishMaleNameIndex + 1
+        if englishMaleNameIndex = englishMaleFirstNames then
+            englishMaleNameIndex = 0
+        end if
         englishMaleNamesRemaining = englishMaleNamesRemaining - 1
-        return englishMaleNames$(englishMaleNamesRemaining)
+        return selectedName$
     end if
     if nationality = us and gender = female then
+        selectedName$ = englishFemaleNames$(englishFemaleNameIndex)
+        englishFemaleNameIndex = englishFemaleNameIndex + 1
+        if englishFemaleNameIndex = englishFemaleFirstNames then
+            englishFemaleNameIndex = 0
+        end if
         englishFemaleNamesRemaining = englishFemaleNamesRemaining - 1
-        return englishFemaleNames$(englishFemaleNamesRemaining)
+        return selectedName$
     end if
     if nationality = russian and gender = male then
+        selectedName$ = russianMaleNames$(russianMaleNameIndex)
+        russianMaleNameIndex = russianMaleNameIndex + 1
+        if russianMaleNameIndex = russianMaleFirstNames then
+            russianMaleNameIndex = 0
+        end if
         russianMaleNamesRemaining = russianMaleNamesRemaining - 1
-        return russianMaleNames$(russianMaleNamesRemaining)
+        return selectedName$
     end if
     if nationality = russian and gender = female then
+        selectedName$ = russianFemaleNames$(russianFemaleNameIndex)
+        russianFemaleNameIndex = russianFemaleNameIndex + 1
+        if russianFemaleNameIndex = russianFemaleFirstNames then
+            russianFemaleNameIndex = 0
+        end if
         russianFemaleNamesRemaining = russianFemaleNamesRemaining - 1
-        return russianFemaleNames$(russianFemaleNamesRemaining)
+        return selectedName$
     end if
     return ""
 end function
 
 function takeLastName$(nationality)
+    local selectedName$
+
     if availableLastNames(nationality) = 0 then
         return ""
     end if
 
     if nationality = native then
+        selectedName$ = spanishLastNames$(spanishLastNameIndex)
+        spanishLastNameIndex = spanishLastNameIndex + 1
+        if spanishLastNameIndex = spanishLastNames then
+            spanishLastNameIndex = 0
+        end if
         spanishLastNamesRemaining = spanishLastNamesRemaining - 1
-        return spanishLastNames$(spanishLastNamesRemaining)
+        return selectedName$
     end if
     if nationality = us then
+        selectedName$ = englishLastNames$(englishLastNameIndex)
+        englishLastNameIndex = englishLastNameIndex + 1
+        if englishLastNameIndex = englishLastNames then
+            englishLastNameIndex = 0
+        end if
         englishLastNamesRemaining = englishLastNamesRemaining - 1
-        return englishLastNames$(englishLastNamesRemaining)
+        return selectedName$
     end if
     if nationality = russian then
+        selectedName$ = russianLastNames$(russianLastNameIndex)
+        russianLastNameIndex = russianLastNameIndex + 1
+        if russianLastNameIndex = russianLastNames then
+            russianLastNameIndex = 0
+        end if
         russianLastNamesRemaining = russianLastNamesRemaining - 1
-        return russianLastNames$(russianLastNamesRemaining)
+        return selectedName$
     end if
     return ""
 end function

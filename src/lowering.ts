@@ -243,6 +243,8 @@ export interface DimArrayInstruction {
   readonly kind: "dim-array";
   readonly name: string;
   readonly dimensions: readonly number[];
+  /** Target-lowering detail: numeric array holding logical string element lengths. */
+  readonly logicalLengthArrayName?: string;
   readonly location: SourceLocation;
 }
 

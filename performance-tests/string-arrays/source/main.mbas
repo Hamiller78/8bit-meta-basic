@@ -1,0 +1,213 @@
+const arrayElements = 10
+const benchmarkPasses = 20
+const operationCount = arrayElements * benchmarkPasses
+
+dim values$(arrayElements, 12)
+dim numericValues(arrayElements)
+
+sourceText$ = "ALPHA"
+resultText$ = ""
+
+program_mode
+cls
+open_device Results, TEXT_PRINTER
+
+print "STRING ARRAY PERFORMANCE"
+print "OPERATIONS: "; operationCount
+print "RESULTS ARE JIFFIES"
+print_device Results; "STRING ARRAY PERFORMANCE"
+print_device Results; "OPERATIONS: "; operationCount
+print_device Results; "RESULTS ARE JIFFIES"
+
+elapsed = benchmarkNumericLoop()
+reportResult("NUMERIC LOOP", elapsed)
+
+elapsed = benchmarkScalarWrite()
+reportResult("SCALAR WRITE", elapsed)
+
+elapsed = benchmarkScalarLength()
+reportResult("SCALAR LEN", elapsed)
+
+elapsed = benchmarkNumericArrayWrite()
+reportResult("NUMERIC ARRAY WRITE", elapsed)
+
+elapsed = benchmarkNumericArrayRead()
+reportResult("NUMERIC ARRAY READ", elapsed)
+
+elapsed = benchmarkLiteralArrayWrite()
+reportResult("ARRAY LITERAL WRITE", elapsed)
+
+elapsed = benchmarkVariableArrayWrite()
+reportResult("ARRAY VARIABLE WRITE", elapsed)
+
+elapsed = benchmarkArrayRead()
+reportResult("ARRAY READ", elapsed)
+
+elapsed = benchmarkArrayLength()
+reportResult("ARRAY LEN", elapsed)
+
+elapsed = benchmarkArrayLeft()
+reportResult("ARRAY LEFT", elapsed)
+
+elapsed = benchmarkArrayConcatenation()
+reportResult("ARRAY CONCAT", elapsed)
+
+elapsed = benchmarkComputedIndexRead()
+reportResult("COMPUTED INDEX READ", elapsed)
+
+close_device Results
+print "DONE"
+end
+
+function reportResult(label$, elapsedJiffies)
+    print label$; ": "; elapsedJiffies
+    print_device Results; label$; ": "; elapsedJiffies
+end function
+
+function benchmarkNumericLoop()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkScalarWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = sourceText$
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkScalarLength()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + len(sourceText$)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            numericValues(index) = index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericArrayRead()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + numericValues(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkLiteralArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            values$(index) = "ALPHA"
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkVariableArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            values$(index) = sourceText$
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayRead()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayLength()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + len(values$(index))
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayLeft()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = left$(values$(index), 1)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayConcatenation()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(index) + "!"
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkComputedIndexRead()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(arrayElements - 1 - index)
+        next index
+    next pass
+    return jiffies() - started
+end function

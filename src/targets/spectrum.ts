@@ -9,7 +9,16 @@ import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
-import { instructionExpressions } from "./instruction-expressions.js";
+import { instructionExpressions, mapInstructionExpressions } from "./instruction-expressions.js";
+import {
+  allocateGeneratedVariableName,
+  attachStringArrayLengthDimension,
+  buildStringArrayStorage,
+  createGeneratedVariableNameAllocator,
+  logicalLengthAccess,
+  stringArrayStorageFor,
+  type StringArrayStorage
+} from "./string-array-lengths.js";
 import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
@@ -19,11 +28,47 @@ export const spectrumTarget: TargetBackend = {
   maxLineNumber: 9999,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const stringArrayStorage = buildStringArrayStorage(expanded.instructions);
     const allocateInternalLabel = createInternalLabelAllocator(expanded);
     const keyStringTempName = allocateKeyStringTempName(expanded.instructions);
+    const stringArrayTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAY", "$");
+    const stringArrayIndexTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAYINDEX");
+    const stringArrayLengthTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAYLENGTH");
+    const allocateReadIndexTempName = createGeneratedVariableNameAllocator(expanded.instructions, "MBREADINDEX");
+    const readIndexTempNames: string[] = [];
+    const readIndexTempNameAt = (index: number): string => {
+      while (readIndexTempNames.length <= index) readIndexTempNames.push(allocateReadIndexTempName());
+      return readIndexTempNames[index];
+    };
     const instructions: Instruction[] = [];
-    for (const instruction of expanded.instructions) {
-      if (instruction.kind === "cls" && instruction.color) {
+    const pending = [...expanded.instructions];
+    while (pending.length > 0) {
+      let instruction = pending.shift()!;
+      const staged = stageSpectrumVolatileStringArrayIndexes(instruction, readIndexTempNameAt);
+      if (staged.prefix.length > 0) {
+        pending.unshift(...staged.prefix, staged.instruction);
+        continue;
+      }
+      instruction = staged.instruction;
+
+      if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+        const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
+        if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
+        instructions.push(...attachStringArrayLengthDimension(instruction, definition));
+      } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name)) {
+        const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
+        if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
+        instructions.push(
+          ...expandSpectrumStringArrayAssignment(
+            instruction,
+            definition,
+            stringArrayTempName,
+            stringArrayIndexTempName,
+            stringArrayLengthTempName,
+            allocateInternalLabel
+          )
+        );
+      } else if (instruction.kind === "cls" && instruction.color) {
         instructions.push({ kind: "paper", color: instruction.color, location: instruction.location });
         instructions.push({ ...instruction, color: undefined });
       } else if (isKeyCodeAssignment(instruction)) {
@@ -243,21 +288,14 @@ function renderSpectrumUnaryNumericFunction(expression: FunctionCallExpression, 
 
 function renderSpectrumLen(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source] = expression.args;
+  if (source.kind === "array-access" && isStringVariableName(source.name)) {
+    return renderSpectrumStringArrayLength(source, options as SpectrumRenderOptions);
+  }
   return `LEN ${renderSpectrumLenArgument(source, options)}`;
 }
 
 function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, start, length] = expression.args;
-  if (source.kind === "array-access" && isStringVariableName(source.name)) {
-    const width = spectrumStringArrayWidth(source.name, (options as { readonly stringArrayWidths?: ReadonlyMap<string, number> }).stringArrayWidths);
-    const renderedName = renderSpectrumArrayName(source.name, options.variableMap ?? new Map());
-    const index = renderSpectrumArrayIndex(source.indices[0], options);
-    const renderedStart = renderExpression(start, options);
-    if (!length) {
-      return `${renderedName}(${index},${renderedStart} TO ${width})`;
-    }
-    return `${renderedName}(${index},${renderedStart} TO ${renderedStart} + ${renderExpression(length, options)} - 1)`;
-  }
   if (!length) {
     return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO )`;
   }
@@ -266,18 +304,23 @@ function renderSpectrumMid(expression: FunctionCallExpression, options: { readon
 
 function renderSpectrumLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
-  if (source.kind === "array-access" && isStringVariableName(source.name)) {
-    const renderedName = renderSpectrumArrayName(source.name, options.variableMap ?? new Map());
-    const index = renderSpectrumArrayIndex(source.indices[0], options);
-    return `${renderedName}(${index},1 TO ${renderExpression(length, options)})`;
-  }
   return `${renderSpectrumSliceSource(source, options)}( TO ${renderExpression(length, options)})`;
 }
 
 function renderSpectrumRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
   const renderedSource = renderSpectrumSliceSource(source, options);
-  return `${renderedSource}(LEN ${renderSpectrumLenArgument(source, options)} - ${renderExpression(length, options)} + 1 TO )`;
+  const sourceLength = source.kind === "array-access" && isStringVariableName(source.name)
+    ? renderSpectrumStringArrayLength(source, options as SpectrumRenderOptions)
+    : `LEN ${renderSpectrumLenArgument(source, options)}`;
+  return `${renderedSource}(${sourceLength} - ${renderExpression(length, options)} + 1 TO )`;
+}
+
+interface SpectrumRenderOptions {
+  readonly variableMap?: ReadonlyMap<string, string>;
+  readonly functionRenderer?: typeof renderSpectrumFunction;
+  readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
+  readonly stringArrayWidths?: ReadonlyMap<string, number>;
 }
 
 function renderSpectrumLenArgument(expression: Expression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
@@ -298,19 +341,32 @@ function renderSpectrumSliceSource(expression: Expression, options: { readonly v
 
 function renderSpectrumArrayAccess(
   expression: Extract<Expression, { kind: "array-access" }>,
-  options: {
-    readonly variableMap?: ReadonlyMap<string, string>;
-    readonly functionRenderer?: typeof renderSpectrumFunction;
-    readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
-    readonly stringArrayWidths?: ReadonlyMap<string, number>;
-  }
+  options: SpectrumRenderOptions
 ): string {
   if (isStringVariableName(expression.name)) {
-    const width = spectrumStringArrayWidth(expression.name, options.stringArrayWidths);
-    return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(expression.indices[0], options)},1 TO ${width})`;
+    const end = expression.fixedWidthStorageLength
+      ? renderExpression(expression.fixedWidthStorageLength, options)
+      : renderSpectrumStringArrayLength(expression, options);
+    return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(expression.indices[0], options)},1 TO ${end})`;
   }
 
   return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
+}
+
+function renderSpectrumStringArrayLength(
+  expression: Extract<Expression, { kind: "array-access" }>,
+  options: SpectrumRenderOptions
+): string {
+  const definition = currentProgramInstructions.find(
+    (instruction): instruction is Extract<Instruction, { kind: "dim-array" }> =>
+      instruction.kind === "dim-array" &&
+      instruction.name.toLowerCase() === expression.name.toLowerCase() &&
+      isStringVariableName(instruction.name)
+  );
+  if (!definition?.logicalLengthArrayName) {
+    throw new Error(`Internal error: missing Spectrum logical length array for ${expression.name}.`);
+  }
+  return `${renderSpectrumArrayName(definition.logicalLengthArrayName, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(expression.indices[0], options)})`;
 }
 
 function renderSpectrumArrayName(name: string, variableMap: ReadonlyMap<string, string>): string {
@@ -510,11 +566,13 @@ function collectSpectrumArrayNames(instructions: readonly Instruction[]): readon
 }
 
 function allocateSpectrumArrayNames(names: readonly string[], map: Map<string, string>): void {
-  const used = new Set<string>();
+  const usedNumbers = new Set<string>();
+  const usedStrings = new Set<string>();
 
   for (const name of names) {
     const key = name.toLowerCase();
     const preferred = baseVariableName(name)[0]?.toUpperCase();
+    const used = isStringVariableName(name) ? usedStrings : usedNumbers;
     if (preferred && /^[A-Z]$/.test(preferred) && !used.has(preferred)) {
       map.set(key, isStringVariableName(name) ? `${preferred}$` : preferred);
       used.add(preferred);
@@ -525,6 +583,161 @@ function allocateSpectrumArrayNames(names: readonly string[], map: Map<string, s
     map.set(key, isStringVariableName(name) ? `${next}$` : next);
     used.add(next);
   }
+}
+
+function expandSpectrumStringArrayAssignment(
+  instruction: Extract<Instruction, { kind: "array-let" }>,
+  definition: StringArrayStorage,
+  stringTempName: string,
+  indexTempName: string,
+  lengthTempName: string,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const instructions: Instruction[] = [];
+  let index = instruction.indices[0];
+  if (index.kind !== "number" && index.kind !== "identifier") {
+    instructions.push({ kind: "let", name: indexTempName, expression: index, location: index.location });
+    index = { kind: "identifier", name: indexTempName, location: index.location };
+  }
+
+  if (instruction.expression.kind === "string") {
+    const length = [...instruction.expression.value].length;
+    instructions.push({ ...instruction, indices: [index] });
+    instructions.push({
+      kind: "array-let",
+      name: definition.lengthArrayName,
+      indices: [index],
+      expression: { kind: "number", value: length, raw: length.toString(), location: instruction.location },
+      location: instruction.location
+    });
+    return instructions;
+  }
+
+  let storedExpression = instruction.expression;
+  let storedLength: Expression;
+  if (expressionMayChangeBetweenEvaluations(instruction.expression)) {
+    instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
+    storedExpression = { kind: "identifier", name: stringTempName, location: instruction.location };
+    storedLength = {
+      kind: "function-call",
+      name: builtinFunctions.len,
+      args: [storedExpression],
+      location: instruction.location
+    };
+  } else {
+    instructions.push({
+      kind: "let",
+      name: lengthTempName,
+      expression: { kind: "function-call", name: builtinFunctions.len, args: [instruction.expression], location: instruction.location },
+      location: instruction.location
+    });
+    storedLength = { kind: "identifier", name: lengthTempName, location: instruction.location };
+  }
+  instructions.push({ ...instruction, indices: [index], expression: storedExpression });
+  const length = logicalLengthAccess(definition, index);
+  instructions.push({
+    kind: "array-let",
+    name: definition.lengthArrayName,
+    indices: [index],
+    expression: storedLength,
+    location: instruction.location
+  });
+  const doneLabel = allocateInternalLabel();
+  instructions.push({
+    kind: "if-goto",
+    condition: { kind: "binary", operator: "<=", left: length, right: { kind: "number", value: definition.width, raw: definition.width.toString(), location: instruction.location }, location: instruction.location },
+    label: doneLabel,
+    location: instruction.location
+  });
+  instructions.push({
+    kind: "array-let",
+    name: definition.lengthArrayName,
+    indices: [index],
+    expression: { kind: "number", value: definition.width, raw: definition.width.toString(), location: instruction.location },
+    location: instruction.location
+  });
+  instructions.push({ kind: "label", name: doneLabel, internal: true, location: instruction.location });
+  return instructions;
+}
+
+function expressionMayChangeBetweenEvaluations(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "function-call": {
+      const volatileFunctions = new Set([
+        builtinFunctions.rnd,
+        builtinFunctions.jiffies,
+        builtinFunctions.freeMemory,
+        builtinFunctions.keyCode,
+        builtinFunctions.keyPressed,
+        builtinFunctions.getJoystick,
+        builtinFunctions.deviceAvailable,
+        "INKEY$",
+        "PEEK"
+      ]);
+      return volatileFunctions.has(expression.name) || expression.args.some(expressionMayChangeBetweenEvaluations);
+    }
+    case "parenthesized":
+      return expressionMayChangeBetweenEvaluations(expression.expression);
+    case "unary":
+      return expressionMayChangeBetweenEvaluations(expression.operand);
+    case "binary":
+      return expressionMayChangeBetweenEvaluations(expression.left) || expressionMayChangeBetweenEvaluations(expression.right);
+    case "array-access":
+      return expression.indices.some(expressionMayChangeBetweenEvaluations);
+    case "struct-field-access":
+      return expression.indices.some(expressionMayChangeBetweenEvaluations);
+    case "identifier":
+    case "number":
+    case "string":
+    case "boolean":
+    case "color":
+      return false;
+  }
+}
+
+function stageSpectrumVolatileStringArrayIndexes(
+  instruction: Instruction,
+  readIndexTempNameAt: (index: number) => string
+): { readonly prefix: readonly Instruction[]; readonly instruction: Instruction } {
+  const prefix: Instruction[] = [];
+  let nextReadIndex = 0;
+
+  const rewrite = (expression: Expression): Expression => {
+    switch (expression.kind) {
+      case "array-access": {
+        const indices = expression.indices.map(rewrite);
+        if (!isStringVariableName(expression.name) || !expressionMayChangeBetweenEvaluations(indices[0])) {
+          return {
+            ...expression,
+            indices,
+            ...(expression.fixedWidthStorageLength ? { fixedWidthStorageLength: rewrite(expression.fixedWidthStorageLength) } : {}),
+            ...(expression.fixedWidthStorageStart ? { fixedWidthStorageStart: rewrite(expression.fixedWidthStorageStart) } : {})
+          };
+        }
+        const name = readIndexTempNameAt(nextReadIndex++);
+        prefix.push({ kind: "let", name, expression: indices[0], location: indices[0].location });
+        return { ...expression, indices: [{ kind: "identifier", name, location: indices[0].location }] };
+      }
+      case "function-call":
+        return { ...expression, args: expression.args.map(rewrite) };
+      case "struct-field-access":
+        return { ...expression, indices: expression.indices.map(rewrite) };
+      case "parenthesized":
+        return { ...expression, expression: rewrite(expression.expression) };
+      case "unary":
+        return { ...expression, operand: rewrite(expression.operand) };
+      case "binary":
+        return { ...expression, left: rewrite(expression.left), right: rewrite(expression.right) };
+      case "identifier":
+      case "number":
+      case "string":
+      case "boolean":
+      case "color":
+        return expression;
+    }
+  };
+
+  return { prefix, instruction: mapInstructionExpressions(instruction, rewrite) };
 }
 
 function allocateSpectrumLoopNames(names: readonly string[], reservedSingleLetters: ReadonlySet<string>, map: Map<string, string>): void {

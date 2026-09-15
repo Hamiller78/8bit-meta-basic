@@ -11,7 +11,11 @@ screen_text_color WHITE
 
 cls
 showIntro()
-createAllCharacters()
+
+cls
+set_pos int(TEXT_ROWS / 2), 1
+print_centered text$("creatingCharacters")
+createAllCharacters(true)
 
 gameover% = 0
 turn% = 1
@@ -19,6 +23,9 @@ turnover% = 0
 
 repeat
     doNpcActions()
+    set_pos TEXT_ROWS - 1, 1
+    print_centered text$("continue")
+    getInput()
     repeat
         showOverview()
         'showMenu()

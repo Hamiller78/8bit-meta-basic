@@ -143,6 +143,19 @@ npm run test:language:atari -- --restart
 
 The suite's project configuration selects the mixed C64 font. Project builds preserve this setting and emit the character-set switch before the test runner begins. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
 
+## Performance benchmarks
+
+Timing-dependent programs live under `performance-tests/` rather than in the language conformance suite. They report measurements instead of pass/fail assertions. The string-array benchmark compares common operations using the target's `JIFFIES()` clock:
+
+```text
+npm run benchmark:string-arrays:build
+npm run benchmark:string-arrays:spectrum -- --restart
+npm run benchmark:string-arrays:atari -- --restart
+npm run benchmark:string-arrays:c64 -- --restart
+```
+
+Run benchmarks with the release profile and compare raw jiffy counts between targets or commits. Emulator warp and configurable speed shorten host-side waiting while the emulated jiffy count continues to measure target time. See [`performance-tests/string-arrays/README.md`](../performance-tests/string-arrays/README.md) for the measured operations and interpretation.
+
 Generated files normally appear below:
 
 ```text
@@ -190,7 +203,7 @@ Spectrum printer launch arguments may also use `{nullDevice}`, which expands to 
 
 Each launch script understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured conversion tools, then starts the emulator and exits without waiting for the emulator window.
 
-Use `--restart` when switching examples to close an existing emulator process before launching the new one.
+Use `--restart` when switching examples to close existing emulator processes before launching the new one. Fuse has no command-line option for replacing another instance. On Linux, the Spectrum launcher finds processes using the configured emulator executable, including launches through symlinks such as `/usr/bin/fuse`, and then falls back to the configured executable and application names. If a package uses a wrapper with another process name, add it to an emulator `processNames` array.
 
 To launch every target with an emulator path configured:
 

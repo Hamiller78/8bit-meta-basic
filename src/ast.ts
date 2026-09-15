@@ -482,6 +482,10 @@ export interface ArrayAccessExpression {
   readonly name: string;
   readonly indices: readonly Expression[];
   readonly valueType?: "number" | "string";
+  /** Target-lowering detail: read this many characters from packed fixed-width storage. */
+  readonly fixedWidthStorageLength?: Expression;
+  /** Target-lowering detail: absolute one-based start within packed string storage. */
+  readonly fixedWidthStorageStart?: Expression;
   readonly location: SourceLocation;
 }
 

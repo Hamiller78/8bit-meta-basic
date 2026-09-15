@@ -130,7 +130,7 @@ names$(0) = name$
 
 An array dimension is an element count rather than the largest index. Constant indexes are checked by the compiler; dynamic indexes remain the program's responsibility.
 
-Treat values read from fixed-width string arrays and string fields as padded to their declared width. Spectrum and Atari can preserve trailing spaces that C64 native strings do not. Trim that padding or keep a separate logical length before concatenating more text; [`examples/san-golpe/source/characterfactory.mbas`](../examples/san-golpe/source/characterfactory.mbas) contains a small `trimName$` example.
+The fixed width is the element's capacity, not its logical string length. Assigning `"READY"` to an element of width 12 reads back as the five-character string `"READY"`; assigning `"READY "` preserves the deliberate trailing space and reads back with length 6. Spectrum and Atari generated code maintains hidden logical-length arrays so storage padding never becomes part of the Meta-BASIC value. This also applies to string fields in struct arrays.
 
 Structs group related values at source level:
 

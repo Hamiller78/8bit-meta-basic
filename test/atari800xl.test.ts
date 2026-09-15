@@ -306,6 +306,20 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("lowers concatenation used as a string slice source", () => {
+    expect(compileSource('name$ = "Ada"\nprint left$(name$ + "     ", 8)\n', { filename: "slice-concatenation.mbas", target: "atari800xl" })).toBe(
+      [
+        "10 DIM NAME$(255)",
+        "20 DIM MBTEMP$(255)",
+        '30 NAME$="Ada"',
+        "40 MBTEMP$=NAME$",
+        '50 MBTEMP$(LEN(MBTEMP$)+1)="     "',
+        "60 PRINT MBTEMP$(1,8)",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("renders STR$ and VAL as Atari conversion functions", () => {
     expect(compileSource('valueText$ = str$(score + 10)\nscore = val(valueText$)\nprint valueText$; score\n', { filename: "convert.mbas", target: "atari800xl" })).toBe(
       ['10 DIM VALUETEXT$(255)', "20 VALUETEXT$=STR$(SCORE + 10)", "30 SCORE=VAL(VALUETEXT$)", "40 PRINT VALUETEXT$;SCORE", ""].join("\n")
@@ -361,21 +375,36 @@ describe("Atari 800XL compiler", () => {
   });
 
   it("renders fixed-width string arrays using one Atari backing string", () => {
-    expect(
-      compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {
-        filename: "string-arrays.mbas",
-        target: "atari800xl"
-      })
-    ).toBe(
-      [
-        "10 DIM MESSAGES$(36)",
-        `20 MESSAGES$="${" ".repeat(36)}"`,
-        '30 MESSAGES$(1,12)="READY       "',
-        '40 MESSAGES$(25,36)="STANDBY     "',
-        "50 PRINT MESSAGES$(1,12);MESSAGES$(25,36)",
-        ""
-      ].join("\n")
-    );
+    const output = compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {
+      filename: "string-arrays.mbas",
+      target: "atari800xl"
+    });
+
+    expect(output).toContain("DIM MESSAGES$(36)");
+    expect(output).toContain(`MESSAGES$="${" ".repeat(36)}"`);
+    expect(output).toContain("DIM MBL1(2)");
+    expect(output).toContain('MESSAGES$(1,12)="READY       "');
+    expect(output).toContain("MBL1(0)=5");
+    expect(output).toContain('MESSAGES$(25,36)="STANDBY     "');
+    expect(output).toContain("MBL1(2)=7");
+    expect(output).toContain("MBREAD$=MESSAGES$(MBRS,MBRS + MBRL - 1)");
+    expect(output).toContain("PRINT MBREAD$;MBREAD1$");
+  });
+
+  it("preserves logical string-array lengths in concatenation", () => {
+    const output = compileSource('dim names$(3, 8)\nnames$(0)="Pablo"\nnames$(1)="Pablo "\nnames$(2)=""\nprint len(names$(0)); names$(0)+"!"\nprint len(names$(1)); names$(1)+"!"\nprint len(names$(2)); names$(2)+"!"\n', {
+      filename: "logical-string-lengths.mbas",
+      target: "atari800xl"
+    });
+
+    expect(output).toContain("DIM MBL1(2)");
+    expect(output).toContain("MBL1(0)=5");
+    expect(output).toContain("MBL1(1)=6");
+    expect(output).toContain("MBL1(2)=0");
+    expect(output).toContain("IF MBRL = 0 THEN GOTO");
+    expect(output).toContain('MBTEMP$(LEN(MBTEMP$)+1)="!"');
+    expect(output).toContain('MBTEMP1$(LEN(MBTEMP1$)+1)="!"');
+    expect(output).toContain('MBTEMP2$(LEN(MBTEMP2$)+1)="!"');
   });
 
   it("sanitizes generated struct string field names for Atari BASIC", () => {
@@ -405,12 +434,14 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("TEXTQUEUE$(LEN(TEXTQUEUE$)+1)=");
     expect(output).toContain("DIM TEXTQUEUEROW(99)");
     expect(output).toContain("DIM TEXTQUEUECOLUMN(99)");
-    expect(output).toContain("DIM MBTEMP$(255)");
-    expect(output).toContain("MBTEMP$=TEXTQUEUE$(I * 39 + 1 + 2 - 1,(I + 1) * 39)");
-    expect(output).toContain("TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBTEMP$");
+    expect(output).toContain("DIM MBREAD$(255)");
+    expect(output).toContain("MBREAD$=TEXTQUEUE$(MBRS,MBRS + MBRL - 1)");
+    expect(output).toContain("MBARRAY$=MBREAD$(2,LEN(MBREAD$))");
+    expect(output).toContain("TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBARRAY$");
+    expect(output).toContain("MBL1(I)=LEN(MBARRAY$)");
     expect(output).toContain("POSITION TEXTQUEUECOLUMN(I) - 1,TEXTQUEUEROW(I) - 1");
-    expect(output).toContain("PRINT TEXTQUEUE$(I * 39 + 1,I * 39 + 1 + 1 - 1)");
-    expect(output.indexOf("DIM MBTEMP$(255)")).toBeLessThan(output.indexOf("MBTEMP$=TEXTQUEUE$("));
+    expect(output).toContain("PRINT MBREAD$(1,1)");
+    expect(output.indexOf("DIM MBREAD$(255)")).toBeLessThan(output.indexOf("MBREAD$=TEXTQUEUE$("));
   });
 
   it("parenthesizes non-trivial dynamic string array indexes", () => {
@@ -419,7 +450,23 @@ describe("Atari 800XL compiler", () => {
         filename: "string-array-shift.mbas",
         target: "atari800xl"
       })
-    ).toContain("MESSAGES$((J + 1) * 8 + 1,(J + 1 + 1) * 8)=MBTEMP$");
+    ).toContain("MESSAGES$(MBARRAYINDEX * 8 + 1,(MBARRAYINDEX + 1) * 8)=MBARRAY$");
+  });
+
+  it("evaluates computed string-array indexes once", () => {
+    const output = compileSource('dim names$(3, 8)\nprint names$(int(rnd() * 3))\nnames$(int(rnd() * 3)) = "X"\n', {
+      filename: "computed-string-array-index.mbas",
+      target: "atari800xl",
+      readability: 0
+    });
+
+    expect(output.match(/RND\(0\)/g)).toHaveLength(2);
+    expect(output).toContain("V4=INT(RND(0) * 3)");
+    expect(output).toContain("V5=V2(V4)");
+    expect(output).toContain("V0$=V1$(V6,V6 + V5 - 1)");
+    expect(output).toContain("V7=INT(RND(0) * 3)");
+    expect(output).toContain('V1$(V7 * 8 + 1,(V7 + 1) * 8)="X       "');
+    expect(output).toContain("V2(V7)=1");
   });
 
   it("renders DATA, READ, and RESTORE for Atari BASIC", () => {

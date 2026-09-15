@@ -36,10 +36,19 @@ end test
 
 test StringArrays()
     dim M$(2, 8)
-    M$(0) = "READY   "
-    M$(1) = "GO      "
-    assert_eq "READY   ", M$(0)
-    assert_eq "GO      ", M$(1)
+    M$(0) = "READY"
+    M$(1) = "GO "
+    assert_eq "READY", M$(0)
+    assert_eq 5, len(M$(0))
+    assert_eq "READY!", M$(0) + "!"
+    assert_eq "GO ", M$(1)
+    assert_eq 3, len(M$(1))
+    assert_eq "GO !", M$(1) + "!"
+    M$(0) = M$(0) + "!"
+    assert_eq "READY!", M$(0)
+    M$(1) = ""
+    assert_eq 0, len(M$(1))
+    assert_eq "!", M$(1) + "!"
 end test
 
 test DynamicStringArraySlices()
@@ -47,7 +56,7 @@ test DynamicStringArraySlices()
     Source$ = "ALERT"
     Slices$(0) = Source$
     assert_eq "A", left$(Slices$(0), 1)
-    assert_eq "LERT", mid$(Slices$(0), 2, len(Source$) - 1)
+    assert_eq "LERT", mid$(Slices$(0), 2)
 
     Source$ = "Z"
     Slices$(1) = Source$

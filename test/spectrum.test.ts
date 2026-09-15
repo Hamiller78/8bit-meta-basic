@@ -320,7 +320,7 @@ describe("Spectrum compiler", () => {
 
   it("lowers STRUCT arrays to backing arrays with field access", () => {
     expect(compileSource("struct QueueItem\nRow\nText$(10)\nend struct\ndim Queue AS QueueItem(4)\nQueue(0).Row = 7\nQueue(0).Text$ = \"READY\"\nprint Queue(0).Row; Queue(0).Text$\n", { filename: "struct.mbas", target: "spectrum", readability: 0 })).toBe(
-      ["10 DIM Q(4)", "20 DIM A$(4,10)", '30 LET Q(1)=7', '40 LET A$(1,1 TO 10)="READY"', "50 PRINT Q(1);A$(1,1 TO 10)", ""].join("\n")
+      ["10 DIM Q(4)", "20 DIM Q$(4,10)", "30 DIM M(4)", '40 LET Q(1)=7', '50 LET Q$(1,1 TO 10)="READY"', "60 LET M(1)=5", "70 PRINT Q(1);Q$(1,1 TO M(1))", ""].join("\n")
     );
   });
 
@@ -532,10 +532,12 @@ describe("Spectrum compiler", () => {
         "10 DIM V(42)",
         "20 DIM C(42)",
         "30 DIM M$(42,12)",
-        "40 LET V(42)=1",
-        "50 LET C(42)=INT (V(42))",
-        '60 LET M$(42,1 TO 12)="READY"',
-        "70 PRINT V(42);C(42);M$(42,1 TO 12)",
+        "40 DIM M(42)",
+        "50 LET V(42)=1",
+        "60 LET C(42)=INT (V(42))",
+        '70 LET M$(42,1 TO 12)="READY"',
+        "80 LET M(42)=5",
+        "90 PRINT V(42);C(42);M$(42,1 TO M(42))",
         ""
       ].join("\n")
     );
@@ -547,7 +549,7 @@ describe("Spectrum compiler", () => {
         filename: "string-arrays.mbas",
         target: "spectrum"
       })
-    ).toBe(['10 DIM M$(3,12)', '20 LET M$(1,1 TO 12)="READY"', '30 LET M$(3,1 TO 12)="STANDBY"', "40 PRINT M$(1,1 TO 12);M$(3,1 TO 12)", ""].join("\n"));
+    ).toBe(['10 DIM M$(3,12)', "20 DIM M(3)", '30 LET M$(1,1 TO 12)="READY"', "40 LET M(1)=5", '50 LET M$(3,1 TO 12)="STANDBY"', "60 LET M(3)=7", "70 PRINT M$(1,1 TO M(1));M$(3,1 TO M(3))", ""].join("\n"));
   });
 
   it("renders string slicing of fixed-width string arrays as native string-array ranges", () => {
@@ -556,7 +558,18 @@ describe("Spectrum compiler", () => {
         filename: "string-array-slice.mbas",
         target: "spectrum"
       })
-    ).toBe(["10 DIM M$(10,8)", "20 PRINT M$(I + 1,1 TO 1)", "30 LET M$(I + 1,1 TO 8)=M$(I + 1,2 TO 8)", ""].join("\n"));
+    ).toBe([
+      "10 DIM M$(10,8)",
+      "20 DIM M(10)",
+      "30 PRINT (M$(I + 1,1 TO M(I + 1)))( TO 1)",
+      "40 LET MBARRAYLENGTH=LEN ((M$(I + 1,1 TO M(I + 1)))(2 TO ))",
+      "50 LET M$(I + 1,1 TO 8)=(M$(I + 1,1 TO M(I + 1)))(2 TO )",
+      "60 LET M(I + 1)=MBARRAYLENGTH",
+      "70 IF M(I + 1) <= 8 THEN GO TO 90",
+      "80 LET M(I + 1)=8",
+      "90 REM __MB_KEY_1:",
+      ""
+    ].join("\n"));
   });
 
   it("keeps Spectrum scalar string variables distinct from string array names", () => {
@@ -565,7 +578,45 @@ describe("Spectrum compiler", () => {
         filename: "string-array-conflict.mbas",
         target: "spectrum"
       })
-    ).toBe(["10 DIM M$(2,8)", "20 LET A$=\"\"", "30 LET B$=\"\"", '40 LET M$(1,1 TO 8)="READY   "', "50 LET A$=M$(1,1 TO 8)", "60 LET B$=\"\"", ""].join("\n"));
+    ).toBe(["10 DIM M$(2,8)", "20 DIM M(2)", "30 LET A$=\"\"", "40 LET B$=\"\"", '50 LET M$(1,1 TO 8)="READY   "', "60 LET M(1)=8", "70 LET A$=M$(1,1 TO M(1))", "80 LET B$=\"\"", ""].join("\n"));
+  });
+
+  it("preserves logical string-array lengths in concatenation", () => {
+    const output = compileSource('dim names$(3, 8)\nnames$(0)="Pablo"\nnames$(1)="Pablo "\nnames$(2)=""\nprint len(names$(0)); names$(0)+"!"\nprint len(names$(1)); names$(1)+"!"\nprint len(names$(2)); names$(2)+"!"\n', {
+      filename: "logical-string-lengths.mbas",
+      target: "spectrum",
+      readability: 0
+    });
+
+    expect(output).toContain("DIM N$(3,8)");
+    expect(output).toContain("DIM M(3)");
+    expect(output).toContain("LET M(1)=5");
+    expect(output).toContain("LET M(2)=6");
+    expect(output).toContain("LET M(3)=0");
+    expect(output).toContain('PRINT M(1);N$(1,1 TO M(1)) + "!"');
+    expect(output).toContain('PRINT M(2);N$(2,1 TO M(2)) + "!"');
+    expect(output).toContain('PRINT M(3);N$(3,1 TO M(3)) + "!"');
+  });
+
+  it("evaluates computed string-array indexes once", () => {
+    expect(
+      compileSource('dim names$(3, 8)\nprint names$(int(rnd() * 3))\nnames$(int(rnd() * 3)) = "X"\n', {
+        filename: "computed-string-array-index.mbas",
+        target: "spectrum",
+        readability: 0
+      })
+    ).toBe(
+      [
+        "10 DIM N$(3,8)",
+        "20 DIM M(3)",
+        "30 LET V0=INT (RND * 3)",
+        "40 PRINT N$(V0 + 1,1 TO M(V0 + 1))",
+        "50 LET V1=INT (RND * 3)",
+        '60 LET N$(V1 + 1,1 TO 8)="X"',
+        "70 LET M(V1 + 1)=1",
+        ""
+      ].join("\n")
+    );
   });
 
   it("renders DATA, READ, and RESTORE for Spectrum", () => {

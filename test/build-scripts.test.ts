@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -126,6 +126,8 @@ describe("build scripts", () => {
   it("configures C64 RS232 capture through a local endpoint", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
+    expect(config.c64.emulator.printerArgs).toContain("-iecdevice4");
+    expect(config.c64.emulator.printerArgs).not.toContain("-busdevice4");
     expect(config.c64.emulator.rs232OutputPath).toBe("build/rs232/{profile}/{target}/{sourceName}.txt");
     expect(config.c64.emulator.rs232Args).toContain("-userportdevice");
     expect(config.c64.emulator.rs232Args).not.toContain("-rsuser");
@@ -151,11 +153,17 @@ describe("build scripts", () => {
     });
   });
 
-  it("adds Fuse speed-up arguments for Spectrum test launches only", async () => {
+  it("adds Fuse speed-up arguments for test and explicit fast launches", async () => {
     const { spectrumEmulatorArgsTemplate } = await import("../scripts/launch-spectrum.mjs");
     const emulator = { args: ["-tape", "{artifact}"], printerArgs: ["--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"] };
 
     expect(spectrumEmulatorArgsTemplate(emulator, { testMode: false, testPrinterOutput: false })).toEqual(["-tape", "{artifact}"]);
+    expect(spectrumEmulatorArgsTemplate(emulator, { testMode: false, fast: true, testPrinterOutput: false })).toEqual([
+      "-tape",
+      "{artifact}",
+      "--speed",
+      "1000"
+    ]);
     expect(spectrumEmulatorArgsTemplate(emulator, { testMode: true, testPrinterOutput: true, deviceArgs: emulator.printerArgs })).toEqual([
       "-tape",
       "{artifact}",
@@ -166,6 +174,36 @@ describe("build scripts", () => {
       "--graphicsfile",
       "{nullDevice}"
     ]);
+  });
+
+  it("adds VICE warp arguments for C64 benchmark launches", async () => {
+    const { c64EmulatorArgsTemplate } = await import("../scripts/launch-c64.mjs");
+    const emulator = { args: ["-autostart", "{artifact}"], testArgs: ["-warp"] };
+
+    expect(c64EmulatorArgsTemplate(emulator, { testMode: false, fast: false })).toEqual(["-autostart", "{artifact}"]);
+    expect(c64EmulatorArgsTemplate(emulator, { testMode: false, fast: true })).toEqual(["-autostart", "{artifact}", "-warp"]);
+  });
+
+  it("restarts Fuse under its executable and application process names", async () => {
+    const { linuxProcessIdsForExecutable, spectrumEmulatorProcessNames } = await import("../scripts/launch-spectrum.mjs");
+
+    expect(spectrumEmulatorProcessNames("/usr/bin/fuse-gtk", { name: "Fuse" })).toEqual(["fuse-gtk", "fuse"]);
+    expect(spectrumEmulatorProcessNames("/opt/fuse/custom-fuse", { name: "Fuse emulator", processNames: ["fuse-real"] })).toEqual([
+      "custom-fuse",
+      "fuse-real"
+    ]);
+
+    if (process.platform === "linux") {
+      const procRoot = await mkdtemp(join(tmpdir(), "metabasic-proc-"));
+      const executable = join(procRoot, "fuse-gtk");
+      await writeFile(executable, "");
+      await mkdir(join(procRoot, "101"));
+      await mkdir(join(procRoot, "102"));
+      await symlink(executable, join(procRoot, "101", "exe"));
+      await symlink(join(procRoot, "other"), join(procRoot, "102", "exe"));
+
+      expect(await linuxProcessIdsForExecutable(executable, procRoot)).toEqual([101]);
+    }
   });
 
   it("finds all configured emulator launch targets", async () => {
