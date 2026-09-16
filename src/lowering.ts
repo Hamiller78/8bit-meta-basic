@@ -245,6 +245,10 @@ export interface DimArrayInstruction {
   readonly dimensions: readonly number[];
   /** Parent struct array for compiler-generated field storage. */
   readonly structArrayName?: string;
+  /** Source field for compiler-generated struct-array storage. */
+  readonly structFieldName?: string;
+  /** Source fields stored in a packed target-native matrix, in column order. */
+  readonly packedStructFields?: readonly string[];
   /** Target-lowering detail: numeric array holding logical string element lengths. */
   readonly logicalLengthArrayName?: string;
   readonly location: SourceLocation;
@@ -698,6 +702,7 @@ function lowerStatements(
           kind: "dim-array",
           name: statement.name,
           ...(statement.structArrayName ? { structArrayName: statement.structArrayName } : {}),
+          ...(statement.structFieldName ? { structFieldName: statement.structFieldName } : {}),
           dimensions: statement.dimensions.map((dimension) => {
             if (dimension.kind !== "number") {
               throw new DiagnosticError(dimension.location, "Internal error: array dimensions must be resolved before lowering.");

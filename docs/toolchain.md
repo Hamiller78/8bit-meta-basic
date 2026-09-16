@@ -44,6 +44,20 @@ Build profiles select how much readability scaffolding is kept in generated BASI
 | `balanced` | 1 | Prominent module separators and source labels |
 | `release` | 0 | Compact output without generated comments |
 
+## Debug information sidecar
+
+Every CLI build written with `--output program.bas` also writes `program.debug.json` beside it. The `build:*` and `launch:*` scripts use this output mode, so their BASIC artifacts have matching sidecars in the same build directory. To choose another sidecar path, pass `--debug-info path/to/map.json` to the compiler. This option also works when BASIC is printed to standard output; without `--output` or `--debug-info`, no file is written.
+
+The JSON format has `formatVersion: 1`, the selected target, language, font, readability level, and test-mode flag, plus these mappings:
+
+- `lines` maps each final numbered BASIC line to its source filename, line, column when available, and lowered instruction kind. It reflects the actual output after target lowering, comment selection, and line-length fixes.
+- `functions` and `tests` record source names and locations, generated entry lines, and parameter, local, and return-variable storage names. Inline functions have no entry line because their bodies are expanded at call sites.
+- `labels` records source and generated labels with their resolved BASIC line numbers, including labels whose `REM` lines were omitted in a compact build.
+- `variables` maps internal storage names to target BASIC names. `sourceAliases` may contain several names because functions can reuse storage for locals and parameters; generated temporaries may have no source alias.
+- `structFields` maps each struct-array field to its target array. On Spectrum and C64, packed numeric fields share a two-dimensional array and `targetFieldIndex` gives the native second index. `targetElementIndexBase` gives the native first index (1 on Spectrum, 0 on C64 and Atari).
+
+These are compile-time mappings for reading and debugging generated BASIC; the sidecar is not loaded by the target machine. The source paths are those used for compilation, so a build from absolute project paths records absolute paths. Target variable names use the compiler's canonical spelling and can appear in a different case in a C64 mixed-font listing.
+
 The debug profile passes `.mbas` apostrophe comments through as generated `REM` lines. Trailing comments are emitted after the generated statement they annotate, so:
 
 ```basic

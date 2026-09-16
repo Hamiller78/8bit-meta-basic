@@ -26,6 +26,7 @@ export const atari800xlTarget: TargetBackend = {
   gotoSpelling: "GOTO",
   maxLineLength: 120,
   maxLineNumber: 32767,
+  variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const positioned = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },

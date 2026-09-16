@@ -90,6 +90,8 @@ export interface DimStatement {
   readonly asType?: string;
   /** Parent struct array for compiler-generated field storage. */
   readonly structArrayName?: string;
+  /** Source field for compiler-generated struct-array storage. */
+  readonly structFieldName?: string;
   readonly location: SourceLocation;
 }
 

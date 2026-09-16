@@ -27,9 +27,11 @@ export function packNumericStructFields(instructions: readonly Instruction[], pr
     ? createGeneratedVariableNameAllocator(instructions, "MBSTRUCT", "%")
     : allocateNumericName;
   const packedFields = new Map<string, PackedField>();
+  const packedFieldNames = new Map<string, readonly string[]>();
   for (const fields of groups.values()) {
     if (fields.length < 2) continue;
     const name = preserveIntegerStorage && isIntegerVariableName(fields[0].name) ? allocateIntegerName() : allocateNumericName();
+    packedFieldNames.set(name, fields.map((field) => field.structFieldName ?? field.name));
     fields.forEach((field, column) => {
       packedFields.set(field.name.toLowerCase(), { name, column, count: fields.length });
     });
@@ -74,7 +76,13 @@ export function packNumericStructFields(instructions: readonly Instruction[], pr
       const field = packedFields.get(instruction.name.toLowerCase());
       if (field) {
         if (field.column === 0) {
-          result.push({ ...instruction, name: field.name, dimensions: [instruction.dimensions[0], field.count], structArrayName: undefined });
+          result.push({
+            ...instruction,
+            name: field.name,
+            dimensions: [instruction.dimensions[0], field.count],
+            packedStructFields: packedFieldNames.get(field.name),
+            structFieldName: undefined
+          });
         }
         continue;
       }

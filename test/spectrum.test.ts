@@ -999,6 +999,22 @@ describe("Spectrum compiler", () => {
       expect(fileRun.stderr).toContain("BASIC lines: 3 (10..30)");
       expect(fileRun.stderr).toContain("Variables total: 0");
       await expect(readFile(outputPath, "utf8")).resolves.toBe(stdoutRun.stdout);
+      const debugInfo = JSON.parse(await readFile(join(dir, "program.debug.json"), "utf8"));
+      expect(debugInfo).toMatchObject({
+        formatVersion: 1,
+        target: "spectrum",
+        lines: [
+          { basicLine: 10, source: { filename: sourcePath, line: 1 } },
+          { basicLine: 20, source: { filename: sourcePath, line: 2 } },
+          { basicLine: 30, source: { filename: sourcePath, line: 3 } }
+        ]
+      });
+      expect(debugInfo.labels).toEqual(expect.arrayContaining([expect.objectContaining({ name: "start", basicLine: 10 })]));
+
+      const explicitDebugPath = join(dir, "custom", "map.json");
+      const explicitRun = await runCli(sourcePath, "--target", "spectrum", "--debug-info", explicitDebugPath);
+      expect(explicitRun.stdout).toBe(stdoutRun.stdout);
+      await expect(readFile(explicitDebugPath, "utf8")).resolves.toContain('"formatVersion": 1');
 
       const invalidPath = join(dir, "invalid.mbas");
       await writeFile(invalidPath, "else\n", "utf8");

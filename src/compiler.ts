@@ -2,6 +2,8 @@ import { layoutText, resolveTextResources, usesTextLayout, requireLanguage, requ
 import { basename } from "node:path";
 import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
+import type { NumberedProgram } from "./line-numbering.js";
+import { buildDebugInfo, type DebugInfo } from "./debug-info.js";
 import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
@@ -34,6 +36,7 @@ export interface CompileOptions extends TextOptions {
 export interface CompileResult {
   readonly output: string;
   readonly stats: OutputStats;
+  readonly debugInfo: DebugInfo;
 }
 
 export function compileSource(source: string, options: CompileOptions): string {
@@ -80,7 +83,12 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     : targetLowered.lines;
   return {
     output: `${outputLines.join("\n")}\n`,
-    stats: analyzeBasicOutput(targetLowered.lines, options.target)
+    stats: analyzeBasicOutput(targetLowered.lines, options.target),
+    debugInfo: buildDebugInfo(analyzed, targetLowered.numbered, targetLowered.program.instructions, targetLowered.program.labels, target, readability, {
+      language: options.language ?? "en",
+      font: options.font ?? "default",
+      testMode: options.testMode ?? false
+    })
   };
 }
 
@@ -100,6 +108,8 @@ function lowercaseBasicSyntaxPreservingStrings(line: string): string {
 
 interface RenderedProgram {
   readonly lines: readonly string[];
+  readonly numbered: NumberedProgram;
+  readonly program: LoweredProgram;
 }
 
 function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean): RenderedProgram {
@@ -138,7 +148,7 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
       continue;
     }
 
-    return { lines };
+    return { lines, numbered, program: targetLowered };
   }
 
   throw new Error("Internal error: line-length relief did not converge.");

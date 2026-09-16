@@ -19,6 +19,7 @@ interface CliOptions {
   readonly target: Target;
   readonly readability: ReadabilityLevel;
   readonly outputPath?: string;
+  readonly debugInfoPath?: string;
   readonly testMode?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
@@ -64,12 +65,22 @@ async function main(argv: readonly string[]): Promise<number> {
     } else {
       process.stdout.write(result.output);
     }
+    const debugInfoPath = options.debugInfoPath ?? (options.outputPath ? defaultDebugInfoPath(options.outputPath) : undefined);
+    if (debugInfoPath) {
+      await mkdir(dirname(debugInfoPath), { recursive: true });
+      await writeFile(debugInfoPath, `${JSON.stringify(result.debugInfo, null, 2)}\n`, "utf8");
+      process.stderr.write(`Debug information: ${debugInfoPath}\n`);
+    }
 
     return 0;
   } catch (error) {
     process.stderr.write(`${formatCause(error)}\n`);
     return 1;
   }
+}
+
+function defaultDebugInfoPath(outputPath: string): string {
+  return /\.bas$/iu.test(outputPath) ? outputPath.replace(/\.bas$/iu, ".debug.json") : `${outputPath}.debug.json`;
 }
 
 function parseArgs(argv: readonly string[]): CliOptions {
@@ -81,6 +92,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   let target: Target | undefined;
   let readability: ReadabilityLevel = 2;
   let outputPath: string | undefined;
+  let debugInfoPath: string | undefined;
   let testMode = false;
   let testPrinterOutput = false;
   let testOutputDevice: DeviceKind = "printer";
@@ -127,6 +139,14 @@ function parseArgs(argv: readonly string[]): CliOptions {
         throw new Error(`Missing value for ${arg}.`);
       }
       outputPath = value;
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--debug-info") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("Missing value for --debug-info.");
+      debugInfoPath = value;
       index += 1;
       continue;
     }
@@ -187,7 +207,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--language en|de] [--font default|uppercase|mixed] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--language en|de] [--font default|uppercase|mixed] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
   }
 
   if (inputPath && configPath) {
@@ -201,7 +221,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   const parsed: CliOptions = configPath
     ? { configPath, target, readability, testMode, testPrinterOutput, atariSharedDriveSpec, sourceComments }
     : { inputPath: inputPath ?? "", target, readability, testMode, testPrinterOutput, atariSharedDriveSpec, sourceComments };
-  const parsedWithDevice = { ...parsed, testOutputDevice, language, font, textsDir };
+  const parsedWithDevice = { ...parsed, testOutputDevice, language, font, textsDir, debugInfoPath };
   return outputPath ? { ...parsedWithDevice, outputPath } : parsedWithDevice;
 }
 

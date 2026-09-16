@@ -13,6 +13,7 @@ export interface TargetBackend {
   readonly maxLineLength: number;
   readonly maxLineNumber: number;
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram;
+  variableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string>;
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string;
 }
 

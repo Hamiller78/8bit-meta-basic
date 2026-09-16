@@ -27,6 +27,7 @@ export const spectrumTarget: TargetBackend = {
   gotoSpelling: "GO TO",
   maxLineLength: 640,
   maxLineNumber: 9999,
+  variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
     const stringArrayStorage = buildStringArrayStorage(expanded.instructions);
