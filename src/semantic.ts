@@ -816,6 +816,7 @@ function structBackingDimStatements(
       kind: "dim",
       name: fieldName,
       dimensions: fieldDimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location })),
+      structArrayName: statement.name,
       location: statement.location
     };
   });

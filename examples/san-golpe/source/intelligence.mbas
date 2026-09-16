@@ -1,0 +1,69 @@
+uses "characters.mbas"
+
+enum IntelLevel
+    intelNone = 0
+    intelName
+    intelIntegrity
+    intelAgenda
+end enum
+
+enum IntegrityBand
+    integrityLow = 0
+    integrityMedium
+    integrityHigh
+end enum
+
+'Player knowledge is numeric and separate from the actual character records.
+dim playerIntel%(numberOfCharacters)
+
+function initializeIntelligence()
+    local characterIndex
+    characterIndex = 0
+    while characterIndex < numberOfCharacters
+        playerIntel%(characterIndex) = intelName
+        if characters(characterIndex).role% = ussragent then
+            playerIntel%(characterIndex) = intelNone
+        end if
+        characterIndex = characterIndex + 1
+    wend
+end function
+
+'Knowledge can only grow; later missions can call this after a successful reveal.
+function revealCharacter(characterIndex, desiredLevel)
+    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+        return
+    end if
+    if desiredLevel > intelAgenda then
+        desiredLevel = intelAgenda
+    end if
+    if desiredLevel > playerIntel%(characterIndex) then
+        playerIntel%(characterIndex) = desiredLevel
+    end if
+end function
+
+function integrityBand(value)
+    if value <= 3 then
+        return integrityLow
+    end if
+    if value <= 7 then
+        return integrityMedium
+    end if
+    return integrityHigh
+end function
+
+'Trailing semicolons let callers compose a line without copying names into strings.
+function printKnownName(characterIndex)
+    if playerIntel%(characterIndex) >= intelName then
+        print characters(characterIndex).first$; " "; characters(characterIndex).last$;
+    else
+        print text$("intelUnknown");
+    end if
+end function
+
+function printKnownFirstName(characterIndex)
+    if playerIntel%(characterIndex) >= intelName then
+        print characters(characterIndex).first$;
+    else
+        print text$("intelUnknown");
+    end if
+end function

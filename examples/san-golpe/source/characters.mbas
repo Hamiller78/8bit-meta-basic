@@ -39,7 +39,7 @@ struct Character
     nationality%
     role%
     isAlive%   '0 = dead, 1 = alive
-    money
+    money       'In k$: one unit is 1,000 US dollars.
     agenda%     'most get doDuty, but some may have secret agendas
     target%     'the character's agenda target if applicable
     integrity%  'meaning depends on role, but 0 to 10, where 10 truly believes in their role and 0 is a complete fraud

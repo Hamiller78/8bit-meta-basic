@@ -324,6 +324,27 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("packs numeric fields from each STRUCT array into a two-dimensional Spectrum array", () => {
+    const output = compileSource(
+      "struct Pair\nLeft%\nRight%\nLabel$(8)\nend struct\ndim Entries AS Pair(3)\ndim Others AS Pair(2)\ndim Scores(3)\nEntries(0).Left% = 7\nEntries(1).Right% = Entries(0).Left% + 2\nOthers(0).Right% = 5\nScores(0) = Entries(1).Right%\nprint Entries(1).Right%; Others(0).Right%; Scores(0)\n",
+      { filename: "struct-packed.mbas", target: "spectrum", readability: 0 }
+    );
+    const lines = output.split("\n");
+    const matrixDimensions = lines.filter((line) => /DIM [A-Z]\([23],2\)/u.test(line));
+    expect(matrixDimensions).toHaveLength(2);
+    const entriesName = /DIM ([A-Z])\(3,2\)/u.exec(output)?.[1];
+    const othersName = /DIM ([A-Z])\(2,2\)/u.exec(output)?.[1];
+    expect(entriesName).toBeDefined();
+    expect(othersName).toBeDefined();
+    expect(entriesName).not.toBe(othersName);
+    expect(output).toContain(`LET ${entriesName}(1,1)=INT (7)`);
+    expect(output).toContain(`LET ${entriesName}(2,2)=INT (${entriesName}(1,1) + 2)`);
+    expect(output).toContain(`LET ${othersName}(1,2)=INT (5)`);
+    expect(output).toContain(`${entriesName}(2,2);${othersName}(1,2)`);
+    expect(output).toMatch(/DIM [A-Z]\$\(3,8\)/u);
+    expect(output).toMatch(/DIM [A-Z]\(3\)/u);
+  });
+
   it("turns ENUM members into compile-time integer constants", () => {
     expect(compileSource("enum AlertState\nIdle\nWarning = 3\nDanger\nend enum\nprint Idle; Warning; Danger\n", { filename: "enum.mbas", target: "spectrum", readability: 0 })).toBe(
       ["10 PRINT 0;3;4", ""].join("\n")

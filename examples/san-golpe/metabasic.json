@@ -4,9 +4,11 @@
     "source/characters.mbas",
     "source/characternames.mbas",
     "source/characterfactory.mbas",
+    "source/intelligence.mbas",
     "source/intro.mbas",
     "source/mainscreen.mbas",
     "source/npclogic.mbas"
   ],
-  "textsDir": "texts"
+  "textsDir": "texts",
+  "font": "mixed"
 }

@@ -174,13 +174,14 @@ describe("localized text and layout", () => {
     const configuration = await loadBuildConfiguration(configPath);
     for (const target of targets) for (const language of ["en", "de"]) {
       const result = await build(configuration, { configPath, target, language });
-      expect(result).toContain(language === "de" ? (target === "c64" ? "VEROEFFENTLICHTE" : "veroeffentlichte") : (target === "c64" ? "SMALL" : "small"));
+      expect(result.toLowerCase()).toContain(language === "de" ? "veroeffentlichte" : "small");
       expect(result).not.toContain("PRINT_TEXT");
-      const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTRO.MBAS", "DATA"];
-      const moduleOffsets = moduleNames.map((name) => result.indexOf(`MODULE ${name}`));
+      const uppercaseResult = result.toUpperCase();
+      const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTELLIGENCE.MBAS", "INTRO.MBAS", "MAINSCREEN.MBAS", "NPCLOGIC.MBAS", "DATA"];
+      const moduleOffsets = moduleNames.map((name) => uppercaseResult.indexOf(`MODULE ${name}`));
       expect(moduleOffsets.every((offset) => offset >= 0)).toBe(true);
       expect(moduleOffsets).toEqual([...moduleOffsets].sort((left, right) => left - right));
-      expect(result.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
+      expect(uppercaseResult.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
     }
   });
 });

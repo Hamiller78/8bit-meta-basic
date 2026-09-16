@@ -1,0 +1,86 @@
+uses "../source/characters.mbas"
+uses "../source/characternames.mbas"
+uses "../source/characterfactory.mbas"
+uses "../source/intelligence.mbas"
+uses "../source/mainscreen.mbas"
+
+test AgentsHaveContactsAndNoInitialMissions()
+    createAllCharacters(false)
+    initializeAgentOperations()
+
+    assert_eq 1000, budget
+    assert_eq bartender, characters(agentContacts%(0)).role%
+    assert_eq landowner, characters(agentContacts%(1)).role%
+    assert_eq priest, characters(agentContacts%(2)).role%
+    assert_eq ustourist, characters(agentContacts%(3)).role%
+    assert_eq missionIdle, agentMissions%(0)
+    assert_eq -1, agentTargets%(0)
+    assert_eq missionIdle, agentMissions%(1)
+    assert_eq -1, agentTargets%(1)
+end test
+
+test AgentOrdersRemainIndependent()
+    createAllCharacters(false)
+    initializeAgentOperations()
+
+    setAgentMission(0, missionMeet, agentContacts%(0))
+    setAgentMission(1, missionInvestigate, findRole(president))
+    assert_eq missionMeet, agentMissions%(0)
+    assert_eq agentContacts%(0), agentTargets%(0)
+    assert_eq missionInvestigate, agentMissions%(1)
+    assert_eq findRole(president), agentTargets%(1)
+
+    setAgentMission(0, missionIdle, -1)
+    assert_eq missionIdle, agentMissions%(0)
+    assert_eq -1, agentTargets%(0)
+    assert_eq missionInvestigate, agentMissions%(1)
+end test
+
+test PeopleAreGroupedByRole()
+    createAllCharacters(false)
+
+    assert_eq governmentArea, characterArea(findRole(president))
+    assert_eq governmentArea, characterArea(findRole(daughter))
+    assert_eq governmentArea, characterArea(findRole(advisor))
+    assert_eq embassyArea, characterArea(findRole(ussragent))
+    assert_eq churchArea, characterArea(findRole(priest))
+    assert_eq otherArea, characterArea(findRole(bartender))
+    assert_eq otherArea, characterArea(findRole(landowner))
+end test
+
+test InitialKnowledgeHidesSovietNames()
+    createAllCharacters(false)
+    initializeIntelligence()
+
+    assert_eq intelName, playerIntel%(0)
+    assert_eq intelName, playerIntel%(1)
+    assert_eq intelNone, playerIntel%(2)
+    assert_eq intelNone, playerIntel%(3)
+    assert_eq intelName, playerIntel%(findRole(president))
+    assert_eq intelName, playerIntel%(findRole(priest))
+end test
+
+test RevealsOnlyIncreaseKnowledge()
+    createAllCharacters(false)
+    initializeIntelligence()
+
+    revealCharacter(2, intelIntegrity)
+    assert_eq intelIntegrity, playerIntel%(2)
+    revealCharacter(2, intelName)
+    assert_eq intelIntegrity, playerIntel%(2)
+    revealCharacter(2, 99)
+    assert_eq intelAgenda, playerIntel%(2)
+    assert_eq intelNone, playerIntel%(3)
+    revealCharacter(-1, intelAgenda)
+    revealCharacter(numberOfCharacters, intelAgenda)
+    assert_eq intelAgenda, playerIntel%(2)
+end test
+
+test IntegrityIsReportedAsThreeBands()
+    assert_eq integrityLow, integrityBand(0)
+    assert_eq integrityLow, integrityBand(3)
+    assert_eq integrityMedium, integrityBand(4)
+    assert_eq integrityMedium, integrityBand(7)
+    assert_eq integrityHigh, integrityBand(8)
+    assert_eq integrityHigh, integrityBand(10)
+end test

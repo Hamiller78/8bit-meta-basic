@@ -192,7 +192,7 @@ textQueue(0).textQueueRow = 4
 newElement.textQueue$ = "READY"
 ```
 
-Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to one backing array per field, so a `TelegraphText(100)` queue becomes parallel native arrays behind the scenes. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`.
+Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to target-native backing storage: Spectrum packs two or more numeric fields of a struct array into one two-dimensional numeric array, while string fields use separate fixed-width arrays. Atari 800XL and C64 use one backing array per field. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`; the storage layout does not change Meta-BASIC indexing.
 
 Whole-struct assignment copies every field from a scalar struct value of the same type:
 

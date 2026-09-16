@@ -1,5 +1,6 @@
 uses "characterfactory.mbas"
 uses "characters.mbas"
+uses "intelligence.mbas"
 uses "intro.mbas"
 uses "mainscreen.mbas"
 uses "npclogic.mbas"
@@ -16,6 +17,8 @@ cls
 set_pos int(TEXT_ROWS / 2), 1
 print_centered text$("creatingCharacters")
 createAllCharacters(true)
+initializeIntelligence()
+initializeAgentOperations()
 
 gameover% = 0
 turn% = 1
@@ -26,11 +29,14 @@ repeat
     set_pos TEXT_ROWS - 1, 1
     print_centered text$("continue")
     getInput()
+    turnover% = 0
     repeat
-        showOverview()
-        'showMenu()
-        getInput()
+        showOverview(turn%)
+        if handleOverviewInput() = 1 then
+            turnover% = 1
+        end if
     until gameover% = 1 or turnover% = 1
+    turn% = turn% + 1
 until gameover% = 1
 
 
