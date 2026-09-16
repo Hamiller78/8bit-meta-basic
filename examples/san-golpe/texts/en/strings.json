@@ -1,7 +1,7 @@
 {
   "continue": "PRESS ANY KEY TO CONTINUE",
   "creatingCharacters": "Creating characters...",
-  "creatingCharactersProgress": "Created: {created}/{total}",
+  "creatingCharactersProgress": "Created: {created} / {total}",
   "npcEventsHeading": "The people of San Golpe talk about these events:",
   "npcQuietMonth": "It was a quiet month in San Golpe.",
   "npcRanAway": "{actor} ran away with {target}.",
