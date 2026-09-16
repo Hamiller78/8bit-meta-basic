@@ -123,6 +123,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
+- In a struct array, two or more floating numeric fields share one two-dimensional numeric array, and two or more `%` fields share one two-dimensional integer array. The first dimension selects the element and the second selects the field. A single field of either type keeps its one-dimensional array; string fields remain separate.
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 
 Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`. Readable mode also shortens names containing C64 BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer can reject names that look harmless in Meta-BASIC source.

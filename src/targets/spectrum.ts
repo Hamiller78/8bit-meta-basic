@@ -19,6 +19,7 @@ import {
   stringArrayStorageFor,
   type StringArrayStorage
 } from "./string-array-lengths.js";
+import { packNumericStructFields } from "./struct-array-packing.js";
 import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
@@ -78,7 +79,7 @@ export const spectrumTarget: TargetBackend = {
         instructions.push(instruction);
       }
     }
-    return rebuildLabels(expanded, packSpectrumNumericStructFields(instructions));
+    return rebuildLabels(expanded, packNumericStructFields(instructions));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildSpectrumVariableMap(currentProgramInstructions, readability);
@@ -563,82 +564,6 @@ function collectSpectrumArrayNames(instructions: readonly Instruction[]): readon
   }
 
   return names;
-}
-
-/** Spectrum has only 26 numeric array names, but numeric arrays may have several dimensions. */
-function packSpectrumNumericStructFields(instructions: readonly Instruction[]): readonly Instruction[] {
-  const groups = new Map<string, Extract<Instruction, { kind: "dim-array" }>[]>();
-  for (const instruction of instructions) {
-    if (instruction.kind !== "dim-array" || !instruction.structArrayName || isStringVariableName(instruction.name)) continue;
-    const key = instruction.structArrayName.toLowerCase();
-    const fields = groups.get(key) ?? [];
-    fields.push(instruction);
-    groups.set(key, fields);
-  }
-
-  const allocateName = createGeneratedVariableNameAllocator(instructions, "MBSTRUCT");
-  const packedFields = new Map<string, { readonly name: string; readonly column: number; readonly count: number }>();
-  for (const fields of groups.values()) {
-    if (fields.length < 2) continue;
-    const name = allocateName();
-    fields.forEach((field, column) => {
-      packedFields.set(field.name.toLowerCase(), { name, column, count: fields.length });
-    });
-  }
-  if (packedFields.size === 0) return instructions;
-
-  const rewrite = (expression: Expression): Expression => {
-    switch (expression.kind) {
-      case "array-access": {
-        const indices = expression.indices.map(rewrite);
-        const field = packedFields.get(expression.name.toLowerCase());
-        return {
-          ...expression,
-          ...(field ? { name: field.name } : {}),
-          indices: field ? [...indices, { kind: "number", value: field.column, raw: field.column.toString(), location: expression.location }] : indices,
-          ...(expression.fixedWidthStorageLength ? { fixedWidthStorageLength: rewrite(expression.fixedWidthStorageLength) } : {}),
-          ...(expression.fixedWidthStorageStart ? { fixedWidthStorageStart: rewrite(expression.fixedWidthStorageStart) } : {})
-        };
-      }
-      case "function-call":
-        return { ...expression, args: expression.args.map(rewrite) };
-      case "struct-field-access":
-        return { ...expression, indices: expression.indices.map(rewrite) };
-      case "parenthesized":
-        return { ...expression, expression: rewrite(expression.expression) };
-      case "unary":
-        return { ...expression, operand: rewrite(expression.operand) };
-      case "binary":
-        return { ...expression, left: rewrite(expression.left), right: rewrite(expression.right) };
-      case "identifier":
-      case "number":
-      case "string":
-      case "boolean":
-      case "color":
-        return expression;
-    }
-  };
-
-  const result: Instruction[] = [];
-  for (const instruction of instructions) {
-    if (instruction.kind === "dim-array") {
-      const field = packedFields.get(instruction.name.toLowerCase());
-      if (field) {
-        if (field.column === 0) result.push({ ...instruction, name: field.name, dimensions: [instruction.dimensions[0], field.count], structArrayName: undefined });
-        continue;
-      }
-    }
-    const rewritten = mapInstructionExpressions(instruction, rewrite);
-    if (rewritten.kind === "array-let") {
-      const field = packedFields.get(rewritten.name.toLowerCase());
-      if (field) {
-        result.push({ ...rewritten, name: field.name, indices: [...rewritten.indices, { kind: "number", value: field.column, raw: field.column.toString(), location: rewritten.location }] });
-        continue;
-      }
-    }
-    result.push(rewritten);
-  }
-  return result;
 }
 
 function allocateSpectrumArrayNames(names: readonly string[], map: Map<string, string>): void {

@@ -10,6 +10,7 @@ import { normalizeLabel } from "../lowering.js";
 import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
+import { packNumericStructFields } from "./struct-array-packing.js";
 import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
@@ -29,7 +30,7 @@ export const c64Target: TargetBackend = {
     const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
     const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
-    return withKeyboardInput;
+    return rebuildLabels(withKeyboardInput, packNumericStructFields(withKeyboardInput.instructions, true));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);

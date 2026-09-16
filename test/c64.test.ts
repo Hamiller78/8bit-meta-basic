@@ -439,6 +439,24 @@ describe("C64 compiler", () => {
     );
   });
 
+  it("packs numeric STRUCT fields into two-dimensional C64 arrays without changing integer storage", () => {
+    const output = compileSource(
+      'STRUCT Item\nCount%\nLimit%\nValue\nBonus\nTitle$(5)\nEND STRUCT\nDIM Items AS Item(3)\nDIM NewItem AS Item\nItems(0).Count% = 3.7\nItems(0).Limit% = Items(0).Count% + 1\nItems(0).Value = 1.5\nItems(0).Bonus = Items(0).Value + 0.5\nItems(0).Title$ = "FIRST"\nNewItem.Count% = 9\nNewItem.Limit% = 8\nNewItem.Value = 2.5\nNewItem.Bonus = 3.5\nNewItem.Title$ = "NEXT"\ninsert_element(Items, 1, NewItem)\nremove_element(Items, 0)\nprint Items(0).Count%; Items(0).Value; Items(0).Title$\n',
+      { filename: "packed-struct.mbas", target: "c64", readability: 0 }
+    );
+    const integerName = /DIM ([A-Z][A-Z0-9]?%)\(2,1\)/u.exec(output)?.[1];
+    const numericName = /DIM ([A-Z][A-Z0-9]?)\(2,1\)/u.exec(output)?.[1];
+    expect(integerName).toBeDefined();
+    expect(numericName).toBeDefined();
+    expect(output).toContain(`${integerName}(0,0)=INT(3.7)`);
+    expect(output).toContain(`${integerName}(0,1)=INT(${integerName}(0,0) + 1)`);
+    expect(output).toContain(`${numericName}(0,0)=1.5`);
+    expect(output).toContain(`${numericName}(0,1)=${numericName}(0,0) + 0.5`);
+    expect(output).toMatch(new RegExp(`${integerName}\\(([A-Z][A-Z0-9]?) \\+ 1,0\\)=${integerName}\\(\\1,0\\)`, "u"));
+    expect(output).toMatch(new RegExp(`${numericName}\\(([A-Z][A-Z0-9]?) \\+ 1,0\\)=${numericName}\\(\\1,0\\)`, "u"));
+    expect(output).toMatch(/DIM [A-Z][A-Z0-9]?\$\(2\)/u);
+  });
+
   it("lowers whole-struct assignments to field assignments", () => {
     expect(
       compileSource(
