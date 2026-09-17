@@ -1,55 +1,88 @@
 uses "../source/characters.mbas"
-uses "../source/characternames.mbas"
-uses "../source/characterfactory.mbas"
 uses "../source/intelligence.mbas"
+uses "../source/agentoperations.mbas"
 uses "../source/mainscreen.mbas"
 
-test AgentsHaveContactsAndNoInitialMissions()
-    createAllCharacters(false)
+function setupMainScreenCast()
+    local characterIndex
+    for characterIndex = 0 to numberOfCharacters - 1
+        characters(characterIndex).role% = none
+        characters(characterIndex).isAlive% = 1
+    next characterIndex
+    characters(0).role% = usagent
+    characters(1).role% = usagent
+    characters(2).role% = ussragent
+    characters(3).role% = ussragent
+    characters(4).role% = president
+    characters(5).role% = daughter
+    characters(6).role% = advisor
+    characters(7).role% = general
+    characters(8).role% = priest
+    characters(9).role% = bartender
+    characters(10).role% = landowner
+    characters(11).role% = ustourist
+end function
+
+test AgentsStartWithoutContactsOrOrders()
+    setupMainScreenCast()
+    initializeIntelligence()
     initializeAgentOperations()
 
     assert_eq 1000, budget
-    assert_eq bartender, characters(agentContacts%(0)).role%
-    assert_eq landowner, characters(agentContacts%(1)).role%
-    assert_eq priest, characters(agentContacts%(2)).role%
-    assert_eq ustourist, characters(agentContacts%(3)).role%
+    assert_eq 0, agentContactCount%(0)
+    assert_eq 0, agentContactCount%(1)
+    assert_eq 0, hasAgentContact(0, findRole(bartender))
+    assert_eq 0, hasAgentContact(1, findRole(priest))
     assert_eq missionIdle, agentMissions%(0)
     assert_eq -1, agentTargets%(0)
     assert_eq missionIdle, agentMissions%(1)
     assert_eq -1, agentTargets%(1)
 end test
 
-test AgentOrdersRemainIndependent()
-    createAllCharacters(false)
+test OverviewOffersAgentOrdersAndTurnEnd()
+    setupMainScreenCast()
+    initializeIntelligence()
     initializeAgentOperations()
 
-    setAgentMission(0, missionMeet, agentContacts%(0))
-    setAgentMission(1, missionInvestigate, findRole(president))
-    assert_eq missionMeet, agentMissions%(0)
-    assert_eq agentContacts%(0), agentTargets%(0)
+    showOverview(1)
+    assert_print "4 End turn"
+end test
+
+test AgentOrdersRemainIndependent()
+    setupMainScreenCast()
+    initializeIntelligence()
+    initializeAgentOperations()
+
+    assert_eq 1, setAgentVisit(0, pubLocation)
+    assert_eq 1, addAgentContact(1, findRole(advisor))
+    assert_eq 1, setAgentInvestigation(1, findRole(president))
+    assert_eq missionVisit, agentMissions%(0)
+    assert_eq pubLocation, agentLocations%(0)
     assert_eq missionInvestigate, agentMissions%(1)
     assert_eq findRole(president), agentTargets%(1)
 
-    setAgentMission(0, missionIdle, -1)
+    setAgentIdle(0)
     assert_eq missionIdle, agentMissions%(0)
     assert_eq -1, agentTargets%(0)
     assert_eq missionInvestigate, agentMissions%(1)
 end test
 
-test PeopleAreGroupedByRole()
-    createAllCharacters(false)
+test PeopleAreGroupedByLocation()
+    setupMainScreenCast()
 
-    assert_eq governmentArea, characterArea(findRole(president))
-    assert_eq governmentArea, characterArea(findRole(daughter))
-    assert_eq governmentArea, characterArea(findRole(advisor))
-    assert_eq embassyArea, characterArea(findRole(ussragent))
-    assert_eq churchArea, characterArea(findRole(priest))
-    assert_eq otherArea, characterArea(findRole(bartender))
-    assert_eq otherArea, characterArea(findRole(landowner))
+    assert_eq palaceLocation, characterLocation(findRole(president))
+    assert_eq palaceLocation, characterLocation(findRole(daughter))
+    assert_eq palaceLocation, characterLocation(findRole(advisor))
+    assert_eq militaryLocation, characterLocation(findRole(general))
+    assert_eq embassyLocation, characterLocation(findRole(ussragent))
+    assert_eq churchLocation, characterLocation(findRole(priest))
+    assert_eq pubLocation, characterLocation(findRole(bartender))
+    assert_eq pubLocation, characterLocation(findRole(ustourist))
+    assert_eq outsideLocation, characterLocation(findRole(landowner))
 end test
 
 test InitialKnowledgeHidesSovietNames()
-    createAllCharacters(false)
+    setupMainScreenCast()
     initializeIntelligence()
 
     assert_eq intelName, playerIntel%(0)
@@ -61,7 +94,7 @@ test InitialKnowledgeHidesSovietNames()
 end test
 
 test RevealsOnlyIncreaseKnowledge()
-    createAllCharacters(false)
+    setupMainScreenCast()
     initializeIntelligence()
 
     revealCharacter(2, intelIntegrity)

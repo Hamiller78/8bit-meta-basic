@@ -1,6 +1,7 @@
 uses "characterfactory.mbas"
 uses "characters.mbas"
 uses "intelligence.mbas"
+uses "agentoperations.mbas"
 uses "intro.mbas"
 uses "mainscreen.mbas"
 uses "npclogic.mbas"
@@ -25,7 +26,9 @@ turn% = 1
 turnover% = 0
 
 repeat
+    resolveAgentMissions()
     doNpcActions()
+    printAgentReports()
     set_pos TEXT_ROWS - 1, 1
     print_centered text$("continue")
     getInput()

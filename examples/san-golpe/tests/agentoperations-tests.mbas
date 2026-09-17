@@ -1,0 +1,166 @@
+uses "../source/characters.mbas"
+uses "../source/intelligence.mbas"
+uses "../source/agentoperations.mbas"
+
+function setupOperations()
+    local characterIndex
+    for characterIndex = 0 to numberOfCharacters - 1
+        characters(characterIndex).role% = none
+        characters(characterIndex).isAlive% = 1
+        characters(characterIndex).money = 0
+        characters(characterIndex).agenda% = doDuty
+        characters(characterIndex).integrity% = 5
+        characters(characterIndex).weapons% = 0
+    next characterIndex
+    characters(0).role% = usagent
+    characters(1).role% = usagent
+    characters(2).role% = ussragent
+    characters(3).role% = ussragent
+    characters(4).role% = president
+    characters(5).role% = daughter
+    characters(6).role% = advisor
+    characters(7).role% = general
+    characters(8).role% = priest
+    characters(9).role% = bartender
+    characters(10).role% = landowner
+    characters(11).role% = ustourist
+    initializeIntelligence()
+    initializeAgentOperations()
+end function
+
+test LocationsHaveDifferentChances()
+    assert_eq 35, locationIntelChance(palaceLocation)
+    assert_eq 50, locationIntelChance(militaryLocation)
+    assert_eq 25, locationIntelChance(embassyLocation)
+    assert_eq 60, locationIntelChance(churchLocation)
+    assert_eq 75, locationIntelChance(pubLocation)
+    assert_eq 50, locationIntelChance(outsideLocation)
+    assert_eq 20, locationContactChance(palaceLocation)
+    assert_eq 25, locationContactChance(militaryLocation)
+    assert_eq 15, locationContactChance(embassyLocation)
+    assert_eq 40, locationContactChance(churchLocation)
+    assert_eq 55, locationContactChance(pubLocation)
+    assert_eq 35, locationContactChance(outsideLocation)
+end test
+
+test PalaceContactOpensThePresident()
+    local presidentIndex, advisorIndex
+    setupOperations()
+    presidentIndex = findRole(president)
+    advisorIndex = findRole(advisor)
+
+    assert_eq 2, locationCandidateCount(0, palaceLocation)
+    assert_eq 0, canApproach(0, presidentIndex)
+    assert_eq 0, canInvestigate(0, presidentIndex)
+    assert_eq 1, addAgentContact(0, advisorIndex)
+    assert_eq 0, addAgentContact(0, advisorIndex)
+    assert_eq 1, agentContactCount%(0)
+    assert_eq 3, locationCandidateCount(0, palaceLocation)
+    assert_eq 1, canApproach(0, presidentIndex)
+    assert_eq 1, canInvestigate(0, presidentIndex)
+    assert_eq 0, canApproach(1, presidentIndex)
+    assert_eq 1, setAgentDeal(0, advisorIndex, presidentIndex)
+end test
+
+test VisitsRevealInformationOrMakeContacts()
+    setupOperations()
+
+    assert_eq intelNone, playerIntel%(2)
+    resolveVisitRoll(0, 2, 0, 99)
+    assert_eq intelName, playerIntel%(2)
+    assert_eq reportIntel, agentReports%(0)
+    assert_eq 0, agentContactCount%(0)
+
+    resolveVisitRoll(0, 2, 99, 0)
+    assert_eq reportContact, agentReports%(0)
+    assert_eq 1, hasAgentContact(0, 2)
+    assert_eq 1, agentContactCount%(0)
+    assert_eq 0, hasAgentContact(1, 2)
+
+    resolveVisitRoll(1, 2, 0, 99)
+    assert_eq intelIntegrity, playerIntel%(2)
+    assert_eq reportIntel, agentReports%(1)
+    resolveVisitRoll(1, 2, 0, 99)
+    assert_eq intelIntegrity, playerIntel%(2)
+    assert_eq reportNoLead, agentReports%(1)
+end test
+
+test ContactAllowsDeeperInvestigation()
+    local presidentIndex, advisorIndex
+    setupOperations()
+    presidentIndex = findRole(president)
+    advisorIndex = findRole(advisor)
+
+    assert_eq 0, setAgentInvestigation(0, presidentIndex)
+    addAgentContact(0, advisorIndex)
+    assert_eq 1, setAgentInvestigation(0, presidentIndex)
+    assert_eq intelName, playerIntel%(presidentIndex)
+    resolveInvestigationRoll(0, presidentIndex, 0)
+    assert_eq intelIntegrity, playerIntel%(presidentIndex)
+    assert_eq missionInvestigate, agentMissions%(0)
+    resolveInvestigationRoll(0, presidentIndex, 0)
+    assert_eq intelAgenda, playerIntel%(presidentIndex)
+    assert_eq missionIdle, agentMissions%(0)
+    assert_eq reportIntel, agentReports%(0)
+end test
+
+test DealsDependOnIntegrity()
+    local priestIndex
+    setupOperations()
+    priestIndex = findRole(priest)
+    addAgentContact(0, priestIndex)
+
+    characters(priestIndex).integrity% = 10
+    assert_eq dealHonored, dealOutcomeFor(10, 9)
+    assert_eq 1, setAgentDeal(0, priestIndex, priestIndex)
+    assert_eq startingBudgetK, budget
+    resolveDealRoll(0, 9)
+    assert_eq startingBudgetK - dealCostK, budget
+    assert_eq intelAgenda, playerIntel%(priestIndex)
+    assert_eq reportDealHonored, agentReports%(0)
+    assert_eq missionIdle, agentMissions%(0)
+
+    initializeIntelligence()
+    initializeAgentOperations()
+    addAgentContact(0, priestIndex)
+    characters(priestIndex).integrity% = 0
+    assert_eq dealPocketed, dealOutcomeFor(0, 0)
+    assert_eq 1, setAgentDeal(0, priestIndex, priestIndex)
+    resolveDealRoll(0, 0)
+    assert_eq startingBudgetK - dealCostK, budget
+    assert_eq intelName, playerIntel%(priestIndex)
+    assert_eq 0, characters(priestIndex).money
+    assert_eq reportDealFailed, agentReports%(0)
+
+    initializeIntelligence()
+    initializeAgentOperations()
+    addAgentContact(0, priestIndex)
+    characters(priestIndex).agenda% = usurpRole
+    assert_eq dealDiverted, dealOutcomeFor(0, 9)
+    assert_eq 1, setAgentDeal(0, priestIndex, priestIndex)
+    resolveDealRoll(0, 9)
+    assert_eq startingBudgetK - dealCostK, budget
+    assert_eq intelName, playerIntel%(priestIndex)
+    assert_eq dealCostK, characters(priestIndex).money
+    assert_eq 1, characters(priestIndex).weapons%
+    assert_eq reportDealFailed, agentReports%(0)
+end test
+
+test DealsNeedAContactAtTheTargetLocation()
+    local advisorIndex, presidentIndex, generalIndex
+    setupOperations()
+    advisorIndex = findRole(advisor)
+    presidentIndex = findRole(president)
+    generalIndex = findRole(general)
+
+    assert_eq 0, setAgentDeal(0, advisorIndex, presidentIndex)
+    addAgentContact(0, advisorIndex)
+    assert_eq 0, setAgentDeal(0, advisorIndex, generalIndex)
+    assert_eq 0, setAgentDeal(1, advisorIndex, presidentIndex)
+    budget = 0
+    assert_eq 0, setAgentDeal(0, advisorIndex, presidentIndex)
+    budget = startingBudgetK
+    characters(advisorIndex).isAlive% = 0
+    assert_eq 0, canApproach(0, presidentIndex)
+    assert_eq 0, setAgentDeal(0, advisorIndex, presidentIndex)
+end test

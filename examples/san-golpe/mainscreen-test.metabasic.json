@@ -1,0 +1,10 @@
+{
+  "files": [
+    "source/characters.mbas",
+    "source/intelligence.mbas",
+    "source/agentoperations.mbas",
+    "source/mainscreen.mbas",
+    "tests/mainscreen-tests.mbas"
+  ],
+  "textsDir": "texts"
+}

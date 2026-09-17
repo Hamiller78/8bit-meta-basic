@@ -1,0 +1,434 @@
+uses "characters.mbas"
+uses "intelligence.mbas"
+
+const numberOfAgents = 2
+const startingBudgetK = 1000
+const dealCostK = 10
+
+enum AgentMission
+    missionIdle = 0
+    missionVisit
+    missionInvestigate
+    missionDeal
+end enum
+
+enum Location
+    palaceLocation = 1
+    militaryLocation
+    embassyLocation
+    churchLocation
+    pubLocation
+    outsideLocation
+end enum
+
+enum AgentReport
+    reportNone = 0
+    reportNoLead
+    reportIntel
+    reportContact
+    reportDealHonored
+    reportDealFailed
+    reportNoFunds
+end enum
+
+enum DealOutcome
+    dealHonored = 0
+    dealPocketed
+    dealDiverted
+end enum
+
+budget = 0
+dim agentContacts%(numberOfAgents * numberOfCharacters)
+dim agentContactCount%(numberOfAgents)
+dim agentMissions%(numberOfAgents)
+dim agentTargets%(numberOfAgents)
+dim agentLocations%(numberOfAgents)
+dim agentDealContacts%(numberOfAgents)
+dim agentReports%(numberOfAgents)
+dim agentReportTargets%(numberOfAgents)
+
+function initializeAgentOperations()
+    local agentIndex, characterIndex
+
+    budget = startingBudgetK
+    for agentIndex = 0 to numberOfAgents - 1
+        agentContactCount%(agentIndex) = 0
+        agentMissions%(agentIndex) = missionIdle
+        agentTargets%(agentIndex) = -1
+        agentLocations%(agentIndex) = 0
+        agentDealContacts%(agentIndex) = -1
+        agentReports%(agentIndex) = reportNone
+        agentReportTargets%(agentIndex) = -1
+        for characterIndex = 0 to numberOfCharacters - 1
+            agentContacts%(agentIndex * numberOfCharacters + characterIndex) = 0
+        next characterIndex
+    next agentIndex
+end function
+
+function findRole(wantedRole)
+    local characterIndex
+    for characterIndex = 0 to numberOfCharacters - 1
+        if characters(characterIndex).role% = wantedRole then
+            return characterIndex
+        end if
+    next characterIndex
+    return -1
+end function
+
+function characterLocation(characterIndex)
+    local roleValue
+    roleValue = characters(characterIndex).role%
+    if roleValue = president or roleValue = daughter or roleValue = advisor then
+        return palaceLocation
+    end if
+    if roleValue = general then
+        return militaryLocation
+    end if
+    if roleValue = ussragent then
+        return embassyLocation
+    end if
+    if roleValue = priest then
+        return churchLocation
+    end if
+    if roleValue = bartender or roleValue = ustourist then
+        return pubLocation
+    end if
+    return outsideLocation
+end function
+
+function hasAgentContact(agentIndex, characterIndex)
+    if agentIndex < 0 or agentIndex >= numberOfAgents then
+        return 0
+    end if
+    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+        return 0
+    end if
+    return agentContacts%(agentIndex * numberOfCharacters + characterIndex)
+end function
+
+function firstAgentContact(agentIndex)
+    local characterIndex
+    for characterIndex = 2 to numberOfCharacters - 1
+        if hasAgentContact(agentIndex, characterIndex) = 1 then
+            return characterIndex
+        end if
+    next characterIndex
+    return -1
+end function
+
+function addAgentContact(agentIndex, characterIndex)
+    if agentIndex < 0 or agentIndex >= numberOfAgents then
+        return 0
+    end if
+    if characterIndex < 2 or characterIndex >= numberOfCharacters then
+        return 0
+    end if
+    if hasAgentContact(agentIndex, characterIndex) = 1 then
+        return 0
+    end if
+    agentContacts%(agentIndex * numberOfCharacters + characterIndex) = 1
+    agentContactCount%(agentIndex) = agentContactCount%(agentIndex) + 1
+    revealCharacter(characterIndex, intelName)
+    return 1
+end function
+
+function hasContactAtLocation(agentIndex, locationValue)
+    local characterIndex
+    for characterIndex = 2 to numberOfCharacters - 1
+        if characterLocation(characterIndex) = locationValue then
+            if hasAgentContact(agentIndex, characterIndex) = 1 and characters(characterIndex).isAlive% = 1 then
+                return 1
+            end if
+        end if
+    next characterIndex
+    return 0
+end function
+
+'The president cannot be reached from a cold visit to the palace.
+function canApproach(agentIndex, characterIndex)
+    if characterIndex < 2 or characterIndex >= numberOfCharacters then
+        return 0
+    end if
+    if characters(characterIndex).isAlive% = 0 then
+        return 0
+    end if
+    if characters(characterIndex).role% = president then
+        return hasContactAtLocation(agentIndex, palaceLocation)
+    end if
+    return 1
+end function
+
+function canInvestigate(agentIndex, characterIndex)
+    if canApproach(agentIndex, characterIndex) = 0 then
+        return 0
+    end if
+    return hasContactAtLocation(agentIndex, characterLocation(characterIndex))
+end function
+
+function locationIntelChance(locationValue)
+    if locationValue = palaceLocation then
+        return 35
+    end if
+    if locationValue = militaryLocation then
+        return 50
+    end if
+    if locationValue = embassyLocation then
+        return 25
+    end if
+    if locationValue = churchLocation then
+        return 60
+    end if
+    if locationValue = pubLocation then
+        return 75
+    end if
+    return 50
+end function
+
+function locationContactChance(locationValue)
+    if locationValue = palaceLocation then
+        return 20
+    end if
+    if locationValue = militaryLocation then
+        return 25
+    end if
+    if locationValue = embassyLocation then
+        return 15
+    end if
+    if locationValue = churchLocation then
+        return 40
+    end if
+    if locationValue = pubLocation then
+        return 55
+    end if
+    return 35
+end function
+
+function locationCandidateCount(agentIndex, locationValue)
+    local characterIndex, count
+    count = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        if characterLocation(characterIndex) = locationValue then
+            if canApproach(agentIndex, characterIndex) = 1 then
+                count = count + 1
+            end if
+        end if
+    next characterIndex
+    return count
+end function
+
+function locationCandidateAt(agentIndex, locationValue, ordinal)
+    local characterIndex, count
+    count = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        if characterLocation(characterIndex) = locationValue then
+            if canApproach(agentIndex, characterIndex) = 1 then
+                if count = ordinal then
+                    return characterIndex
+                end if
+                count = count + 1
+            end if
+        end if
+    next characterIndex
+    return -1
+end function
+
+function setAgentVisit(agentIndex, locationValue)
+    if agentIndex < 0 or agentIndex >= numberOfAgents then
+        return 0
+    end if
+    if locationValue < palaceLocation or locationValue > outsideLocation then
+        return 0
+    end if
+    agentMissions%(agentIndex) = missionVisit
+    agentLocations%(agentIndex) = locationValue
+    agentTargets%(agentIndex) = -1
+    agentDealContacts%(agentIndex) = -1
+    return 1
+end function
+
+function setAgentInvestigation(agentIndex, characterIndex)
+    if canInvestigate(agentIndex, characterIndex) = 0 then
+        return 0
+    end if
+    agentMissions%(agentIndex) = missionInvestigate
+    agentLocations%(agentIndex) = characterLocation(characterIndex)
+    agentTargets%(agentIndex) = characterIndex
+    agentDealContacts%(agentIndex) = -1
+    return 1
+end function
+
+function setAgentDeal(agentIndex, contactIndex, targetIndex)
+    if budget < dealCostK then
+        return 0
+    end if
+    if hasAgentContact(agentIndex, contactIndex) = 0 then
+        return 0
+    end if
+    if characters(contactIndex).isAlive% = 0 then
+        return 0
+    end if
+    if canInvestigate(agentIndex, targetIndex) = 0 then
+        return 0
+    end if
+    if characterLocation(contactIndex) <> characterLocation(targetIndex) then
+        return 0
+    end if
+    agentMissions%(agentIndex) = missionDeal
+    agentLocations%(agentIndex) = characterLocation(targetIndex)
+    agentTargets%(agentIndex) = targetIndex
+    agentDealContacts%(agentIndex) = contactIndex
+    return 1
+end function
+
+function setAgentIdle(agentIndex)
+    agentMissions%(agentIndex) = missionIdle
+    agentLocations%(agentIndex) = 0
+    agentTargets%(agentIndex) = -1
+    agentDealContacts%(agentIndex) = -1
+end function
+
+'Visit and investigate orders persist; deals are one-time orders.
+function resolveAgentMissions()
+    local agentIndex
+    for agentIndex = 0 to numberOfAgents - 1
+        agentReports%(agentIndex) = reportNone
+        agentReportTargets%(agentIndex) = -1
+        if agentMissions%(agentIndex) = missionVisit then
+            resolveVisitMission(agentIndex)
+        end if
+        if agentMissions%(agentIndex) = missionInvestigate then
+            resolveInvestigationMission(agentIndex)
+        end if
+        if agentMissions%(agentIndex) = missionDeal then
+            resolveDealMission(agentIndex)
+        end if
+    next agentIndex
+end function
+
+function resolveVisitMission(agentIndex)
+    local locationValue, candidateCount, candidateIndex, characterIndex
+    locationValue = agentLocations%(agentIndex)
+    candidateCount = locationCandidateCount(agentIndex, locationValue)
+    agentReports%(agentIndex) = reportNoLead
+    if candidateCount = 0 then
+        return
+    end if
+    candidateIndex = int(rnd() * candidateCount)
+    characterIndex = locationCandidateAt(agentIndex, locationValue, candidateIndex)
+    resolveVisitRoll(agentIndex, characterIndex, int(rnd() * 100), int(rnd() * 100))
+end function
+
+'Separate rolls make the two location chances testable without a fake RNG.
+function resolveVisitRoll(agentIndex, characterIndex, intelRoll, contactRoll)
+    local locationValue, nextLevel
+    agentReports%(agentIndex) = reportNoLead
+    agentReportTargets%(agentIndex) = -1
+    if canApproach(agentIndex, characterIndex) = 0 then
+        return
+    end if
+    locationValue = characterLocation(characterIndex)
+    if intelRoll < locationIntelChance(locationValue) then
+        if playerIntel%(characterIndex) < intelIntegrity then
+            nextLevel = playerIntel%(characterIndex) + 1
+            revealCharacter(characterIndex, nextLevel)
+            agentReports%(agentIndex) = reportIntel
+            agentReportTargets%(agentIndex) = characterIndex
+        end if
+    end if
+    if contactRoll < locationContactChance(locationValue) then
+        if addAgentContact(agentIndex, characterIndex) = 1 then
+            agentReports%(agentIndex) = reportContact
+            agentReportTargets%(agentIndex) = characterIndex
+        end if
+    end if
+end function
+
+function resolveInvestigationMission(agentIndex)
+    local characterIndex
+    characterIndex = agentTargets%(agentIndex)
+    resolveInvestigationRoll(agentIndex, characterIndex, int(rnd() * 100))
+end function
+
+function resolveInvestigationRoll(agentIndex, characterIndex, roll)
+    local chance
+    agentReports%(agentIndex) = reportNoLead
+    if canInvestigate(agentIndex, characterIndex) = 0 then
+        setAgentIdle(agentIndex)
+        return
+    end if
+    if playerIntel%(characterIndex) >= intelAgenda then
+        agentReports%(agentIndex) = reportNone
+        setAgentIdle(agentIndex)
+        return
+    end if
+    chance = locationIntelChance(characterLocation(characterIndex)) + 20
+    if chance > 95 then
+        chance = 95
+    end if
+    if roll < chance then
+        revealCharacter(characterIndex, playerIntel%(characterIndex) + 1)
+        agentReports%(agentIndex) = reportIntel
+        agentReportTargets%(agentIndex) = characterIndex
+        if playerIntel%(characterIndex) >= intelAgenda then
+            setAgentIdle(agentIndex)
+        end if
+    end if
+end function
+
+'Integrity 10 always honors a deal; integrity 0 never does.
+function dealOutcomeFor(integrityValue, roll)
+    if roll < integrityValue then
+        return dealHonored
+    end if
+    if roll < integrityValue + int((10 - integrityValue) / 2) then
+        return dealPocketed
+    end if
+    return dealDiverted
+end function
+
+function resolveDealMission(agentIndex)
+    resolveDealRoll(agentIndex, int(rnd() * 10))
+end function
+
+function resolveDealRoll(agentIndex, roll)
+    local contactIndex, targetIndex, outcome
+    contactIndex = agentDealContacts%(agentIndex)
+    targetIndex = agentTargets%(agentIndex)
+    if hasAgentContact(agentIndex, contactIndex) = 0 then
+        agentReports%(agentIndex) = reportNoLead
+        setAgentIdle(agentIndex)
+        return
+    end if
+    if characters(contactIndex).isAlive% = 0 then
+        agentReports%(agentIndex) = reportNoLead
+        setAgentIdle(agentIndex)
+        return
+    end if
+    if canInvestigate(agentIndex, targetIndex) = 0 then
+        agentReports%(agentIndex) = reportNoLead
+        setAgentIdle(agentIndex)
+        return
+    end if
+    if budget < dealCostK then
+        agentReports%(agentIndex) = reportNoFunds
+        setAgentIdle(agentIndex)
+        return
+    end if
+    budget = budget - dealCostK
+    outcome = dealOutcomeFor(characters(contactIndex).integrity%, roll)
+    agentReportTargets%(agentIndex) = targetIndex
+    if outcome = dealHonored then
+        revealCharacter(targetIndex, intelAgenda)
+        agentReports%(agentIndex) = reportDealHonored
+    else
+        'The player cannot tell pocketing from diversion just from the report.
+        agentReports%(agentIndex) = reportDealFailed
+        if outcome = dealDiverted then
+            characters(contactIndex).money = characters(contactIndex).money + dealCostK
+            if characters(contactIndex).agenda% = usurpRole then
+                characters(contactIndex).weapons% = characters(contactIndex).weapons% + 1
+            end if
+        end if
+    end if
+    setAgentIdle(agentIndex)
+end function

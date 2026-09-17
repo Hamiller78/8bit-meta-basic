@@ -65,10 +65,11 @@ test AllCharacterRolesAreCreated()
     assert_eq daughter, characters(5).role%
     assert_eq characters(4).last$, characters(5).last$
     assert_eq advisor, characters(6).role%
-    assert_eq priest, characters(7).role%
-    assert_eq bartender, characters(8).role%
-    assert_eq landowner, characters(9).role%
-    assert_eq ustourist, characters(10).role%
+    assert_eq general, characters(7).role%
+    assert_eq priest, characters(8).role%
+    assert_eq bartender, characters(9).role%
+    assert_eq landowner, characters(10).role%
+    assert_eq ustourist, characters(11).role%
 
     for characterIndex = 0 to createdCharacterCount - 1
         assert_eq 0, characters(characterIndex).money

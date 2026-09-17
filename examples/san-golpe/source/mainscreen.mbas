@@ -1,61 +1,9 @@
 uses "characters.mbas"
 uses "intelligence.mbas"
-
-const contactsPerAgent = 2
-const numberOfAgents = 2
-const startingBudgetK = 1000
-
-enum AgentMission
-    missionIdle = 0
-    missionMeet
-    missionInvestigate
-    missionSupport
-end enum
-
-enum CharacterArea
-    governmentArea = 1
-    embassyArea
-    churchArea
-    rebellionArea
-    otherArea
-end enum
-
-budget = 0
-dim agentContacts%(numberOfAgents * contactsPerAgent)
-dim agentMissions%(numberOfAgents)
-dim agentTargets%(numberOfAgents)
-
-function initializeAgentOperations()
-    local agentIndex, contactSlot
-
-    budget = startingBudgetK
-    for agentIndex = 0 to numberOfAgents - 1
-        agentMissions%(agentIndex) = missionIdle
-        agentTargets%(agentIndex) = -1
-        for contactSlot = 0 to contactsPerAgent - 1
-            agentContacts%(agentIndex * contactsPerAgent + contactSlot) = -1
-        next contactSlot
-    next agentIndex
-
-    'Provisional starting networks; mission outcomes are not implemented yet.
-    agentContacts%(0) = findRole(bartender)
-    agentContacts%(1) = findRole(landowner)
-    agentContacts%(2) = findRole(priest)
-    agentContacts%(3) = findRole(ustourist)
-end function
-
-function findRole(wantedRole)
-    local characterIndex
-    for characterIndex = 0 to numberOfCharacters - 1
-        if characters(characterIndex).role% = wantedRole then
-            return characterIndex
-        end if
-    next characterIndex
-    return -1
-end function
+uses "agentoperations.mbas"
 
 function showOverview(turnNumber)
-    local agentIndex, firstContact, secondContact, targetIndex
+    local agentIndex, firstContact, targetIndex
 
     cls
     print_centered text$("overviewHeading")
@@ -66,32 +14,74 @@ function showOverview(turnNumber)
         print agentIndex + 1; " ";
         printKnownName(agentIndex)
         print
-        firstContact = agentContacts%(agentIndex * contactsPerAgent)
-        secondContact = agentContacts%(agentIndex * contactsPerAgent + 1)
-        print " C: ";
+        print " C: "; agentContactCount%(agentIndex);
+        firstContact = firstAgentContact(agentIndex)
         if firstContact >= 0 then
+            print " ";
             printKnownFirstName(firstContact)
-        else
-            print text$("overviewNone");
-        end if
-        if secondContact >= 0 then
-            print ", ";
-            printKnownFirstName(secondContact)
+            if agentContactCount%(agentIndex) > 1 then
+                print " +"; agentContactCount%(agentIndex) - 1;
+            end if
         end if
         print
         print " M: ";
         printMissionName(agentMissions%(agentIndex))
+        print
+        if agentMissions%(agentIndex) = missionVisit then
+            print "    ";
+            printLocationName(agentLocations%(agentIndex))
+            print
+        end if
         targetIndex = agentTargets%(agentIndex)
         if targetIndex >= 0 then
-            print " ";
+            print "    ";
             printKnownFirstName(targetIndex)
+            print
         end if
-        print
     next agentIndex
     print
     print "1/2 "; text$("overviewAgentOption")
     print "3 "; text$("overviewPeopleOption")
     print "4 "; text$("overviewEndTurnOption")
+end function
+
+function printAgentReports()
+    local agentIndex, targetIndex, reportValue
+    if agentReports%(0) = reportNone and agentReports%(1) = reportNone then
+        return
+    end if
+    print
+    print text$("agentReportsHeading")
+    for agentIndex = 0 to numberOfAgents - 1
+        reportValue = agentReports%(agentIndex)
+        if reportValue <> reportNone then
+            print agentIndex + 1; " ";
+            if reportValue = reportNoLead then
+                print text$("reportNoLead");
+            end if
+            if reportValue = reportIntel then
+                print text$("reportIntel");
+            end if
+            if reportValue = reportContact then
+                print text$("reportContact");
+            end if
+            if reportValue = reportDealHonored then
+                print text$("reportDealHonored");
+            end if
+            if reportValue = reportDealFailed then
+                print text$("reportDealFailed");
+            end if
+            if reportValue = reportNoFunds then
+                print text$("reportNoFunds");
+            end if
+            targetIndex = agentReportTargets%(agentIndex)
+            if targetIndex >= 0 and reportValue <> reportDealFailed then
+                print " ";
+                printKnownFirstName(targetIndex)
+            end if
+            print
+        end if
+    next agentIndex
 end function
 
 'Returns 1 only when the player ends the turn.
@@ -114,7 +104,7 @@ function handleOverviewInput()
 end function
 
 function showAgentMenu(agentIndex)
-    local choice, contactSlot, contactIndex, targetIndex
+    local choice, characterIndex
 
     repeat
         cls
@@ -122,22 +112,23 @@ function showAgentMenu(agentIndex)
         printKnownName(agentIndex)
         print
         print
-        print text$("overviewContacts")
-        for contactSlot = 0 to contactsPerAgent - 1
-            contactIndex = agentContacts%(agentIndex * contactsPerAgent + contactSlot)
-            if contactIndex >= 0 then
-                print contactSlot + 1; " ";
-                printKnownName(contactIndex)
+        print text$("overviewContacts"); ": "; agentContactCount%(agentIndex)
+        for characterIndex = 2 to numberOfCharacters - 1
+            if hasAgentContact(agentIndex, characterIndex) = 1 then
+                printKnownName(characterIndex)
                 print
             end if
-        next contactSlot
+        next characterIndex
         print
         print text$("overviewCurrentMission")
         printMissionName(agentMissions%(agentIndex))
         print
-        targetIndex = agentTargets%(agentIndex)
-        if targetIndex >= 0 then
-            printKnownName(targetIndex)
+        if agentMissions%(agentIndex) = missionVisit then
+            printLocationName(agentLocations%(agentIndex))
+            print
+        end if
+        if agentTargets%(agentIndex) >= 0 then
+            printKnownName(agentTargets%(agentIndex))
             print
         end if
         print
@@ -151,64 +142,102 @@ function showAgentMenu(agentIndex)
 end function
 
 function chooseMission(agentIndex)
-    local choice, selectedContact, selectedPerson
+    local choice, selectedLocation, selectedContact, selectedPerson
 
     cls
     print_centered text$("overviewMissionHeading")
-    print "1 "; text$("missionMeet")
+    print "1 "; text$("missionVisit")
     print "2 "; text$("missionInvestigate")
-    print "3 "; text$("missionSupport")
+    print "3 "; text$("missionDeal")
     print "4 "; text$("missionIdle")
     print "0 "; text$("overviewBack")
     choice = getInput()
 
     if choice = KEY_1 then
-        selectedContact = chooseAgentContact(agentIndex)
-        if selectedContact >= 0 then
-            setAgentMission(agentIndex, missionMeet, selectedContact)
+        selectedLocation = chooseLocation()
+        if selectedLocation > 0 then
+            setAgentVisit(agentIndex, selectedLocation)
         end if
     end if
-    if choice = KEY_2 or choice = KEY_3 then
+    if choice = KEY_2 then
         selectedPerson = choosePerson()
         if selectedPerson >= 0 then
-            if choice = KEY_2 then
-                setAgentMission(agentIndex, missionInvestigate, selectedPerson)
-            else
-                setAgentMission(agentIndex, missionSupport, selectedPerson)
+            if setAgentInvestigation(agentIndex, selectedPerson) = 0 then
+                showOrderMessage(1)
+            end if
+        end if
+    end if
+    if choice = KEY_3 then
+        if budget < dealCostK then
+            showOrderMessage(2)
+        else
+            selectedContact = chooseAgentContact(agentIndex)
+            if selectedContact >= 0 then
+                selectedPerson = choosePersonInLocation(characterLocation(selectedContact))
+                if selectedPerson >= 0 then
+                    if setAgentDeal(agentIndex, selectedContact, selectedPerson) = 0 then
+                        showOrderMessage(1)
+                    end if
+                end if
             end if
         end if
     end if
     if choice = KEY_4 then
-        setAgentMission(agentIndex, missionIdle, -1)
+        setAgentIdle(agentIndex)
     end if
 end function
 
-function setAgentMission(agentIndex, missionValue, targetIndex)
-    agentMissions%(agentIndex) = missionValue
-    agentTargets%(agentIndex) = targetIndex
+function showOrderMessage(messageKind)
+    cls
+    if messageKind = 1 then
+        print_text "orderNeedsContact"
+    else
+        print_text "orderNoFunds"
+    end if
+    print
+    print text$("continue")
+    getInput()
 end function
 
 function chooseAgentContact(agentIndex)
-    local contactSlot, contactIndex, choice
+    local characterIndex, listedCount, choice, chosenNumber
 
     cls
     print_centered text$("overviewContacts")
-    for contactSlot = 0 to contactsPerAgent - 1
-        contactIndex = agentContacts%(agentIndex * contactsPerAgent + contactSlot)
-        if contactIndex >= 0 then
-            print contactSlot + 1; " ";
-            printKnownName(contactIndex)
+    listedCount = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        if hasAgentContact(agentIndex, characterIndex) = 1 then
+            listedCount = listedCount + 1
+            if listedCount < 10 then
+                print listedCount; " ";
+            else
+                print "A ";
+            end if
+            printKnownName(characterIndex)
             print
         end if
-    next contactSlot
+    next characterIndex
+    if listedCount = 0 then
+        print text$("overviewNone")
+    end if
     print "0 "; text$("overviewBack")
     choice = getInput()
-    if choice = KEY_1 then
-        return agentContacts%(agentIndex * contactsPerAgent)
+    chosenNumber = keyDigit(choice)
+    if choice = KEY_A then
+        chosenNumber = 10
     end if
-    if choice = KEY_2 then
-        return agentContacts%(agentIndex * contactsPerAgent + 1)
+    if chosenNumber < 1 or chosenNumber > listedCount then
+        return -1
     end if
+    listedCount = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        if hasAgentContact(agentIndex, characterIndex) = 1 then
+            listedCount = listedCount + 1
+            if listedCount = chosenNumber then
+                return characterIndex
+            end if
+        end if
+    next characterIndex
     return -1
 end function
 
@@ -223,57 +252,62 @@ function browsePeople()
 end function
 
 function choosePerson()
-    local selectedArea, selectedPerson
+    local selectedLocation, selectedPerson
     repeat
-        selectedArea = chooseArea()
-        if selectedArea = 0 then
+        selectedLocation = chooseLocation()
+        if selectedLocation = 0 then
             return -1
         end if
-        selectedPerson = choosePersonInArea(selectedArea)
+        selectedPerson = choosePersonInLocation(selectedLocation)
         if selectedPerson >= 0 then
             return selectedPerson
         end if
-    until selectedArea = 0
+    until selectedLocation = 0
     return -1
 end function
 
-function chooseArea()
+function chooseLocation()
     local choice
     cls
-    print_centered text$("overviewPeopleHeading")
-    print "1 "; text$("areaGovernment")
-    print "2 "; text$("areaEmbassy")
-    print "3 "; text$("areaChurch")
-    print "4 "; text$("areaRebellion")
-    print "5 "; text$("areaOther")
+    print_centered text$("locationHeading")
+    print "1 "; text$("locationPalace")
+    print "2 "; text$("locationMilitary")
+    print "3 "; text$("locationEmbassy")
+    print "4 "; text$("locationChurch")
+    print "5 "; text$("locationPub")
+    print "6 "; text$("locationOutside")
     print "0 "; text$("overviewBack")
     choice = getInput()
     if choice = KEY_1 then
-        return governmentArea
+        return palaceLocation
     end if
     if choice = KEY_2 then
-        return embassyArea
+        return militaryLocation
     end if
     if choice = KEY_3 then
-        return churchArea
+        return embassyLocation
     end if
     if choice = KEY_4 then
-        return rebellionArea
+        return churchLocation
     end if
     if choice = KEY_5 then
-        return otherArea
+        return pubLocation
+    end if
+    if choice = KEY_6 then
+        return outsideLocation
     end if
     return 0
 end function
 
-function choosePersonInArea(selectedArea)
+function choosePersonInLocation(selectedLocation)
     local characterIndex, listedCount, choice, chosenNumber
 
     cls
-    printAreaHeading(selectedArea)
+    printLocationName(selectedLocation)
+    print
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if characterArea(characterIndex) = selectedArea then
+        if characterLocation(characterIndex) = selectedLocation then
             listedCount = listedCount + 1
             print listedCount; " ";
             printKnownName(characterIndex)
@@ -293,7 +327,7 @@ function choosePersonInArea(selectedArea)
     end if
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if characterArea(characterIndex) = selectedArea then
+        if characterLocation(characterIndex) = selectedLocation then
             listedCount = listedCount + 1
             if listedCount = chosenNumber then
                 return characterIndex
@@ -309,9 +343,20 @@ function showCharacterCard(characterIndex)
     printKnownName(characterIndex)
     print
     print text$("overviewAreaLabel"); ": ";
-    printAreaName(characterArea(characterIndex))
+    printLocationName(characterLocation(characterIndex))
     print
     print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/3"
+    print text$("overviewContacts"); ": ";
+    if hasAgentContact(0, characterIndex) = 1 then
+        print "1 ";
+    end if
+    if hasAgentContact(1, characterIndex) = 1 then
+        print "2 ";
+    end if
+    if hasAgentContact(0, characterIndex) = 0 and hasAgentContact(1, characterIndex) = 0 then
+        print text$("overviewNone");
+    end if
+    print
     if playerIntel%(characterIndex) >= intelIntegrity then
         print text$("intelIntegrityLabel"); ": ";
         printIntegrityBand(integrityBand(characters(characterIndex).integrity%))
@@ -327,54 +372,24 @@ function showCharacterCard(characterIndex)
     getInput()
 end function
 
-function characterArea(characterIndex)
-    local roleValue
-    roleValue = characters(characterIndex).role%
-    if roleValue = president or roleValue = daughter or roleValue = advisor then
-        return governmentArea
+function printLocationName(locationValue)
+    if locationValue = palaceLocation then
+        print text$("locationPalace");
     end if
-    if roleValue = ussragent then
-        return embassyArea
+    if locationValue = militaryLocation then
+        print text$("locationMilitary");
     end if
-    if roleValue = priest then
-        return churchArea
+    if locationValue = embassyLocation then
+        print text$("locationEmbassy");
     end if
-    return otherArea
-end function
-
-function printAreaHeading(selectedArea)
-    if selectedArea = governmentArea then
-        print_centered text$("areaGovernment")
+    if locationValue = churchLocation then
+        print text$("locationChurch");
     end if
-    if selectedArea = embassyArea then
-        print_centered text$("areaEmbassy")
+    if locationValue = pubLocation then
+        print text$("locationPub");
     end if
-    if selectedArea = churchArea then
-        print_centered text$("areaChurch")
-    end if
-    if selectedArea = rebellionArea then
-        print_centered text$("areaRebellion")
-    end if
-    if selectedArea = otherArea then
-        print_centered text$("areaOther")
-    end if
-end function
-
-function printAreaName(selectedArea)
-    if selectedArea = governmentArea then
-        print text$("areaGovernment");
-    end if
-    if selectedArea = embassyArea then
-        print text$("areaEmbassy");
-    end if
-    if selectedArea = churchArea then
-        print text$("areaChurch");
-    end if
-    if selectedArea = rebellionArea then
-        print text$("areaRebellion");
-    end if
-    if selectedArea = otherArea then
-        print text$("areaOther");
+    if locationValue = outsideLocation then
+        print text$("locationOutside");
     end if
 end function
 
@@ -406,14 +421,14 @@ function printAgenda(agendaValue)
 end function
 
 function printMissionName(missionValue)
-    if missionValue = missionMeet then
-        print text$("missionMeet");
+    if missionValue = missionVisit then
+        print text$("missionVisit");
     end if
     if missionValue = missionInvestigate then
         print text$("missionInvestigate");
     end if
-    if missionValue = missionSupport then
-        print text$("missionSupport");
+    if missionValue = missionDeal then
+        print text$("missionDeal");
     end if
     if missionValue = missionIdle then
         print text$("missionIdle");

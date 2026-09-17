@@ -1,4 +1,4 @@
-const numberOfCharacters = 11
+const numberOfCharacters = 12
 
 enum Gender
     any = 0
@@ -19,6 +19,7 @@ enum Role
     president
     daughter
     advisor
+    general
     priest
     bartender
     landowner

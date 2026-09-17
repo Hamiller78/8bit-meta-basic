@@ -1,0 +1,9 @@
+{
+  "files": [
+    "source/characters.mbas",
+    "source/characternames.mbas",
+    "source/characterfactory.mbas",
+    "tests/characterfactory-tests.mbas"
+  ],
+  "textsDir": "texts"
+}

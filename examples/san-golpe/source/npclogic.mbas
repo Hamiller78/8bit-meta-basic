@@ -43,6 +43,8 @@ function doNpcAction(npcIndex%)
         if targetIndex% <> -1 and characters(targetIndex%).isAlive% = 1 then
             npcEventActors%(numberOfNpcEvents%) = npcIndex%
             npcEventTargets%(numberOfNpcEvents%) = targetIndex%
+            numberOfNpcEvents% = numberOfNpcEvents% + 1
+            characters(npcIndex%).money = 0
         end if
     end if
     'TODO: Implement other NPC agendas and actions here.
