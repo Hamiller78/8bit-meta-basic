@@ -277,7 +277,7 @@ describe("build scripts", () => {
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
     expect(testConfig.language).toBe("de");
-    expect(testConfig.font).toBe("mixed");
+    expect(testConfig.font).toBe("default");
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
     expect(printerConfig.testPrinterOutput).toBe(true);

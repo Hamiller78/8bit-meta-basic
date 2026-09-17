@@ -14,10 +14,35 @@ describe("C64 compiler", () => {
     );
   });
 
-  it("renders PROGRAM_MODE as LIST-safe C64 RUN/STOP disabling setup", () => {
+  it("installs the no-STOP routine before changing only the vector's high byte", () => {
     expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "c64", readability: 0 })).toBe(
-      ["10 POKE 808,239", '20 PRINT "OK"', ""].join("\n")
+      ["10 POKE 749,169", "20 POKE 750,1", "30 POKE 751,96", "40 POKE 809,2", '50 PRINT "OK"', ""].join("\n")
     );
+  });
+
+  it("executes PROGRAM_MODE inside a test instead of suppressing it", () => {
+    const output = compileSource("test StopHook()\nprogram_mode\nassert_true true\nend test\n", {
+      filename: "program-mode-test.mbas",
+      target: "c64",
+      readability: 0,
+      testMode: true
+    });
+
+    expect(output).toContain("POKE 749,169");
+    expect(output).toContain("POKE 750,1");
+    expect(output).toContain("POKE 751,96");
+    expect(output).toContain("POKE 809,2");
+  });
+
+  it("prints test names in the default C64 font unless mixed is explicitly selected", () => {
+    const source = "test MixedCase()\nassert_true false\nend test\n";
+    const defaultFont = compileSource(source, { filename: "font-tests.mbas", target: "c64", readability: 0, testMode: true });
+    const mixedFont = compileSource(source, { filename: "font-tests.mbas", target: "c64", readability: 0, testMode: true, font: "mixed" });
+
+    expect(defaultFont).toContain('PRINT "RUNNING MIXEDCASE...";');
+    expect(defaultFont).toContain('PRINT "MIXEDCASE"');
+    expect(mixedFont).toContain('print "RUNNING MixedCase...";');
+    expect(mixedFont).toContain('print "MixedCase"');
   });
 
   it("reports C64 constant coordinate ranges", () => {
@@ -93,7 +118,7 @@ describe("C64 compiler", () => {
     expect(output).toContain("MB=-(ST=0)");
     expect(output).toContain("OPEN 1,4");
     expect(output).toContain('MB$="META CONTROL PROGRAM (M.C.P.) RUN STARTED"');
-    expect(output).toContain('MB$="RUNNING Smoke..."');
+    expect(output).toContain('MB$="RUNNING SMOKE..."');
     expect(output).toContain("PRINT#1,MB$");
     expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
@@ -114,7 +139,7 @@ describe("C64 compiler", () => {
     expect(output).toContain("OPEN 1,2,0,CHR$(10)");
     expect(output.indexOf("OPEN 1,2,0,CHR$(10)")).toBeLessThan(output.search(/\bDIM /));
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
-    expect(output).toContain('MB$="RUNNING Smoke..."');
+    expect(output).toContain('MB$="RUNNING SMOKE..."');
     expect(output).toContain("PRINT#1,MB$;");
     expect(output).toContain("CLOSE 1");
     expect(output).not.toMatch(/MBTJIF|MBTKC|MBTKP|MBTJX|MBTJY|MBTJF/);

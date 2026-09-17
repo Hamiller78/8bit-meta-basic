@@ -2,3 +2,8 @@ test localizedTextPlaceholder()
     print_text "languagePlaceholder"; name = "ADA", 8
     assert_print "HELLO ADA!"
 end test
+
+test centeredLocalizedPlaceholder()
+    print_centered text$("languagePlaceholder"); name = "ADA", 8
+    assert_print space$(int((TEXT_COLUMNS - 15) / 2)) + "HELLO ADA!"
+end test

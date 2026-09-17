@@ -1501,6 +1501,10 @@ function foldFunctionCall(
       throw new DiagnosticError(expression.args[0].location, `${name} argument must be numeric.`);
     }
 
+    if (name === builtinFunctions.int && value.kind === "number") {
+      return literalFromValue(Math.floor(value.value), expression.location);
+    }
+
     return { ...expression, name, args: [value] };
   }
 

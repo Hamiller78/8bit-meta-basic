@@ -2,6 +2,13 @@ uses "../source/characters.mbas"
 uses "../source/characternames.mbas"
 uses "../source/characterfactory.mbas"
 
+test ProgramModeDoesNotInterruptNameInitialization()
+    program_mode
+    initNameArrays()
+    assert_eq "Vladimir", russianMaleNames$(0)
+    assert_eq "Sokolov", russianLastNames$(russianLastNames - 1)
+end test
+
 test CharacterNamesAreUsedOnlyOnce()
     local characterIndex, firstIndex, secondIndex
 

@@ -621,18 +621,23 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
     } else if (instruction.kind === "cell-background-color" || instruction.kind === "suppress-scroll-prompt") {
       continue;
     } else if (instruction.kind === "program-mode") {
-      // $F6EF disables RUN/STOP without clobbering Y, which the BASIC LIST routine uses.
-      instructions.push({
-        kind: "poke",
-        address: 808,
-        value: {
-          kind: "number",
-          value: 239,
-          raw: "239",
+      // $02ED-$02EF is free page-2 RAM. Install LDA #$01; RTS there before
+      // redirecting STOP. The standard vector already has low byte $ED, so
+      // one high-byte POKE activates it without a transient unsafe address.
+      // The routine returns Z=0 and preserves Y for LIST.
+      for (const [address, value] of [[749, 169], [750, 1], [751, 96], [809, 2]]) {
+        instructions.push({
+          kind: "poke",
+          address,
+          value: {
+            kind: "number",
+            value,
+            raw: value.toString(),
+            location: instruction.location
+          },
           location: instruction.location
-        },
-        location: instruction.location
-      });
+        });
+      }
     } else {
       instructions.push(instruction);
     }

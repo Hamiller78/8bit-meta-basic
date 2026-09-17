@@ -183,8 +183,8 @@ class Parser {
     }
     const textBindings: TextBinding[] = [];
     while (this.matchPunctuation(";")) {
-      if (!textResource) {
-        throw new DiagnosticError(this.current().location, "Placeholder bindings are supported only by PRINT_TEXT.");
+      if (!textResource && layout !== "center") {
+        throw new DiagnosticError(this.current().location, "Placeholder bindings are supported only by PRINT_TEXT and PRINT_CENTERED.");
       }
       this.advance();
       const bindingToken = this.current();

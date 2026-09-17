@@ -79,6 +79,17 @@ describe("localized text and layout", () => {
     expect(centered).not.toContain('"continue"');
     expect(compileSource('print text$("continue")', { filename: "text.mbas", target: "c64", texts })).toContain('PRINT "PRESS ANY KEY TO CONTINUE"');
   });
+  it("centers localized placeholders using their declared maximum lengths", () => {
+    const source = 'print_centered text$("progress"); created = count, 2; total = 11, 2';
+    const texts = { progress: "Created: {created} / {total}" };
+    const spectrum = compileSource(source, { filename: "progress.mbas", target: "spectrum", texts });
+    const c64 = compileSource(source, { filename: "progress.mbas", target: "c64", texts, font: "mixed" });
+    expect(spectrum).toContain('PRINT "        Created: ";');
+    expect(c64).toContain('print "            Created: ";');
+    expect(spectrum).toContain('" / ";11');
+    expect(c64).toContain('" / ";11');
+    expect(() => compileSource('print_wrap "{name}"; name = value$, 4', { filename: "invalid.mbas", target: "spectrum" })).toThrow(/PRINT_TEXT and PRINT_CENTERED/);
+  });
   it("inserts named values and lets translations reorder them", () => {
     const source = 'print_text "event"; actor = "ALPHA", 5; target = "BETA", 4';
     for (const target of targets) {

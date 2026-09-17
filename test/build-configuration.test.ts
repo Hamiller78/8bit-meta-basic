@@ -6,6 +6,19 @@ import { build, compileBuildConfiguration, loadBuildConfiguration } from "../src
 import { compileSource } from "../src/compiler.js";
 
 describe("build configuration", () => {
+  it("uses the default font for test runners unless mixed is requested explicitly", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "tests.mbas"), "test Smoke()\nassert_true true\nend test\n", "utf8");
+      const configuration = { files: ["tests.mbas"], testMode: true, font: "mixed" as const };
+
+      const standard = await build(configuration, { baseDir: dir, target: "c64", readability: 0 });
+      const mixed = await build(configuration, { baseDir: dir, target: "c64", readability: 0, font: "mixed" });
+
+      expect(standard).not.toMatch(/^10 print chr\$\(14\);/u);
+      expect(mixed).toMatch(/^10 print chr\$\(14\);/u);
+    });
+  });
+
   it("combines two files in configured order", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), 'print "MAIN"\n', "utf8");

@@ -48,6 +48,7 @@ const runnerPrintInlineLabel = "__mb_runner_print_inline";
 export interface TestRunnerLowerOptions {
   readonly printerOutput?: boolean;
   readonly outputDevice?: DeviceKind;
+  readonly uppercaseNames?: boolean;
   readonly globalResetInstructions?: readonly Instruction[];
 }
 
@@ -85,7 +86,7 @@ export function lowerTestRunner(
     instructions.push(...testCaptureResetLets(test));
     instructions.push(...cloneInstructions(options.globalResetInstructions ?? []));
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
-    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${test.name}...`, test.location)], true, test.location, options);
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${displayTestName(test.name, options)}...`, test.location)], true, test.location, options);
     instructions.push({ kind: "gosub", label: test.implementation.entryLabel, location: test.location });
     instructions.push({
       kind: "let",
@@ -408,6 +409,10 @@ function preserveAssertionValue(expression: Expression, baseName: string, instru
   return identifierExpression(name, location);
 }
 
+function displayTestName(name: string, options: TestRunnerLowerOptions): string {
+  return options.uppercaseNames ? name.toUpperCase() : name;
+}
+
 function emitFailedTestSummary(
   testStatements: readonly Extract<Statement, { kind: "test" }>[],
   instructions: Instruction[],
@@ -432,7 +437,7 @@ function emitFailedTestSummary(
     instructions.push({ kind: "if-goto", condition: arrayAccessExpression(failedTestFlagsName, [numberExpression(index, test.location)], test.location), label: printLabel, location: test.location });
     instructions.push({ kind: "goto", label: nextLabel, location: test.location });
     instructions.push({ kind: "label", name: printLabel, internal: true, location: test.location });
-    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(test.name, test.location)], false, test.location, options);
+    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(displayTestName(test.name, options), test.location)], false, test.location, options);
     instructions.push({ kind: "label", name: nextLabel, internal: true, location: test.location });
   }
 

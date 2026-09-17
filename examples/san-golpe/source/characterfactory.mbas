@@ -33,8 +33,8 @@ function createRoleCharacter(characterRole, nationality, gender, showProgress)
     if characterIndex <> -1 then
         characters(characterIndex).role% = characterRole
         if showProgress then
-            set_pos int(TEXT_ROWS / 2) + 2, int((TEXT_COLUMNS - 16) / 2) + 1
-            print_text "creatingCharactersProgress"; created = createdCharacterCount, 2; total = numberOfCharacters, 2
+            set_pos int(TEXT_ROWS / 2) + 2, 1
+            print_centered text$("creatingCharactersProgress"); created = createdCharacterCount, 2; total = numberOfCharacters, 2
         end if
     end if
     return characterIndex

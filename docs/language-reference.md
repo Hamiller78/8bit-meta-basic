@@ -261,7 +261,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `atn(x)` | Runtime | Return arctangent |
 | `cos(x)` | Runtime | Return cosine |
 | `exp(x)` | Runtime | Return `e` raised to a power |
-| `int(x)` | Runtime | Return integer part using target BASIC semantics |
+| `int(x)` | Compile time for constant `x`; otherwise runtime | Round down to an integer |
 | `sgn(x)` | Runtime | Return sign |
 | `sin(x)` | Runtime | Return sine |
 | `sqr(x)` | Runtime | Return square root |
@@ -277,7 +277,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 
 `STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari and C64 lower them to `STR$(expression)` and `VAL(expression)`. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
-Math functions lower to the target BASIC function of the same name. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
+Math functions lower to the target BASIC function of the same name when evaluated at runtime. The compiler folds `INT` with a constant argument, including inside cursor coordinates such as `set_pos int(TEXT_ROWS / 2), 1`, so generated BASIC uses literal positions. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
 
 `FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, and Spectrum uses the 48K ROM free-memory routine.
 
@@ -464,6 +464,7 @@ print_wrap welcome$, 28
 print_text "intro"
 print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
 print_centered text$("continue")
+print_centered text$("creatingCharactersProgress"); created = createdCount, 2; total = 11, 2
 ```
 
 These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, or C64 40 columns.
@@ -495,7 +496,7 @@ Each language directory may contain a `strings.json` object for short texts:
 
 Use one UTF-8 `.txt` file per long text when editing paragraphs is more convenient. Its filename stem becomes the resource key, so `intro.txt` provides `intro`. `PRINT_TEXT "intro"` resolves a resource and wraps it directly. The compile-time expression `TEXT$("continue")` resolves a resource for other output forms, such as `PRINT_CENTERED TEXT$("continue")` or `PRINT TEXT$("continue")`. Both resource forms use the same lookup. Keys are case-sensitive and must be written as string literals. Defining the same key in `strings.json` and a `.txt` file is an error.
 
-Localized resources used by `PRINT_TEXT` may contain named placeholders:
+Localized resources used by `PRINT_TEXT` or `PRINT_CENTERED` may contain named placeholders:
 
 ```json
 {
@@ -508,9 +509,10 @@ Bind each placeholder after a semicolon and give the inserted expression's maxim
 ```basic
 print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
 print_text "npcRanAway", 30; actor = actorName$, 21; target = targetName$, 21
+print_centered text$("npcRanAway"); actor = actorName$, 21; target = targetName$, 21
 ```
 
-The compiler reserves the declared maximum length while wrapping, then emits ordinary runtime `PRINT` expressions in place of the placeholders. The maximum must be a positive compile-time integer no larger than the selected output width. It is a promise about the runtime value rather than an instruction to truncate it. A placeholder and surrounding punctuation form one word and must fit within the output width at its maximum size. Every placeholder in the selected translation needs one binding, and every binding must be used. Names are case-insensitive and translations may reorder or repeat them. Use `{{` and `}}` for literal braces.
+The compiler reserves the declared maximum length while wrapping and centering, then emits ordinary runtime `PRINT` expressions in place of the placeholders. Centering uses these maximum lengths, so a shorter runtime value can appear slightly off center; target-specific numeric `PRINT` spacing can also affect its visible width. The maximum must be a positive compile-time integer no larger than the selected output width. It is a promise about the runtime value rather than an instruction to truncate it. A placeholder and surrounding punctuation form one word and must fit within the output width at its maximum size. Every placeholder in the selected translation needs one binding, and every binding must be used. Names are case-insensitive and translations may reorder or repeat them. Use `{{` and `}}` for literal braces.
 
 English (`en`) is the default; pass `--language de` for German. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
 
@@ -562,6 +564,8 @@ Builds may enable `testMode` through the compiler options, the CLI `--run-tests`
 ```
 
 Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
+
+Configured project fonts do not carry into test runners: test builds use the default font so C64 runner output matches the standard emulator display. The C64 runner displays test names in uppercase in this mode. An explicit `--font mixed` still enables a focused mixed-font test.
 
 ```basic
 function Add(Left, Right)
@@ -711,7 +715,7 @@ Cell colours may have no effect on targets without the corresponding per-cell fe
 
 `suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL or C64.
 
-`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check through a vector entry that preserves `LIST`. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
+`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 installs a three-byte no-STOP routine in free RAM at `$02ED–$02EF` before redirecting the RUN/STOP vector with one POKE. The C64 routine preserves `LIST`; leave those bytes unused by application code. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
 
 ## Current omissions
 

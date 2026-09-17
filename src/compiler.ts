@@ -61,7 +61,8 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   let lowered = lowerProgram(layoutText(analyzed, options.target, options), {
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
-    testOutputDevice: options.testOutputDevice
+    testOutputDevice: options.testOutputDevice,
+    testRunnerUppercaseNames: options.target === "c64" && options.font !== "mixed"
   });
   if (options.target === "c64" && options.font && options.font !== "default") {
     const location = entrySourceLocation(ast, options.filename);

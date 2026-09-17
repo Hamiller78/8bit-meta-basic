@@ -50,15 +50,16 @@ export async function build(configuration: BuildConfiguration, options: BuildOpt
 export async function buildDetailed(configuration: BuildConfiguration, options: BuildOptions): Promise<CompileResult> {
   const baseDir = options.baseDir ?? (options.configPath ? dirname(resolve(options.configPath)) : process.cwd());
   const program = await readBuildProgram(configuration, baseDir);
+  const testMode = options.testMode ?? configuration.testMode ?? false;
   return compileProgramDetailed(program, {
     texts: options.texts ?? await loadTexts(options.textsDir ?? (configuration.textsDir ? resolve(baseDir, configuration.textsDir) : resolve(baseDir, "texts")), options.language ?? configuration.language ?? "en"),
     language: options.language ?? configuration.language ?? "en",
-    font: options.font ?? configuration.font,
+    font: options.font ?? (testMode ? "default" : configuration.font),
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,
     comments: options.comments,
-    testMode: options.testMode ?? configuration.testMode,
+    testMode,
     testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
     testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice,
     atariSharedDriveSpec: options.atariSharedDriveSpec,

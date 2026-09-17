@@ -16,18 +16,18 @@ Use this workflow after changing executable Meta-BASIC application code or user-
 2. Compile the runner for all targets before opening an emulator:
 
    ```text
-   npm run build:all-targets -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed
+   npm run build:all-targets -- --project examples/san-golpe --run-tests --module characterfactory --profile release
    ```
 
 3. Launch each locally configured emulator with host output capture enabled. Use the same project, module, and profile options as the build:
 
    ```text
-   npm run launch:spectrum -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
-   npm run launch:c64 -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
-   npm run launch:atari -- --project examples/san-golpe --run-tests --module characterfactory --profile release --font mixed --printer-output --restart
+   npm run launch:spectrum -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
+   npm run launch:c64 -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
+   npm run launch:atari -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
    ```
 
-   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Pass the program's intended `--language` and `--font` values as well as its profile. In particular, a C64 program designed for the mixed character set should run its tests with `--font mixed`, or mixed-case test names are difficult to read on the emulated display.
+   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Test runners use the C64's default font even when the project selects mixed for its normal program; C64 test names are displayed in uppercase to match it. Pass `--font mixed` only for a focused font test. Keep the program's intended `--language` and profile.
 
 4. Wait for the target runner to finish, then read the captured host file:
 
@@ -340,7 +340,7 @@ The example configuration uses `-userportdevice 2` to attach the RS-232/modem de
 
 If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
 
-On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with `--font mixed`: 2 tests passed, 46 assertions, and 0 failures. The decoded host log was readable while the emulated screen used the intended mixed character set.
+On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with `--font mixed`: 2 tests passed, 46 assertions, and 0 failures. This records that earlier run; current test runners default to the standard C64 font.
 
 ## The C64 Mini
 

@@ -364,6 +364,7 @@ export interface LowerOptions {
   readonly testMode?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
+  readonly testRunnerUppercaseNames?: boolean;
 }
 
 export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
@@ -400,6 +401,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     lowerTestRunner(testStatements, instructions, generator, {
       printerOutput: options.testPrinterOutput === true,
       outputDevice: options.testOutputDevice ?? "printer",
+      uppercaseNames: options.testRunnerUppercaseNames === true,
       globalResetInstructions
     });
   } else if (!multiModule) {
@@ -791,9 +793,7 @@ function lowerStatements(
         }
         break;
       case "program-mode":
-        if (!options.capturePrints) {
-          instructions.push({ kind: "program-mode", location: statement.location });
-        }
+        instructions.push({ kind: "program-mode", location: statement.location });
         break;
       case "label":
         instructions.push({ kind: "label", name: statement.name, internal: false, location: statement.location });

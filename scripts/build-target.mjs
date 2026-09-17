@@ -312,7 +312,7 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
     `${JSON.stringify({
       textsDir,
       ...(projectConfiguration?.language !== undefined ? { language: projectConfiguration.language } : {}),
-      ...(projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
+      ...(testMode ? { font: "default" } : projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
       testMode,
       ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}),
       files: [...sourceFiles, ...testFiles]

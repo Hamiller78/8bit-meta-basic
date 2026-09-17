@@ -169,7 +169,10 @@ function layoutTextTemplate(
     : part);
   const lines = wrapTemplate(transformed, available, statement);
   return lines.map((line) => {
-    const merged = mergeTemplateLiterals(line);
+    const centered = statement.layout === "center"
+      ? [{ kind: "literal" as const, value: " ".repeat(Math.floor((available - templateLength(line)) / 2)) }, ...line]
+      : line;
+    const merged = mergeTemplateLiterals(centered);
     const items = merged.flatMap((part): Expression[] => part.kind === "value"
       ? [part.expression]
       : encodeText(part.value, target, font, statement));
