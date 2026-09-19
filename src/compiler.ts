@@ -3,7 +3,7 @@ import { basename } from "node:path";
 import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
 import type { NumberedProgram } from "./line-numbering.js";
-import { buildDebugInfo, type DebugInfo } from "./debug-info.js";
+import { buildDebugInfo, collectSourceAliases, type DebugInfo } from "./debug-info.js";
 import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
@@ -18,6 +18,7 @@ import { analyzeBasicOutput, type OutputStats } from "./output-stats.js";
 import { DiagnosticError } from "./diagnostics.js";
 import type { DeviceKind, Expression } from "./ast.js";
 import { isStringVariableName } from "./variables.js";
+import { reuseTemporaryStorage } from "./temporary-reuse.js";
 
 export type Target = TargetId;
 
@@ -58,11 +59,13 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   if (options.language) requireLanguage(options.language);
   if (options.font) requireTextFont(options.font);
   const analyzed = analyzeProgram(resolveTextResources(ast, options), targetEnvironments[options.target], { testMode: options.testMode });
+  const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
   let lowered = lowerProgram(layoutText(analyzed, options.target, options), {
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice,
-    testRunnerUppercaseNames: options.target === "c64" && options.font !== "mixed"
+    testRunnerUppercaseNames: options.target === "c64" && options.font !== "mixed",
+    reservedNames
   });
   if (options.target === "c64" && options.font && options.font !== "default") {
     const location = entrySourceLocation(ast, options.filename);
@@ -77,7 +80,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     ]);
   }
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
-  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true);
+  const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true, reservedNames);
 
   const outputLines = options.target === "c64" && options.font === "mixed"
     ? targetLowered.lines.map(lowercaseBasicSyntaxPreservingStrings)
@@ -113,12 +116,13 @@ interface RenderedProgram {
   readonly program: LoweredProgram;
 }
 
-function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean): RenderedProgram {
+function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean, reservedNames: ReadonlySet<string>): RenderedProgram {
   let current = program;
   let nextTempId = nextLineReliefTempId(program.instructions);
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(current, readability), includeSourceComments)), readability);
+    const reused = reuseTemporaryStorage(current, reservedNames);
+    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability);
     setRenderProgram(target.id, targetLowered.instructions);
     const numbered = assignLineNumbers(targetLowered, readability, {
       maxLineNumber: target.maxLineNumber,

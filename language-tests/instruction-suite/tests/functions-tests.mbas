@@ -24,6 +24,24 @@ test NestedFunctionCall()
     assert_eq 13, NestedBonus(5)
 end test
 
+test TemporaryValuesSurviveNestedCalls()
+    assert_eq 15, AddValues(LocalShadow(2), NestedBonus(4))
+    assert_eq 17, AddValues(NestedBonus(5), LocalShadow(2))
+end test
+
+test TemporaryValuesSurviveBranchesAndLoops()
+    local Index, Total
+    Total = 0
+    for Index = 1 to 3
+        if Index = 2 then
+            Total = Total + AddValues(LocalShadow(Index), NestedBonus(Index))
+        else
+            Total = Total + AddValues(LocalShadow(Index), LocalShadow(Index + 1))
+        end if
+    next Index
+    assert_eq 31, Total
+end test
+
 test ProcedureFunctionBareReturn()
     ProcedureResult = 0
     StoreProcedureValue(7)

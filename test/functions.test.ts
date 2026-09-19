@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileSource } from "../src/compiler.js";
+import { compileSource, compileSourceDetailed } from "../src/compiler.js";
 
 describe("Meta-BASIC functions", () => {
   it("lowers parameter variables, constant arguments, expression arguments, locals, and return expressions", () => {
@@ -100,6 +100,29 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("LET MBF1L1=MBF1P1 + 2");
   });
 
+  it("shares parameter, local, and return storage slots across independent functions", () => {
+    const result = compileSourceDetailed(
+      [
+        "A = Add(1, 2)",
+        "B = Increment(3)",
+        "FUNCTION Add(Left, Right)",
+        "RETURN Left + Right",
+        "END FUNCTION",
+        "FUNCTION Increment(Value)",
+        "LOCAL Result",
+        "Result = Value + 1",
+        "RETURN Result",
+        "END FUNCTION"
+      ].join("\n"),
+      { filename: "shared-function-slots.mbas", target: "spectrum", readability: 0 }
+    );
+    const functionStorage = result.debugInfo.variables.filter((variable) => /^mbf/i.test(variable.storageName));
+
+    expect(functionStorage).toHaveLength(3);
+    expect(result.output).toContain("LET MBF1P2=MBF1P1 + 1");
+    expect(result.output).toContain("LET MBF1R=MBF1P2");
+  });
+
   it("keeps caller and callee storage distinct when functions can be active together", () => {
     const output = compileSource(
       [
@@ -151,7 +174,7 @@ describe("Meta-BASIC functions", () => {
         "70 GO SUB 160",
         "80 LET MBT2=MBF1R",
         "90 LET MBF1P1=MBT1",
-        "100 LET MBF1P2=MBT2",
+        "100 LET MBF3P2=MBT2",
         "110 GO SUB 180",
         "120 LET X=MBF1R",
         "130 GO TO 200",
@@ -159,7 +182,7 @@ describe("Meta-BASIC functions", () => {
         "150 RETURN",
         "160 LET MBF1R=MBF1P1 + 2",
         "170 RETURN",
-        "180 LET MBF1R=MBF1P1 * 10 + MBF1P2",
+        "180 LET MBF1R=MBF1P1 * 10 + MBF3P2",
         "190 RETURN",
         "200 REM END",
         ""
@@ -184,9 +207,9 @@ describe("Meta-BASIC functions", () => {
     const output = compileSource(source, { filename: "standalone-call.mbas", target: "spectrum", readability: 0 });
 
     expect(output).toContain("GO SUB");
-    expect(output).toContain("LET MBF1P1=3");
+    expect(output).toContain("LET MBF2P1=3");
     expect(output).toContain('PRINT "HEADER"');
-    expect(output).toContain("PRINT MBF1P1");
+    expect(output).toContain("PRINT MBF2P1");
     expect(output).not.toContain("LET MBT");
   });
 

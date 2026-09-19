@@ -262,15 +262,19 @@ function allocateFunctionStorage(
   for (const definition of definitions) {
     implementations.set(definition.key, {
       entryLabel: `MBF${definition.id}ENTRY`,
-      returnName: allocator.allocate(definition.key, "R", 0, definition.name),
+      returnName: definition.returnsValue && !definition.inline
+        ? allocator.allocate(definition.key, definition.id, "R", 0, definition.name)
+        : storageName(definition.id, "R", 0, definition.name),
       parameters: definition.statement.parameters.map((parameter, index) => ({
         sourceName: parameter,
-        storageName: allocator.allocate(definition.key, "P", index + 1, parameter),
+        storageName: definition.inline
+          ? storageName(definition.id, "P", index + 1, parameter)
+          : allocator.allocate(definition.key, definition.id, "P", index + 1, parameter),
         ...parameterTypeProperties(definition.statement, parameter)
       })),
       locals: definition.locals.map((local, index) => ({
         sourceName: local,
-        storageName: allocator.allocate(definition.key, "L", index + 1, local)
+        storageName: allocator.allocate(definition.key, definition.id, "L", index + 1, local)
       }))
     });
   }
@@ -301,25 +305,30 @@ function buildReachability(
 }
 
 function createStaticStorageAllocator(reachability: ReadonlyMap<string, ReadonlySet<string>>) {
-  const slots = new Map<string, Map<number, string[]>>();
+  // Parameters, locals, and returns are all static BASIC variables. Their
+  // source-level roles do not require separate storage pools: only the value
+  // type and whether their owning functions can be active together matter.
+  const slots = new Map<string, { readonly name: string; readonly owners: string[] }[]>();
 
   return {
-    allocate(functionKey: string, kind: "P" | "L" | "R", index: number, sourceName: string): string {
+    allocate(functionKey: string, functionId: number, kind: "P" | "L" | "R", index: number, sourceName: string): string {
       const suffix = storageSuffix(sourceName);
-      const poolKey = `${kind}:${index}:${suffix}`;
-      let pool = slots.get(poolKey);
+      let pool = slots.get(suffix);
       if (!pool) {
-        pool = new Map<number, string[]>();
-        slots.set(poolKey, pool);
+        pool = [];
+        slots.set(suffix, pool);
       }
 
-      for (let slot = 1; ; slot += 1) {
-        const owners = pool.get(slot) ?? [];
-        if (owners.every((owner) => !functionsCanBeActiveTogether(functionKey, owner, reachability))) {
-          pool.set(slot, [...owners, functionKey]);
-          return storageName(slot, kind, index, sourceName);
+      for (const slot of pool) {
+        if (slot.owners.every((owner) => !functionsCanBeActiveTogether(functionKey, owner, reachability))) {
+          slot.owners.push(functionKey);
+          return slot.name;
         }
       }
+
+      const name = storageName(functionId, kind, index, sourceName);
+      pool.push({ name, owners: [functionKey] });
+      return name;
     }
   };
 }

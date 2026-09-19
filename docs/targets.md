@@ -131,3 +131,5 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 ## Readability
 
 `--readability 0`, `1`, and `2` control label comments, module separators, and variable-name compactness. The separate `--source-comments` option can keep `.mbas` apostrophe comments as generated `REM` lines; the debug profile enables it automatically. Generated code remains deterministic at every level. String literal contents are preserved; target character-set translation is a separate concern.
+
+The compiler reuses generated expression-result variables when their values cannot be live at the same time. A result needed across a `GOSUB` keeps storage distinct from temporaries in the called routine. Function parameters, locals, and return values also draw from shared type-specific storage pools. Functions that can call one another receive distinct slots, while functions that cannot be active together may share slots across those source-level roles. This reduces variable-table pressure on all targets without changing Meta-BASIC source variables or function-call order.

@@ -451,14 +451,13 @@ describe("C64 compiler", () => {
         "170 GOTO 130",
         "180 QU(MB)=V0",
         "190 QU$(MB)=MB$",
-        "200 V2=0",
-        "210 V3=V2",
-        "220 IF V3 >= 2 THEN GOTO 270",
-        "230 QU(V3)=QU(V3 + 1)",
-        "240 QU$(V3)=QU$(V3 + 1)",
-        "250 V3=V3 + 1",
-        "260 GOTO 220",
-        "270 PRINT QU(0);QU$(0);QU(1)",
+        "200 MB=0",
+        "210 IF MB >= 2 THEN GOTO 260",
+        "220 QU(MB)=QU(MB + 1)",
+        "230 QU$(MB)=QU$(MB + 1)",
+        "240 MB=MB + 1",
+        "250 GOTO 210",
+        "260 PRINT QU(0);QU$(0);QU(1)",
         ""
       ].join("\n")
     );

@@ -7,6 +7,7 @@ import {
   expandFunctionCallForSideEffect,
   expandFunctionCallIntoDestination,
   expandFunctionCalls,
+  nextTempName,
   type FunctionCallLoweringContext,
   type InlineFunctionImplementation
 } from "./function-call-lowering.js";
@@ -365,6 +366,7 @@ export interface LowerOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly testRunnerUppercaseNames?: boolean;
+  readonly reservedNames?: ReadonlySet<string>;
 }
 
 export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
@@ -378,6 +380,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     functions,
     inlineFunctions,
     nextTempId: 1,
+    reservedNames: options.reservedNames,
     ...(options.testMode ? { transformExpandedExpression: replaceTestRuntimeFunctionCalls } : {}),
     expandInlineFunctionCall: (definition, args, destinationName, targetInstructions) =>
       expandInlineFunctionCall(definition, args, destinationName, targetInstructions, generator, context, options)
@@ -1124,7 +1127,7 @@ function preserveModuloOperand(expression: Expression, instructions: Instruction
   if (expression.kind === "number" || expression.kind === "identifier" || expression.kind === "array-access") {
     return expression;
   }
-  const name = `MBT${context.nextTempId++}`;
+  const name = nextTempName(context, "");
   instructions.push({ kind: "let", name, expression, location: expression.location });
   return { kind: "identifier", name, location: expression.location };
 }
@@ -1141,7 +1144,7 @@ function lowerElementMove(
     throw new DiagnosticError(statement.location, `Internal error: ${mode === "insert" ? "INSERT_ELEMENT" : "REMOVE_ELEMENT"} was not analyzed before lowering.`);
   }
 
-  const indexName = `MBT${context.nextTempId++}`;
+  const indexName = nextTempName(context, "");
   instructions.push({ kind: "let", name: indexName, expression: lowerExpression(statement.index, instructions, context, options), location: statement.location });
   const indexExpression = { kind: "identifier", name: indexName, location: statement.location } satisfies Expression;
 
@@ -1150,12 +1153,12 @@ function lowerElementMove(
       if (!("insertExpression" in field)) {
         throw new DiagnosticError(statement.location, "Internal error: INSERT_ELEMENT field is missing an insertion value.");
       }
-      const tempName = `MBT${context.nextTempId++}${field.valueType === "string" ? "$" : ""}`;
+      const tempName = nextTempName(context, field.valueType === "string" ? "$" : "");
       instructions.push({ kind: "let", name: tempName, expression: lowerExpression(field.insertExpression, instructions, context, options), location: statement.location });
       return { arrayName: field.arrayName, tempName };
     });
 
-    const loopName = `MBT${context.nextTempId++}`;
+    const loopName = nextTempName(context, "");
     const startLabel = nextInternalLabel();
     const doneLabel = nextInternalLabel();
     const loopExpression = { kind: "identifier", name: loopName, location: statement.location } satisfies Expression;
@@ -1186,7 +1189,7 @@ function lowerElementMove(
     return;
   }
 
-  const loopName = `MBT${context.nextTempId++}`;
+  const loopName = nextTempName(context, "");
   const startLabel = nextInternalLabel();
   const doneLabel = nextInternalLabel();
   const loopExpression = { kind: "identifier", name: loopName, location: statement.location } satisfies Expression;

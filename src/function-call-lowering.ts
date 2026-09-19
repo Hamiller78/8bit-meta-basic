@@ -16,6 +16,7 @@ export interface FunctionCallLoweringContext {
   ) => Expression | undefined;
   readonly transformExpandedExpression?: (expression: Expression) => Expression;
   nextTempId: number;
+  reservedNames?: ReadonlySet<string>;
 }
 
 export interface InlineFunctionImplementation {
@@ -220,11 +221,12 @@ function deviceKindFromName(name: string, location: Expression["location"]): Dev
   return device;
 }
 
-function nextTempName(context: FunctionCallLoweringContext, returnName: string): string {
+export function nextTempName(context: FunctionCallLoweringContext, returnName: string): string {
   const suffix = returnName.endsWith("$") ? "$" : returnName.endsWith("%") ? "%" : "";
-  const name = `MBT${context.nextTempId}${suffix}`;
-  context.nextTempId += 1;
-  return name;
+  while (true) {
+    const name = `MBT${context.nextTempId++}${suffix}`;
+    if (!context.reservedNames?.has(name.toLowerCase())) return name;
+  }
 }
 
 function transformExpandedExpression(expression: Expression, context: FunctionCallLoweringContext): Expression {

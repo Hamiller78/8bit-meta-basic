@@ -10,7 +10,7 @@ npm run build:c64 -- --project examples/san-golpe --language de --no-tools
 
 English is the default language. The project configuration selects the C64 uppercase/lowercase character set for the game; test runners use the standard C64 font unless `--font mixed` is requested explicitly. German umlauts use portable `ae`/`oe`/`ue` spellings in generated BASIC. Blank lines delimit paragraphs; single line breaks are treated as spaces during wrapping.
 
-Atari listing generation works, but tokenized Atari BASIC packaging is currently blocked by the dialect's 128-variable limit. San Golpe already exceeded it before the agent-mission changes (182 generated variables); the current game generates 223. C64 PRG and Spectrum TAP builds complete.
+Atari tokenized BASIC now packages successfully. Reusing expression temporaries and type-compatible function storage reduces this game's actual Atari variable count from 169 to 115, below the dialect's 128-variable limit. The build summary's text-based variable estimate can be higher than the number of names in Atari's variable table.
 
 `createCharacter(nationality, gender)` creates a randomly named character and returns its zero-based index in `characters()`. Use `native`, `us`, or `russian` for nationality and `male`, `female`, or `any` for gender. It returns `-1` when the character array or a required name pool is exhausted. `resetCharacterFactory()` chooses a random starting position in each name pool; character creation then moves through the pool without repetition.
 

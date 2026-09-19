@@ -200,7 +200,7 @@ roll = RollDie(6)
 DrawStatus(2, "READY")
 ```
 
-Declare function and test-local values in one or more `LOCAL` statements. Parameters and locals belong to that function in Meta-BASIC source. A name used in a function that is neither a parameter nor declared `LOCAL` refers to global program state, so declare every scratch value explicitly. Functions are top-level declarations and may be called before their definition. The generated target storage is static, so recursive and mutually recursive function calls are rejected.
+Declare function and test-local values in one or more `LOCAL` statements. Parameters and locals belong to that function in Meta-BASIC source. A name used in a function that is neither a parameter nor declared `LOCAL` refers to global program state, so declare every scratch value explicitly. Functions are top-level declarations and may be called before their definition. The generated target storage is static, so recursive and mutually recursive function calls are rejected. The compiler shares type-compatible parameter, local, and return slots between functions that cannot be active together; this is invisible to Meta-BASIC source and is recorded through aliases in debug information.
 
 A function used only for side effects may omit an explicit `RETURN`; reaching `END FUNCTION` returns to the caller. Use `RETURN expression` when the call appears in an expression.
 

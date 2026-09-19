@@ -150,7 +150,7 @@ export function buildDebugInfo(
   };
 }
 
-function collectSourceAliases(statements: readonly Statement[]): ReadonlyMap<string, readonly { readonly name: string; readonly location: SourceLocation }[]> {
+export function collectSourceAliases(statements: readonly Statement[]): ReadonlyMap<string, readonly { readonly name: string; readonly location: SourceLocation }[]> {
   const aliases = new Map<string, { readonly name: string; readonly location: SourceLocation }[]>();
   const add = (storageName: string, name: string, location: SourceLocation): void => {
     const key = storageName.toLowerCase();
