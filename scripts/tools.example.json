@@ -5,6 +5,7 @@
         "name": "bas2tap",
         "path": "",
         "args": ["-a", "{input}", "{output}"],
+        "failureOutputPattern": "\\bERROR in line\\b",
         "outputExtension": ".tap"
       }
     ],

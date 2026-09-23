@@ -564,6 +564,26 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("keeps Spectrum scalar names distinct from numeric array names and flattens logical chains", () => {
+    const source = [
+      "dim buckets(2)",
+      "b = 0",
+      "print buckets(b)",
+      "if b = 0 or b = 1 or b = 2 then",
+      'print "MATCH"',
+      "end if",
+      ""
+    ].join("\n");
+
+    for (const readability of [0, 2] as const) {
+      const output = compileSource(source, { filename: "array-scalar-name.mbas", target: "spectrum", readability });
+      expect(output).toContain("DIM B(2)");
+      expect(output).not.toContain("LET B=0");
+      expect(output).toMatch(/PRINT B\((?:BN|V0) \+ 1\)/u);
+      expect(output).toMatch(/\(\((?:BN|V0) = 0\) <> 0\) OR \(\((?:BN|V0) = 1\) <> 0\) OR \(\((?:BN|V0) = 2\) <> 0\)/u);
+    }
+  });
+
   it("renders fixed-width string arrays using Spectrum string arrays", () => {
     expect(
       compileSource('dim messages$(3, 12)\nmessages$(0)="READY"\nmessages$(2)="STANDBY"\nprint messages$(0); messages$(2)\n', {

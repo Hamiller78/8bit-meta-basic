@@ -31,7 +31,7 @@
     "test:language:c64": "node scripts/launch-c64.mjs --project language-tests/instruction-suite --run-tests --profile release --printer-output",
     "benchmark:string-arrays:build": "node scripts/build-all.mjs --project performance-tests/string-arrays --profile release",
     "benchmark:string-arrays:spectrum": "node scripts/launch-spectrum.mjs --project performance-tests/string-arrays --profile release --fast",
-    "benchmark:string-arrays:atari": "node scripts/launch-atari.mjs --project performance-tests/string-arrays --profile release",
+    "benchmark:string-arrays:atari": "node scripts/launch-atari.mjs --build-config performance-tests/string-arrays/atari.metabasic.json --profile release",
     "benchmark:string-arrays:c64": "node scripts/launch-c64.mjs --project performance-tests/string-arrays --profile release --fast",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"

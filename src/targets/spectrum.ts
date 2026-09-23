@@ -828,9 +828,13 @@ function collectIdentifiers(expression: Expression, map: Map<string, string>, st
 }
 
 function collectNumericName(name: string, map: Map<string, string>): void {
-  if (!map.has(name.toLowerCase())) {
-    map.set(name.toLowerCase(), renderSpectrumNumericName(name));
-  }
+  const key = name.toLowerCase();
+  if (map.has(key)) return;
+
+  const used = new Set(map.values());
+  let candidate = renderSpectrumNumericName(name);
+  while (used.has(candidate)) candidate += "N";
+  map.set(key, candidate);
 }
 
 function renderSpectrumNumericName(name: string): string {

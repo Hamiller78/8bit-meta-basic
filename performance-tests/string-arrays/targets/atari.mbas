@@ -1,8 +1,8 @@
-uses "benchmarks.mbas"
+uses "../source/benchmarks.mbas"
 
 program_mode
 cls
-open_device Results, TEXT_PRINTER
+open_device Results, SHARED_DRIVE
 
 print "STRING ARRAY PERFORMANCE"
 print "OPERATIONS: "; operationCount

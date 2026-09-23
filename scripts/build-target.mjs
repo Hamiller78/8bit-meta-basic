@@ -5,6 +5,7 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { deviceKindUsage, parseDeviceKind } from "./device-options.mjs";
+import { toolOutputReportsFailure } from "./tool-output.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64"];
 export const profiles = {
@@ -180,7 +181,10 @@ async function runConfiguredTools({ cwd, configPath, target, profile, program, a
       target
     };
     const args = (tool.args ?? ["{input}", "{output}"]).map((arg) => replacePlaceholders(arg, replacements));
-    await run(toolPath, args, { cwd });
+    const toolResult = await run(toolPath, args, { cwd, captureOutput: true });
+    if (toolOutputReportsFailure(tool, `${toolResult.stdout}\n${toolResult.stderr}`)) {
+      throw new Error(`${tool.name} reported an error even though it exited successfully.`);
+    }
     artifacts[tool.name] = outputPath;
 
     if (tool.copyToArtifact) {
@@ -410,13 +414,25 @@ async function exists(path) {
   }
 }
 
-function run(command, args, { cwd, shell = false }) {
+function run(command, args, { cwd, shell = false, captureOutput = false }) {
   return new Promise((resolveRun, reject) => {
-    const child = spawn(command, args, { cwd, stdio: "inherit", shell });
+    const child = spawn(command, args, { cwd, stdio: captureOutput ? ["inherit", "pipe", "pipe"] : "inherit", shell });
+    let stdout = "";
+    let stderr = "";
+    if (captureOutput) {
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk.toString();
+        process.stdout.write(chunk);
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+        process.stderr.write(chunk);
+      });
+    }
     child.on("error", reject);
     child.on("exit", (code, signal) => {
       if (code === 0) {
-        resolveRun();
+        resolveRun({ stdout, stderr });
         return;
       }
       reject(new Error(signal ? `${command} terminated with signal ${signal}.` : `${command} exited with code ${code}.`));

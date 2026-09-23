@@ -244,7 +244,7 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
         : `NOT (${renderExpression(expression.operand, options)} <> 0)`;
     case "binary": {
       if (expression.operator === "AND" || expression.operator === "OR") {
-        return `${renderTruthy(expression.left, options)} ${expression.operator} ${renderTruthy(expression.right, options)}`;
+        return renderLogicalExpression(expression, options);
       }
       if (expression.operator === "MOD") {
         return renderModuloExpression(expression.left, expression.right, options);
@@ -255,6 +255,26 @@ function renderExpressionInner(expression: Expression, options: ExpressionRender
       return `${left} ${expression.operator} ${right}`;
     }
   }
+}
+
+function renderLogicalExpression(expression: Extract<Expression, { kind: "binary" }>, options: ExpressionRenderOptions): string {
+  const operator = expression.operator;
+  if (operator !== "AND" && operator !== "OR") {
+    return renderTruthy(expression, options);
+  }
+
+  const operands: Expression[] = [];
+  const collect = (operand: Expression): void => {
+    if (operand.kind === "binary" && operand.operator === operator) {
+      collect(operand.left);
+      collect(operand.right);
+      return;
+    }
+    operands.push(operand);
+  };
+  collect(expression);
+
+  return operands.map((operand) => renderTruthy(operand, options)).join(` ${operator} `);
 }
 
 function renderModuloExpression(leftExpression: Expression, rightExpression: Expression, options: ExpressionRenderOptions): string {

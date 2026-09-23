@@ -247,7 +247,7 @@ The committed `scripts/tools.example.json` documents the expected shape. The loc
 Meta-BASIC .mbas -> Spectrum .bas text -> bas2tap -> .tap
 ```
 
-The existing example configuration contains the integration. Exact command-line details depend on the installed `bas2tap` build.
+The existing example configuration contains the integration. Exact command-line details depend on the installed `bas2tap` build. BAS2TAP 2.6 can print an `ERROR in line` diagnostic while still returning exit status `0`; the build scripts inspect its output and fail the packaging step instead of launching a truncated tape image. Other tools with the same behavior can set a `failureOutputPattern` regular-expression string in their tool configuration.
 
 Status: **tested manually in Fuse**, but the precise emulator procedure should be recorded in [running-programs.md](running-programs.md) when repeated.
 

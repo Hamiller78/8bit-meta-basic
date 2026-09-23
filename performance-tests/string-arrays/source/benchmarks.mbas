@@ -1,0 +1,158 @@
+const arrayElements = 10
+const benchmarkPasses = 20
+const operationCount = arrayElements * benchmarkPasses
+
+dim values$(arrayElements, 12)
+dim numericValues(arrayElements)
+
+sourceText$ = "ALPHA"
+resultText$ = ""
+
+function benchmarkNumericLoop()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkScalarWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = sourceText$
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkScalarLength()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + len(sourceText$)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            numericValues(index) = index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericArrayRead()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + numericValues(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkLiteralArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            values$(index) = "ALPHA"
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkVariableArrayWrite()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            values$(index) = sourceText$
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayRead()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayLength()
+    local pass, index, checksum, started
+
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + len(values$(index))
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayLeft()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = left$(values$(index), 1)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkArrayConcatenation()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(index) + "!"
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkComputedIndexRead()
+    local pass, index, started
+
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            resultText$ = values$(arrayElements - 1 - index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+

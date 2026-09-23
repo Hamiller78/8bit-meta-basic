@@ -4,6 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 describe("build scripts", () => {
+  it("recognizes BAS2TAP errors despite its successful exit status", async () => {
+    const { toolOutputReportsFailure } = await import("../scripts/tool-output.mjs");
+
+    expect(toolOutputReportsFailure({ name: "bas2tap" }, 'ERROR in line 30, statement 1 - "OR" requires a numeric left value')).toBe(true);
+    expect(toolOutputReportsFailure({ name: "bas2tap" }, "Done! Listing contains 2 lines.")).toBe(false);
+    expect(toolOutputReportsFailure({ name: "custom", failureOutputPattern: "conversion failed" }, "Conversion failed after two lines")).toBe(true);
+  });
+
   it("creates Atari LST bytes with Atari line endings", async () => {
     const { toAtariListingBytes } = await import("../scripts/build-target.mjs");
 

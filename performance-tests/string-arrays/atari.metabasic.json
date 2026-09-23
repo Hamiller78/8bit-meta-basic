@@ -1,6 +1,6 @@
 {
   "files": [
-    "source/main.mbas",
+    "targets/atari.mbas",
     "source/benchmarks.mbas"
   ],
   "font": "mixed"
