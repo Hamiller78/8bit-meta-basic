@@ -34,8 +34,7 @@ function doNpcActions()
 end function
 
 function doNpcAction(npcIndex%)
-    local npcRole%, npcAgenda%, targetIndex%
-    npcRole% = characters(npcIndex%).role%
+    local npcAgenda%, targetIndex%
     npcAgenda% = characters(npcIndex%).agenda%
     targetIndex% = characters(npcIndex%).target%
 

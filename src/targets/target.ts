@@ -29,6 +29,23 @@ export function renderCheckedLine(
   return rendered;
 }
 
+export function renderInlineInstructionBodies(
+  target: TargetBackend,
+  lineNumber: number,
+  instructions: readonly Instruction[],
+  labelLines: ReadonlyMap<string, number>,
+  readability: ReadabilityLevel
+): string {
+  const prefix = `${lineNumber} `;
+  return instructions.map((instruction) => {
+    const rendered = target.renderLine(lineNumber, instruction, labelLines, readability);
+    if (!rendered.startsWith(prefix)) {
+      throw new Error(`Internal error: rendered BASIC line does not begin with "${prefix}".`);
+    }
+    return rendered.slice(prefix.length);
+  }).join(":");
+}
+
 export interface ExpressionRenderOptions {
   readonly variableMap?: ReadonlyMap<string, string>;
   readonly functionRenderer?: (expression: Extract<Expression, { kind: "function-call" }>, options: ExpressionRenderOptions) => string | undefined;
@@ -172,7 +189,7 @@ function validateConstantCoordinate(expression: Expression, axis: "row" | "colum
   }
 }
 
-function validateGeneratedLineLength(target: TargetBackend, rendered: string, instruction: Instruction): void {
+export function validateGeneratedLineLength(target: TargetBackend, rendered: string, instruction: Instruction): void {
   const length = [...rendered].length;
   if (length <= target.maxLineLength) {
     return;

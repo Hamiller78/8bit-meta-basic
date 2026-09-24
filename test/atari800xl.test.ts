@@ -138,11 +138,9 @@ describe("Atari 800XL compiler", () => {
     ).toBe(
       [
         "10 V0=0",
-        "20 IF 1 > V0 THEN GOTO 60",
-        "30 FOR V1=1 TO V0",
-        "40 PRINT V1",
-        "50 NEXT V1",
-        "60 PRINT \"DONE\"",
+        "20 IF 1 > V0 THEN 40",
+        "30 FOR V1=1 TO V0:PRINT V1:NEXT V1",
+        "40 PRINT \"DONE\"",
         ""
       ].join("\n")
     );
@@ -350,10 +348,8 @@ describe("Atari 800XL compiler", () => {
         "10 DIM V0(99)",
         "20 FOR V1=1 TO 3",
         "30 V2=(PEEK(20) + PEEK(19) * 256 + PEEK(18) * 65536)",
-        "40 IF (V2) - INT((V2) / (V0(V1))) * (V0(V1)) = 0 THEN GOTO 60",
-        "50 GOTO 70",
-        "60 PRINT V1",
-        "70 NEXT V1",
+        "40 IF (V2) - INT((V2) / (V0(V1))) * (V0(V1)) = 0 THEN PRINT V1",
+        "50 NEXT V1",
         ""
       ].join("\n")
     );
@@ -401,7 +397,7 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("MBL1(0)=5");
     expect(output).toContain("MBL1(1)=6");
     expect(output).toContain("MBL1(2)=0");
-    expect(output).toContain("IF MBRL = 0 THEN GOTO");
+    expect(output).toMatch(/IF MBRL = 0 THEN \d+/u);
     expect(output).toContain('MBTEMP$(LEN(MBTEMP$)+1)="!"');
     expect(output).toContain('MBTEMP1$(LEN(MBTEMP1$)+1)="!"');
     expect(output).toContain('MBTEMP2$(LEN(MBTEMP2$)+1)="!"');
@@ -512,7 +508,7 @@ describe("Atari 800XL compiler", () => {
     ).toBe(
       [
         "10 KEYCODE=PEEK(764)",
-        "20 IF KEYCODE <> 255 THEN GOTO 40",
+        "20 IF KEYCODE <> 255 THEN 40",
         "30 GOTO 60",
         "40 REM __MB_KEY_1:",
         "50 POKE 764,255",
@@ -533,10 +529,8 @@ describe("Atari 800XL compiler", () => {
     ).toBe(
       [
         "10 V0=(PEEK(764) <> 255)",
-        "20 IF (PEEK(764) <> 255) THEN GOTO 40",
-        "30 GOTO 50",
-        '40 PRINT "KEY"',
-        "50 PRINT 255",
+        '20 IF (PEEK(764) <> 255) <> 0 THEN PRINT "KEY"',
+        "30 PRINT 255",
         ""
       ].join("\n")
     );
@@ -544,7 +538,7 @@ describe("Atari 800XL compiler", () => {
 
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "atari800xl" })).toContain(
-      "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"
+      "IF ((((A = 0) <> 0) OR ((B = 0) <> 0)) <> 0) AND ((C) <> 0) THEN"
     );
   });
 

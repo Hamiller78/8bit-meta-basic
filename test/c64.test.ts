@@ -16,7 +16,7 @@ describe("C64 compiler", () => {
 
   it("installs the no-STOP routine before changing only the vector's high byte", () => {
     expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "c64", readability: 0 })).toBe(
-      ["10 POKE 749,169", "20 POKE 750,1", "30 POKE 751,96", "40 POKE 809,2", '50 PRINT "OK"', ""].join("\n")
+      ["10 POKE 749,169:POKE 750,1:POKE 751,96:POKE 809,2", '20 PRINT "OK"', ""].join("\n")
     );
   });
 
@@ -152,7 +152,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(["10 FOR RO=10 TO 1 STEP -2", "20 FOR CO=1 TO 2", "30 PRINT RO;CO", "40 NEXT CO", "50 NEXT RO", ""].join("\n"));
+    ).toBe(["10 FOR RO=10 TO 1 STEP -2", "20 FOR CO=1 TO 2:PRINT RO;CO:NEXT CO", "30 NEXT RO", ""].join("\n"));
   });
 
   it("allocates more than 36 compact variable names without looping forever", () => {
@@ -432,32 +432,19 @@ describe("C64 compiler", () => {
       )
     ).toBe(
       [
-        "10 DIM QU(2)",
-        "20 DIM QU$(2)",
-        "30 QU(0)=1",
-        "40 QU(1)=2",
-        '50 QU$(0)="ONE   "',
-        '60 QU$(1)="TWO   "',
-        "70 NE=9",
-        '80 NE$="NINE  "',
-        "90 MB=1",
-        "100 V0=NE",
-        "110 MB$=NE$",
-        "120 V1=1",
-        "130 IF V1 < MB THEN GOTO 180",
-        "140 QU(V1 + 1)=QU(V1)",
-        "150 QU$(V1 + 1)=QU$(V1)",
-        "160 V1=V1 - 1",
-        "170 GOTO 130",
-        "180 QU(MB)=V0",
-        "190 QU$(MB)=MB$",
-        "200 MB=0",
-        "210 IF MB >= 2 THEN GOTO 260",
-        "220 QU(MB)=QU(MB + 1)",
-        "230 QU$(MB)=QU$(MB + 1)",
-        "240 MB=MB + 1",
-        "250 GOTO 210",
-        "260 PRINT QU(0);QU$(0);QU(1)",
+        "10 DIM QU(2):DIM QU$(2)",
+        "20 QU(0)=1",
+        "30 QU(1)=2",
+        '40 QU$(0)="ONE   "',
+        '50 QU$(1)="TWO   "',
+        "60 NE=9",
+        '70 NE$="NINE  "',
+        "80 MB=1:V0=NE:MB$=NE$:V1=1",
+        "90 IF V1 >= MB THEN QU(V1 + 1)=QU(V1):QU$(V1 + 1)=QU$(V1):V1=V1 - 1:GOTO 90",
+        "100 QU(MB)=V0:QU$(MB)=MB$",
+        "110 MB=0",
+        "120 IF MB < 2 THEN QU(MB)=QU(MB + 1):QU$(MB)=QU$(MB + 1):MB=MB + 1:GOTO 120",
+        "130 PRINT QU(0);QU$(0);QU(1)",
         ""
       ].join("\n")
     );
@@ -489,15 +476,12 @@ describe("C64 compiler", () => {
       )
     ).toBe(
       [
-        "10 DIM QU(2)",
-        "20 DIM QU$(2)",
-        "30 SO=9",
-        '40 SO$="NINE  "',
-        "50 QU(1)=SO",
-        "60 QU$(1)=SO$",
-        "70 CO=SO",
-        "80 CO$=SO$",
-        "90 PRINT QU(1);QU$(1);CO;CO$",
+        "10 DIM QU(2):DIM QU$(2)",
+        "20 SO=9",
+        '30 SO$="NINE  "',
+        "40 QU(1)=SO:QU$(1)=SO$",
+        "50 CO=SO:CO$=SO$",
+        "60 PRINT QU(1);QU$(1);CO;CO$",
         ""
       ].join("\n")
     );
@@ -546,7 +530,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 GET MB$', "20 KE=0", '30 IF MB$ <> "" THEN GOTO 50', "40 GOTO 60", "50 KE=ASC(MB$)", "60 PRINT 145;65;145;32;KE", ""].join("\n"));
+    ).toBe(['10 GET MB$:KE=0', '20 IF MB$ = "" THEN 40', "30 KE=ASC(MB$)", "40 PRINT 145;65;145;32;KE", ""].join("\n"));
   });
 
   it("renders KEY_PRESSED using the C64 keyboard buffer count", () => {
@@ -556,13 +540,12 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(["10 V0=(PEEK(198) > 0)", "20 IF (PEEK(198) > 0) THEN GOTO 40", "30 GOTO 50", '40 PRINT "KEY"', "50 PRINT 0", ""].join("\n"));
+    ).toBe(["10 V0=(PEEK(198) > 0)", '20 IF (PEEK(198) > 0) <> 0 THEN PRINT "KEY"', "30 PRINT 0", ""].join("\n"));
   });
 
   it("preserves logical truth behavior in representative expressions", () => {
-    expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" })).toContain(
-      "IF ((((A) <> 0) AND ((B) <> 0)) <> 0) OR ((NOT (C <> 0)) <> 0) THEN GOTO"
-    );
+    const output = compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" });
+    expect(output).toContain("IF ((((A = 0) <> 0) OR ((B = 0) <> 0)) <> 0) AND ((C) <> 0) THEN");
   });
 
   it("renders exact output for the colors example", () => {

@@ -80,10 +80,17 @@ export function reuseTemporaryStorage(program: LoweredProgram, reservedNames: Re
   const subroutineTemps = collectSubroutineTemporaries(instructions, labels, successors, uses, definitions);
   for (let index = 0; index < instructions.length; index += 1) {
     const instruction = instructions[index];
-    if (instruction.kind !== "gosub") continue;
+    const calledLabels = instruction.kind === "gosub"
+      ? [instruction.label]
+      : instruction.kind === "on-gosub"
+        ? instruction.labels
+        : [];
+    if (calledLabels.length === 0) continue;
     for (const callerValue of liveOut[index]) {
-      for (const calleeValue of subroutineTemps.get(normalizeLabel(instruction.label)) ?? []) {
-        addConflict(callerValue, calleeValue);
+      for (const label of calledLabels) {
+        for (const calleeValue of subroutineTemps.get(normalizeLabel(label)) ?? []) {
+          addConflict(callerValue, calleeValue);
+        }
       }
     }
   }
@@ -193,6 +200,8 @@ function instructionSuccessors(instructions: readonly Instruction[], labels: Rea
       case "if-goto":
       case "trap":
         return target === undefined ? next : [...next, target];
+      case "on-goto":
+        return [...next, ...instruction.labels.map((label) => labels.get(normalizeLabel(label))).filter((entry): entry is number => entry !== undefined)];
       case "return":
       case "end":
         return [];
@@ -218,8 +227,11 @@ function collectSubroutineTemporaries(
   uses: readonly ReadonlySet<string>[],
   definitions: readonly ReadonlySet<string>[]
 ): ReadonlyMap<string, ReadonlySet<string>> {
-  const calls = new Set(instructions.filter((instruction): instruction is Extract<Instruction, { kind: "gosub" }> => instruction.kind === "gosub")
-    .map((instruction) => normalizeLabel(instruction.label)));
+  const calls = new Set<string>();
+  for (const instruction of instructions) {
+    if (instruction.kind === "gosub") calls.add(normalizeLabel(instruction.label));
+    if (instruction.kind === "on-gosub") instruction.labels.forEach((label) => calls.add(normalizeLabel(label)));
+  }
   const direct = new Map<string, Set<string>>();
   const nested = new Map<string, Set<string>>();
 
@@ -237,6 +249,7 @@ function collectSubroutineTemporaries(
       for (const name of definitions[index]) members.add(name);
       const instruction = instructions[index];
       if (instruction.kind === "gosub") childCalls.add(normalizeLabel(instruction.label));
+      if (instruction.kind === "on-gosub") instruction.labels.forEach((label) => childCalls.add(normalizeLabel(label)));
       pending.push(...successors[index]);
     }
     direct.set(label, members);

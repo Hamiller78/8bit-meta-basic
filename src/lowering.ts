@@ -81,6 +81,10 @@ export type Instruction =
   | ForInstruction
   | NextInstruction
   | IfGotoInstruction
+  | IfGosubInstruction
+  | IfThenInstruction
+  | OnGotoInstruction
+  | OnGosubInstruction
   | PositionInstruction
   | SetColorInstruction
   | PokeInstruction
@@ -316,6 +320,42 @@ export interface IfGotoInstruction {
   readonly kind: "if-goto";
   readonly condition: Expression;
   readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface IfGosubInstruction {
+  readonly kind: "if-gosub";
+  readonly condition: Expression;
+  readonly label: string;
+  readonly location: SourceLocation;
+}
+
+export interface IfThenInstruction {
+  readonly kind: "if-then";
+  readonly condition: Expression;
+  readonly body: readonly Instruction[];
+  /** Internal label removed when this conditional body was fused. */
+  readonly originalSkipLabel: string;
+  readonly location: SourceLocation;
+}
+
+export interface OnGotoInstruction {
+  readonly kind: "on-goto";
+  /** One-based dispatch index, matching native ON ... GOTO semantics. */
+  readonly expression: Expression;
+  readonly labels: readonly string[];
+  /** Branch used when the native target rejects or cannot dispatch the index. */
+  readonly fallbackLabel: string;
+  readonly location: SourceLocation;
+}
+
+export interface OnGosubInstruction {
+  readonly kind: "on-gosub";
+  /** One-based dispatch index, matching native ON ... GOSUB semantics. */
+  readonly expression: Expression;
+  readonly labels: readonly string[];
+  /** Branch used when the native target rejects or cannot dispatch the index. */
+  readonly fallbackLabel: string;
   readonly location: SourceLocation;
 }
 
@@ -685,7 +725,64 @@ function lowerStatements(
   currentFunction?: FunctionImplementation,
   options: LowerStatementOptions = {}
 ): void {
-  for (const statement of statements) {
+  for (let statementIndex = 0; statementIndex < statements.length; statementIndex += 1) {
+    const dispatch = terminalDispatchAt(statements, statementIndex);
+    if (dispatch && statementsAlwaysTransfer(statements.slice(statementIndex + dispatch.count))) {
+      const caseLabels = dispatch.cases.map(() => nextInternalLabel());
+      const defaultLabel = nextInternalLabel();
+      const labelsByValue = new Map(dispatch.cases.map((entry, index) => [entry.value, caseLabels[index]]));
+      const dispatchLabels: string[] = [];
+      for (let value = dispatch.minimum; value <= dispatch.maximum; value += 1) {
+        dispatchLabels.push(labelsByValue.get(value) ?? defaultLabel);
+      }
+      instructions.push({
+        kind: "on-goto",
+        expression: oneBasedDispatchExpression(dispatch),
+        labels: dispatchLabels,
+        fallbackLabel: defaultLabel,
+        location: statements[statementIndex].location
+      });
+      instructions.push({ kind: "label", name: defaultLabel, internal: true, location: statements[statementIndex].location });
+      lowerStatements(statements.slice(statementIndex + dispatch.count), instructions, nextInternalLabel, context, currentFunction, options);
+      dispatch.cases.forEach((entry, index) => {
+        instructions.push({ kind: "label", name: caseLabels[index], internal: true, location: entry.statement.location });
+        lowerStatements(entry.statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+      });
+      return;
+    }
+
+    const callDispatch = callDispatchAt(statements, statementIndex);
+    if (callDispatch) {
+      const caseLabels = callDispatch.cases.map(() => nextInternalLabel());
+      const defaultLabel = nextInternalLabel();
+      const continuationLabel = nextInternalLabel();
+      const labelsByValue = new Map(callDispatch.cases.map((entry, index) => [entry.value, caseLabels[index]]));
+      const dispatchLabels: string[] = [];
+      for (let value = callDispatch.minimum; value <= callDispatch.maximum; value += 1) {
+        dispatchLabels.push(labelsByValue.get(value) ?? defaultLabel);
+      }
+
+      instructions.push({
+        kind: "on-gosub",
+        expression: oneBasedDispatchExpression(callDispatch),
+        labels: dispatchLabels,
+        fallbackLabel: defaultLabel,
+        location: statements[statementIndex].location
+      });
+      instructions.push({ kind: "goto", label: continuationLabel, location: statements[statementIndex].location });
+      instructions.push({ kind: "label", name: defaultLabel, internal: true, location: statements[statementIndex].location });
+      instructions.push({ kind: "return", location: statements[statementIndex].location });
+      callDispatch.cases.forEach((entry, index) => {
+        instructions.push({ kind: "label", name: caseLabels[index], internal: true, location: entry.statement.location });
+        lowerStatements(entry.statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+        instructions.push({ kind: "return", location: entry.statement.location });
+      });
+      instructions.push({ kind: "label", name: continuationLabel, internal: true, location: statements[statementIndex].location });
+      statementIndex += callDispatch.count - 1;
+      continue;
+    }
+
+    const statement = statements[statementIndex];
     switch (statement.kind) {
       case "comment":
         for (const text of splitSourceComment(statement.text)) {
@@ -1034,13 +1131,15 @@ function lowerStatements(
       }
       case "while": {
         const startLabel = nextInternalLabel();
-        const bodyLabel = nextInternalLabel();
         const endLabel = nextInternalLabel();
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
-        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: bodyLabel, location: statement.location });
-        instructions.push({ kind: "goto", label: endLabel, location: statement.location });
-        instructions.push({ kind: "label", name: bodyLabel, internal: true, location: statement.location });
+        instructions.push({
+          kind: "if-goto",
+          condition: invertCondition(expandConditionExpression(statement.condition, instructions, context, options)),
+          label: endLabel,
+          location: statement.location
+        });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
         instructions.push({ kind: "goto", label: startLabel, location: statement.location });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
@@ -1052,29 +1151,56 @@ function lowerStatements(
 
         instructions.push({ kind: "label", name: startLabel, internal: true, location: statement.location });
         lowerStatements(statement.body, instructions, nextInternalLabel, context, currentFunction, options);
-        instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: endLabel, location: statement.location });
-        instructions.push({ kind: "goto", label: startLabel, location: statement.location });
+        instructions.push({
+          kind: "if-goto",
+          condition: invertCondition(expandConditionExpression(statement.condition, instructions, context, options)),
+          label: startLabel,
+          location: statement.location
+        });
         instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         break;
       }
       case "if": {
-        const thenLabel = nextInternalLabel();
-        const endLabel = nextInternalLabel();
-
         if (statement.elseBranch.length > 0) {
-          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: thenLabel, location: statement.location });
-          lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
-          instructions.push({ kind: "goto", label: endLabel, location: statement.location });
-          instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
-          lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+          const thenTransfers = statementsAlwaysTransfer(statement.thenBranch);
+          const elseTransfers = statementsAlwaysTransfer(statement.elseBranch);
+          if (thenTransfers) {
+            const elseLabel = nextInternalLabel();
+            instructions.push({
+              kind: "if-goto",
+              condition: invertCondition(expandConditionExpression(statement.condition, instructions, context, options)),
+              label: elseLabel,
+              location: statement.location
+            });
+            lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+            instructions.push({ kind: "label", name: elseLabel, internal: true, location: statement.location });
+            lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
+          } else {
+            const thenLabel = nextInternalLabel();
+            instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: thenLabel, location: statement.location });
+            lowerStatements(statement.elseBranch, instructions, nextInternalLabel, context, currentFunction, options);
+            if (!elseTransfers) {
+              const endLabel = nextInternalLabel();
+              instructions.push({ kind: "goto", label: endLabel, location: statement.location });
+              instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
+              lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+              instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
+            } else {
+              instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
+              lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+            }
+          }
         } else {
-          instructions.push({ kind: "if-goto", condition: expandConditionExpression(statement.condition, instructions, context, options), label: thenLabel, location: statement.location });
-          instructions.push({ kind: "goto", label: endLabel, location: statement.location });
-          instructions.push({ kind: "label", name: thenLabel, internal: true, location: statement.location });
+          const endLabel = nextInternalLabel();
+          instructions.push({
+            kind: "if-goto",
+            condition: invertCondition(expandConditionExpression(statement.condition, instructions, context, options)),
+            label: endLabel,
+            location: statement.location
+          });
           lowerStatements(statement.thenBranch, instructions, nextInternalLabel, context, currentFunction, options);
+          instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         }
-
-        instructions.push({ kind: "label", name: endLabel, internal: true, location: statement.location });
         break;
       }
     }
@@ -1084,6 +1210,137 @@ function lowerStatements(
 function lowerExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, options: LowerOptions): Expression {
   const expanded = expandFunctionCalls(expression, instructions, context);
   return options.testMode ? replaceTestRuntimeFunctionCalls(expanded) : expanded;
+}
+
+interface TerminalDispatchCase {
+  readonly value: number;
+  readonly statement: Extract<Statement, { kind: "if" }>;
+}
+
+interface TerminalDispatch {
+  readonly selector: Extract<Expression, { kind: "identifier" }>;
+  readonly cases: readonly TerminalDispatchCase[];
+  readonly minimum: number;
+  readonly maximum: number;
+  readonly count: number;
+}
+
+interface CallDispatch extends TerminalDispatch {}
+
+function terminalDispatchAt(statements: readonly Statement[], start: number): TerminalDispatch | undefined {
+  const cases: TerminalDispatchCase[] = [];
+  let selector: Extract<Expression, { kind: "identifier" }> | undefined;
+  const values = new Set<number>();
+  let index = start;
+
+  while (index < statements.length) {
+    const statement = statements[index];
+    if (statement.kind !== "if" || statement.elseBranch.length > 0 || !statementsAlwaysTransfer(statement.thenBranch)) {
+      break;
+    }
+    const comparison = dispatchComparison(statement.condition);
+    if (!comparison || (selector && normalizeName(comparison.selector.name) !== normalizeName(selector.name)) || values.has(comparison.value)) {
+      break;
+    }
+    selector ??= comparison.selector;
+    values.add(comparison.value);
+    cases.push({ value: comparison.value, statement });
+    index += 1;
+  }
+
+  if (!selector || cases.length < 3) {
+    return undefined;
+  }
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const span = maximum - minimum + 1;
+  if (span > 9 || cases.length * 2 < span) {
+    return undefined;
+  }
+  return { selector, cases, minimum, maximum, count: cases.length };
+}
+
+function callDispatchAt(statements: readonly Statement[], start: number): CallDispatch | undefined {
+  const cases: TerminalDispatchCase[] = [];
+  let selector: Extract<Expression, { kind: "identifier" }> | undefined;
+  const values = new Set<number>();
+  let index = start;
+
+  while (index < statements.length) {
+    const statement = statements[index];
+    if (statement.kind !== "if" || statement.elseBranch.length > 0 || !isSingleCallBranch(statement.thenBranch)) {
+      break;
+    }
+    const comparison = dispatchComparison(statement.condition);
+    if (!comparison || (selector && normalizeName(comparison.selector.name) !== normalizeName(selector.name)) || values.has(comparison.value)) {
+      break;
+    }
+    selector ??= comparison.selector;
+    values.add(comparison.value);
+    cases.push({ value: comparison.value, statement });
+    index += 1;
+  }
+
+  if (!selector || cases.length < 3) {
+    return undefined;
+  }
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const span = maximum - minimum + 1;
+  if (span > 9 || cases.length * 2 < span) {
+    return undefined;
+  }
+  return { selector, cases, minimum, maximum, count: cases.length };
+}
+
+function isSingleCallBranch(statements: readonly Statement[]): boolean {
+  const executable = statements.filter((statement) => !isNonExecutableStatement(statement));
+  return executable.length === 1 && (executable[0].kind === "function-call-statement" || executable[0].kind === "gosub");
+}
+
+function isNonExecutableStatement(statement: Statement): boolean {
+  return statement.kind === "comment" || statement.kind === "const" || statement.kind === "enum" || statement.kind === "local" || statement.kind === "struct";
+}
+
+function oneBasedDispatchExpression(dispatch: Pick<TerminalDispatch, "selector" | "minimum">): Expression {
+  const dispatchOffset = 1 - dispatch.minimum;
+  return dispatchOffset === 0
+    ? dispatch.selector
+    : binaryExpression(
+        dispatchOffset > 0 ? "+" : "-",
+        dispatch.selector,
+        numberExpression(Math.abs(dispatchOffset), dispatch.selector.location),
+        dispatch.selector.location
+      );
+}
+
+function dispatchComparison(expression: Expression): { readonly selector: Extract<Expression, { kind: "identifier" }>; readonly value: number } | undefined {
+  const candidate = expression.kind === "parenthesized" ? expression.expression : expression;
+  if (candidate.kind !== "binary" || candidate.operator !== "=") {
+    return undefined;
+  }
+  if (candidate.left.kind === "identifier" && candidate.right.kind === "number" && Number.isInteger(candidate.right.value)) {
+    return { selector: candidate.left, value: candidate.right.value };
+  }
+  if (candidate.right.kind === "identifier" && candidate.left.kind === "number" && Number.isInteger(candidate.left.value)) {
+    return { selector: candidate.right, value: candidate.left.value };
+  }
+  return undefined;
+}
+
+function statementsAlwaysTransfer(statements: readonly Statement[]): boolean {
+  for (let index = statements.length - 1; index >= 0; index -= 1) {
+    const statement = statements[index];
+    if (isNonExecutableStatement(statement)) {
+      continue;
+    }
+    if (statement.kind === "return" || statement.kind === "goto" || statement.kind === "end") {
+      return true;
+    }
+    return statement.kind === "if" && statement.elseBranch.length > 0 &&
+      statementsAlwaysTransfer(statement.thenBranch) && statementsAlwaysTransfer(statement.elseBranch);
+  }
+  return false;
 }
 
 function expandConditionExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, options: LowerOptions): Expression {
@@ -1489,6 +1746,39 @@ function binaryExpression(operator: Extract<Expression, { kind: "binary" }>["ope
   return { kind: "binary", operator, left, right, location };
 }
 
+export function invertCondition(expression: Expression): Expression {
+  if (expression.kind === "parenthesized") {
+    return { ...expression, expression: invertCondition(expression.expression) };
+  }
+  if (expression.kind === "unary" && expression.operator === "NOT") {
+    return expression.operand;
+  }
+  if (expression.kind === "binary") {
+    if (expression.operator === "AND" || expression.operator === "OR") {
+      return binaryExpression(
+        expression.operator === "AND" ? "OR" : "AND",
+        invertCondition(expression.left),
+        invertCondition(expression.right),
+        expression.location
+      );
+    }
+    const inverted = invertedComparisonOperators[expression.operator];
+    if (inverted) {
+      return { ...expression, operator: inverted };
+    }
+  }
+  return binaryExpression("=", expression, numberExpression(0, expression.location), expression.location);
+}
+
+const invertedComparisonOperators: Partial<Record<Extract<Expression, { kind: "binary" }>["operator"], Extract<Expression, { kind: "binary" }>["operator"]>> = {
+  "=": "<>",
+  "<>": "=",
+  "<": ">=",
+  "<=": ">",
+  ">": "<=",
+  ">=": "<"
+};
+
 function collectUserLabels(statements: readonly Statement[], seen = new Map<string, SourceLocation>()): ReadonlySet<string> {
   for (const statement of statements) {
     if (statement.kind === "label") {
@@ -1544,7 +1834,15 @@ function buildLabelMap(instructions: readonly Instruction[]): ReadonlyMap<string
 
 function validateReferences(instructions: readonly Instruction[], labels: ReadonlyMap<string, LabelDefinition>): void {
   for (const instruction of instructions) {
-    if (instruction.kind !== "goto" && instruction.kind !== "gosub" && instruction.kind !== "if-goto") {
+    if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
+      for (const label of [...instruction.labels, instruction.fallbackLabel]) {
+        if (!labels.has(normalizeLabel(label))) {
+          throw new DiagnosticError(instruction.location, `Undefined label "${label}".`);
+        }
+      }
+      continue;
+    }
+    if (instruction.kind !== "goto" && instruction.kind !== "gosub" && instruction.kind !== "if-goto" && instruction.kind !== "if-gosub") {
       continue;
     }
 

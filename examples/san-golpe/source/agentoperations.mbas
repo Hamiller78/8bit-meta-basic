@@ -1,5 +1,6 @@
 uses "characters.mbas"
 uses "intelligence.mbas"
+uses "politics.mbas"
 
 const numberOfAgents = 2
 const startingBudgetK = 1000
@@ -12,15 +13,6 @@ enum AgentMission
     missionDeal
 end enum
 
-enum Location
-    palaceLocation = 1
-    militaryLocation
-    embassyLocation
-    churchLocation
-    pubLocation
-    outsideLocation
-end enum
-
 enum AgentReport
     reportNone = 0
     reportNoLead
@@ -29,6 +21,7 @@ enum AgentReport
     reportDealHonored
     reportDealFailed
     reportNoFunds
+    reportPoliticalInsight
 end enum
 
 enum DealOutcome
@@ -63,37 +56,6 @@ function initializeAgentOperations()
             agentContacts%(agentIndex * numberOfCharacters + characterIndex) = 0
         next characterIndex
     next agentIndex
-end function
-
-function findRole(wantedRole)
-    local characterIndex
-    for characterIndex = 0 to numberOfCharacters - 1
-        if characters(characterIndex).role% = wantedRole then
-            return characterIndex
-        end if
-    next characterIndex
-    return -1
-end function
-
-function characterLocation(characterIndex)
-    local roleValue
-    roleValue = characters(characterIndex).role%
-    if roleValue = president or roleValue = daughter or roleValue = advisor then
-        return palaceLocation
-    end if
-    if roleValue = general then
-        return militaryLocation
-    end if
-    if roleValue = ussragent then
-        return embassyLocation
-    end if
-    if roleValue = priest then
-        return churchLocation
-    end if
-    if roleValue = bartender or roleValue = ustourist then
-        return pubLocation
-    end if
-    return outsideLocation
 end function
 
 function hasAgentContact(agentIndex, characterIndex)
@@ -133,15 +95,19 @@ function addAgentContact(agentIndex, characterIndex)
 end function
 
 function hasContactAtLocation(agentIndex, locationValue)
+    return firstContactAtLocation(agentIndex, locationValue) >= 0
+end function
+
+function firstContactAtLocation(agentIndex, locationValue)
     local characterIndex
     for characterIndex = 2 to numberOfCharacters - 1
         if characterLocation(characterIndex) = locationValue then
             if hasAgentContact(agentIndex, characterIndex) = 1 and characters(characterIndex).isAlive% = 1 then
-                return 1
+                return characterIndex
             end if
         end if
     next characterIndex
-    return 0
+    return -1
 end function
 
 'The president cannot be reached from a cold visit to the palace.
@@ -350,7 +316,7 @@ function resolveInvestigationMission(agentIndex)
 end function
 
 function resolveInvestigationRoll(agentIndex, characterIndex, roll)
-    local chance
+    local chance, contactIndex, reportedBand
     agentReports%(agentIndex) = reportNoLead
     if canInvestigate(agentIndex, characterIndex) = 0 then
         setAgentIdle(agentIndex)
@@ -367,10 +333,18 @@ function resolveInvestigationRoll(agentIndex, characterIndex, roll)
     end if
     if roll < chance then
         revealCharacter(characterIndex, playerIntel%(characterIndex) + 1)
-        agentReports%(agentIndex) = reportIntel
-        agentReportTargets%(agentIndex) = characterIndex
         if playerIntel%(characterIndex) >= intelAgenda then
             setAgentIdle(agentIndex)
+        end if
+        if characters(characterIndex).role% = president then
+            contactIndex = firstContactAtLocation(agentIndex, palaceLocation)
+            reportedBand = reportedPresidentEconomyBand(contactIndex, roll MOD 10, int(roll / 10))
+            agentReports%(agentIndex) = reportPoliticalInsight
+            agentReportTargets%(agentIndex) = contactIndex
+            agentLocations%(agentIndex) = reportedBand
+        else
+            agentReports%(agentIndex) = reportIntel
+            agentReportTargets%(agentIndex) = characterIndex
         end if
     end if
 end function

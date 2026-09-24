@@ -2,6 +2,7 @@
   "files": [
     "source/characters.mbas",
     "source/intelligence.mbas",
+    "source/politics.mbas",
     "source/agentoperations.mbas",
     "tests/agentoperations-tests.mbas"
   ]

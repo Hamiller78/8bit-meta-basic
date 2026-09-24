@@ -33,11 +33,18 @@ enum Agenda
     secretSpy
 end enum
 
+enum Location
+    palaceLocation = 1
+    militaryLocation
+    embassyLocation
+    churchLocation
+    pubLocation
+    outsideLocation
+end enum
+
 struct Character
     first$(10)
     last$(10)
-    gender%
-    nationality%
     role%
     isAlive%   '0 = dead, 1 = alive
     money       'In k$: one unit is 1,000 US dollars.
@@ -48,3 +55,34 @@ struct Character
 end struct
 
 dim characters as Character(numberOfCharacters)
+
+function findRole(wantedRole)
+    local characterIndex
+    for characterIndex = 0 to numberOfCharacters - 1
+        if characters(characterIndex).role% = wantedRole then
+            return characterIndex
+        end if
+    next characterIndex
+    return -1
+end function
+
+function characterLocation(characterIndex)
+    local roleValue
+    roleValue = characters(characterIndex).role%
+    if roleValue = president or roleValue = daughter or roleValue = advisor then
+        return palaceLocation
+    end if
+    if roleValue = general then
+        return militaryLocation
+    end if
+    if roleValue = ussragent then
+        return embassyLocation
+    end if
+    if roleValue = priest then
+        return churchLocation
+    end if
+    if roleValue = bartender or roleValue = ustourist then
+        return pubLocation
+    end if
+    return outsideLocation
+end function

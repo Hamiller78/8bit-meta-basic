@@ -159,8 +159,8 @@ describe("Meta-BASIC test mode", () => {
     expect(output).not.toContain("PAPER 2");
     expect(output).toContain('PRINT "FAILED TESTS:"');
     expect(output).toContain("DIM M(2)");
-    expect(output).toContain("IF M(1) THEN GO TO");
-    expect(output).toContain("IF M(2) THEN GO TO");
+    expect(output).toContain("IF M(1) = 0 THEN GO TO");
+    expect(output).toContain("IF M(2) = 0 THEN GO TO");
     expect(output).toContain('PRINT "Bad"');
   });
 

@@ -1,6 +1,7 @@
 uses "characters.mbas"
 uses "intelligence.mbas"
 uses "agentoperations.mbas"
+uses "politics.mbas"
 
 function showOverview(turnNumber)
     local agentIndex, firstContact, targetIndex
@@ -74,8 +75,13 @@ function printAgentReports()
             if reportValue = reportNoFunds then
                 print text$("reportNoFunds");
             end if
+            if reportValue = reportPoliticalInsight then
+                printKnownFirstName(agentReportTargets%(agentIndex))
+                print ": "; text$("reportPresidentThinking"); " ";
+                printEconomicPosition(agentLocations%(agentIndex))
+            end if
             targetIndex = agentReportTargets%(agentIndex)
-            if targetIndex >= 0 and reportValue <> reportDealFailed then
+            if targetIndex >= 0 and reportValue <> reportDealFailed and reportValue <> reportPoliticalInsight then
                 print " ";
                 printKnownFirstName(targetIndex)
             end if
@@ -432,6 +438,24 @@ function printMissionName(missionValue)
     end if
     if missionValue = missionIdle then
         print text$("missionIdle");
+    end if
+end function
+
+function printEconomicPosition(positionValue)
+    if positionValue = stronglySocialist then
+        print text$("economyStronglySocialist");
+    end if
+    if positionValue = socialistLeaning then
+        print text$("economySocialistLeaning");
+    end if
+    if positionValue = economicMiddle then
+        print text$("economyMiddle");
+    end if
+    if positionValue = freeMarketLeaning then
+        print text$("economyFreeMarketLeaning");
+    end if
+    if positionValue = stronglyFreeMarket then
+        print text$("economyStronglyFreeMarket");
     end if
 end function
 

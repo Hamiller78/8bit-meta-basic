@@ -11,7 +11,7 @@ import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
-import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -104,7 +104,17 @@ export const c64Target: TargetBackend = {
       case "next":
         return `${lineNumber} NEXT ${renderVariableName(instruction.variable, variableMap)}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-gosub":
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOSUB ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-then":
+        return instruction.body.length === 1 && instruction.body[0].kind === "goto"
+          ? `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${resolveLabel(labelLines, instruction.body[0].label)}`
+          : `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${renderInlineInstructionBodies(c64Target, lineNumber, instruction.body, labelLines, readability)}`;
+      case "on-goto":
+        return `${lineNumber} ON ${renderExpression(instruction.expression, renderOptions)} GOTO ${instruction.labels.map((label) => resolveLabel(labelLines, label)).join(",")}`;
+      case "on-gosub":
+        return `${lineNumber} ON ${renderExpression(instruction.expression, renderOptions)} GOSUB ${instruction.labels.map((label) => resolveLabel(labelLines, label)).join(",")}`;
       case "randomize":
         return instruction.seed ? `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(${renderExpression(instruction.seed, renderOptions)}))` : `${lineNumber} ${renderVariableName("MBRND", variableMap)}=RND(-(TI+1))`;
       case "position":

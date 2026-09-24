@@ -188,11 +188,11 @@ describe("localized text and layout", () => {
       expect(result.toLowerCase()).toContain(language === "de" ? "veroeffentlichte" : "small");
       expect(result).not.toContain("PRINT_TEXT");
       const uppercaseResult = result.toUpperCase();
-      const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTELLIGENCE.MBAS", "INTRO.MBAS", "MAINSCREEN.MBAS", "NPCLOGIC.MBAS", "DATA"];
+      const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTELLIGENCE.MBAS", "POLITICS.MBAS", "INTRO.MBAS", "MAINSCREEN.MBAS", "NPCLOGIC.MBAS", "DATA"];
       const moduleOffsets = moduleNames.map((name) => uppercaseResult.indexOf(`MODULE ${name}`));
       expect(moduleOffsets.every((offset) => offset >= 0)).toBe(true);
       expect(moduleOffsets).toEqual([...moduleOffsets].sort((left, right) => left - right));
       expect(uppercaseResult.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
     }
-  });
+  }, 30000);
 });

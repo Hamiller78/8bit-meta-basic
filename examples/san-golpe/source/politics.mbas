@@ -1,0 +1,96 @@
+uses "characters.mbas"
+
+const economyMinimum = 0
+const economyMaximum = 100
+const economyInitial = 50
+
+enum EconomicPosition
+    stronglySocialist = 0
+    socialistLeaning
+    economicMiddle
+    freeMarketLeaning
+    stronglyFreeMarket
+end enum
+
+'This exact value is deliberately never printed. Events and the coffee market
+'should move it through adjustPresidentEconomy().
+presidentEconomy% = economyInitial
+
+function initializePolitics()
+    presidentEconomy% = economyInitial
+end function
+
+function adjustPresidentEconomy(change)
+    presidentEconomy% = presidentEconomy% + change
+    if presidentEconomy% < economyMinimum then
+        presidentEconomy% = economyMinimum
+    end if
+    if presidentEconomy% > economyMaximum then
+        presidentEconomy% = economyMaximum
+    end if
+end function
+
+function economicPositionBand(value)
+    local positionBand
+    positionBand = int(value / 20)
+    if positionBand > stronglyFreeMarket then
+        positionBand = stronglyFreeMarket
+    end if
+    return positionBand
+end function
+
+function isCloseToPresident(characterIndex)
+    local roleValue
+    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+        return 0
+    end if
+    roleValue = characters(characterIndex).role%
+    return characters(characterIndex).isAlive% and roleValue <> usagent and roleValue <> ussragent and roleValue <> ustourist
+end function
+
+'Insiders know the President and people at their own location. The bartender
+'is the wildcard and may have information about anyone who is still alive.
+function canCharacterKnowAbout(sourceIndex, targetIndex)
+    if sourceIndex < 0 or sourceIndex >= numberOfCharacters or targetIndex < 0 or targetIndex >= numberOfCharacters then
+        return 0
+    end if
+    if characters(sourceIndex).isAlive% = 0 or characters(targetIndex).isAlive% = 0 then
+        return 0
+    end if
+    if characters(sourceIndex).role% = bartender then
+        return 1
+    end if
+    if characters(targetIndex).role% = president then
+        return isCloseToPresident(sourceIndex)
+    end if
+    if characterLocation(sourceIndex) = characterLocation(targetIndex) then
+        return 1
+    end if
+    return 0
+end function
+
+'A reliable contact reports the true qualitative band. An unreliable contact
+'misses by one neighboring band; directionRoll keeps the distortion unbiased.
+function reportedPresidentEconomyBand(sourceIndex, reliabilityRoll, directionRoll)
+    local reportedBand, presidentIndex
+    presidentIndex = findRole(president)
+    if canCharacterKnowAbout(sourceIndex, presidentIndex) = 0 then
+        return -1
+    end if
+    reportedBand = economicPositionBand(presidentEconomy%)
+    if reliabilityRoll < characters(sourceIndex).integrity% then
+        return reportedBand
+    end if
+    if directionRoll < 5 then
+        reportedBand = reportedBand - 1
+    else
+        reportedBand = reportedBand + 1
+    end if
+    if reportedBand < stronglySocialist then
+        reportedBand = stronglySocialist
+    end if
+    if reportedBand > stronglyFreeMarket then
+        reportedBand = stronglyFreeMarket
+    end if
+    return reportedBand
+end function

@@ -17,6 +17,10 @@ All targets share one parsed syntax tree and target-independent control-flow low
 
 Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
 
+Release builds pack safe target operations produced by one Meta-BASIC statement onto colon-separated BASIC lines where the target line limit permits it. Consequently, the Atari and C64 expansions shown below may occupy one physical BASIC line in release output while remaining separate in readable output.
+
+Short release-mode conditional bodies use each dialect's native `IF ... THEN statement` form. Atari and C64 line-number branches omit the redundant `GOTO` keyword (`IF condition THEN line`); Spectrum requires and retains `GO TO`. Dense enum-based subroutine dispatch uses `ON ... GOSUB` on Atari and C64 and an equivalent `IF ... THEN GO SUB` sequence on Spectrum. Atari gives native dispatch a dedicated no-match entry and computes a guaranteed in-range index, so unmatched values fall through without an extra guard line or error 3.
+
 ## Positioned output
 
 Meta-BASIC:

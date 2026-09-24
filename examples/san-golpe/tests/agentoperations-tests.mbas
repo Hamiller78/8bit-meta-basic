@@ -1,5 +1,6 @@
 uses "../source/characters.mbas"
 uses "../source/intelligence.mbas"
+uses "../source/politics.mbas"
 uses "../source/agentoperations.mbas"
 
 function setupOperations()
@@ -25,8 +26,63 @@ function setupOperations()
     characters(10).role% = landowner
     characters(11).role% = ustourist
     initializeIntelligence()
+    initializePolitics()
     initializeAgentOperations()
 end function
+
+test PresidentEconomyIsHiddenBehindQualitativeReports()
+    local advisorIndex
+    setupOperations()
+    advisorIndex = findRole(advisor)
+
+    assert_eq economyInitial, presidentEconomy%
+    adjustPresidentEconomy(-80)
+    assert_eq economyMinimum, presidentEconomy%
+    adjustPresidentEconomy(140)
+    assert_eq economyMaximum, presidentEconomy%
+    adjustPresidentEconomy(-50)
+    assert_eq economicMiddle, economicPositionBand(presidentEconomy%)
+
+    characters(advisorIndex).integrity% = 10
+    assert_eq economicMiddle, reportedPresidentEconomyBand(advisorIndex, 9, 0)
+    characters(advisorIndex).integrity% = 0
+    assert_eq socialistLeaning, reportedPresidentEconomyBand(advisorIndex, 0, 0)
+    assert_eq freeMarketLeaning, reportedPresidentEconomyBand(advisorIndex, 0, 9)
+end test
+
+test CharacterConnectionsControlPoliticalKnowledge()
+    local presidentIndex, advisorIndex, daughterIndex, generalIndex, bartenderIndex, touristIndex
+    setupOperations()
+    presidentIndex = findRole(president)
+    advisorIndex = findRole(advisor)
+    daughterIndex = findRole(daughter)
+    generalIndex = findRole(general)
+    bartenderIndex = findRole(bartender)
+    touristIndex = findRole(ustourist)
+
+    assert_eq 1, canCharacterKnowAbout(advisorIndex, presidentIndex)
+    assert_eq 0, canCharacterKnowAbout(0, presidentIndex)
+    assert_eq 0, canCharacterKnowAbout(2, presidentIndex)
+    assert_eq 0, canCharacterKnowAbout(touristIndex, presidentIndex)
+    assert_eq 1, canCharacterKnowAbout(advisorIndex, daughterIndex)
+    assert_eq 0, canCharacterKnowAbout(advisorIndex, generalIndex)
+    assert_eq 1, canCharacterKnowAbout(bartenderIndex, generalIndex)
+end test
+
+test PresidentInvestigationUsesAnInsiderReport()
+    local presidentIndex, advisorIndex
+    setupOperations()
+    presidentIndex = findRole(president)
+    advisorIndex = findRole(advisor)
+
+    addAgentContact(0, advisorIndex)
+    characters(advisorIndex).integrity% = 10
+    assert_eq 1, setAgentInvestigation(0, presidentIndex)
+    resolveInvestigationRoll(0, presidentIndex, 0)
+    assert_eq reportPoliticalInsight, agentReports%(0)
+    assert_eq advisorIndex, agentReportTargets%(0)
+    assert_eq economicMiddle, agentLocations%(0)
+end test
 
 test LocationsHaveDifferentChances()
     assert_eq 35, locationIntelChance(palaceLocation)
@@ -98,10 +154,12 @@ test ContactAllowsDeeperInvestigation()
     resolveInvestigationRoll(0, presidentIndex, 0)
     assert_eq intelIntegrity, playerIntel%(presidentIndex)
     assert_eq missionInvestigate, agentMissions%(0)
+    assert_eq reportPoliticalInsight, agentReports%(0)
+    assert_eq advisorIndex, agentReportTargets%(0)
     resolveInvestigationRoll(0, presidentIndex, 0)
     assert_eq intelAgenda, playerIntel%(presidentIndex)
     assert_eq missionIdle, agentMissions%(0)
-    assert_eq reportIntel, agentReports%(0)
+    assert_eq reportPoliticalInsight, agentReports%(0)
 end test
 
 test DealsDependOnIntegrity()

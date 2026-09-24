@@ -52,14 +52,16 @@ export function analyzeBasicOutput(
   }
 
   for (const line of lines) {
-    collectDimmedVariables(
-      line,
-      target,
-      numericVariables,
-      stringVariables,
-      numericArrays,
-      stringArrays,
-    );
+    for (const statement of splitBasicStatements(line)) {
+      collectDimmedVariables(
+        statement,
+        target,
+        numericVariables,
+        stringVariables,
+        numericArrays,
+        stringArrays,
+      );
+    }
   }
 
   for (const line of lines) {
@@ -253,6 +255,24 @@ function stripLineNumber(line: string): string {
 
 function stripStrings(line: string): string {
   return line.replaceAll(/"[^"]*"/g, '""');
+}
+
+function splitBasicStatements(line: string): readonly string[] {
+  const statements: string[] = [];
+  let start = 0;
+  let inString = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    if (line[index] === '"') {
+      inString = !inString;
+    } else if (line[index] === ":" && !inString) {
+      statements.push(line.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  statements.push(line.slice(start));
+  return statements;
 }
 
 function parseLineNumber(line: string): number | undefined {

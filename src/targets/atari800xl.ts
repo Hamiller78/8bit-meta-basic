@@ -19,7 +19,7 @@ import {
   stringArrayStorageFor,
   type StringArrayStorage
 } from "./string-array-lengths.js";
-import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -90,7 +90,9 @@ export const atari800xlTarget: TargetBackend = {
       }
       instruction = materialized.instruction;
 
-      if (instruction.kind === "cls") {
+      if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
+        instructions.push(...lowerSafeAtariDispatch(instruction));
+      } else if (instruction.kind === "cls") {
         if (instruction.color) {
           const color = atariColorCodes[instruction.color.color];
           instructions.push({
@@ -258,7 +260,17 @@ export const atari800xlTarget: TargetBackend = {
       case "next":
         return `${lineNumber} NEXT ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}`;
       case "if-goto":
-        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOTO ${resolveLabel(labelLines, instruction.label)}`;
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-gosub":
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GOSUB ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-then":
+        return instruction.body.length === 1 && instruction.body[0].kind === "goto"
+          ? `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${resolveLabel(labelLines, instruction.body[0].label)}`
+          : `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${renderInlineInstructionBodies(atari800xlTarget, lineNumber, instruction.body, labelLines, readability)}`;
+      case "on-goto":
+        return `${lineNumber} ON ${renderExpression(instruction.expression, renderOptions)} GOTO ${instruction.labels.map((label) => resolveLabel(labelLines, label)).join(",")}`;
+      case "on-gosub":
+        return `${lineNumber} ON ${renderExpression(instruction.expression, renderOptions)} GOSUB ${instruction.labels.map((label) => resolveLabel(labelLines, label)).join(",")}`;
       case "randomize":
         throw new Error("Internal error: unexpected randomize instruction for Atari 800XL.");
       case "position":
@@ -453,7 +465,13 @@ function materializeAtariStringArrayReads(
     case "for":
       return { prefix, instruction: { ...instruction, start: rewrite(instruction.start), limit: rewrite(instruction.limit), ...(instruction.step ? { step: rewrite(instruction.step) } : {}) } };
     case "if-goto":
+    case "if-gosub":
       return { prefix, instruction: { ...instruction, condition: rewrite(instruction.condition) } };
+    case "on-goto":
+    case "on-gosub":
+      return { prefix, instruction: { ...instruction, expression: rewrite(instruction.expression) } };
+    case "if-then":
+      return { prefix, instruction };
     case "position":
       return { prefix, instruction: { ...instruction, row: rewrite(instruction.row), column: rewrite(instruction.column) } };
     case "poke":
@@ -1179,6 +1197,54 @@ function renderAtariFunction(expression: FunctionCallExpression, options: { read
   return renderKnownAtariFunction(expression, options);
 }
 
+function lowerSafeAtariDispatch(instruction: Extract<Instruction, { kind: "on-goto" | "on-gosub" }>): Instruction[] {
+  const location = instruction.location;
+  const cases = instruction.labels
+    .map((label, index) => ({ label, index: index + 1 }))
+    .filter(({ label }) => normalizeLabel(label) !== normalizeLabel(instruction.fallbackLabel));
+
+  if (cases.length > 3) {
+    return cases.map((entry) => ({
+      kind: instruction.kind === "on-goto" ? "if-goto" : "if-gosub",
+      condition: {
+        kind: "binary",
+        operator: "=",
+        left: instruction.expression,
+        right: { kind: "number", value: entry.index, raw: String(entry.index), location },
+        location
+      },
+      label: entry.label,
+      location
+    }));
+  }
+
+  let expression: Expression = { kind: "number", value: 1, raw: "1", location };
+
+  cases.forEach((entry, caseIndex) => {
+    const equality: Expression = {
+      kind: "binary",
+      operator: "=",
+      left: instruction.expression,
+      right: { kind: "number", value: entry.index, raw: String(entry.index), location },
+      location
+    };
+    const matched: Expression = { kind: "function-call", name: builtinFunctions.abs, args: [equality], location };
+    const offset = caseIndex + 1;
+    const contribution: Expression = offset === 1
+      ? matched
+      : {
+          kind: "binary",
+          operator: "*",
+          left: { kind: "number", value: offset, raw: String(offset), location },
+          right: matched,
+          location
+        };
+    expression = { kind: "binary", operator: "+", left: expression, right: contribution, location };
+  });
+
+  return [{ ...instruction, expression, labels: [instruction.fallbackLabel, ...cases.map(({ label }) => label)] }];
+}
+
 function renderAtariChr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `CHR$(${renderExpression(expression.args[0], options)})`;
 }
@@ -1363,6 +1429,10 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "return":
     case "end":
     case "if-goto":
+    case "if-gosub":
+    case "if-then":
+    case "on-goto":
+    case "on-gosub":
     case "position":
     case "setcolor":
     case "poke":

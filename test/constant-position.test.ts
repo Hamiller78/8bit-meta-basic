@@ -9,11 +9,11 @@ describe("compile-time cursor coordinates", () => {
   });
 
   it("emits literal Atari coordinates", () => {
-    expect(compileSource(source, { filename: "position.mbas", target: "atari800xl", readability: 0 })).toBe('10 POSITION 12,13\n20 PRINT "";\n');
+    expect(compileSource(source, { filename: "position.mbas", target: "atari800xl", readability: 0 })).toBe('10 POSITION 12,13:PRINT "";\n');
   });
 
   it("emits literal C64 coordinates", () => {
-    expect(compileSource(source, { filename: "position.mbas", target: "c64", readability: 0 })).toBe('10 POKE 214,13\n20 POKE 211,12\n30 SYS 58732\n40 PRINT "";\n');
+    expect(compileSource(source, { filename: "position.mbas", target: "c64", readability: 0 })).toBe('10 POKE 214,13:POKE 211,12:SYS 58732:PRINT "";\n');
   });
 
   it("folds constant INT toward negative infinity but keeps variable INT at runtime", () => {

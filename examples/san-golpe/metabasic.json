@@ -5,6 +5,7 @@
     "source/characternames.mbas",
     "source/characterfactory.mbas",
     "source/intelligence.mbas",
+    "source/politics.mbas",
     "source/agentoperations.mbas",
     "source/intro.mbas",
     "source/mainscreen.mbas",

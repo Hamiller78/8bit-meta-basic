@@ -98,6 +98,16 @@ Targets are responsible for dialect-specific output, including:
 
 Targets should not invent new source-language semantics. If a feature has portable meaning, validate and normalize it before target rendering.
 
+## Control-flow and line packing
+
+Shared lowering prefers fall-through control flow. A block without `ELSE` inverts its condition and jumps over the body instead of emitting a conditional jump followed by an unconditional jump. `WHILE` and `REPEAT` use the same rule.
+
+Consecutive terminal equality branches over the same value are recognized as a computed dispatch after constants and enum members have been folded. Zero-based enums are shifted to the one-based native dispatch index. Atari BASIC and C64 BASIC V2 render the result as `ON expression GOTO ...`; Spectrum expands it to a straight sequence of `IF expression = n THEN GO TO ...` statements. Equality branches that each make one subroutine or side-effect function call similarly lower to `ON expression GOSUB ...`, with Spectrum receiving an `IF ... THEN GO SUB ...` sequence. Atari rewrites the native index as a compact sum of equality matches with a dedicated no-match entry. The result is always within the `ON` label range, avoiding Atari error 3 without a separate guard line and without retaining gaps between sparse values such as Atari key codes.
+
+An `IF`/`ELSE` whose branch always transfers control is laid out so that the terminal branch removes the otherwise necessary join jump. In release output, a short conditional body may be fused back into native `IF expression THEN statement[:statement...]` form after target expansion. If the fused line would exceed the target limit, rendering automatically falls back to the separate branch and body. Atari and C64 conditional line branches use their shorter `THEN line` spelling; Spectrum retains `THEN GO TO line`.
+
+Release output may join up to four safe target instructions with colons when they came from the same Meta-BASIC source statement. Labels, branches, returns, comments, and unrelated source statements are never joined. A simple `FOR`, non-branching body, and matching `NEXT` may also share one line. If a packed line would exceed a target's practical line-length limit, the compiler automatically splits it and assigns line numbers again.
+
 ## Adding A Feature
 
 For a new statement, usually touch:

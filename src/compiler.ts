@@ -4,7 +4,7 @@ import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
 import type { NumberedProgram } from "./line-numbering.js";
 import { buildDebugInfo, collectSourceAliases, type DebugInfo } from "./debug-info.js";
-import { lowerProgram, type Instruction, type LoweredProgram } from "./lowering.js";
+import { invertCondition, lowerProgram, normalizeLabel, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
 import { getTarget, type TargetId } from "./targets/index.js";
@@ -13,7 +13,7 @@ import { setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari8
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions } from "./targets/instruction-expressions.js";
-import { rebuildLabels, renderCheckedLine, type TargetBackend } from "./targets/target.js";
+import { rebuildLabels, renderCheckedLine, validateGeneratedLineLength, type TargetBackend } from "./targets/target.js";
 import { analyzeBasicOutput, type OutputStats } from "./output-stats.js";
 import { DiagnosticError } from "./diagnostics.js";
 import type { DeviceKind, Expression } from "./ast.js";
@@ -119,24 +119,41 @@ interface RenderedProgram {
 function renderProgramWithLineLengthRelief(target: TargetBackend, program: LoweredProgram, readability: ReadabilityLevel, includeSourceComments: boolean, reservedNames: ReadonlySet<string>): RenderedProgram {
   let current = program;
   let nextTempId = nextLineReliefTempId(program.instructions);
+  const packingBreaks = new Set<number>();
+  const conditionalInliningBreaks = new Set<string>();
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const reused = reuseTemporaryStorage(current, reservedNames);
-    const targetLowered = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability);
-    setRenderProgram(target.id, targetLowered.instructions);
+    const targetPrepared = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability);
+    setRenderProgram(target.id, targetPrepared.instructions);
+    const targetLowered = readability === 0 ? fuseSimpleConditionalBodies(targetPrepared, conditionalInliningBreaks) : targetPrepared;
     const numbered = assignLineNumbers(targetLowered, readability, {
       maxLineNumber: target.maxLineNumber,
-      targetName: targetDisplayName(target.id)
+      targetName: targetDisplayName(target.id),
+      packingBreaks
     });
     const lines: string[] = [];
     let retryWith: LoweredProgram | undefined;
+    let retryPacking = false;
 
     for (const line of numbered.lines) {
       try {
-        lines.push(renderCheckedLine(target, line.number, line.instruction, numbered.labelLines, readability));
+        lines.push(renderNumberedLine(target, line, numbered.labelLines, readability));
       } catch (error) {
         if (!(error instanceof DiagnosticError) || !isGeneratedLineLengthDiagnostic(error)) {
           throw error;
+        }
+
+        if (line.instructions.length > 1) {
+          packingBreaks.add(line.instructionIndices[Math.ceil(line.instructionIndices.length / 2)]);
+          retryPacking = true;
+          break;
+        }
+
+        if (line.instruction.kind === "if-then") {
+          conditionalInliningBreaks.add(normalizeLabel(line.instruction.originalSkipLabel));
+          retryPacking = true;
+          break;
         }
 
         const relieved = relieveLongInstruction(current, line.instruction, () => `MBT${nextTempId++}`);
@@ -148,6 +165,10 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
       }
     }
 
+    if (retryPacking) {
+      continue;
+    }
+
     if (retryWith) {
       current = retryWith;
       continue;
@@ -157,6 +178,97 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   }
 
   throw new Error("Internal error: line-length relief did not converge.");
+}
+
+function fuseSimpleConditionalBodies(program: LoweredProgram, breaks: ReadonlySet<string>): LoweredProgram {
+  const referenceCounts = new Map<string, number>();
+  const addReference = (label: string): void => {
+    const key = normalizeLabel(label);
+    referenceCounts.set(key, (referenceCounts.get(key) ?? 0) + 1);
+  };
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "goto" || instruction.kind === "gosub" || instruction.kind === "if-goto" || instruction.kind === "if-gosub") {
+      addReference(instruction.label);
+    } else if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
+      instruction.labels.forEach(addReference);
+    }
+  }
+
+  const instructions: Instruction[] = [];
+  for (let index = 0; index < program.instructions.length; index += 1) {
+    const instruction = program.instructions[index];
+    if (instruction.kind !== "if-goto") {
+      instructions.push(instruction);
+      continue;
+    }
+    const key = normalizeLabel(instruction.label);
+    const label = program.labels.get(key);
+    const body = label && label.index > index ? program.instructions.slice(index + 1, label.index) : [];
+    if (!label?.internal || breaks.has(key) || referenceCounts.get(key) !== 1 || body.length === 0 || body.length > 4 || !body.every(isInlineConditionalBodyInstruction)) {
+      instructions.push(instruction);
+      continue;
+    }
+    instructions.push({
+      kind: "if-then",
+      condition: invertCondition(instruction.condition),
+      body,
+      originalSkipLabel: instruction.label,
+      location: instruction.location
+    });
+    index = label.index;
+  }
+  return rebuildLabels(program, instructions);
+}
+
+function isInlineConditionalBodyInstruction(instruction: Instruction): boolean {
+  switch (instruction.kind) {
+    case "let":
+    case "multi-let":
+    case "array-let":
+    case "cls":
+    case "print":
+    case "print-device":
+    case "open-device":
+    case "close-device":
+    case "read":
+    case "restore":
+    case "read-key":
+    case "randomize":
+    case "position":
+    case "setcolor":
+    case "poke":
+    case "print-chr":
+    case "sys":
+    case "goto":
+    case "gosub":
+    case "return":
+    case "end":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function renderNumberedLine(
+  target: TargetBackend,
+  line: NumberedProgram["lines"][number],
+  labelLines: ReadonlyMap<string, number>,
+  readability: ReadabilityLevel
+): string {
+  if (line.instructions.length === 1) {
+    return renderCheckedLine(target, line.number, line.instruction, labelLines, readability);
+  }
+  const prefix = `${line.number} `;
+  const bodies = line.instructions.map((instruction) => {
+    const rendered = target.renderLine(line.number, instruction, labelLines, readability);
+    if (!rendered.startsWith(prefix)) {
+      throw new Error(`Internal error: rendered BASIC line does not begin with "${prefix}".`);
+    }
+    return rendered.slice(prefix.length);
+  });
+  const rendered = `${prefix}${bodies.join(":")}`;
+  validateGeneratedLineLength(target, rendered, line.instruction);
+  return rendered;
 }
 
 function filterSourceComments(program: LoweredProgram, includeSourceComments: boolean): LoweredProgram {

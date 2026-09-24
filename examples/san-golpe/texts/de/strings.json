@@ -58,6 +58,7 @@
   "reportDealHonored": "Abmachung erfuellt:",
   "reportDealFailed": "Abmachung gescheitert",
   "reportNoFunds": "Zu wenig Geld",
+  "reportPresidentThinking": "Praesident wirkt",
   "orderNeedsContact": "Dort brauchst du einen Kontakt.",
   "orderNoFunds": "Das Budget reicht nicht fuer den Deal.",
   "intelUnknown": "Unbekannt",
@@ -70,5 +71,10 @@
   "agendaDuty": "Erfuellt seine Pflicht",
   "agendaUsurp": "Strebt nach Macht",
   "agendaLove": "Sucht die Liebe",
-  "agendaSpy": "Geheimer Spion"
+  "agendaSpy": "Geheimer Spion",
+  "economyStronglySocialist": "stark sozialistisch",
+  "economySocialistLeaning": "eher sozialistisch",
+  "economyMiddle": "unentschieden",
+  "economyFreeMarketLeaning": "eher marktwirtschaftlich",
+  "economyStronglyFreeMarket": "stark marktwirtschaftlich"
 }

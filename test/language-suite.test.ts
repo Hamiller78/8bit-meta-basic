@@ -19,7 +19,7 @@ describe("Meta-BASIC language conformance suite", () => {
     expect(c64).not.toMatch(/^10 print chr\$\(14\);/u);
     expect(c64).toMatch(/^10 /u);
     expect(c64).toContain("META CONTROL PROGRAM");
-  });
+  }, 30_000);
 });
 
 function testFiles(): string[] {

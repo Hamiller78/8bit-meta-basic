@@ -168,23 +168,22 @@ describe("Meta-BASIC functions", () => {
         "10 LET A=1",
         "20 LET B=2",
         "30 LET MBF1P1=A",
-        "40 GO SUB 140",
+        "40 GO SUB 130",
         "50 LET MBT1=MBF1R",
         "60 LET MBF1P1=B",
-        "70 GO SUB 160",
+        "70 GO SUB 150",
         "80 LET MBT2=MBF1R",
-        "90 LET MBF1P1=MBT1",
-        "100 LET MBF3P2=MBT2",
-        "110 GO SUB 180",
-        "120 LET X=MBF1R",
-        "130 GO TO 200",
-        "140 LET MBF1R=MBF1P1 + 1",
-        "150 RETURN",
-        "160 LET MBF1R=MBF1P1 + 2",
-        "170 RETURN",
-        "180 LET MBF1R=MBF1P1 * 10 + MBF3P2",
-        "190 RETURN",
-        "200 REM END",
+        "90 LET MBF1P1=MBT1:LET MBF3P2=MBT2",
+        "100 GO SUB 170",
+        "110 LET X=MBF1R",
+        "120 GO TO 190",
+        "130 LET MBF1R=MBF1P1 + 1",
+        "140 RETURN",
+        "150 LET MBF1R=MBF1P1 + 2",
+        "160 RETURN",
+        "170 LET MBF1R=MBF1P1 * 10 + MBF3P2",
+        "180 RETURN",
+        "190 REM END",
         ""
       ].join("\n")
     );
@@ -273,8 +272,7 @@ describe("Meta-BASIC functions", () => {
     );
 
     expect(output).toContain("LET V0=-1");
-    expect(output).toContain("IF V0 = 19 THEN GO TO");
-    expect(output).toContain("PRINT 20");
+    expect(output).toContain("IF V0 = 19 THEN PRINT 20");
     expect(output).not.toContain("TXTQUEUESIZE");
   });
 

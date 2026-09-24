@@ -35,6 +35,8 @@ Money is measured in `k$`: one unit is 1,000 US dollars. The starting budget is 
 
 Player knowledge is stored as one numeric level per character, separate from the character's true attributes. Level 0 identifies only an entry in a location (the two USSR Embassy agents start here); level 1 reveals the name; level 2 also reveals a rough integrity band (`0–3` low, `4–7` medium, `8–10` high); level 3 also reveals the agenda. All other starting characters are known by name at level 1. `revealCharacter(index, level)` raises knowledge without lowering an existing level.
 
+The President has a hidden economic position from `0` (socialist) to `100` (free market), initially `50`. Game systems move it through `adjustPresidentEconomy(change)`, which keeps it within that range; future coffee-market and event logic can therefore influence the same state. The player never sees the number. Investigating the President through an established Palace contact produces one of five qualitative descriptions. All living characters except US agents, Soviet agents, and the US tourist are considered close enough to have an opinion. A reliable contact reports the correct band; a failed integrity roll moves the report one band in either direction. The bartender is a wildcard who can potentially know about any living character. Other characters can provide information about people at their own location.
+
 The focused test configurations keep the emulator programs small enough to load, while exercising the actual BASIC for each feature:
 
 ```sh

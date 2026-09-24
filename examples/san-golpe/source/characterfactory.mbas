@@ -43,7 +43,7 @@ end function
 
 function resetCharacterFactory()
     randomize
-    initNameArrays()
+    resetNameSelection()
     createdCharacterCount = 0
     characterFactoryInitialized = 1
 end function
@@ -75,8 +75,6 @@ function createCharacter(nationality, gender)
     end if
     characterIndex = createdCharacterCount
 
-    characters(characterIndex).gender% = actualGender
-    characters(characterIndex).nationality% = nationality
     characters(characterIndex).first$ = firstName$
     characters(characterIndex).last$ = lastName$
     characters(characterIndex).role% = none

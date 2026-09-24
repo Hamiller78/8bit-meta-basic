@@ -18,7 +18,13 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "for":
       return [instruction.start, instruction.limit, ...(instruction.step ? [instruction.step] : [])];
     case "if-goto":
+    case "if-gosub":
       return [instruction.condition];
+    case "if-then":
+      return [instruction.condition, ...instruction.body.flatMap(instructionExpressions)];
+    case "on-goto":
+    case "on-gosub":
+      return [instruction.expression];
     case "position":
       return [instruction.row, instruction.column];
     case "poke":
@@ -79,7 +85,13 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
     case "for":
       return { ...instruction, start: map(instruction.start), limit: map(instruction.limit), ...(instruction.step ? { step: map(instruction.step) } : {}) };
     case "if-goto":
+    case "if-gosub":
       return { ...instruction, condition: map(instruction.condition) };
+    case "if-then":
+      return { ...instruction, condition: map(instruction.condition), body: instruction.body.map((bodyInstruction) => mapInstructionExpressions(bodyInstruction, map)) };
+    case "on-goto":
+    case "on-gosub":
+      return { ...instruction, expression: map(instruction.expression) };
     case "position":
       return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "poke":

@@ -20,7 +20,7 @@ import {
   type StringArrayStorage
 } from "./string-array-lengths.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
-import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -53,7 +53,21 @@ export const spectrumTarget: TargetBackend = {
       }
       instruction = staged.instruction;
 
-      if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+      if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
+        const branchKind = instruction.kind === "on-goto" ? "if-goto" as const : "if-gosub" as const;
+        instructions.push(...instruction.labels.map((label, index) => ({
+          kind: branchKind,
+          condition: {
+            kind: "binary" as const,
+            operator: "=" as const,
+            left: instruction.expression,
+            right: { kind: "number" as const, value: index + 1, raw: String(index + 1), location: instruction.location },
+            location: instruction.location
+          },
+          label,
+          location: instruction.location
+        })));
+      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
         const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
         if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
         instructions.push(...attachStringArrayLengthDimension(instruction, definition));
@@ -157,6 +171,14 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} NEXT ${variableMap.get(instruction.variable.toLowerCase()) ?? instruction.variable.toUpperCase()}`;
       case "if-goto":
         return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GO TO ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-gosub":
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN GO SUB ${resolveLabel(labelLines, instruction.label)}`;
+      case "if-then":
+        return `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${renderInlineInstructionBodies(spectrumTarget, lineNumber, instruction.body, labelLines, readability)}`;
+      case "on-goto":
+        throw new Error("Internal error: unexpected on-goto instruction for Spectrum.");
+      case "on-gosub":
+        throw new Error("Internal error: unexpected on-gosub instruction for Spectrum.");
       case "randomize":
         return instruction.seed ? `${lineNumber} RANDOMIZE ${renderExpression(instruction.seed, renderOptions)}` : `${lineNumber} RANDOMIZE`;
       case "position":
@@ -959,6 +981,10 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "return":
     case "end":
     case "if-goto":
+    case "if-gosub":
+    case "if-then":
+    case "on-goto":
+    case "on-gosub":
     case "position":
     case "setcolor":
     case "poke":

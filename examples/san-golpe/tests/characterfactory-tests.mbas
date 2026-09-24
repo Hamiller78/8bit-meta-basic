@@ -4,9 +4,9 @@ uses "../source/characterfactory.mbas"
 
 test ProgramModeDoesNotInterruptNameInitialization()
     program_mode
-    initNameArrays()
-    assert_eq "Vladimir", russianMaleNames$(0)
-    assert_eq "Sokolov", russianLastNames$(russianLastNames - 1)
+    resetNameSelection()
+    assert_eq "Vladimir", readCharacterName$(russianMaleNameOffset, 0)
+    assert_eq "Sokolov", readCharacterName$(russianLastNameOffset, russianLastNames - 1)
 end test
 
 test CharacterNamesAreUsedOnlyOnce()
@@ -50,15 +50,11 @@ test AllCharacterRolesAreCreated()
 
     assert_eq numberOfCharacters, createdCharacterCount
     assert_eq usagent, characters(0).role%
-    assert_eq male, characters(0).gender%
     assert_eq usagent, characters(1).role%
-    assert_eq female, characters(1).gender%
     assert_eq ussragent, characters(2).role%
-    assert_eq male, characters(2).gender%
     russianMaleLast$ = characters(2).last$
     assert_ne "a", right$(russianMaleLast$, 1)
     assert_eq ussragent, characters(3).role%
-    assert_eq female, characters(3).gender%
     russianFemaleLast$ = characters(3).last$
     assert_eq "a", right$(russianFemaleLast$, 1)
     assert_eq president, characters(4).role%

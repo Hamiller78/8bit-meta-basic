@@ -58,6 +58,7 @@
   "reportDealHonored": "Deal honored:",
   "reportDealFailed": "Deal failed",
   "reportNoFunds": "Insufficient funds",
+  "reportPresidentThinking": "President seems",
   "orderNeedsContact": "You need a contact at that location.",
   "orderNoFunds": "The budget cannot cover this deal.",
   "intelUnknown": "Unknown",
@@ -70,5 +71,10 @@
   "agendaDuty": "Doing their duty",
   "agendaUsurp": "Seeking power",
   "agendaLove": "Looking for love",
-  "agendaSpy": "Secret spy"
+  "agendaSpy": "Secret spy",
+  "economyStronglySocialist": "strongly socialist",
+  "economySocialistLeaning": "socialist-leaning",
+  "economyMiddle": "undecided",
+  "economyFreeMarketLeaning": "free-market leaning",
+  "economyStronglyFreeMarket": "strongly pro-market"
 }

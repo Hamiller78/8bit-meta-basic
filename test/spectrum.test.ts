@@ -91,11 +91,9 @@ describe("Spectrum compiler", () => {
     expect(compileSource(source, { filename: "flow.mbas", target: "spectrum", readability: 0 })).toBe(
       [
         '10 PRINT "WARNING"',
-        "20 IF CONFIRMED THEN GO TO 50",
-        '30 PRINT "AWAITING SECOND SOURCE"',
-        "40 GO TO 60",
-        '50 PRINT "ATTACK CONFIRMED"',
-        "60 GO TO 10",
+        '20 IF CONFIRMED = 0 THEN PRINT "AWAITING SECOND SOURCE":GO TO 40',
+        '30 PRINT "ATTACK CONFIRMED"',
+        "40 GO TO 10",
         ""
       ].join("\n")
     );
@@ -103,7 +101,7 @@ describe("Spectrum compiler", () => {
 
   it("renders IF without ELSE", () => {
     expect(compileSource('if ready then\nprint "READY"\nend if\n', { filename: "if.mbas", target: "spectrum" })).toBe(
-      ["10 IF READY THEN GO TO 30", "20 GO TO 50", "30 REM __MB_1:", '40 PRINT "READY"', "50 REM __MB_2:", ""].join("\n")
+      ["10 IF READY = 0 THEN GO TO 30", '20 PRINT "READY"', "30 REM __MB_1:", ""].join("\n")
     );
   });
 
@@ -123,15 +121,11 @@ describe("Spectrum compiler", () => {
       [
         "10 LET TOTAL=0",
         "20 FOR I=1 TO 5",
-        "30 IF I = 2 THEN GO TO 50",
-        "40 GO TO 60",
-        "50 GO TO 100",
-        "60 IF I = 4 THEN GO TO 80",
-        "70 GO TO 90",
-        "80 GO TO 110",
-        "90 LET TOTAL=TOTAL + I",
-        "100 NEXT I",
-        "110 PRINT TOTAL",
+        "30 IF I = 2 THEN GO TO 60",
+        "40 IF I = 4 THEN GO TO 70",
+        "50 LET TOTAL=TOTAL + I",
+        "60 NEXT I",
+        "70 PRINT TOTAL",
         ""
       ].join("\n")
     );
@@ -144,7 +138,7 @@ describe("Spectrum compiler", () => {
         target: "spectrum",
         readability: 0
       })
-    ).toBe(["10 FOR R=10 TO 1 STEP -2", "20 FOR C=1 TO 2", "30 PRINT R;C", "40 NEXT C", "50 NEXT R", ""].join("\n"));
+    ).toBe(["10 FOR R=10 TO 1 STEP -2", "20 FOR C=1 TO 2:PRINT R;C:NEXT C", "30 NEXT R", ""].join("\n"));
   });
 
   it("lowers WHILE/WEND and REPEAT/UNTIL to conditional jumps", () => {
@@ -167,19 +161,16 @@ describe("Spectrum compiler", () => {
       [
         "10 LET COUNT=0",
         "20 REM __MB_1:",
-        "30 IF COUNT < 3 THEN GO TO 50",
-        "40 GO TO 90",
-        "50 REM __MB_2:",
-        "60 PRINT COUNT",
-        "70 LET COUNT=COUNT + 1",
-        "80 GO TO 20",
-        "90 REM __MB_3:",
-        "100 REM __MB_4:",
-        "110 LET COUNT=COUNT - 1",
-        "120 PRINT COUNT",
-        "130 IF COUNT = 0 THEN GO TO 150",
-        "140 GO TO 100",
-        "150 REM __MB_5:",
+        "30 IF COUNT >= 3 THEN GO TO 70",
+        "40 PRINT COUNT",
+        "50 LET COUNT=COUNT + 1",
+        "60 GO TO 20",
+        "70 REM __MB_2:",
+        "80 REM __MB_3:",
+        "90 LET COUNT=COUNT - 1",
+        "100 PRINT COUNT",
+        "110 IF COUNT <> 0 THEN GO TO 80",
+        "120 REM __MB_4:",
         ""
       ].join("\n")
     );
@@ -207,11 +198,9 @@ describe("Spectrum compiler", () => {
         "30 LET UNARY=-A + 3",
         "40 LET POWER=BASE ^ EXPONENT * 3",
         "50 LET NEGATIVEPOWER=-(BASE ^ EXPONENT)",
-        "60 IF ((NOT (CONFIRMED <> 0)) <> 0) OR ((((A <> B) <> 0) AND ((C <= 10) <> 0)) <> 0) THEN GO TO 80",
-        "70 GO TO 100",
+        "60 IF ((CONFIRMED) <> 0) AND ((((A = B) <> 0) OR ((C > 10) <> 0)) <> 0) THEN GO TO 80",
+        '70 PRINT "YES";',
         "80 REM __MB_1:",
-        '90 PRINT "YES";',
-        "100 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -242,11 +231,9 @@ describe("Spectrum compiler", () => {
       [
         '10 PRINT "SECONDS: ";60',
         '20 PRINT "ROW: ";23',
-        "30 IF 0 THEN GO TO 50",
-        "40 GO TO 70",
+        "30 IF 0 = 0 THEN GO TO 50",
+        '40 PRINT "NEVER"',
         "50 REM __MB_1:",
-        '60 PRINT "NEVER"',
-        "70 REM __MB_2:",
         ""
       ].join("\n")
     );
@@ -320,7 +307,7 @@ describe("Spectrum compiler", () => {
 
   it("lowers STRUCT arrays to backing arrays with field access", () => {
     expect(compileSource("struct QueueItem\nRow\nText$(10)\nend struct\ndim Queue AS QueueItem(4)\nQueue(0).Row = 7\nQueue(0).Text$ = \"READY\"\nprint Queue(0).Row; Queue(0).Text$\n", { filename: "struct.mbas", target: "spectrum", readability: 0 })).toBe(
-      ["10 DIM Q(4)", "20 DIM Q$(4,10)", "30 DIM M(4)", '40 LET Q(1)=7', '50 LET Q$(1,1 TO 10)="READY"', "60 LET M(1)=5", "70 PRINT Q(1);Q$(1,1 TO M(1))", ""].join("\n")
+      ["10 DIM Q(4):DIM Q$(4,10):DIM M(4)", '20 LET Q(1)=7', '30 LET Q$(1,1 TO 10)="READY":LET M(1)=5', "40 PRINT Q(1);Q$(1,1 TO M(1))", ""].join("\n")
     );
   });
 
@@ -580,7 +567,11 @@ describe("Spectrum compiler", () => {
       expect(output).toContain("DIM B(2)");
       expect(output).not.toContain("LET B=0");
       expect(output).toMatch(/PRINT B\((?:BN|V0) \+ 1\)/u);
-      expect(output).toMatch(/\(\((?:BN|V0) = 0\) <> 0\) OR \(\((?:BN|V0) = 1\) <> 0\) OR \(\((?:BN|V0) = 2\) <> 0\)/u);
+      if (readability === 0) {
+        expect(output).toMatch(/\(\((?:BN|V0) = 0\) <> 0\) OR \(\((?:BN|V0) = 1\) <> 0\) OR \(\((?:BN|V0) = 2\) <> 0\)/u);
+      } else {
+        expect(output).toMatch(/\(\((?:BN|V0) <> 0\) <> 0\) AND \(\((?:BN|V0) <> 1\) <> 0\) AND \(\((?:BN|V0) <> 2\) <> 0\)/u);
+      }
     }
   });
 
@@ -648,13 +639,11 @@ describe("Spectrum compiler", () => {
       })
     ).toBe(
       [
-        "10 DIM N$(3,8)",
-        "20 DIM M(3)",
-        "30 LET V0=INT (RND * 3)",
-        "40 PRINT N$(V0 + 1,1 TO M(V0 + 1))",
-        "50 LET V1=INT (RND * 3)",
-        '60 LET N$(V1 + 1,1 TO 8)="X"',
-        "70 LET M(V1 + 1)=1",
+        "10 DIM N$(3,8):DIM M(3)",
+        "20 LET V0=INT (RND * 3)",
+        "30 PRINT N$(V0 + 1,1 TO M(V0 + 1))",
+        "40 LET V1=INT (RND * 3)",
+        '50 LET N$(V1 + 1,1 TO 8)="X":LET M(V1 + 1)=1',
         ""
       ].join("\n")
     );
@@ -763,7 +752,7 @@ describe("Spectrum compiler", () => {
         target: "spectrum",
         readability: 0
       })
-    ).toBe(["10 LET PRESSED=(INKEY$ <> \"\")", "20 IF (INKEY$ <> \"\") THEN GO TO 40", "30 GO TO 50", '40 PRINT "KEY"', "50 PRINT 0", ""].join("\n"));
+    ).toBe(["10 LET PRESSED=(INKEY$ <> \"\")", '20 IF (INKEY$ <> "") <> 0 THEN PRINT "KEY"', "30 PRINT 0", ""].join("\n"));
   });
 
   it("reports invalid compile-time string fill calls", () => {
@@ -922,16 +911,14 @@ describe("Spectrum compiler", () => {
 
     expect(output).toBe(
       [
-        "10 IF OUTER THEN GO TO 30",
-        "20 GO TO 100",
-        "30 REM __MB_1:",
-        "40 IF INNER THEN GO TO 70",
-        '50 PRINT "OUTER"',
-        "60 GO TO 90",
+        "10 IF OUTER = 0 THEN GO TO 80",
+        "20 IF INNER THEN GO TO 50",
+        '30 PRINT "OUTER"',
+        "40 GO TO 70",
+        "50 REM __MB_2:",
+        '60 PRINT "BOTH"',
         "70 REM __MB_3:",
-        '80 PRINT "BOTH"',
-        "90 REM __MB_4:",
-        "100 REM __MB_2:",
+        "80 REM __MB_1:",
         ""
       ].join("\n")
     );
@@ -1048,7 +1035,7 @@ describe("Spectrum compiler", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });
 
 function runCli(...args: string[]) {

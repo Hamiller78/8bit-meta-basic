@@ -1,6 +1,7 @@
 uses "characterfactory.mbas"
 uses "characters.mbas"
 uses "intelligence.mbas"
+uses "politics.mbas"
 uses "agentoperations.mbas"
 uses "intro.mbas"
 uses "mainscreen.mbas"
@@ -19,6 +20,7 @@ set_pos int(TEXT_ROWS / 2), 1
 print_centered text$("creatingCharacters")
 createAllCharacters(true)
 initializeIntelligence()
+initializePolitics()
 initializeAgentOperations()
 
 gameover% = 0
