@@ -14,7 +14,7 @@ interface PackedField {
 export function packNumericStructFields(instructions: readonly Instruction[], preserveIntegerStorage = false): readonly Instruction[] {
   const groups = new Map<string, Extract<Instruction, { kind: "dim-array" }>[]>();
   for (const instruction of instructions) {
-    if (instruction.kind !== "dim-array" || !instruction.structArrayName || isStringVariableName(instruction.name)) continue;
+    if (instruction.kind !== "dim-array" || !instruction.structArrayName || isStringVariableName(instruction.name) || (instruction.storageType === "byte" && !preserveIntegerStorage)) continue;
     const storageType = preserveIntegerStorage && isIntegerVariableName(instruction.name) ? "integer" : "number";
     const key = `${instruction.structArrayName.toLowerCase()}:${storageType}`;
     const fields = groups.get(key) ?? [];

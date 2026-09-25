@@ -1,0 +1,7 @@
+{
+  "files": [
+    "targets/atari.mbas",
+    "source/benchmarks.mbas"
+  ],
+  "font": "mixed"
+}

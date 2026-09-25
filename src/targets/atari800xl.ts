@@ -20,6 +20,7 @@ import {
   type StringArrayStorage
 } from "./string-array-lengths.js";
 import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { lowerByteStorage } from "./byte-storage.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -28,7 +29,8 @@ export const atari800xlTarget: TargetBackend = {
   maxLineNumber: 32767,
   variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const positioned = expandPositionedPrints(program, "Atari 800XL", 23, 39, (instruction) => [
+    const byteLowered = lowerByteStorage(program, "atari800xl");
+    const positioned = expandPositionedPrints(byteLowered, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
@@ -154,11 +156,12 @@ export const atari800xlTarget: TargetBackend = {
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
-      } else if (instruction.kind === "let" && isStringVariableName(instruction.name)) {
+      } else if (instruction.kind === "let" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
         pushStringAssignment(instruction);
       } else if (
         instruction.kind === "array-let" &&
         isStringVariableName(instruction.name) &&
+        instruction.storageType !== "byte" &&
         instruction.expression.kind !== "string" &&
         instruction.expression.kind !== "identifier"
       ) {
@@ -172,7 +175,7 @@ export const atari800xlTarget: TargetBackend = {
           }
         }
         instructions.push(instruction);
-      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
         instructions.push(instruction, ...createAtariStringArrayInitialization(instruction));
       } else if (instruction.kind === "print" || instruction.kind === "print-device") {
         const beforePrint: Instruction[] = [];
@@ -240,9 +243,11 @@ export const atari800xlTarget: TargetBackend = {
       case "multi-let":
         return `${lineNumber} ${instruction.assignments.map((assignment) => renderAtariAssignmentBody(assignment, variableMap, renderOptions)).join(":")}`;
       case "dim-array":
-        return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${renderAtariArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
+        return `${lineNumber} DIM ${renderAtariArrayName(instruction.name, variableMap)}(${instruction.storageType === "byte" ? instruction.dimensions[0] : renderAtariArrayDimensions(instruction.name, instruction.dimensions).join(",")})`;
       case "array-let":
-        return `${lineNumber} ${renderAtariArrayAssignmentTarget(instruction.name, instruction.indices, instruction.location, variableMap, renderOptions)}=${renderAtariArrayAssignmentExpression(instruction.name, instruction.expression) ?? renderExpression(instruction.expression, renderOptions)}`;
+        return instruction.storageType === "byte"
+          ? `${lineNumber} ${renderAtariByteArrayTarget(instruction.name, instruction.indices[0], renderOptions)}=${renderAtariByteWrite(instruction.expression, renderOptions)}`
+          : `${lineNumber} ${renderAtariArrayAssignmentTarget(instruction.name, instruction.indices, instruction.location, variableMap, renderOptions)}=${renderAtariArrayAssignmentExpression(instruction.name, instruction.expression) ?? renderExpression(instruction.expression, renderOptions)}`;
       case "read-key":
         throw new Error("Internal error: unexpected read-key instruction for Atari 800XL.");
       case "dim-string":
@@ -302,7 +307,7 @@ function expandAtariLogicalStringArrays(
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
-    if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+    if (instruction.kind === "dim-array" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
       const definition = stringArrayStorageFor(instruction.name, storage);
       if (!definition) throw new Error(`Internal error: missing Atari string array storage for ${instruction.name}.`);
       instructions.push(...attachStringArrayLengthDimension(instruction, definition));
@@ -326,7 +331,7 @@ function expandAtariLogicalStringArrays(
       continue;
     }
 
-    if (instruction.kind !== "array-let" || !isStringVariableName(instruction.name)) {
+    if (instruction.kind !== "array-let" || instruction.storageType === "byte" || !isStringVariableName(instruction.name)) {
       instructions.push(instruction);
       continue;
     }
@@ -550,7 +555,7 @@ function rewriteAtariStringArrayReads(
     }
     case "array-access": {
       const indices = expression.indices.map(rewrite);
-      if (!isStringVariableName(expression.name) || expression.fixedWidthStorageLength) {
+      if (expression.valueType === "byte" || !isStringVariableName(expression.name) || expression.fixedWidthStorageLength) {
         return {
           ...expression,
           indices,
@@ -728,11 +733,14 @@ function renderAtariAssignment(
 }
 
 function renderAtariAssignmentBody(
-  instruction: Pick<Extract<Instruction, { kind: "let" }>, "name" | "expression">,
+  instruction: Pick<Extract<Instruction, { kind: "let" }>, "name" | "expression" | "storageType">,
   variableMap: ReadonlyMap<string, string>,
   renderOptions: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }
 ): string {
   const targetName = variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase();
+  if (instruction.storageType === "byte") {
+    return `${targetName}=${renderAtariByteWrite(instruction.expression, renderOptions)}`;
+  }
   const appendExpression = stringSelfAppendRight(instruction.name, instruction.expression);
   if (appendExpression) {
     return `${targetName}(LEN(${targetName})+1)=${renderExpression(appendExpression, renderOptions)}`;
@@ -759,6 +767,9 @@ function renderAtariArrayAccess(
   expression: Extract<Expression, { kind: "array-access" }>,
   options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
 ): string {
+  if (expression.valueType === "byte") {
+    return renderAtariByteArrayTarget(expression.name, expression.indices[0], options);
+  }
   if (isStringVariableName(expression.name)) {
     const width = atariStringArrayWidth(expression.name);
     const start = expression.fixedWidthStorageStart
@@ -771,6 +782,29 @@ function renderAtariArrayAccess(
   }
 
   return `${renderAtariArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderExpression(index, options)).join(",")})`;
+}
+
+function renderAtariByteArrayTarget(
+  name: string,
+  index: Expression,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  const position = renderExpression({
+    kind: "binary",
+    operator: "+",
+    left: index,
+    right: { kind: "number", value: 1, raw: "1", location: index.location },
+    location: index.location
+  }, options);
+  const nameRendered = renderAtariArrayName(name, options.variableMap ?? new Map());
+  return `${nameRendered}(${position},${position})`;
+}
+
+function renderAtariByteWrite(
+  expression: Expression,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
+): string {
+  return `CHR$(${renderExpression(expression, options)})`;
 }
 
 function renderAtariArrayName(name: string, variableMap: ReadonlyMap<string, string>): string {

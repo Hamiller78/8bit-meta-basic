@@ -116,6 +116,7 @@ Meta-BASIC infers the storage kind from the name and usage. There are no separat
 | `name$` | String |
 | `dim scores(10)` | Numeric array with indexes `0..9` |
 | `dim counters%(10)` | Integer array with indexes `0..9` |
+| `dim flags as byte(10)` | Compact byte array with indexes `0..9` |
 | `dim names$(10, 16)` | Ten strings, each with a declared width of 16 |
 
 Assignment never uses `LET` in Meta-BASIC:
@@ -130,6 +131,18 @@ names$(0) = name$
 
 An array dimension is an element count rather than the largest index. Constant indexes are checked by the compiler; dynamic indexes remain the program's responsibility.
 
+Use experimental `BYTE` storage for dense values that remain in `0..255`:
+
+```basic
+dim tileColours as byte(100)
+
+tileColours(0) = 7
+nextColour = tileColours(0) + 1
+tileColours(1) = nextColour
+```
+
+Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64 uses native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
+
 The fixed width is the element's capacity, not its logical string length. Assigning `"READY"` to an element of width 12 reads back as the five-character string `"READY"`; assigning `"READY "` preserves the deliberate trailing space and reads back with length 6. Spectrum and Atari generated code maintains hidden logical-length arrays so storage padding never becomes part of the Meta-BASIC value. This also applies to string fields in struct arrays.
 
 Structs group related values at source level:
@@ -138,6 +151,7 @@ Structs group related values at source level:
 struct Message
     row
     column
+    flags as byte
     text$(32)
 end struct
 

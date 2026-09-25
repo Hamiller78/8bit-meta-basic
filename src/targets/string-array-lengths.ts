@@ -16,7 +16,7 @@ export function buildStringArrayStorage(instructions: readonly Instruction[]): R
   let next = 1;
 
   for (const instruction of instructions) {
-    if (instruction.kind !== "dim-array" || !isStringVariableName(instruction.name)) {
+    if (instruction.kind !== "dim-array" || instruction.storageType === "byte" || !isStringVariableName(instruction.name)) {
       continue;
     }
 

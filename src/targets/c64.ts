@@ -11,6 +11,7 @@ import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
+import { lowerByteStorage } from "./byte-storage.js";
 import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
@@ -20,7 +21,8 @@ export const c64Target: TargetBackend = {
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
-    const expanded = expandPositionedPrints(program, "C64", 24, 39, (instruction) => [
+    const byteLowered = lowerByteStorage(program, "c64");
+    const expanded = expandPositionedPrints(byteLowered, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.at!.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.at!.column, location: instruction.location },
       { kind: "sys", address: 58732, location: instruction.location },

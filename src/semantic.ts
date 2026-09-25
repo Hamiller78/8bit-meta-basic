@@ -29,7 +29,7 @@ interface ConstantDefinition {
 
 interface ArrayDefinition {
   readonly name: string;
-  readonly valueType: "number" | "string";
+  readonly valueType: "number" | "string" | "byte";
   readonly dimensions: readonly number[];
   readonly location: Expression["location"];
 }
@@ -37,7 +37,7 @@ interface ArrayDefinition {
 interface StructFieldDefinition {
   readonly name: string;
   readonly storageSuffix: string;
-  readonly valueType: "number" | "string";
+  readonly valueType: "number" | "string" | "byte";
   readonly dimensions: readonly number[];
   readonly location: Expression["location"];
 }
@@ -118,7 +118,9 @@ function predeclareTopLevelSymbols(
     if (statement.kind !== "dim") {
       continue;
     }
-    if (statement.asType) {
+    if (isByteType(statement.asType)) {
+      declareByteStorage(statement, constants, arrays, scalarNames);
+    } else if (statement.asType) {
       analyzeStructDim(statement, constants, arrays, structs, structValues, scalarNames);
     } else {
       declareNativeArray(statement, constants, arrays, scalarNames);
@@ -229,6 +231,31 @@ function analyzeStatements(
         analyzed.push(statement);
         break;
       case "dim": {
+        if (isByteType(statement.asType)) {
+          const key = normalizeName(statement.name);
+          const existing = arrays.get(key);
+          const dimensions = existing?.location === statement.location
+            ? existing.dimensions
+            : declareByteStorage(statement, constants, arrays, scalarNames).dimensions;
+          if (dimensions.length === 0) {
+            analyzed.push({
+              kind: "let",
+              name: statement.name,
+              expression: { kind: "number", value: 0, raw: "0", location: statement.location },
+              sourceName: statement.name,
+              storageType: "byte",
+              location: statement.location
+            });
+            break;
+          }
+          analyzed.push({
+            ...statement,
+            asType: undefined,
+            storageType: "byte",
+            dimensions: dimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location }))
+          });
+          break;
+        }
         if (statement.asType) {
           const expanded = analyzeStructDim(statement, constants, arrays, structs, structValues, scalarNames);
           analyzed.push(...expanded);
@@ -287,8 +314,9 @@ function analyzeStatements(
           const lowered = structTarget.fields.map((field) => ({
             kind: "let" as const,
             name: structFieldStorageName(structTarget.name, field),
-            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), location: statement.expression.location },
+            expression: { kind: "identifier" as const, name: structFieldStorageName(valueDefinition.name, field), valueType: field.valueType, location: statement.expression.location },
             sourceName: `${statement.name}.${field.name}`,
+            ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
             location: statement.location
           }));
           analyzed.push(...analyzeStatements(lowered, constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
@@ -296,6 +324,9 @@ function analyzeStatements(
         }
         const targetName = resolveScopedName(statement.name, scope);
         const isScopedVariable = scope?.variables.has(normalizeName(statement.name)) ?? false;
+        const scalarByte = !isScopedVariable
+          ? arrays.get(normalizeName(statement.name))?.valueType === "byte" && arrays.get(normalizeName(statement.name))?.dimensions.length === 0
+          : false;
         if (!isScopedVariable) {
           const existing = constants.get(normalizeName(statement.name));
           if (existing?.environment) {
@@ -304,7 +335,7 @@ function analyzeStatements(
           if (existing) {
             throw new DiagnosticError(statement.location, `Cannot assign to constant "${statement.name}".`);
           }
-          if (arrays.has(normalizeName(statement.name))) {
+          if (arrays.has(normalizeName(statement.name)) && !scalarByte) {
             throw new DiagnosticError(statement.location, `Cannot assign scalar value to array "${statement.name}".`);
           }
           scalarNames.add(normalizeName(statement.name));
@@ -317,6 +348,12 @@ function analyzeStatements(
           if (expression.kind !== "string" && !isStringExpression(expression)) {
             throw new DiagnosticError(statement.location, "String variable assignments require a string expression.");
           }
+        } else if (statement.storageType === "byte" || scalarByte) {
+          if (expression.kind === "string" || isStringExpression(expression)) {
+            throw new DiagnosticError(statement.location, "BYTE assignments require a numeric expression.");
+          }
+          analyzed.push({ ...statement, name: targetName, sourceName: statement.sourceName ?? statement.name, expression: byteCoercion(expression, statement.location), storageType: "byte" });
+          break;
         } else if (isIntegerVariableName(targetName)) {
           if (expression.kind === "string" || isStringExpression(expression)) {
             throw new DiagnosticError(statement.location, "Integer variable assignments require a numeric expression.");
@@ -370,7 +407,10 @@ function analyzeStatements(
         analyzed.push({
           ...statement,
           indices,
-          expression: isIntegerVariableName(statement.name) ? intCoercion(expression, statement.location) : expression
+          expression: definition.valueType === "byte"
+            ? byteCoercion(expression, statement.location)
+            : isIntegerVariableName(statement.name) ? intCoercion(expression, statement.location) : expression,
+          ...(definition.valueType === "byte" ? { storageType: "byte" as const } : {})
         });
         break;
       }
@@ -378,8 +418,8 @@ function analyzeStatements(
         const resolved = resolveStructFieldTarget(statement.base, statement.indices, statement.field, statement.location, structValues, constants, inConstantExpression, arrays, functions, scope);
         const lowered: Statement =
           resolved.kind === "array"
-            ? { kind: "array-let", name: resolved.name, indices: resolved.indices, expression: statement.expression, location: statement.location }
-            : { kind: "let", name: resolved.name, expression: statement.expression, sourceName: `${statement.base}.${statement.field}`, location: statement.location };
+            ? { kind: "array-let", name: resolved.name, indices: resolved.indices, expression: statement.expression, ...(resolved.valueType === "byte" ? { storageType: "byte" as const } : {}), location: statement.location }
+            : { kind: "let", name: resolved.name, expression: statement.expression, sourceName: `${statement.base}.${statement.field}`, ...(resolved.valueType === "byte" ? { storageType: "byte" as const } : {}), location: statement.location };
         analyzed.push(...analyzeStatements([lowered], constants, inConstantExpression, arrays, structs, structValues, scalarNames, functions, devices, scope, testMode, forDepth));
         break;
       }
@@ -730,7 +770,14 @@ function addStructDefinition(
     }
     seenFields.add(fieldKey);
     const dimensions = field.dimensions.map((dimension) => requireArrayDimension(dimension, constants));
-    if (isStringVariableName(field.name)) {
+    if (field.asType && !isByteType(field.asType)) {
+      throw new DiagnosticError(field.location, `Unsupported field type "${field.asType}" in STRUCT ${statement.name}. Only BYTE is currently supported after AS.`);
+    }
+    if (isByteType(field.asType)) {
+      if (isStringVariableName(field.name) || isIntegerVariableName(field.name) || dimensions.length !== 0) {
+        throw new DiagnosticError(field.location, `BYTE field "${field.name}" in STRUCT ${statement.name} must be a bare field name without dimensions or a type suffix.`);
+      }
+    } else if (isStringVariableName(field.name)) {
       if (dimensions.length !== 1) {
         throw new DiagnosticError(field.location, `String field "${field.name}" in STRUCT ${statement.name} requires a fixed width, for example ${field.name}(32).`);
       }
@@ -740,7 +787,7 @@ function addStructDefinition(
     return {
       name: field.name,
       storageSuffix: field.name,
-      valueType: isStringVariableName(field.name) ? "string" : "number",
+      valueType: isByteType(field.asType) ? "byte" : isStringVariableName(field.name) ? "string" : "number",
       dimensions,
       location: field.location
     } satisfies StructFieldDefinition;
@@ -763,7 +810,9 @@ function analyzeStructDim(
   const key = normalizeName(statement.name);
   const existing = structValues.get(key);
   if (existing?.location === statement.location) {
-    return structBackingDimStatements(statement, existing);
+    return existing.dimensions.length === 0
+      ? scalarByteInitializers(statement, existing)
+      : structBackingDimStatements(statement, existing);
   }
   if (constants.has(key)) {
     throw new DiagnosticError(statement.location, `Cannot declare struct value "${statement.name}" with the same name as a constant.`);
@@ -791,7 +840,7 @@ function analyzeStructDim(
     for (const field of struct.fields) {
       scalarNames.add(normalizeName(structFieldStorageName(statement.name, field)));
     }
-    return [];
+    return scalarByteInitializers(statement, definition);
   }
 
   for (const field of struct.fields) {
@@ -800,6 +849,22 @@ function analyzeStructDim(
     arrays.set(normalizeName(fieldName), { name: fieldName, valueType: field.valueType, dimensions: fieldDimensions, location: statement.location });
   }
   return structBackingDimStatements(statement, definition);
+}
+
+function scalarByteInitializers(
+  statement: Extract<Statement, { kind: "dim" }>,
+  definition: StructValueDefinition
+): readonly Statement[] {
+  return definition.fields
+    .filter((field) => field.valueType === "byte")
+    .map((field): Statement => ({
+      kind: "let",
+      name: structFieldStorageName(statement.name, field),
+      expression: { kind: "number", value: 0, raw: "0", location: statement.location },
+      sourceName: `${statement.name}.${field.name}`,
+      storageType: "byte",
+      location: statement.location
+    }));
 }
 
 function structBackingDimStatements(
@@ -818,6 +883,7 @@ function structBackingDimStatements(
       dimensions: fieldDimensions.map((dimension) => ({ kind: "number", value: dimension, raw: dimension.toString(), location: statement.location })),
       structArrayName: statement.name,
       structFieldName: field.name,
+      ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
       location: statement.location
     };
   });
@@ -855,6 +921,36 @@ function declareNativeArray(
   return definition;
 }
 
+function declareByteStorage(
+  statement: Extract<Statement, { kind: "dim" }>,
+  constants: ReadonlyMap<string, ConstantDefinition>,
+  arrays: Map<string, ArrayDefinition>,
+  scalarNames: ReadonlySet<string>
+): ArrayDefinition {
+  if (statement.dimensions.length > 1) {
+    throw new DiagnosticError(statement.location, "BYTE storage supports a scalar or exactly one element-count dimension, for example DIM VALUE AS BYTE or DIM VALUES AS BYTE(100).");
+  }
+  if (isStringVariableName(statement.name) || isIntegerVariableName(statement.name)) {
+    throw new DiagnosticError(statement.location, `BYTE storage name "${statement.name}" must not use a $ or % suffix.`);
+  }
+  const key = normalizeName(statement.name);
+  if (constants.has(key)) throw new DiagnosticError(statement.location, `Cannot declare BYTE storage "${statement.name}" with the same name as a constant.`);
+  if (arrays.has(key) || scalarNames.has(key)) throw new DiagnosticError(statement.location, `Duplicate BYTE storage "${statement.name}".`);
+  if (canonicalFunctionName(statement.name)) throw new DiagnosticError(statement.location, `Cannot declare BYTE storage "${statement.name}" with the same name as a built-in function.`);
+  const byteDefinition = {
+    name: statement.name,
+    valueType: "byte" as const,
+    dimensions: statement.dimensions.map((dimension) => requireArrayDimension(dimension, constants)),
+    location: statement.location
+  };
+  arrays.set(key, byteDefinition);
+  return byteDefinition;
+}
+
+function isByteType(typeName: string | undefined): boolean {
+  return typeName?.toUpperCase() === "BYTE";
+}
+
 function structFieldStorageName(base: string, field: StructFieldDefinition): string {
   const suffix = field.valueType === "string" ? "$" : isIntegerVariableName(field.name) ? "%" : "";
   const baseName = base.replace(/[$%]$/u, "");
@@ -881,7 +977,7 @@ function resolveStructFieldTarget(
   arrays: ReadonlyMap<string, ArrayDefinition>,
   functions: ReadonlyMap<string, FunctionDefinition>,
   scope?: FunctionScope
-): { readonly kind: "array"; readonly name: string; readonly indices: readonly Expression[]; readonly valueType: "number" | "string" } | { readonly kind: "scalar"; readonly name: string; readonly valueType: "number" | "string" } {
+): { readonly kind: "array"; readonly name: string; readonly indices: readonly Expression[]; readonly valueType: "number" | "string" | "byte" } | { readonly kind: "scalar"; readonly name: string; readonly valueType: "number" | "string" | "byte" } {
   const resolvedBase = resolveScopedName(base, scope);
   const definition = structValues.get(normalizeName(resolvedBase)) ?? structValues.get(normalizeName(base));
   if (!definition) {
@@ -937,7 +1033,7 @@ function analyzeElementMoveStatement(
         fields: structTarget.fields.map((field) => ({
           arrayName: structFieldStorageName(targetName, field),
           valueType: field.valueType,
-          insertExpression: { kind: "identifier", name: structFieldStorageName(valueDefinition.name, field), location: statement.value.location } satisfies Expression
+          insertExpression: { kind: "identifier", name: structFieldStorageName(valueDefinition.name, field), valueType: field.valueType, location: statement.value.location } satisfies Expression
         }))
       };
     }
@@ -969,13 +1065,14 @@ function analyzeElementMoveStatement(
   } else if (value.kind === "color" || isStringExpression(value)) {
     throw new DiagnosticError(statement.value.location, "INSERT_ELEMENT value for a numeric array must be numeric.");
   }
+  const storedValue = array.valueType === "byte" ? byteCoercion(value, statement.location) : value;
   return {
     ...statement,
     target: { kind: "identifier", name: targetName, location: statement.target.location },
     index,
-    value,
+    value: storedValue,
     elementCount: array.dimensions[0],
-    fields: [{ arrayName: targetName, valueType: array.valueType, insertExpression: value }]
+    fields: [{ arrayName: targetName, valueType: array.valueType, insertExpression: storedValue }]
   };
 }
 
@@ -1209,6 +1306,13 @@ function intCoercion(expression: Expression, location: Expression["location"]): 
   };
 }
 
+function byteCoercion(expression: Expression, location: Expression["location"]): Expression {
+  if (expression.kind === "number" && (!Number.isInteger(expression.value) || expression.value < 0 || expression.value > 255)) {
+    throw new DiagnosticError(expression.location, `BYTE value ${formatNumber(expression.value)} is outside the supported range 0..255.`);
+  }
+  return intCoercion(expression, location);
+}
+
 function analyzeColorExpression(
   expression: Expression,
   constants: ReadonlyMap<string, ConstantDefinition>,
@@ -1252,6 +1356,10 @@ function foldExpression(
       if (scopedName) {
         return { ...expression, name: scopedName };
       }
+      const scalarByte = arrays.get(normalizeName(expression.name));
+      if (scalarByte?.valueType === "byte" && scalarByte.dimensions.length === 0) {
+        return { ...expression, valueType: "byte" };
+      }
       const constant = constants.get(normalizeName(expression.name));
       if (constant) {
         return literalFromValue(constant.value, expression.location);
@@ -1286,7 +1394,7 @@ function foldExpression(
         scope
       );
       if (resolved.kind === "scalar") {
-        return { kind: "identifier", name: resolved.name, location: expression.location };
+        return { kind: "identifier", name: resolved.name, valueType: resolved.valueType, location: expression.location };
       }
       return { kind: "array-access", name: resolved.name, valueType: resolved.valueType, indices: resolved.indices, location: expression.location };
     }

@@ -1,0 +1,7 @@
+{
+  "files": [
+    "targets/c64.mbas",
+    "source/benchmarks.mbas"
+  ],
+  "font": "mixed"
+}

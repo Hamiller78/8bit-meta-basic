@@ -1,0 +1,114 @@
+const arrayElements = 10
+const benchmarkPasses = 20
+const operationCount = arrayElements * benchmarkPasses
+
+dim byteValues as byte(arrayElements)
+dim numericValues(arrayElements)
+
+function benchmarkNumericLoop()
+    local pass, index, checksum, started
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkByteWrite()
+    local pass, index, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            byteValues(index) = index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericWrite()
+    local pass, index, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            numericValues(index) = index
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkByteRead()
+    local pass, index, checksum, started
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + byteValues(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericRead()
+    local pass, index, checksum, started
+    checksum = 0
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            checksum = checksum + numericValues(index)
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkByteReadWrite()
+    local pass, index, value, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            value = byteValues(index)
+            byteValues(index) = value
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericReadWrite()
+    local pass, index, value, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            value = numericValues(index)
+            numericValues(index) = value
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkByteCalculation()
+    local pass, index, value, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            value = byteValues(index)
+            value = value + 1
+            byteValues(index) = value
+        next index
+    next pass
+    return jiffies() - started
+end function
+
+function benchmarkNumericCalculation()
+    local pass, index, value, started
+    started = jiffies()
+    for pass = 1 to benchmarkPasses
+        for index = 0 to arrayElements - 1
+            value = numericValues(index)
+            value = value + 1
+            numericValues(index) = value
+        next index
+    next pass
+    return jiffies() - started
+end function

@@ -204,10 +204,13 @@ function referencesFor(s: Statement, owners: ReadonlyMap<string, string>): Refer
   if (s.kind === "read") for (const name of s.targets) add("value", name);
   if (s.kind === "dim") {
     add("value", s.name);
-    if (s.asType) add("type", s.asType);
+    if (s.asType && s.asType.toUpperCase() !== "BYTE") add("type", s.asType);
   }
   if (s.kind === "function") for (const param of s.parameterTypes ?? []) add("type", param.asType);
-  if (s.kind === "struct") for (const field of s.fields) field.dimensions.forEach(expression);
+  if (s.kind === "struct") for (const field of s.fields) {
+    field.dimensions.forEach(expression);
+    if (field.asType && field.asType.toUpperCase() !== "BYTE") add("type", field.asType);
+  }
   if (s.kind === "enum") for (const member of s.members) if (member.expression) expression(member.expression);
   if (s.kind === "goto" || s.kind === "gosub") add("label", s.label);
   if (s.kind === "print-device" || s.kind === "close-device") add("device", s.handle);

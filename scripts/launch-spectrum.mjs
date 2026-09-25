@@ -28,7 +28,7 @@ async function launchSpectrum(options) {
     language: options.language,
     font: options.font,
     testMode: options.testMode,
-    testPrinterOutput: options.testPrinterOutput,
+    testPrinterOutput: options.testMode ? options.testPrinterOutput : false,
     testOutputDevice,
     moduleName: options.moduleName,
     outDir: options.outDir,
@@ -193,10 +193,6 @@ function parseArgs(argv) {
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
   }
-  if (options.testPrinterOutput && !options.testMode) {
-    throw new Error("--printer-output can only be used with --run-tests.");
-  }
-
   return options;
 }
 

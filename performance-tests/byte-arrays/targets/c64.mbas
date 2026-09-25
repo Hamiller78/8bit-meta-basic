@@ -1,0 +1,40 @@
+uses "../source/benchmarks.mbas"
+
+program_mode
+cls
+open_device Results, RS232
+
+print "BYTE ARRAY PERFORMANCE"
+print "OPERATIONS: "; operationCount
+print "RESULTS ARE JIFFIES"
+print_device Results; "BYTE ARRAY PERFORMANCE"
+print_device Results; "OPERATIONS: "; operationCount
+print_device Results; "RESULTS ARE JIFFIES"
+
+elapsed = benchmarkNumericLoop()
+reportResult("NUMERIC LOOP", elapsed)
+elapsed = benchmarkByteWrite()
+reportResult("BYTE WRITE", elapsed)
+elapsed = benchmarkNumericWrite()
+reportResult("NUMERIC WRITE", elapsed)
+elapsed = benchmarkByteRead()
+reportResult("BYTE READ", elapsed)
+elapsed = benchmarkNumericRead()
+reportResult("NUMERIC READ", elapsed)
+elapsed = benchmarkByteReadWrite()
+reportResult("BYTE READ WRITE", elapsed)
+elapsed = benchmarkNumericReadWrite()
+reportResult("NUMERIC READ WRITE", elapsed)
+elapsed = benchmarkByteCalculation()
+reportResult("BYTE CALCULATION", elapsed)
+elapsed = benchmarkNumericCalculation()
+reportResult("NUMERIC CALCULATION", elapsed)
+
+close_device Results
+print "DONE"
+end
+
+function reportResult(label$, elapsedJiffies)
+    print label$; ": "; elapsedJiffies
+    print_device Results; label$; ": "; elapsedJiffies
+end function

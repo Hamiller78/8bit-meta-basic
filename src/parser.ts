@@ -526,8 +526,13 @@ class Parser {
       const field = this.expectIdentifier("Expected struct field name.").text;
       const fieldLocation = this.tokens[this.index - 1].location;
       const dimensions = this.matchPunctuation("(") ? this.parseArgumentList("Expected opening parenthesis after struct field name.") : [];
+      let asType: string | undefined;
+      if (this.matchKeyword("AS")) {
+        this.advance();
+        asType = this.expectIdentifier("Expected field type after AS.").text;
+      }
       this.expectLineEnd();
-      fields.push({ name: field, dimensions, location: fieldLocation });
+      fields.push({ name: field, dimensions, ...(asType ? { asType } : {}), location: fieldLocation });
     }
     this.expectEndStruct();
     this.expectLineEnd();

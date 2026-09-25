@@ -115,7 +115,8 @@ export function expandFunctionCallIntoDestination(
   destinationName: string,
   instructions: Instruction[],
   context: FunctionCallLoweringContext,
-  sourceName?: string
+  sourceName?: string,
+  storageType?: "byte"
 ): boolean {
   if (expression.kind !== "function-call") {
     return false;
@@ -151,6 +152,7 @@ export function expandFunctionCallIntoDestination(
     name: destinationName,
     expression: { kind: "identifier", name: implementation.returnName, location: expression.location },
     ...(sourceName ? { sourceName } : {}),
+    ...(storageType ? { storageType } : {}),
     location: expression.location
   });
   return true;
@@ -257,7 +259,8 @@ function emitParameterAssignments(
         instructions.push({
           kind: "let",
           name: field.storageName,
-          expression: { kind: "identifier", name: `${arg.name}_${field.sourceName.replace(/[$%]$/u, "")}${field.valueType === "string" ? "$" : ""}`, location },
+          expression: { kind: "identifier", name: `${arg.name}_${field.sourceName.replace(/[$%]$/u, "")}${field.valueType === "string" ? "$" : ""}`, valueType: field.valueType, location },
+          ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
           location
         });
       }

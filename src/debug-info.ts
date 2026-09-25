@@ -44,7 +44,7 @@ export interface DebugVariable {
   readonly targetName: string;
   readonly sourceAliases: readonly { readonly name: string; readonly location: SourceLocation }[];
   readonly storage: "scalar" | "array";
-  readonly valueType: "number" | "integer" | "string";
+  readonly valueType: "number" | "integer" | "string" | "byte";
 }
 
 export interface DebugStructField {
@@ -68,6 +68,12 @@ export function buildDebugInfo(
   const variableMap = target.variableMap(instructions, readability);
   const aliases = collectSourceAliases(program.statements);
   const arrayNames = new Set(instructions.filter((instruction) => instruction.kind === "dim-array").map((instruction) => instruction.name.toLowerCase()));
+  const byteStorageNames = new Set(
+    instructions
+      .filter((instruction): instruction is Extract<Instruction, { kind: "dim-array" | "array-let" | "let" }> =>
+        (instruction.kind === "dim-array" || instruction.kind === "array-let" || instruction.kind === "let") && instruction.storageType === "byte")
+      .map((instruction) => instruction.name.toLowerCase())
+  );
   const sourceFiles = program.sourceFiles ?? [...new Set(program.statements.map((statement) => statement.location.filename))];
 
   const callable = (statement: Extract<Statement, { kind: "function" | "test" }>): DebugCallable => {
@@ -99,7 +105,7 @@ export function buildDebugInfo(
     if (instruction.kind !== "dim-array" || !instruction.structArrayName) continue;
     const targetName = variableMap.get(instruction.name.toLowerCase());
     if (!targetName) throw new Error(`Internal error: no target name for struct storage ${instruction.name}.`);
-    const targetElementIndexBase = target.id === "spectrum" ? 1 : 0;
+    const targetElementIndexBase = target.id === "spectrum" || (target.id === "atari800xl" && instruction.storageType === "byte") ? 1 : 0;
     if (instruction.packedStructFields) {
       instruction.packedStructFields.forEach((fieldName, column) => {
         structFields.push({
@@ -141,9 +147,9 @@ export function buildDebugInfo(
       return {
         storageName,
         targetName,
-        sourceAliases: aliases.get(storageName) ?? [],
+        sourceAliases: aliases.get(storageName) ?? (byteStorageNames.has(storageName) ? aliases.get(storageName.replace(/_mbbyte[$%]$/u, "")) ?? [] : []),
         storage: arrayNames.has(storageName) ? "array" : "scalar",
-        valueType: isStringVariableName(storageName) ? "string" : isIntegerVariableName(storageName) ? "integer" : "number"
+        valueType: byteStorageNames.has(storageName) ? "byte" : isStringVariableName(storageName) ? "string" : isIntegerVariableName(storageName) ? "integer" : "number"
       };
     }),
     structFields

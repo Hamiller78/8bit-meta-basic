@@ -231,6 +231,7 @@ export interface LetInstruction {
   readonly name: string;
   readonly expression: Expression;
   readonly sourceName?: string;
+  readonly storageType?: "byte";
   readonly location: SourceLocation;
 }
 
@@ -248,6 +249,7 @@ export interface DimArrayInstruction {
   readonly kind: "dim-array";
   readonly name: string;
   readonly dimensions: readonly number[];
+  readonly storageType?: "byte";
   /** Parent struct array for compiler-generated field storage. */
   readonly structArrayName?: string;
   /** Source field for compiler-generated struct-array storage. */
@@ -264,6 +266,7 @@ export interface ArrayLetInstruction {
   readonly name: string;
   readonly indices: readonly Expression[];
   readonly expression: Expression;
+  readonly storageType?: "byte";
   readonly location: SourceLocation;
 }
 
@@ -805,6 +808,7 @@ function lowerStatements(
           name: statement.name,
           ...(statement.structArrayName ? { structArrayName: statement.structArrayName } : {}),
           ...(statement.structFieldName ? { structFieldName: statement.structFieldName } : {}),
+          ...(statement.storageType ? { storageType: statement.storageType } : {}),
           dimensions: statement.dimensions.map((dimension) => {
             if (dimension.kind !== "number") {
               throw new DiagnosticError(dimension.location, "Internal error: array dimensions must be resolved before lowering.");
@@ -1006,12 +1010,13 @@ function lowerStatements(
         instructions.push({ kind: "restore", location: statement.location });
         break;
       case "let":
-        if (!expandFunctionCallIntoDestination(statement.expression, statement.name, instructions, context, statement.sourceName)) {
+        if (!expandFunctionCallIntoDestination(statement.expression, statement.name, instructions, context, statement.sourceName, statement.storageType)) {
           instructions.push({
             kind: "let",
             name: statement.name,
             expression: lowerExpression(statement.expression, instructions, context, options),
             ...(statement.sourceName ? { sourceName: statement.sourceName } : {}),
+            ...(statement.storageType ? { storageType: statement.storageType } : {}),
             location: statement.location
           });
         }
@@ -1022,6 +1027,7 @@ function lowerStatements(
           name: statement.name,
           indices: statement.indices.map((index) => lowerExpression(index, instructions, context, options)),
           expression: lowerExpression(statement.expression, instructions, context, options),
+          ...(statement.storageType ? { storageType: statement.storageType } : {}),
           location: statement.location
         });
         break;
@@ -1412,7 +1418,7 @@ function lowerElementMove(
       }
       const tempName = nextTempName(context, field.valueType === "string" ? "$" : "");
       instructions.push({ kind: "let", name: tempName, expression: lowerExpression(field.insertExpression, instructions, context, options), location: statement.location });
-      return { arrayName: field.arrayName, tempName };
+      return { arrayName: field.arrayName, tempName, valueType: field.valueType };
     });
 
     const loopName = nextTempName(context, "");
@@ -1428,6 +1434,7 @@ function lowerElementMove(
         name: field.arrayName,
         indices: [binaryExpression("+", loopExpression, numberExpression(1, statement.location), statement.location)],
         expression: { kind: "array-access", name: field.arrayName, indices: [loopExpression], valueType: field.valueType, location: statement.location },
+        ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
         location: statement.location
       });
     }
@@ -1440,6 +1447,7 @@ function lowerElementMove(
         name: field.arrayName,
         indices: [indexExpression],
         expression: { kind: "identifier", name: field.tempName, location: statement.location },
+        ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
         location: statement.location
       });
     }
@@ -1465,6 +1473,7 @@ function lowerElementMove(
         valueType: field.valueType,
         location: statement.location
       },
+      ...(field.valueType === "byte" ? { storageType: "byte" as const } : {}),
       location: statement.location
     });
   }

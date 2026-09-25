@@ -34,6 +34,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/function-semantics.ts` analyzes user functions, local variables, parameters, and recursion.
 - `src/function-call-lowering.ts` expands Meta-BASIC function calls into generated parameter assignments, `GOSUB`, and return-value reads.
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
+- `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, and C64.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.

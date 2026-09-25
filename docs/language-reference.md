@@ -146,6 +146,8 @@ counter% = 3.7
 
 Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 lowers them to native `%` integer variables and still emits explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
 
+`BYTE` is an experimental compact storage type for one-dimensional arrays and struct fields. It is not a separate arithmetic type: a read becomes a native numeric value before it participates in an expression, and a write applies `INT(...)` before storing the value. Compile-time numeric writes must be integers in `0..255`; runtime expressions are currently the program's responsibility to keep in that range.
+
 Current string support includes assignment, concatenation, output, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, and `VAL`. Keep string values within the portable 255-character limit.
 
 ## Arrays
@@ -155,6 +157,7 @@ Arrays are declared with `DIM`. Dimensions are element counts, and Meta-BASIC ar
 ```basic
 dim values(3)
 dim counters%(3)
+dim pixels as byte(256)
 
 values(0) = 1.5
 values(2) = values(0) + 2
@@ -163,6 +166,8 @@ print values(0); counters%(2)
 ```
 
 `dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments.
+
+`dim pixels as byte(256)` creates 256 compact byte slots; `dim currentColour as byte` creates one compact byte scalar. `BYTE` arrays have exactly one element-count dimension. Spectrum and Atari store bytes as characters in backing strings and translate reads with `CODE` or `ASC`; C64 uses native integer storage. The compiler initializes byte storage to zero before entry code.
 
 String arrays are fixed-width:
 
@@ -182,6 +187,7 @@ Use `STRUCT` blocks to define small record-like storage shapes:
 struct TelegraphText
     textQueueRow
     textQueueColumn
+    flags as byte
     textQueue$(39)
 end struct
 
@@ -192,7 +198,7 @@ textQueue(0).textQueueRow = 4
 newElement.textQueue$ = "READY"
 ```
 
-Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name. A fixed-width string field is written with one width argument, such as `text$(39)`. Struct arrays lower to target-native backing storage: Spectrum packs two or more numeric fields into one two-dimensional numeric array. C64 also packs fields into two-dimensional arrays, keeping `%` integer fields separate from floating numeric fields so they retain native integer storage; each group needs at least two fields to be packed. Atari 800XL uses one backing array per field. String fields use separate backing arrays on every target. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`; the storage layout does not change Meta-BASIC indexing.
+Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name, a byte field as `flags AS BYTE`, and a fixed-width string field with one width argument such as `text$(39)`. Struct arrays lower to target-native backing storage: Spectrum packs two or more numeric fields into one two-dimensional numeric array, while byte fields use compact character strings. C64 packs compatible numeric fields into two-dimensional arrays and keeps byte fields in native integer storage. Atari 800XL uses one backing array per field, with byte fields stored as character strings. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`; the storage layout does not change Meta-BASIC indexing.
 
 Whole-struct assignment copies every field from a scalar struct value of the same type:
 

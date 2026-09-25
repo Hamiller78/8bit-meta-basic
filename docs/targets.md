@@ -70,6 +70,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter names for strings, arrays, and `FOR` counters. Readability `2` keeps readable uppercase numeric scalar names where practical.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
+- Experimental `BYTE` arrays and fields use single-letter string storage at one character per value. Writes use `CHR$`; reads use `CODE` and become ordinary numeric expressions.
 - When a struct array has multiple numeric fields, the compiler packs those fields into one two-dimensional Spectrum numeric array: the first dimension selects the element and the second selects the field. This saves single-letter array names; Meta-BASIC source still uses ordinary struct field access. String fields remain separate string arrays.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`, plus hidden numeric arrays holding each element's logical length. Reads slice to the stored length, so implementation padding is excluded while deliberate trailing spaces remain part of the value.
 - `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
@@ -96,6 +97,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `SHARED_DRIVE` opens `H6:MCP.TXT` by default for Altirra H: host-device text capture. The Atari800 launcher overrides it to `H1:MCP.TXT`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
+- Experimental `BYTE` arrays and fields use packed string storage at one character per value. Writes use `CHR$`; reads use `ASC` on a one-character slice.
 - Fixed-width string arrays render as one packed Atari backing string plus a hidden numeric array holding each element's logical length. In readable output, `dim messages$(3,12)` reserves `DIM MESSAGES$(36)` for character storage. Reads copy only the recorded number of characters from the corresponding slice, preserving deliberate trailing spaces without exposing unused padding. Empty elements use a guarded read because Atari BASIC rejects an end position before the start position.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
@@ -127,6 +129,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
+- Experimental `BYTE` arrays and fields render as native `%` integer storage. Compatible byte fields may be packed into a two-dimensional integer backing array.
 - In a struct array, two or more floating numeric fields share one two-dimensional numeric array, and two or more `%` fields share one two-dimensional integer array. The first dimension selects the element and the second selects the field. A single field of either type keeps its one-dimensional array; string fields remain separate.
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 

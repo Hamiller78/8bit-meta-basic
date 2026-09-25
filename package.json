@@ -33,6 +33,10 @@
     "benchmark:string-arrays:spectrum": "node scripts/launch-spectrum.mjs --project performance-tests/string-arrays --profile release --fast",
     "benchmark:string-arrays:atari": "node scripts/launch-atari.mjs --build-config performance-tests/string-arrays/atari.metabasic.json --profile release",
     "benchmark:string-arrays:c64": "node scripts/launch-c64.mjs --project performance-tests/string-arrays --profile release --fast",
+    "benchmark:byte-arrays:build": "node scripts/build-all.mjs --project performance-tests/byte-arrays --profile release",
+    "benchmark:byte-arrays:spectrum": "node scripts/launch-spectrum.mjs --project performance-tests/byte-arrays --profile release --fast --printer-output --test-output-device text-printer",
+    "benchmark:byte-arrays:atari": "node scripts/launch-atari.mjs --build-config performance-tests/byte-arrays/atari.metabasic.json --profile release",
+    "benchmark:byte-arrays:c64": "node scripts/launch-c64.mjs --build-config performance-tests/byte-arrays/c64.metabasic.json --profile release --fast --printer-output --test-output-device rs232",
     "test:watch": "vitest test",
     "start": "node dist/cli.js"
   },

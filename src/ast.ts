@@ -88,6 +88,7 @@ export interface DimStatement {
   readonly name: string;
   readonly dimensions: readonly Expression[];
   readonly asType?: string;
+  readonly storageType?: "byte";
   /** Parent struct array for compiler-generated field storage. */
   readonly structArrayName?: string;
   /** Source field for compiler-generated struct-array storage. */
@@ -211,6 +212,7 @@ export interface LetStatement {
   readonly name: string;
   readonly expression: Expression;
   readonly sourceName?: string;
+  readonly storageType?: "byte";
   readonly location: SourceLocation;
 }
 
@@ -219,6 +221,7 @@ export interface ArrayLetStatement {
   readonly name: string;
   readonly indices: readonly Expression[];
   readonly expression: Expression;
+  readonly storageType?: "byte";
   readonly location: SourceLocation;
 }
 
@@ -258,7 +261,7 @@ export interface RemoveElementStatement {
 
 export interface ElementMoveField {
   readonly arrayName: string;
-  readonly valueType: "number" | "string";
+  readonly valueType: "number" | "string" | "byte";
   readonly insertExpression: Expression;
 }
 
@@ -317,7 +320,7 @@ export interface FunctionStorage {
 export interface FunctionStructFieldStorage {
   readonly sourceName: string;
   readonly storageName: string;
-  readonly valueType: "number" | "string";
+  readonly valueType: "number" | "string" | "byte";
 }
 
 export interface FunctionImplementation {
@@ -367,6 +370,7 @@ export interface StructStatement {
 export interface StructField {
   readonly name: string;
   readonly dimensions: readonly Expression[];
+  readonly asType?: string;
   readonly location: SourceLocation;
 }
 
@@ -478,6 +482,7 @@ export interface ColorLiteralExpression {
 export interface IdentifierExpression {
   readonly kind: "identifier";
   readonly name: string;
+  readonly valueType?: "number" | "string" | "byte";
   readonly location: SourceLocation;
 }
 
@@ -485,7 +490,7 @@ export interface ArrayAccessExpression {
   readonly kind: "array-access";
   readonly name: string;
   readonly indices: readonly Expression[];
-  readonly valueType?: "number" | "string";
+  readonly valueType?: "number" | "string" | "byte";
   /** Target-lowering detail: read this many characters from packed fixed-width storage. */
   readonly fixedWidthStorageLength?: Expression;
   /** Target-lowering detail: absolute one-based start within packed string storage. */
@@ -498,7 +503,7 @@ export interface StructFieldAccessExpression {
   readonly base: string;
   readonly indices: readonly Expression[];
   readonly field: string;
-  readonly valueType?: "number" | "string";
+  readonly valueType?: "number" | "string" | "byte";
   readonly location: SourceLocation;
 }
 

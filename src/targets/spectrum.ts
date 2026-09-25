@@ -20,6 +20,7 @@ import {
   type StringArrayStorage
 } from "./string-array-lengths.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
+import { lowerByteStorage } from "./byte-storage.js";
 import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
@@ -29,7 +30,8 @@ export const spectrumTarget: TargetBackend = {
   maxLineNumber: 9999,
   variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const expanded = expandPositionedPrints(program, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const byteLowered = lowerByteStorage(program, "spectrum");
+    const expanded = expandPositionedPrints(byteLowered, "Spectrum", 21, 31, (instruction) => [instruction]);
     const stringArrayStorage = buildStringArrayStorage(expanded.instructions);
     const allocateInternalLabel = createInternalLabelAllocator(expanded);
     const keyStringTempName = allocateKeyStringTempName(expanded.instructions);
@@ -67,11 +69,11 @@ export const spectrumTarget: TargetBackend = {
           label,
           location: instruction.location
         })));
-      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+      } else if (instruction.kind === "dim-array" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
         const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
         if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
         instructions.push(...attachStringArrayLengthDimension(instruction, definition));
-      } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name)) {
+      } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
         const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
         if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
         instructions.push(
@@ -150,13 +152,15 @@ export const spectrumTarget: TargetBackend = {
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
-        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${renderExpression(instruction.expression, renderOptions)}`;
+        return `${lineNumber} LET ${variableMap.get(instruction.name.toLowerCase()) ?? instruction.name.toUpperCase()}=${instruction.storageType === "byte" ? renderSpectrumByteWrite(instruction.expression, renderOptions) : renderExpression(instruction.expression, renderOptions)}`;
       case "multi-let":
         return `${lineNumber} ${instruction.assignments.map((assignment) => `LET ${variableMap.get(assignment.name.toLowerCase()) ?? assignment.name.toUpperCase()}=${renderExpression(assignment.expression, renderOptions)}`).join(":")}`;
       case "dim-array":
         return `${lineNumber} DIM ${renderSpectrumArrayName(instruction.name, variableMap)}(${instruction.dimensions.join(",")})`;
       case "array-let":
-        return `${lineNumber} LET ${renderSpectrumArrayAssignmentTarget(instruction.name, instruction.indices, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
+        return instruction.storageType === "byte"
+          ? `${lineNumber} LET ${renderSpectrumByteArrayTarget(instruction.name, instruction.indices[0], renderOptions)}=${renderSpectrumByteWrite(instruction.expression, renderOptions)}`
+          : `${lineNumber} LET ${renderSpectrumArrayAssignmentTarget(instruction.name, instruction.indices, renderOptions)}=${renderExpression(instruction.expression, renderOptions)}`;
       case "goto":
         return `${lineNumber} GO TO ${resolveLabel(labelLines, instruction.label)}`;
       case "gosub":
@@ -367,6 +371,9 @@ function renderSpectrumArrayAccess(
   expression: Extract<Expression, { kind: "array-access" }>,
   options: SpectrumRenderOptions
 ): string {
+  if (expression.valueType === "byte") {
+    return renderSpectrumByteArrayTarget(expression.name, expression.indices[0], options);
+  }
   if (isStringVariableName(expression.name)) {
     const end = expression.fixedWidthStorageLength
       ? renderExpression(expression.fixedWidthStorageLength, options)
@@ -375,6 +382,14 @@ function renderSpectrumArrayAccess(
   }
 
   return `${renderSpectrumArrayName(expression.name, options.variableMap ?? new Map())}(${expression.indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
+}
+
+function renderSpectrumByteArrayTarget(name: string, index: Expression, options: SpectrumRenderOptions): string {
+  return `${renderSpectrumArrayName(name, options.variableMap ?? new Map())}(${renderSpectrumArrayIndex(index, options)})`;
+}
+
+function renderSpectrumByteWrite(expression: Expression, options: SpectrumRenderOptions): string {
+  return renderSpectrumFunction({ kind: "function-call", name: builtinFunctions.chr, args: [expression], location: expression.location }, options)!;
 }
 
 function renderSpectrumStringArrayLength(
@@ -434,7 +449,7 @@ function renderSpectrumArrayIndex(
 function buildSpectrumStringArrayWidths(instructions: readonly Instruction[]): ReadonlyMap<string, number> {
   const widths = new Map<string, number>();
   for (const instruction of instructions) {
-    if (instruction.kind === "dim-array" && isStringVariableName(instruction.name)) {
+    if (instruction.kind === "dim-array" && instruction.storageType !== "byte" && isStringVariableName(instruction.name)) {
       widths.set(instruction.name.toLowerCase(), instruction.dimensions[1] ?? 1);
     }
   }
