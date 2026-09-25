@@ -45,7 +45,10 @@ function isCloseToPresident(characterIndex)
         return 0
     end if
     roleValue = characters(characterIndex).role%
-    return characters(characterIndex).isAlive% and roleValue <> usagent and roleValue <> ussragent and roleValue <> ustourist
+    if characters(characterIndex).isAlive% and roleValue <> usagent and roleValue <> ussragent and roleValue <> ustourist then
+        return 1
+    end if
+    return 0
 end function
 
 'Insiders know the President and people at their own location. The bartender

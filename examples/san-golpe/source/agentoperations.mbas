@@ -95,7 +95,10 @@ function addAgentContact(agentIndex, characterIndex)
 end function
 
 function hasContactAtLocation(agentIndex, locationValue)
-    return firstContactAtLocation(agentIndex, locationValue) >= 0
+    if firstContactAtLocation(agentIndex, locationValue) >= 0 then
+        return 1
+    end if
+    return 0
 end function
 
 function firstContactAtLocation(agentIndex, locationValue)
