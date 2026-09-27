@@ -15,9 +15,9 @@ test CharacterNamesAreUsedOnlyOnce()
     resetCharacterFactory()
 
     for characterIndex = 0 to englishMaleFirstNames - 1
-        assert_eq characterIndex, createCharacter(us, male)
+        assert_eq characterIndex, createCharacter(us, none)
     next characterIndex
-    assert_eq -1, createCharacter(us, male)
+    assert_eq -1, createCharacter(us, none)
 
     for firstIndex = 0 to englishMaleFirstNames - 2
         for secondIndex = firstIndex + 1 to englishMaleFirstNames - 1
@@ -31,7 +31,7 @@ test CharacterAttributesHaveSafeDefaults()
     local characterIndex
 
     resetCharacterFactory()
-    characterIndex = createCharacter(us, male)
+    characterIndex = createCharacter(us, none)
 
     assert_ne -1, characterIndex
     assert_eq none, characters(characterIndex).role%
@@ -44,7 +44,7 @@ test CharacterAttributesHaveSafeDefaults()
 end test
 
 test AllCharacterRolesAreCreated()
-    local characterIndex, russianMaleLast$, russianFemaleLast$
+    local characterIndex
 
     createAllCharacters(false)
 
@@ -52,14 +52,12 @@ test AllCharacterRolesAreCreated()
     assert_eq usagent, characters(0).role%
     assert_eq usagent, characters(1).role%
     assert_eq ussragent, characters(2).role%
-    russianMaleLast$ = characters(2).last$
-    assert_ne "a", right$(russianMaleLast$, 1)
     assert_eq ussragent, characters(3).role%
-    russianFemaleLast$ = characters(3).last$
-    assert_eq "a", right$(russianFemaleLast$, 1)
     assert_eq president, characters(4).role%
     assert_eq daughter, characters(5).role%
     assert_eq characters(4).last$, characters(5).last$
+    assert_eq daughterFirstNames - 1, daughterFirstNamesRemaining
+    assert_eq spanishLastNames - 6, spanishLastNamesRemaining
     assert_eq advisor, characters(6).role%
     assert_eq general, characters(7).role%
     assert_eq priest, characters(8).role%

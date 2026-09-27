@@ -1,44 +1,36 @@
 uses "characters.mbas"
 
 const spanishMaleFirstNames = 10
-const spanishFemaleFirstNames = 5
+const daughterFirstNames = 5
 const spanishLastNames = 10
 const englishMaleFirstNames = 5
-const englishFemaleFirstNames = 5
 const englishLastNames = 5
 const russianMaleFirstNames = 5
-const russianFemaleFirstNames = 5
 const russianLastNames = 5
 
 const spanishMaleNameOffset = 0
-const spanishFemaleNameOffset = spanishMaleNameOffset + spanishMaleFirstNames
-const spanishLastNameOffset = spanishFemaleNameOffset + spanishFemaleFirstNames
+const daughterFirstNameOffset = spanishMaleNameOffset + spanishMaleFirstNames
+const spanishLastNameOffset = daughterFirstNameOffset + daughterFirstNames
 const englishMaleNameOffset = spanishLastNameOffset + spanishLastNames
-const englishFemaleNameOffset = englishMaleNameOffset + englishMaleFirstNames
-const englishLastNameOffset = englishFemaleNameOffset + englishFemaleFirstNames
+const englishLastNameOffset = englishMaleNameOffset + englishMaleFirstNames
 const russianMaleNameOffset = englishLastNameOffset + englishLastNames
-const russianFemaleNameOffset = russianMaleNameOffset + russianMaleFirstNames
-const russianLastNameOffset = russianFemaleNameOffset + russianFemaleFirstNames
+const russianLastNameOffset = russianMaleNameOffset + russianMaleFirstNames
 
 function resetNameSelection()
     spanishMaleNameIndex = int(rnd() * spanishMaleFirstNames)
-    spanishFemaleNameIndex = int(rnd() * spanishFemaleFirstNames)
+    daughterFirstNameIndex = int(rnd() * daughterFirstNames)
     spanishLastNameIndex = int(rnd() * spanishLastNames)
     englishMaleNameIndex = int(rnd() * englishMaleFirstNames)
-    englishFemaleNameIndex = int(rnd() * englishFemaleFirstNames)
     englishLastNameIndex = int(rnd() * englishLastNames)
     russianMaleNameIndex = int(rnd() * russianMaleFirstNames)
-    russianFemaleNameIndex = int(rnd() * russianFemaleFirstNames)
     russianLastNameIndex = int(rnd() * russianLastNames)
 
     spanishMaleNamesRemaining = spanishMaleFirstNames
-    spanishFemaleNamesRemaining = spanishFemaleFirstNames
+    daughterFirstNamesRemaining = daughterFirstNames
     spanishLastNamesRemaining = spanishLastNames
     englishMaleNamesRemaining = englishMaleFirstNames
-    englishFemaleNamesRemaining = englishFemaleFirstNames
     englishLastNamesRemaining = englishLastNames
     russianMaleNamesRemaining = russianMaleFirstNames
-    russianFemaleNamesRemaining = russianFemaleFirstNames
     russianLastNamesRemaining = russianLastNames
 end function
 
@@ -52,24 +44,18 @@ function readCharacterName$(nameOffset, nameIndex)
     return name$
 end function
 
-function availableFirstNames(nationality, gender)
-    if nationality = native and gender = male then
+function availableFirstNames(nationality, characterRole)
+    if characterRole = daughter then
+        return daughterFirstNamesRemaining
+    end if
+    if nationality = native then
         return spanishMaleNamesRemaining
     end if
-    if nationality = native and gender = female then
-        return spanishFemaleNamesRemaining
-    end if
-    if nationality = us and gender = male then
+    if nationality = us then
         return englishMaleNamesRemaining
     end if
-    if nationality = us and gender = female then
-        return englishFemaleNamesRemaining
-    end if
-    if nationality = russian and gender = male then
+    if nationality = russian then
         return russianMaleNamesRemaining
-    end if
-    if nationality = russian and gender = female then
-        return russianFemaleNamesRemaining
     end if
     return 0
 end function
@@ -87,34 +73,23 @@ function availableLastNames(nationality)
     return 0
 end function
 
-function chooseGender(nationality, requestedGender)
-    local maleNames, femaleNames, selectedName
-
-    if requestedGender <> any then
-        return requestedGender
-    end if
-
-    maleNames = availableFirstNames(nationality, male)
-    femaleNames = availableFirstNames(nationality, female)
-    if maleNames + femaleNames = 0 then
-        return any
-    end if
-
-    selectedName = int(rnd() * (maleNames + femaleNames))
-    if selectedName < maleNames then
-        return male
-    end if
-    return female
-end function
-
-function takeFirstName$(nationality, gender)
+function takeFirstName$(nationality, characterRole)
     local selectedName$
 
-    if availableFirstNames(nationality, gender) = 0 then
+    if availableFirstNames(nationality, characterRole) = 0 then
         return ""
     end if
 
-    if nationality = native and gender = male then
+    if characterRole = daughter then
+        selectedName$ = readCharacterName$(daughterFirstNameOffset, daughterFirstNameIndex)
+        daughterFirstNameIndex = daughterFirstNameIndex + 1
+        if daughterFirstNameIndex = daughterFirstNames then
+            daughterFirstNameIndex = 0
+        end if
+        daughterFirstNamesRemaining = daughterFirstNamesRemaining - 1
+        return selectedName$
+    end if
+    if nationality = native then
         selectedName$ = readCharacterName$(spanishMaleNameOffset, spanishMaleNameIndex)
         spanishMaleNameIndex = spanishMaleNameIndex + 1
         if spanishMaleNameIndex = spanishMaleFirstNames then
@@ -123,16 +98,7 @@ function takeFirstName$(nationality, gender)
         spanishMaleNamesRemaining = spanishMaleNamesRemaining - 1
         return selectedName$
     end if
-    if nationality = native and gender = female then
-        selectedName$ = readCharacterName$(spanishFemaleNameOffset, spanishFemaleNameIndex)
-        spanishFemaleNameIndex = spanishFemaleNameIndex + 1
-        if spanishFemaleNameIndex = spanishFemaleFirstNames then
-            spanishFemaleNameIndex = 0
-        end if
-        spanishFemaleNamesRemaining = spanishFemaleNamesRemaining - 1
-        return selectedName$
-    end if
-    if nationality = us and gender = male then
+    if nationality = us then
         selectedName$ = readCharacterName$(englishMaleNameOffset, englishMaleNameIndex)
         englishMaleNameIndex = englishMaleNameIndex + 1
         if englishMaleNameIndex = englishMaleFirstNames then
@@ -141,31 +107,13 @@ function takeFirstName$(nationality, gender)
         englishMaleNamesRemaining = englishMaleNamesRemaining - 1
         return selectedName$
     end if
-    if nationality = us and gender = female then
-        selectedName$ = readCharacterName$(englishFemaleNameOffset, englishFemaleNameIndex)
-        englishFemaleNameIndex = englishFemaleNameIndex + 1
-        if englishFemaleNameIndex = englishFemaleFirstNames then
-            englishFemaleNameIndex = 0
-        end if
-        englishFemaleNamesRemaining = englishFemaleNamesRemaining - 1
-        return selectedName$
-    end if
-    if nationality = russian and gender = male then
+    if nationality = russian then
         selectedName$ = readCharacterName$(russianMaleNameOffset, russianMaleNameIndex)
         russianMaleNameIndex = russianMaleNameIndex + 1
         if russianMaleNameIndex = russianMaleFirstNames then
             russianMaleNameIndex = 0
         end if
         russianMaleNamesRemaining = russianMaleNamesRemaining - 1
-        return selectedName$
-    end if
-    if nationality = russian and gender = female then
-        selectedName$ = readCharacterName$(russianFemaleNameOffset, russianFemaleNameIndex)
-        russianFemaleNameIndex = russianFemaleNameIndex + 1
-        if russianFemaleNameIndex = russianFemaleFirstNames then
-            russianFemaleNameIndex = 0
-        end if
-        russianFemaleNamesRemaining = russianFemaleNamesRemaining - 1
         return selectedName$
     end if
     return ""
@@ -212,7 +160,7 @@ end function
 data "Pablo", "Juan", "Carlos", "Miguel", "Diego"
 data "Javier", "Luis", "Pedro", "Ramon", "Antonio"
 
-'Spanish female first names
+'The President's daughter's first names
 data "Esmeranza", "Maria", "Carmen", "Sofia", "Lucia"
 
 'Spanish last names
@@ -222,17 +170,11 @@ data "Hernandez", "Sanchez", "Perez", "Ramirez", "Torres"
 'English male first names
 data "John", "James", "Robert", "David", "Michael"
 
-'English female first names
-data "Jane", "Mary", "Susan", "Linda", "Alice"
-
 'English last names
 data "Smith", "Johnson", "Brown", "Taylor", "Mellish"
 
 'Russian male first names
 data "Vladimir", "Ivan", "Alexei", "Dmitri", "Sergei"
-
-'Russian female first names
-data "Natasha", "Irina", "Olga", "Elena", "Tatiana"
 
 'Russian last names
 data "Smirnov", "Ivanov", "Petrov", "Volkov", "Sokolov"

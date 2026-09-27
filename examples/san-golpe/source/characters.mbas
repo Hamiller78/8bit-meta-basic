@@ -1,11 +1,5 @@
 const numberOfCharacters = 12
 
-enum Gender
-    any = 0
-    male
-    female
-end enum
-
 enum Nationality
     native = 0
     us

@@ -6,19 +6,19 @@ function createAllCharacters(showProgress)
 
     resetCharacterFactory()
 
-    createRoleCharacter(usagent, us, male, showProgress)
-    createRoleCharacter(usagent, us, female, showProgress)
-    createRoleCharacter(ussragent, russian, male, showProgress)
-    createRoleCharacter(ussragent, russian, female, showProgress)
+    createRoleCharacter(usagent, us, showProgress)
+    createRoleCharacter(usagent, us, showProgress)
+    createRoleCharacter(ussragent, russian, showProgress)
+    createRoleCharacter(ussragent, russian, showProgress)
 
-    presidentIndex = createRoleCharacter(president, native, male, showProgress)
-    daughterIndex = createRoleCharacter(daughter, native, female, showProgress)
-    createRoleCharacter(advisor, native, male, showProgress)
-    createRoleCharacter(general, native, male, showProgress)
-    createRoleCharacter(priest, native, male, showProgress)
-    createRoleCharacter(bartender, native, any, showProgress)
-    createRoleCharacter(landowner, native, male, showProgress)
-    createRoleCharacter(ustourist, us, any, showProgress)
+    presidentIndex = createRoleCharacter(president, native, showProgress)
+    daughterIndex = createRoleCharacter(daughter, native, showProgress)
+    createRoleCharacter(advisor, native, showProgress)
+    createRoleCharacter(general, native, showProgress)
+    createRoleCharacter(priest, native, showProgress)
+    createRoleCharacter(bartender, native, showProgress)
+    createRoleCharacter(landowner, native, showProgress)
+    createRoleCharacter(ustourist, us, showProgress)
 
     if presidentIndex <> -1 and daughterIndex <> -1 then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
@@ -27,12 +27,11 @@ function createAllCharacters(showProgress)
     assignSecretAgendas()
 end function
 
-function createRoleCharacter(characterRole, nationality, gender, showProgress)
+function createRoleCharacter(characterRole, nationality, showProgress)
     local characterIndex
 
-    characterIndex = createCharacter(nationality, gender)
+    characterIndex = createCharacter(nationality, characterRole)
     if characterIndex <> -1 then
-        characters(characterIndex).role% = characterRole
         if showProgress then
             set_pos int(TEXT_ROWS / 2) + 2, 1
             print_centered text$("creatingCharactersProgress"); created = createdCharacterCount, 2; total = numberOfCharacters, 2
@@ -49,8 +48,8 @@ function resetCharacterFactory()
 end function
 
 'Returns an index into characters(), or -1 when no name is available.
-function createCharacter(nationality, gender)
-    local characterIndex, actualGender, firstName$, lastName$
+function createCharacter(nationality, characterRole)
+    local characterIndex, firstName$, lastName$
 
     if characterFactoryInitialized = 0 then
         resetCharacterFactory()
@@ -60,24 +59,23 @@ function createCharacter(nationality, gender)
         return -1
     end if
 
-    actualGender = chooseGender(nationality, gender)
-    if actualGender = any then
+    if availableFirstNames(nationality, characterRole) = 0 then
         return -1
     end if
-    if availableFirstNames(nationality, actualGender) = 0 or availableLastNames(nationality) = 0 then
+    if characterRole <> daughter and availableLastNames(nationality) = 0 then
         return -1
     end if
 
-    firstName$ = takeFirstName$(nationality, actualGender)
-    lastName$ = takeLastName$(nationality)
-    if nationality = russian and actualGender = female then
-        lastName$ = lastName$ + "a"
+    firstName$ = takeFirstName$(nationality, characterRole)
+    lastName$ = ""
+    if characterRole <> daughter then
+        lastName$ = takeLastName$(nationality)
     end if
     characterIndex = createdCharacterCount
 
     characters(characterIndex).first$ = firstName$
     characters(characterIndex).last$ = lastName$
-    characters(characterIndex).role% = none
+    characters(characterIndex).role% = characterRole
     characters(characterIndex).isAlive% = 1
     characters(characterIndex).money = 0
     characters(characterIndex).agenda% = doDuty
