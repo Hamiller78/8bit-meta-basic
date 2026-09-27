@@ -31,16 +31,18 @@ Characters receive a first name and family name appropriate to their nationality
 
 ### Implementation
 
-- `source/characters.mbas` defines the twelve-character array, nationalities, roles, agendas, and character fields. There is no gender field or gender enum.
+- `source/characters.mbas` defines the twelve-character array, nationalities, roles, the sparse agenda pool, and their fields. There is no gender field or gender enum.
 - `source/characterfactory.mbas` creates the cast in a stable role order. The first two array entries are the player agents. It creates the daughter without taking a family name, then copies the President's family name to her.
 - `source/characternames.mbas` contains native male names, daughter names, American male names, Russian male names, and the three family-name pools. Name selection starts at a random pool position and proceeds without repetition.
 - `createCharacter(nationality, role)` returns the new zero-based character index, or `-1` if the character array or a required name pool is exhausted.
 
 ### Placeholder character state
 
-New characters are alive, have no money or weapons, have integrity from 0 through 10, and initially follow `doDuty`. After the full cast is created, each character has a 75% chance to retain `doDuty`; `usurpRole`, `findLove`, and `secretSpy` each have an equal share of the remaining 25%. Usurpation and love choose another character as a target. The spy agenda has no target yet.
+New characters are alive, have integrity from 0 through 10, and initially follow `doDuty`. `doDuty` is represented by the absence of an agenda record and consumes no agenda slot. After the full cast is created, each character has a 75% chance to remain on duty; `usurpRole`, `findLove`, and `secretSpy` each have an equal share of the remaining 25%. At most three characters can receive a non-default agenda. Once those three sparse slots are occupied, remaining characters stay on duty. Usurpation and love choose another character as their target. The spy agenda has no target yet.
 
-This behavior is implemented by `createCharacter()`, `assignSecretAgendas()`, and `chooseAgendaTarget()` in `source/characterfactory.mbas`.
+`Character` contains the character's name, role, living state, integrity, and one agenda-slot index. An index of `-1` means ordinary duty and no agenda record. A separate `CharacterAgenda` record contains the agenda kind, optional target, money, and weapons. Only three non-default agenda records are allocated; there is no twelve-entry parallel agenda array. Agenda access follows the slot index directly rather than scanning. Compared with storing four agenda values on all twelve characters, this reduces agenda-related numeric array entries from 48 to 24. Money and weapons exist only as resources for a non-default agenda.
+
+The sparse pool is defined in `source/characters.mbas`. Assignment is implemented by `assignSecretAgendas()` and `chooseAgendaTarget()` in `source/characterfactory.mbas`.
 
 ## Player knowledge and the main view
 
@@ -119,7 +121,7 @@ Implementation: contact arrays, `canApproach()`, `canInvestigate()`, `setAgentIn
 
 Money is measured in `k$`; one unit represents 1,000 US dollars. The starting budget is `1,000 k$`. A deal is a one-time order costing `10 k$` and asks one of the agent's living contacts for full information about a selected character.
 
-The contact's integrity controls a ten-sided outcome roll. Integrity 0 never honors a deal and integrity 10 always honors it. A failed deal is either pocketed or diverted to the contact's own agenda, but both failures look identical to the player. Diverted money is added to the contact; a contact pursuing `usurpRole` also gains one weapons unit.
+The contact's integrity controls a ten-sided outcome roll. Integrity 0 never honors a deal and integrity 10 always honors it. A failed deal is either pocketed or diverted to the contact's own agenda, but both failures look identical to the player. Diverted money is stored only when the contact has a non-default agenda; a contact pursuing `usurpRole` also gains one weapons unit. A character on ordinary duty has no agenda storage, so diverted resources have no persistent gameplay effect.
 
 Implementation: `setAgentDeal()`, `dealOutcomeFor()`, and `resolveDealRoll()` in `source/agentoperations.mbas`.
 

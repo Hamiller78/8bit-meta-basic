@@ -5,13 +5,12 @@ uses "../source/agentoperations.mbas"
 
 function setupOperations()
     local characterIndex
+    characterAgendaCount% = 0
     for characterIndex = 0 to numberOfCharacters - 1
         characters(characterIndex).role% = none
         characters(characterIndex).isAlive% = 1
-        characters(characterIndex).money = 0
-        characters(characterIndex).agenda% = doDuty
         characters(characterIndex).integrity% = 5
-        characters(characterIndex).weapons% = 0
+        characters(characterIndex).agenda% = -1
     next characterIndex
     characters(0).role% = usagent
     characters(1).role% = usagent
@@ -190,7 +189,7 @@ test ContactAllowsDeeperInvestigation()
 end test
 
 test DealsDependOnIntegrity()
-    local priestIndex
+    local priestIndex, agendaIndex
     setupOperations()
     priestIndex = findRole(priest)
     addAgentContact(0, priestIndex)
@@ -214,20 +213,26 @@ test DealsDependOnIntegrity()
     resolveDealRoll(0, 0)
     assert_eq startingBudgetK - dealCostK, budget
     assert_eq intelName, playerIntel%(priestIndex)
-    assert_eq 0, characters(priestIndex).money
+    assert_eq -1, characters(priestIndex).agenda%
     assert_eq reportDealFailed, agentReports%(0)
 
     initializeIntelligence()
     initializeAgentOperations()
     addAgentContact(0, priestIndex)
-    characters(priestIndex).agenda% = usurpRole
+    agendaIndex = characterAgendaCount%
+    characterAgendaCount% = characterAgendaCount% + 1
+    characters(priestIndex).agenda% = agendaIndex
+    characterAgendas(agendaIndex).kind% = usurpRole
+    characterAgendas(agendaIndex).target% = -1
+    characterAgendas(agendaIndex).money = 0
+    characterAgendas(agendaIndex).weapons% = 0
     assert_eq dealDiverted, dealOutcomeFor(0, 9)
     assert_eq 1, setAgentDeal(0, priestIndex, priestIndex)
     resolveDealRoll(0, 9)
     assert_eq startingBudgetK - dealCostK, budget
     assert_eq intelName, playerIntel%(priestIndex)
-    assert_eq dealCostK, characters(priestIndex).money
-    assert_eq 1, characters(priestIndex).weapons%
+    assert_eq dealCostK, characterAgendas(agendaIndex).money
+    assert_eq 1, characterAgendas(agendaIndex).weapons%
     assert_eq reportDealFailed, agentReports%(0)
 end test
 

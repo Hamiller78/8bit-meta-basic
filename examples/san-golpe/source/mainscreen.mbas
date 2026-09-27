@@ -351,6 +351,7 @@ function chooseLocation()
 end function
 
 function showCharacterCard(characterIndex)
+    local agendaIndex
     cls
     print_centered text$("overviewPersonHeading")
     printKnownName(characterIndex)
@@ -374,7 +375,12 @@ function showCharacterCard(characterIndex)
     end if
     if playerIntel%(characterIndex) >= intelAgenda then
         print text$("intelAgendaLabel"); ": ";
-        printAgenda(characters(characterIndex).agenda%)
+        agendaIndex = characters(characterIndex).agenda%
+        if agendaIndex < 0 then
+            printAgenda(doDuty)
+        else
+            printAgenda(characterAgendas(agendaIndex).kind%)
+        end if
         print
     end if
     print

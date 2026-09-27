@@ -43,6 +43,7 @@ end function
 function resetCharacterFactory()
     randomize
     resetNameSelection()
+    characterAgendaCount% = 0
     createdCharacterCount = 0
     characterFactoryInitialized = 1
 end function
@@ -77,30 +78,34 @@ function createCharacter(nationality, characterRole)
     characters(characterIndex).last$ = lastName$
     characters(characterIndex).role% = characterRole
     characters(characterIndex).isAlive% = 1
-    characters(characterIndex).money = 0
-    characters(characterIndex).agenda% = doDuty
-    characters(characterIndex).target% = -1
     characters(characterIndex).integrity% = int(rnd() * 11)
-    characters(characterIndex).weapons% = 0
+    characters(characterIndex).agenda% = -1
 
     createdCharacterCount = createdCharacterCount + 1
     return characterIndex
 end function
 
 function assignSecretAgendas()
-    local characterIndex, agendaRoll
+    local characterIndex, agendaIndex, agendaRoll, agendaKind, targetIndex
 
+    characterAgendaCount% = 0
     for characterIndex = 0 to createdCharacterCount - 1
-        characters(characterIndex).agenda% = doDuty
-        characters(characterIndex).target% = -1
-
+        characters(characterIndex).agenda% = -1
         'Nine of twelve results keep the character focused on their normal duty.
         agendaRoll = int(rnd() * 12)
-        if agendaRoll >= 9 then
-            characters(characterIndex).agenda% = agendaRoll - 8
-            if characters(characterIndex).agenda% = usurpRole or characters(characterIndex).agenda% = findLove then
-                characters(characterIndex).target% = chooseAgendaTarget(characterIndex)
+        if agendaRoll >= 9 and characterAgendaCount% < maximumCharacterAgendas then
+            agendaKind = agendaRoll - 8
+            targetIndex = -1
+            if agendaKind = usurpRole or agendaKind = findLove then
+                targetIndex = chooseAgendaTarget(characterIndex)
             end if
+            agendaIndex = characterAgendaCount%
+            characterAgendaCount% = characterAgendaCount% + 1
+            characters(characterIndex).agenda% = agendaIndex
+            characterAgendas(agendaIndex).kind% = agendaKind
+            characterAgendas(agendaIndex).target% = targetIndex
+            characterAgendas(agendaIndex).money = 0
+            characterAgendas(agendaIndex).weapons% = 0
         end if
     next characterIndex
 end function

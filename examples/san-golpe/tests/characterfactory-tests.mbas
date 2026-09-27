@@ -35,16 +35,13 @@ test CharacterAttributesHaveSafeDefaults()
 
     assert_ne -1, characterIndex
     assert_eq none, characters(characterIndex).role%
-    assert_eq 0, characters(characterIndex).money
-    assert_eq doDuty, characters(characterIndex).agenda%
-    assert_eq -1, characters(characterIndex).target%
     assert_true characters(characterIndex).integrity% >= 0
     assert_true characters(characterIndex).integrity% <= 10
-    assert_eq 0, characters(characterIndex).weapons%
+    assert_eq -1, characters(characterIndex).agenda%
 end test
 
 test AllCharacterRolesAreCreated()
-    local characterIndex
+    local characterIndex, agendaIndex, agendaOwner
 
     createAllCharacters(false)
 
@@ -66,19 +63,48 @@ test AllCharacterRolesAreCreated()
     assert_eq ustourist, characters(11).role%
 
     for characterIndex = 0 to createdCharacterCount - 1
-        assert_eq 0, characters(characterIndex).money
-        assert_true characters(characterIndex).agenda% >= doDuty
-        assert_true characters(characterIndex).agenda% <= secretSpy
         assert_true characters(characterIndex).integrity% >= 0
         assert_true characters(characterIndex).integrity% <= 10
-        assert_eq 0, characters(characterIndex).weapons%
-
-        if characters(characterIndex).agenda% = usurpRole or characters(characterIndex).agenda% = findLove then
-            assert_true characters(characterIndex).target% >= 0
-            assert_true characters(characterIndex).target% < createdCharacterCount
-            assert_ne characterIndex, characters(characterIndex).target%
-        else
-            assert_eq -1, characters(characterIndex).target%
-        end if
     next characterIndex
+
+    assert_true characterAgendaCount% <= maximumCharacterAgendas
+    for agendaIndex = 0 to characterAgendaCount% - 1
+        agendaOwner = -1
+        for characterIndex = 0 to createdCharacterCount - 1
+            if characters(characterIndex).agenda% = agendaIndex then
+                agendaOwner = characterIndex
+            end if
+        next characterIndex
+        assert_true agendaOwner >= 0
+        assert_true agendaOwner < createdCharacterCount
+        assert_true characterAgendas(agendaIndex).kind% >= usurpRole
+        assert_true characterAgendas(agendaIndex).kind% <= secretSpy
+        assert_eq 0, characterAgendas(agendaIndex).money
+        assert_eq 0, characterAgendas(agendaIndex).weapons%
+        if characterAgendas(agendaIndex).kind% = usurpRole or characterAgendas(agendaIndex).kind% = findLove then
+            assert_true characterAgendas(agendaIndex).target% >= 0
+            assert_true characterAgendas(agendaIndex).target% < createdCharacterCount
+            assert_ne agendaOwner, characterAgendas(agendaIndex).target%
+        else
+            assert_eq -1, characterAgendas(agendaIndex).target%
+        end if
+    next agendaIndex
+end test
+
+test DutyNeedsNoAgendaRecord()
+    local agendaIndex
+    characterAgendaCount% = 0
+    characters(4).agenda% = -1
+    assert_eq -1, characters(4).agenda%
+    assert_eq 0, characterAgendaCount%
+    agendaIndex = characterAgendaCount%
+    characterAgendaCount% = characterAgendaCount% + 1
+    characters(4).agenda% = agendaIndex
+    characterAgendas(agendaIndex).kind% = usurpRole
+    characterAgendas(agendaIndex).target% = 6
+    characterAgendas(agendaIndex).money = 0
+    characterAgendas(agendaIndex).weapons% = 0
+    assert_eq 1, characterAgendaCount%
+    assert_eq usurpRole, characterAgendas(agendaIndex).kind%
+    assert_eq 6, characterAgendas(agendaIndex).target%
 end test

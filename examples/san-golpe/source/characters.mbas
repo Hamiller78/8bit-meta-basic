@@ -1,4 +1,5 @@
 const numberOfCharacters = 12
+const maximumCharacterAgendas = 3
 
 enum Nationality
     native = 0
@@ -32,14 +33,20 @@ struct Character
     last$(10)
     role%
     isAlive%   '0 = dead, 1 = alive
-    money       'In k$: one unit is 1,000 US dollars.
-    agenda%     'most get doDuty, but some may have secret agendas
-    target%     'the character's agenda target if applicable
     integrity%  'meaning depends on role, but 0 to 10, where 10 truly believes in their role and 0 is a complete fraud
-    weapons%    'weapons the characters has at their disposal to equip an army, we abstract in the number of times he has acquired some
+    agenda%     'index in characterAgendas(), or -1 for ordinary duty
+end struct
+
+struct CharacterAgenda
+    kind%       'non-default agenda; doDuty has no record
+    target%     'the character's agenda target if applicable
+    money       'In k$: one unit is 1,000 US dollars.
+    weapons%    'abstract units available to equip an army
 end struct
 
 dim characters as Character(numberOfCharacters)
+dim characterAgendas as CharacterAgenda(maximumCharacterAgendas)
+characterAgendaCount% = 0
 
 function findRole(wantedRole)
     local characterIndex
@@ -50,3 +57,4 @@ function findRole(wantedRole)
     next characterIndex
     return -1
 end function
+

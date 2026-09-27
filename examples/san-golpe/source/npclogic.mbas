@@ -34,16 +34,20 @@ function doNpcActions()
 end function
 
 function doNpcAction(npcIndex%)
-    local npcAgenda%, targetIndex%
-    npcAgenda% = characters(npcIndex%).agenda%
-    targetIndex% = characters(npcIndex%).target%
+    local agendaIndex%, npcAgenda%, targetIndex%
+    agendaIndex% = characters(npcIndex%).agenda%
+    if agendaIndex% < 0 then
+        return
+    end if
+    npcAgenda% = characterAgendas(agendaIndex%).kind%
+    targetIndex% = characterAgendas(agendaIndex%).target%
 
-    if npcAgenda% = findLove and characters(npcIndex%).money > 0 then
+    if npcAgenda% = findLove and characterAgendas(agendaIndex%).money > 0 then
         if targetIndex% <> -1 and characters(targetIndex%).isAlive% = 1 then
             npcEventActors%(numberOfNpcEvents%) = npcIndex%
             npcEventTargets%(numberOfNpcEvents%) = targetIndex%
             numberOfNpcEvents% = numberOfNpcEvents% + 1
-            characters(npcIndex%).money = 0
+            characterAgendas(agendaIndex%).money = 0
         end if
     end if
     'TODO: Implement other NPC agendas and actions here.

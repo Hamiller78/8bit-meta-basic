@@ -357,7 +357,7 @@ function resolveDealMission(agentIndex)
 end function
 
 function resolveDealRoll(agentIndex, roll)
-    local contactIndex, targetIndex, outcome
+    local contactIndex, targetIndex, outcome, agendaIndex
     contactIndex = agentDealContacts%(agentIndex)
     targetIndex = agentTargets%(agentIndex)
     if hasAgentContact(agentIndex, contactIndex) = 0 then
@@ -390,9 +390,12 @@ function resolveDealRoll(agentIndex, roll)
         'The player cannot tell pocketing from diversion just from the report.
         agentReports%(agentIndex) = reportDealFailed
         if outcome = dealDiverted then
-            characters(contactIndex).money = characters(contactIndex).money + dealCostK
-            if characters(contactIndex).agenda% = usurpRole then
-                characters(contactIndex).weapons% = characters(contactIndex).weapons% + 1
+            agendaIndex = characters(contactIndex).agenda%
+            if agendaIndex >= 0 then
+                characterAgendas(agendaIndex).money = characterAgendas(agendaIndex).money + dealCostK
+                if characterAgendas(agendaIndex).kind% = usurpRole then
+                    characterAgendas(agendaIndex).weapons% = characterAgendas(agendaIndex).weapons% + 1
+                end if
             end if
         end if
     end if
