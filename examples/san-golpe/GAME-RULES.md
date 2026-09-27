@@ -228,3 +228,19 @@ Focused configurations keep generated emulator test programs small:
 - `mainscreen-test.metabasic.json` covers the main view and discovered-character display.
 
 When a confirmed rule changes, update its implementation, its focused tests, and this document together.
+
+## Future design areas
+
+The following ideas are intentionally not confirmed rules or placeholder mechanics yet. They should be designed as one connected political and economic loop before implementation:
+
+- what the President does from round to round;
+- how the coffee price changes and influences the President;
+- how the coffee price influences the Landowner;
+- what actions the Landowner takes;
+- when the player should seek to replace the President;
+- when the player should protect the President instead;
+- how character agendas connect to political and economic developments;
+- which more drastic agent and NPC missions become available; and
+- how character death works, including a later funeral event.
+
+`Character.isAlive%` already distinguishes living and dead characters, but no general death mechanic or funeral event is implemented. These fields and future ideas must not be treated as settled rules until the surrounding systems are defined.
