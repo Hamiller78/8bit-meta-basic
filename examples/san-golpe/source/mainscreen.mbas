@@ -28,9 +28,9 @@ function showOverview(turnNumber)
         print " M: ";
         printMissionName(agentMissions%(agentIndex))
         print
-        if agentMissions%(agentIndex) = missionVisit then
+        if agentMissions%(agentIndex) = missionObserve then
             print "    ";
-            printLocationName(agentLocations%(agentIndex))
+            printLocationName(agentMissionValues%(agentIndex))
             print
         end if
         targetIndex = agentTargets%(agentIndex)
@@ -60,6 +60,9 @@ function printAgentReports()
             if reportValue = reportNoLead then
                 print text$("reportNoLead");
             end if
+            if reportValue = reportDiscovery then
+                print text$("reportDiscovery");
+            end if
             if reportValue = reportIntel then
                 print text$("reportIntel");
             end if
@@ -78,7 +81,7 @@ function printAgentReports()
             if reportValue = reportPoliticalInsight then
                 printKnownFirstName(agentReportTargets%(agentIndex))
                 print ": "; text$("reportPresidentThinking"); " ";
-                printEconomicPosition(agentLocations%(agentIndex))
+                printEconomicPosition(agentMissionValues%(agentIndex))
             end if
             targetIndex = agentReportTargets%(agentIndex)
             if targetIndex >= 0 and reportValue <> reportDealFailed and reportValue <> reportPoliticalInsight then
@@ -129,8 +132,8 @@ function showAgentMenu(agentIndex)
         print text$("overviewCurrentMission")
         printMissionName(agentMissions%(agentIndex))
         print
-        if agentMissions%(agentIndex) = missionVisit then
-            printLocationName(agentLocations%(agentIndex))
+        if agentMissions%(agentIndex) = missionObserve then
+            printLocationName(agentMissionValues%(agentIndex))
             print
         end if
         if agentTargets%(agentIndex) >= 0 then
@@ -152,7 +155,7 @@ function chooseMission(agentIndex)
 
     cls
     print_centered text$("overviewMissionHeading")
-    print "1 "; text$("missionVisit")
+    print "1 "; text$("missionObserve")
     print "2 "; text$("missionInvestigate")
     print "3 "; text$("missionDeal")
     print "4 "; text$("missionIdle")
@@ -162,7 +165,7 @@ function chooseMission(agentIndex)
     if choice = KEY_1 then
         selectedLocation = chooseLocation()
         if selectedLocation > 0 then
-            setAgentVisit(agentIndex, selectedLocation)
+            setAgentObserve(agentIndex, selectedLocation)
         end if
     end if
     if choice = KEY_2 then
@@ -179,7 +182,7 @@ function chooseMission(agentIndex)
         else
             selectedContact = chooseAgentContact(agentIndex)
             if selectedContact >= 0 then
-                selectedPerson = choosePersonInLocation(characterLocation(selectedContact))
+                selectedPerson = choosePerson()
                 if selectedPerson >= 0 then
                     if setAgentDeal(agentIndex, selectedContact, selectedPerson) = 0 then
                         showOrderMessage(1)
@@ -258,64 +261,19 @@ function browsePeople()
 end function
 
 function choosePerson()
-    local selectedLocation, selectedPerson
-    repeat
-        selectedLocation = chooseLocation()
-        if selectedLocation = 0 then
-            return -1
-        end if
-        selectedPerson = choosePersonInLocation(selectedLocation)
-        if selectedPerson >= 0 then
-            return selectedPerson
-        end if
-    until selectedLocation = 0
-    return -1
-end function
-
-function chooseLocation()
-    local choice
-    cls
-    print_centered text$("locationHeading")
-    print "1 "; text$("locationPalace")
-    print "2 "; text$("locationMilitary")
-    print "3 "; text$("locationEmbassy")
-    print "4 "; text$("locationChurch")
-    print "5 "; text$("locationPub")
-    print "6 "; text$("locationOutside")
-    print "0 "; text$("overviewBack")
-    choice = getInput()
-    if choice = KEY_1 then
-        return palaceLocation
-    end if
-    if choice = KEY_2 then
-        return militaryLocation
-    end if
-    if choice = KEY_3 then
-        return embassyLocation
-    end if
-    if choice = KEY_4 then
-        return churchLocation
-    end if
-    if choice = KEY_5 then
-        return pubLocation
-    end if
-    if choice = KEY_6 then
-        return outsideLocation
-    end if
-    return 0
-end function
-
-function choosePersonInLocation(selectedLocation)
     local characterIndex, listedCount, choice, chosenNumber
 
     cls
-    printLocationName(selectedLocation)
-    print
+    print_centered text$("overviewPeopleHeading")
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if characterLocation(characterIndex) = selectedLocation then
+        if playerIntel%(characterIndex) >= intelName then
             listedCount = listedCount + 1
-            print listedCount; " ";
+            if listedCount < 10 then
+                print listedCount; " ";
+            else
+                print "A ";
+            end if
             printKnownName(characterIndex)
             print
         end if
@@ -328,12 +286,15 @@ function choosePersonInLocation(selectedLocation)
     print "0 "; text$("overviewBack")
     choice = getInput()
     chosenNumber = keyDigit(choice)
+    if choice = KEY_A then
+        chosenNumber = 10
+    end if
     if chosenNumber < 1 or chosenNumber > listedCount then
         return -1
     end if
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if characterLocation(characterIndex) = selectedLocation then
+        if playerIntel%(characterIndex) >= intelName then
             listedCount = listedCount + 1
             if listedCount = chosenNumber then
                 return characterIndex
@@ -343,13 +304,35 @@ function choosePersonInLocation(selectedLocation)
     return -1
 end function
 
+function chooseLocation()
+    local choice
+    cls
+    print_centered text$("locationHeading")
+    print "1 "; text$("locationPalace")
+    print "2 "; text$("locationEmbassy")
+    print "3 "; text$("locationChurch")
+    print "4 "; text$("locationPub")
+    print "0 "; text$("overviewBack")
+    choice = getInput()
+    if choice = KEY_1 then
+        return palaceLocation
+    end if
+    if choice = KEY_2 then
+        return embassyLocation
+    end if
+    if choice = KEY_3 then
+        return churchLocation
+    end if
+    if choice = KEY_4 then
+        return pubLocation
+    end if
+    return 0
+end function
+
 function showCharacterCard(characterIndex)
     cls
     print_centered text$("overviewPersonHeading")
     printKnownName(characterIndex)
-    print
-    print text$("overviewAreaLabel"); ": ";
-    printLocationName(characterLocation(characterIndex))
     print
     print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/3"
     print text$("overviewContacts"); ": ";
@@ -382,9 +365,6 @@ function printLocationName(locationValue)
     if locationValue = palaceLocation then
         print text$("locationPalace");
     end if
-    if locationValue = militaryLocation then
-        print text$("locationMilitary");
-    end if
     if locationValue = embassyLocation then
         print text$("locationEmbassy");
     end if
@@ -393,9 +373,6 @@ function printLocationName(locationValue)
     end if
     if locationValue = pubLocation then
         print text$("locationPub");
-    end if
-    if locationValue = outsideLocation then
-        print text$("locationOutside");
     end if
 end function
 
@@ -427,8 +404,8 @@ function printAgenda(agendaValue)
 end function
 
 function printMissionName(missionValue)
-    if missionValue = missionVisit then
-        print text$("missionVisit");
+    if missionValue = missionObserve then
+        print text$("missionObserve");
     end if
     if missionValue = missionInvestigate then
         print text$("missionInvestigate");

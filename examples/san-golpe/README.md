@@ -16,26 +16,32 @@ Atari tokenized BASIC now packages successfully. Reusing expression temporaries 
 
 New characters start with role `none`, zero money and weapons, agenda `doDuty`, no agenda target, and a random integrity from 0 through 10. After `createAllCharacters()` has created the complete cast, each character has a 75% chance to retain `doDuty`; the remaining outcomes are split evenly between `usurpRole`, `findLove`, and `secretSpy`. Usurpation and love select another character as their target. The spy agenda remains targetless until allegiance mechanics are defined.
 
-The main screen shows the budget, both US agents, their contacts, and current missions. Press `1` or `2` for an agent and to assign a mission; `3` opens a character directory grouped by location; `4` ends the turn. Both agents begin with **no contacts**. A visit order persists across turns and may find information or establish a permanent contact at the chosen location. Investigation also persists until the target's agenda is known; a deal is a one-time order. Mission results appear with the next turn's events.
+The main screen shows the budget, both US agents, their contacts, and current missions. Press `1` or `2` for an agent and to assign a mission; `3` opens the flat known-character directory; `4` ends the turn. Both agents begin with **no contacts**. Mission results appear with the next turn's events.
 
-The current cast includes a general at Military HQ. Each visit encounters one accessible character at its location. The information and contact rolls are independent:
+## Confirmed action rules
 
-| Location | Information | Contact |
-| --- | ---: | ---: |
-| The Republic's Palace | 35% | 20% |
-| Military HQ | 50% | 25% |
-| USSR Embassy | 25% | 15% |
-| Church | 60% | 40% |
-| Pub | 75% | 55% |
-| Outside Town | 50% | 35% |
+**Observe Location** discovers one random, previously unknown living character from the selected location's discovery pool. Discovery means learning enough about that character's habits to find them again at will; the character is added to the known-character directory. An already-known character is removed from subsequent observation pools. A common character has weight `3` and a rare character weight `1`, so any eligible common character is three times as likely to be selected as any eligible rare character. If no eligible unknown character remains, the action reports no lead. The order persists until changed.
 
-A visit can raise knowledge as far as the rough integrity band. A contact at the target's location is required to investigate further, with a 20-point bonus over that location's information chance (capped at 95%). The President cannot be reached by a cold Palace visit; an existing Palace contact makes him accessible. Contacts belong to individual agents.
+The observation pools are:
 
-Money is measured in `k$`: one unit is 1,000 US dollars. The starting budget is `1,000 k$` ($1,000,000). A deal pays `10 k$` to an agent's contact for full information about a character at that contact's location. Integrity determines the chance the deal is honored: integrity 0 never honors it; integrity 10 always does. An unhonored deal either disappears into the contact's pocket or funds their own agenda. Both failures look the same to the player. Diverted funds become character money, and a power-seeking contact also gains a weapons unit.
+| Location | Common (weight 3 each) | Rare (weight 1 each) |
+| --- | --- | --- |
+| Republic's Palace | General, Advisor | President's daughter, Landowner |
+| USSR Embassy | Both Soviet agents | — |
+| Church | Priest | Any other San Golpe native with integrity above 3 |
+| Pub | Innkeeper | Any other San Golpe native with integrity below 9, plus the US tourist |
 
-Player knowledge is stored as one numeric level per character, separate from the character's true attributes. Level 0 identifies only an entry in a location (the two USSR Embassy agents start here); level 1 reveals the name; level 2 also reveals a rough integrity band (`0–3` low, `4–7` medium, `8–10` high); level 3 also reveals the agenda. All other starting characters are known by name at level 1. `revealCharacter(index, level)` raises knowledge without lowering an existing level.
+The two US agents are never discovery candidates: they are the characters executing the action. The President is also never discoverable through **Observe Location**. Characters have no permanently assigned locations; the four locations exist only as observation encounter tables. Only the two player agents are known at the start of a game; everyone else must be discovered or revealed by another mechanic.
 
-The President has a hidden economic position from `0` (socialist) to `100` (free market), initially `50`. Game systems move it through `adjustPresidentEconomy(change)`, which keeps it within that range; future coffee-market and event logic can therefore influence the same state. The player never sees the number. Investigating the President through an established Palace contact produces one of five qualitative descriptions. All living characters except US agents, Soviet agents, and the US tourist are considered close enough to have an opinion. A reliable contact reports the correct band; a failed integrity roll moves the report one band in either direction. The bartender is a wildcard who can potentially know about any living character. Other characters can provide information about people at their own location.
+## Placeholder mechanics
+
+Investigation, contacts, deals, their success probabilities, and the President's economic reports are prototype logic, not confirmed game rules. They remain implemented so the current game loop is playable while actions are reworked. At present, investigation requires any living contact and succeeds on a flat 50% roll. Investigation persists until the target's agenda is known. Deals are one-time orders, cost `10 k$`, and use the selected contact's integrity to decide the outcome.
+
+Money is measured in `k$`: one unit is 1,000 US dollars. The starting budget is `1,000 k$` ($1,000,000). A deal pays `10 k$` to an agent's contact for full information about a selected known character. Integrity determines the chance the deal is honored: integrity 0 never honors it; integrity 10 always does. An unhonored deal either disappears into the contact's pocket or funds their own agenda. Both failures look the same to the player. Diverted funds become character money, and a power-seeking contact also gains a weapons unit.
+
+Player knowledge is stored as one numeric level per character, separate from the character's true attributes. Level 0 is unknown and omitted from the directory; level 1 means discovered and reveals the name; level 2 also reveals a rough integrity band (`0–3` low, `4–7` medium, `8–10` high); level 3 also reveals the agenda. `revealCharacter(index, level)` raises knowledge without lowering an existing level.
+
+The placeholder political model gives the President a hidden economic position from `0` (socialist) to `100` (free market), initially `50`. Game systems move it through `adjustPresidentEconomy(change)`, which keeps it within that range. The player never sees the number. Investigating the President through a contact produces one of five qualitative descriptions. All living characters except US agents, Soviet agents, and the US tourist are considered close enough to have an opinion. A reliable contact reports the correct band; a failed integrity roll moves the report one band in either direction. For other targets, any living character can potentially provide information; accuracy is decided separately by dice rolls.
 
 The focused test configurations keep the emulator programs small enough to load, while exercising the actual BASIC for each feature:
 

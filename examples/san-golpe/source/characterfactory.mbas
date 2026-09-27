@@ -16,7 +16,7 @@ function createAllCharacters(showProgress)
     createRoleCharacter(advisor, native, showProgress)
     createRoleCharacter(general, native, showProgress)
     createRoleCharacter(priest, native, showProgress)
-    createRoleCharacter(bartender, native, showProgress)
+    createRoleCharacter(innkeeper, native, showProgress)
     createRoleCharacter(landowner, native, showProgress)
     createRoleCharacter(ustourist, us, showProgress)
 

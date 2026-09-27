@@ -5,10 +5,18 @@ uses "politics.mbas"
 const numberOfAgents = 2
 const startingBudgetK = 1000
 const dealCostK = 10
+const investigationChance = 50
+
+enum ObservationLocation
+    palaceLocation = 1
+    embassyLocation
+    churchLocation
+    pubLocation
+end enum
 
 enum AgentMission
     missionIdle = 0
-    missionVisit
+    missionObserve
     missionInvestigate
     missionDeal
 end enum
@@ -16,6 +24,7 @@ end enum
 enum AgentReport
     reportNone = 0
     reportNoLead
+    reportDiscovery
     reportIntel
     reportContact
     reportDealHonored
@@ -35,7 +44,7 @@ dim agentContacts%(numberOfAgents * numberOfCharacters)
 dim agentContactCount%(numberOfAgents)
 dim agentMissions%(numberOfAgents)
 dim agentTargets%(numberOfAgents)
-dim agentLocations%(numberOfAgents)
+dim agentMissionValues%(numberOfAgents)
 dim agentDealContacts%(numberOfAgents)
 dim agentReports%(numberOfAgents)
 dim agentReportTargets%(numberOfAgents)
@@ -48,7 +57,7 @@ function initializeAgentOperations()
         agentContactCount%(agentIndex) = 0
         agentMissions%(agentIndex) = missionIdle
         agentTargets%(agentIndex) = -1
-        agentLocations%(agentIndex) = 0
+        agentMissionValues%(agentIndex) = 0
         agentDealContacts%(agentIndex) = -1
         agentReports%(agentIndex) = reportNone
         agentReportTargets%(agentIndex) = -1
@@ -71,7 +80,7 @@ end function
 function firstAgentContact(agentIndex)
     local characterIndex
     for characterIndex = 2 to numberOfCharacters - 1
-        if hasAgentContact(agentIndex, characterIndex) = 1 then
+        if hasAgentContact(agentIndex, characterIndex) = 1 and characters(characterIndex).isAlive% = 1 then
             return characterIndex
         end if
     next characterIndex
@@ -94,26 +103,7 @@ function addAgentContact(agentIndex, characterIndex)
     return 1
 end function
 
-function hasContactAtLocation(agentIndex, locationValue)
-    if firstContactAtLocation(agentIndex, locationValue) >= 0 then
-        return 1
-    end if
-    return 0
-end function
-
-function firstContactAtLocation(agentIndex, locationValue)
-    local characterIndex
-    for characterIndex = 2 to numberOfCharacters - 1
-        if characterLocation(characterIndex) = locationValue then
-            if hasAgentContact(agentIndex, characterIndex) = 1 and characters(characterIndex).isAlive% = 1 then
-                return characterIndex
-            end if
-        end if
-    next characterIndex
-    return -1
-end function
-
-'The president cannot be reached from a cold visit to the palace.
+'The placeholder investigation logic requires any living contact.
 function canApproach(agentIndex, characterIndex)
     if characterIndex < 2 or characterIndex >= numberOfCharacters then
         return 0
@@ -122,7 +112,9 @@ function canApproach(agentIndex, characterIndex)
         return 0
     end if
     if characters(characterIndex).role% = president then
-        return hasContactAtLocation(agentIndex, palaceLocation)
+        if firstAgentContact(agentIndex) < 0 then
+            return 0
+        end if
     end if
     return 1
 end function
@@ -131,85 +123,103 @@ function canInvestigate(agentIndex, characterIndex)
     if canApproach(agentIndex, characterIndex) = 0 then
         return 0
     end if
-    return hasContactAtLocation(agentIndex, characterLocation(characterIndex))
+    if firstAgentContact(agentIndex) >= 0 then
+        return 1
+    end if
+    return 0
 end function
 
-function locationIntelChance(locationValue)
+function isSanGolpeNative(characterIndex)
+    local roleValue
+    roleValue = characters(characterIndex).role%
+    if roleValue = president or roleValue = daughter or roleValue = advisor or roleValue = general or roleValue = priest or roleValue = innkeeper or roleValue = landowner then
+        return 1
+    end if
+    return 0
+end function
+
+'Common characters carry weight 3 and rare characters weight 1.
+function observationWeight(characterIndex, locationValue)
+    local roleValue
+    'Indexes 0 and 1 are the US agents performing the observation.
+    if characterIndex < 2 or characterIndex >= numberOfCharacters then
+        return 0
+    end if
+    if characters(characterIndex).isAlive% = 0 or playerIntel%(characterIndex) >= intelName then
+        return 0
+    end if
+    roleValue = characters(characterIndex).role%
+    if roleValue = president then
+        return 0
+    end if
     if locationValue = palaceLocation then
-        return 35
-    end if
-    if locationValue = militaryLocation then
-        return 50
-    end if
-    if locationValue = embassyLocation then
-        return 25
-    end if
-    if locationValue = churchLocation then
-        return 60
-    end if
-    if locationValue = pubLocation then
-        return 75
-    end if
-    return 50
-end function
-
-function locationContactChance(locationValue)
-    if locationValue = palaceLocation then
-        return 20
-    end if
-    if locationValue = militaryLocation then
-        return 25
-    end if
-    if locationValue = embassyLocation then
-        return 15
-    end if
-    if locationValue = churchLocation then
-        return 40
-    end if
-    if locationValue = pubLocation then
-        return 55
-    end if
-    return 35
-end function
-
-function locationCandidateCount(agentIndex, locationValue)
-    local characterIndex, count
-    count = 0
-    for characterIndex = 2 to numberOfCharacters - 1
-        if characterLocation(characterIndex) = locationValue then
-            if canApproach(agentIndex, characterIndex) = 1 then
-                count = count + 1
-            end if
+        if roleValue = general or roleValue = advisor then
+            return 3
         end if
+        if roleValue = daughter or roleValue = landowner then
+            return 1
+        end if
+        return 0
+    end if
+    if locationValue = embassyLocation then
+        if roleValue = ussragent then
+            return 3
+        end if
+        return 0
+    end if
+    if locationValue = churchLocation then
+        if roleValue = priest then
+            return 3
+        end if
+        if isSanGolpeNative(characterIndex) and characters(characterIndex).integrity% > 3 then
+            return 1
+        end if
+        return 0
+    end if
+    if locationValue = pubLocation then
+        if roleValue = innkeeper then
+            return 3
+        end if
+        if roleValue = ustourist then
+            return 1
+        end if
+        if isSanGolpeNative(characterIndex) and characters(characterIndex).integrity% < 9 then
+            return 1
+        end if
+    end if
+    return 0
+end function
+
+function observationTotalWeight(locationValue)
+    local characterIndex, totalWeight
+    totalWeight = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        totalWeight = totalWeight + observationWeight(characterIndex, locationValue)
     next characterIndex
-    return count
+    return totalWeight
 end function
 
-function locationCandidateAt(agentIndex, locationValue, ordinal)
-    local characterIndex, count
-    count = 0
+function observationCandidateAt(locationValue, selection)
+    local characterIndex, weight
     for characterIndex = 2 to numberOfCharacters - 1
-        if characterLocation(characterIndex) = locationValue then
-            if canApproach(agentIndex, characterIndex) = 1 then
-                if count = ordinal then
-                    return characterIndex
-                end if
-                count = count + 1
-            end if
+        weight = observationWeight(characterIndex, locationValue)
+        if selection < weight then
+            return characterIndex
         end if
+        selection = selection - weight
     next characterIndex
     return -1
 end function
 
-function setAgentVisit(agentIndex, locationValue)
+function setAgentObserve(agentIndex, locationValue)
     if agentIndex < 0 or agentIndex >= numberOfAgents then
         return 0
     end if
-    if locationValue < palaceLocation or locationValue > outsideLocation then
+    if locationValue < palaceLocation or locationValue > pubLocation then
         return 0
     end if
-    agentMissions%(agentIndex) = missionVisit
-    agentLocations%(agentIndex) = locationValue
+    agentMissions%(agentIndex) = missionObserve
+    agentMissionValues%(agentIndex) = locationValue
     agentTargets%(agentIndex) = -1
     agentDealContacts%(agentIndex) = -1
     return 1
@@ -220,7 +230,7 @@ function setAgentInvestigation(agentIndex, characterIndex)
         return 0
     end if
     agentMissions%(agentIndex) = missionInvestigate
-    agentLocations%(agentIndex) = characterLocation(characterIndex)
+    agentMissionValues%(agentIndex) = 0
     agentTargets%(agentIndex) = characterIndex
     agentDealContacts%(agentIndex) = -1
     return 1
@@ -239,11 +249,8 @@ function setAgentDeal(agentIndex, contactIndex, targetIndex)
     if canInvestigate(agentIndex, targetIndex) = 0 then
         return 0
     end if
-    if characterLocation(contactIndex) <> characterLocation(targetIndex) then
-        return 0
-    end if
     agentMissions%(agentIndex) = missionDeal
-    agentLocations%(agentIndex) = characterLocation(targetIndex)
+    agentMissionValues%(agentIndex) = 0
     agentTargets%(agentIndex) = targetIndex
     agentDealContacts%(agentIndex) = contactIndex
     return 1
@@ -251,19 +258,19 @@ end function
 
 function setAgentIdle(agentIndex)
     agentMissions%(agentIndex) = missionIdle
-    agentLocations%(agentIndex) = 0
+    agentMissionValues%(agentIndex) = 0
     agentTargets%(agentIndex) = -1
     agentDealContacts%(agentIndex) = -1
 end function
 
-'Visit and investigate orders persist; deals are one-time orders.
+'Observe and investigate orders persist; deals are one-time orders.
 function resolveAgentMissions()
     local agentIndex
     for agentIndex = 0 to numberOfAgents - 1
         agentReports%(agentIndex) = reportNone
         agentReportTargets%(agentIndex) = -1
-        if agentMissions%(agentIndex) = missionVisit then
-            resolveVisitMission(agentIndex)
+        if agentMissions%(agentIndex) = missionObserve then
+            resolveObservationMission(agentIndex)
         end if
         if agentMissions%(agentIndex) = missionInvestigate then
             resolveInvestigationMission(agentIndex)
@@ -274,42 +281,27 @@ function resolveAgentMissions()
     next agentIndex
 end function
 
-function resolveVisitMission(agentIndex)
-    local locationValue, candidateCount, candidateIndex, characterIndex
-    locationValue = agentLocations%(agentIndex)
-    candidateCount = locationCandidateCount(agentIndex, locationValue)
-    agentReports%(agentIndex) = reportNoLead
-    if candidateCount = 0 then
-        return
-    end if
-    candidateIndex = int(rnd() * candidateCount)
-    characterIndex = locationCandidateAt(agentIndex, locationValue, candidateIndex)
-    resolveVisitRoll(agentIndex, characterIndex, int(rnd() * 100), int(rnd() * 100))
+function resolveObservationMission(agentIndex)
+    local locationValue, totalWeight
+    locationValue = agentMissionValues%(agentIndex)
+    totalWeight = observationTotalWeight(locationValue)
+    resolveObservationRoll(agentIndex, locationValue, int(rnd() * totalWeight))
 end function
 
-'Separate rolls make the two location chances testable without a fake RNG.
-function resolveVisitRoll(agentIndex, characterIndex, intelRoll, contactRoll)
-    local locationValue, nextLevel
+function resolveObservationRoll(agentIndex, locationValue, selection)
+    local characterIndex
     agentReports%(agentIndex) = reportNoLead
     agentReportTargets%(agentIndex) = -1
-    if canApproach(agentIndex, characterIndex) = 0 then
+    if selection < 0 then
         return
     end if
-    locationValue = characterLocation(characterIndex)
-    if intelRoll < locationIntelChance(locationValue) then
-        if playerIntel%(characterIndex) < intelIntegrity then
-            nextLevel = playerIntel%(characterIndex) + 1
-            revealCharacter(characterIndex, nextLevel)
-            agentReports%(agentIndex) = reportIntel
-            agentReportTargets%(agentIndex) = characterIndex
-        end if
+    characterIndex = observationCandidateAt(locationValue, selection)
+    if characterIndex < 0 then
+        return
     end if
-    if contactRoll < locationContactChance(locationValue) then
-        if addAgentContact(agentIndex, characterIndex) = 1 then
-            agentReports%(agentIndex) = reportContact
-            agentReportTargets%(agentIndex) = characterIndex
-        end if
-    end if
+    revealCharacter(characterIndex, intelName)
+    agentReports%(agentIndex) = reportDiscovery
+    agentReportTargets%(agentIndex) = characterIndex
 end function
 
 function resolveInvestigationMission(agentIndex)
@@ -330,21 +322,18 @@ function resolveInvestigationRoll(agentIndex, characterIndex, roll)
         setAgentIdle(agentIndex)
         return
     end if
-    chance = locationIntelChance(characterLocation(characterIndex)) + 20
-    if chance > 95 then
-        chance = 95
-    end if
+    chance = investigationChance
     if roll < chance then
         revealCharacter(characterIndex, playerIntel%(characterIndex) + 1)
         if playerIntel%(characterIndex) >= intelAgenda then
             setAgentIdle(agentIndex)
         end if
         if characters(characterIndex).role% = president then
-            contactIndex = firstContactAtLocation(agentIndex, palaceLocation)
+            contactIndex = firstAgentContact(agentIndex)
             reportedBand = reportedPresidentEconomyBand(contactIndex, roll MOD 10, int(roll / 10))
             agentReports%(agentIndex) = reportPoliticalInsight
             agentReportTargets%(agentIndex) = contactIndex
-            agentLocations%(agentIndex) = reportedBand
+            agentMissionValues%(agentIndex) = reportedBand
         else
             agentReports%(agentIndex) = reportIntel
             agentReportTargets%(agentIndex) = characterIndex

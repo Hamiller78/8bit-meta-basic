@@ -15,7 +15,7 @@ enum Role
     advisor
     general
     priest
-    bartender
+    innkeeper
     landowner
     ustourist
 end enum
@@ -25,15 +25,6 @@ enum Agenda
     usurpRole
     findLove
     secretSpy
-end enum
-
-enum Location
-    palaceLocation = 1
-    militaryLocation
-    embassyLocation
-    churchLocation
-    pubLocation
-    outsideLocation
 end enum
 
 struct Character
@@ -58,25 +49,4 @@ function findRole(wantedRole)
         end if
     next characterIndex
     return -1
-end function
-
-function characterLocation(characterIndex)
-    local roleValue
-    roleValue = characters(characterIndex).role%
-    if roleValue = president or roleValue = daughter or roleValue = advisor then
-        return palaceLocation
-    end if
-    if roleValue = general then
-        return militaryLocation
-    end if
-    if roleValue = ussragent then
-        return embassyLocation
-    end if
-    if roleValue = priest then
-        return churchLocation
-    end if
-    if roleValue = bartender or roleValue = ustourist then
-        return pubLocation
-    end if
-    return outsideLocation
 end function

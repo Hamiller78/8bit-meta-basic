@@ -20,12 +20,11 @@ function initializeIntelligence()
     local characterIndex
     characterIndex = 0
     while characterIndex < numberOfCharacters
-        playerIntel%(characterIndex) = intelName
-        if characters(characterIndex).role% = ussragent then
-            playerIntel%(characterIndex) = intelNone
-        end if
+        playerIntel%(characterIndex) = intelNone
         characterIndex = characterIndex + 1
     wend
+    playerIntel%(0) = intelName
+    playerIntel%(1) = intelName
 end function
 
 'Knowledge can only grow; later missions can call this after a successful reveal.

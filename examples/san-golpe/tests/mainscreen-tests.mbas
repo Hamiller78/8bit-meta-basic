@@ -18,7 +18,7 @@ function setupMainScreenCast()
     characters(6).role% = advisor
     characters(7).role% = general
     characters(8).role% = priest
-    characters(9).role% = bartender
+    characters(9).role% = innkeeper
     characters(10).role% = landowner
     characters(11).role% = ustourist
 end function
@@ -31,7 +31,7 @@ test AgentsStartWithoutContactsOrOrders()
     assert_eq 1000, budget
     assert_eq 0, agentContactCount%(0)
     assert_eq 0, agentContactCount%(1)
-    assert_eq 0, hasAgentContact(0, findRole(bartender))
+    assert_eq 0, hasAgentContact(0, findRole(innkeeper))
     assert_eq 0, hasAgentContact(1, findRole(priest))
     assert_eq missionIdle, agentMissions%(0)
     assert_eq -1, agentTargets%(0)
@@ -53,11 +53,11 @@ test AgentOrdersRemainIndependent()
     initializeIntelligence()
     initializeAgentOperations()
 
-    assert_eq 1, setAgentVisit(0, pubLocation)
+    assert_eq 1, setAgentObserve(0, pubLocation)
     assert_eq 1, addAgentContact(1, findRole(advisor))
     assert_eq 1, setAgentInvestigation(1, findRole(president))
-    assert_eq missionVisit, agentMissions%(0)
-    assert_eq pubLocation, agentLocations%(0)
+    assert_eq missionObserve, agentMissions%(0)
+    assert_eq pubLocation, agentMissionValues%(0)
     assert_eq missionInvestigate, agentMissions%(1)
     assert_eq findRole(president), agentTargets%(1)
 
@@ -67,21 +67,7 @@ test AgentOrdersRemainIndependent()
     assert_eq missionInvestigate, agentMissions%(1)
 end test
 
-test PeopleAreGroupedByLocation()
-    setupMainScreenCast()
-
-    assert_eq palaceLocation, characterLocation(findRole(president))
-    assert_eq palaceLocation, characterLocation(findRole(daughter))
-    assert_eq palaceLocation, characterLocation(findRole(advisor))
-    assert_eq militaryLocation, characterLocation(findRole(general))
-    assert_eq embassyLocation, characterLocation(findRole(ussragent))
-    assert_eq churchLocation, characterLocation(findRole(priest))
-    assert_eq pubLocation, characterLocation(findRole(bartender))
-    assert_eq pubLocation, characterLocation(findRole(ustourist))
-    assert_eq outsideLocation, characterLocation(findRole(landowner))
-end test
-
-test InitialKnowledgeHidesSovietNames()
+test InitialKnowledgeContainsOnlyThePlayerAgents()
     setupMainScreenCast()
     initializeIntelligence()
 
@@ -89,8 +75,8 @@ test InitialKnowledgeHidesSovietNames()
     assert_eq intelName, playerIntel%(1)
     assert_eq intelNone, playerIntel%(2)
     assert_eq intelNone, playerIntel%(3)
-    assert_eq intelName, playerIntel%(findRole(president))
-    assert_eq intelName, playerIntel%(findRole(priest))
+    assert_eq intelNone, playerIntel%(findRole(president))
+    assert_eq intelNone, playerIntel%(findRole(priest))
 end test
 
 test RevealsOnlyIncreaseKnowledge()
