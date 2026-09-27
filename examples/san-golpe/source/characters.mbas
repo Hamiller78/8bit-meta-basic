@@ -58,3 +58,12 @@ function findRole(wantedRole)
     return -1
 end function
 
+function isSanGolpeNative(characterIndex)
+    local roleValue
+    roleValue = characters(characterIndex).role%
+    if roleValue = president or roleValue = daughter or roleValue = advisor or roleValue = general or roleValue = priest or roleValue = innkeeper or roleValue = landowner then
+        return 1
+    end if
+    return 0
+end function
+

@@ -54,12 +54,13 @@ Player knowledge is stored separately from the true character data:
 | ---: | --- |
 | 0 | Unknown; absent from the known-character directory |
 | 1 | Discovered; name known |
-| 2 | Integrity band known: low `0–3`, medium `4–7`, or high `8–10` |
-| 3 | Agenda known |
+| 2 | Observed; habits understood well enough to make contact |
+| 3 | Integrity band known: low `0–3`, medium `4–7`, or high `8–10` |
+| 4 | Agenda known |
 
 Knowledge can only increase. `revealCharacter(index, level)` never lowers it. The two player agents begin at level 1; all other characters begin unknown.
 
-The main view shows the budget, both player agents, their contacts and missions, and a compact `DISCOVERED` list. That list contains the first name of every discovered non-agent character and displays `None` when empty. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
+The main view shows the budget, the shared contacts, both player agents and their missions, and a compact `DISCOVERED` list. That list contains the first name of every discovered non-agent character and displays `None` when empty. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
 
 This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
 
@@ -97,6 +98,77 @@ An observation order persists each turn until the player changes the agent's mis
 
 The weighted pools, exclusions, and exhausted-pool behavior are covered by `tests/agentoperations-tests.mbas`.
 
+## Agent action: Observe Character
+
+### Confirmed rules
+
+A discovered living character can be observed more closely. This raises player knowledge from name-known to the distinct observed level. It does not reveal the character's integrity and cannot raise knowledge beyond the observed level. Observed knowledge means the agents understand the person's habits well enough to attempt contact.
+
+### Implementation
+
+**Observe Character** is a deterministic one-turn mission. `setAgentObserveCharacter()` accepts only a living non-agent character whose knowledge is exactly `intelName`. `resolveCharacterObservationMission()` raises that character to `intelObserved`, reports the new intel, and returns the agent to idle. It is implemented in `source/agentoperations.mbas` and exposed in `source/mainscreen.mbas`.
+
+## Agent action: Surveil Soviet Agent
+
+### Confirmed rules
+
+Once a Soviet agent has reached the observed/contactable intel level, the player gains the option to observe him quietly. This is persistent surveillance, not another permanent intel increase. While a US agent remains assigned to the Soviet agent, the player knows the Soviet agent's current mission. Reassigning the US agent ends surveillance and hides that mission again.
+
+Reaching the contactable intel level is the prerequisite; the Soviet agent does not need to become a cooperative contact.
+
+### Not implemented yet
+
+The current game has no Soviet-agent mission state to reveal, and **Observe Character** currently ends after raising a character to `intelObserved`. Implementing surveillance requires decisions about:
+
+- which missions Soviet agents can perform;
+- when Soviet missions are selected and changed;
+- where the observed mission is displayed;
+- whether both US agents may surveil the same Soviet agent;
+- what happens when the Soviet agent dies or otherwise becomes unavailable; and
+- whether surveillance carries a risk of detection.
+
+## Shared contacts
+
+### Confirmed rules
+
+The two US agents share one contact directory. A person must have reached the observed intel level before either agent can make contact. Once a person becomes a cooperative contact, both agents may use that contact.
+
+Making contact may improve the player's intel about that person. The person may then demand a price for cooperating: money, weapons, or a favor. Integrity creates a deliberate tension: a high-integrity person is less willing to work for a foreign power, but information from a cooperative high-integrity contact is more reliable.
+
+A character with a non-default agenda prefers payment that supports that agenda. Money or weapons paid to such a character become agenda resources and may trigger the agenda once its resource requirements are met. If the character has no agenda that can use the payment, the resources simply disappear from play. A favor is comparatively safe because it does not directly supply resources to any agenda.
+
+A cooperative contact can provide information about characters in their vicinity, including the President. Most successful information should improve the target's intel level. A contact may sometimes uncover a target's agenda, but revealing an agenda requires an additional price.
+
+Vicinity is a directional information relationship, not a permanent character location:
+
+| Contact | Characters in their vicinity |
+| --- | --- |
+| General | President |
+| Advisor | President |
+| President's daughter | President |
+| Priest | Other San Golpe natives with integrity above 5 |
+| Innkeeper | Other San Golpe natives with integrity below 6 |
+
+A contact is not considered to be in their own vicinity. Characters not listed as contacts in this table currently have nobody in their vicinity.
+
+### Unresolved rule parameters
+
+The following details must be decided before this contact flow replaces the placeholder mechanics:
+
+- the chance that an initial contact attempt improves intel;
+- how integrity determines refusal, cooperation, and whether a price is demanded;
+- how the price type and amount are selected;
+- how weapons are acquired and valued;
+- how favors are represented, repaid, or called in later;
+- which resource each agenda prefers and the threshold that triggers it;
+- how integrity controls accurate, inaccurate, and failed reports;
+- the chance and extra price for revealing an agenda; and
+- whether cooperation is permanent or must be renewed for later information.
+
+### Current supporting implementation
+
+Contacts are stored in one `contacts%()` array with one shared `contactCount%`; there are no per-agent contact arrays. The overview and both agent screens display the same shared contacts. This storage model can remain, but the current contact-resolution behavior is only a placeholder until the unresolved rules above are defined.
+
 ## Current turn and interface flow
 
 ### Supporting implementation
@@ -109,19 +181,27 @@ This loop is implemented in `source/main.mbas`; menus and report rendering are i
 
 Everything in this section is temporary logic that keeps the game loop playable. It is not a confirmed game rule.
 
-### Contacts and investigation
+### Contact resolution
 
-Both agents begin without contacts. Adding a contact also reveals that character's name. An investigation currently requires the agent to have any living contact and succeeds on a flat 50% roll. On success it advances the target's knowledge by one level. The order persists until the target's agenda is known, at which point the agent becomes idle.
+**Make Contact** currently succeeds automatically as a one-turn mission. `setAgentContact()` requires a living, observed, non-agent character who is not already a contact. `resolveContactMission()` immediately adds that person to the shared directory, reports success, and returns the acting agent to idle.
 
-The President can be investigated only when the agent has a living contact. Other living non-agent characters can currently be approached globally; there is no location check.
+This does not yet implement possible intel improvement, refusal based on integrity, price negotiation, money/weapons/favor choices, agenda preferences, or agenda activation.
 
-Implementation: contact arrays, `canApproach()`, `canInvestigate()`, `setAgentInvestigation()`, and `resolveInvestigationRoll()` in `source/agentoperations.mbas`.
+### Investigation
+
+The shared directory begins empty. An investigation currently requires a living shared contact whose vicinity includes the observed living target, and succeeds on a flat 50% roll. On success it advances the target's knowledge by one level, from observed to rough integrity and then to agenda. The order persists until the target's agenda is known, at which point the agent becomes idle.
+
+The President can be investigated only when the shared directory contains a living contact. Other living non-agent characters can currently be approached globally; there is no location check.
+
+Implementation: `canApproach()`, `canInvestigate()`, `setAgentInvestigation()`, and `resolveInvestigationRoll()` in `source/agentoperations.mbas`.
+
+The implementation now enforces vicinity, but the flat-chance model does not yet distinguish report accuracy from report success or charge an extra price for agenda information.
 
 ### Deals and money
 
-Money is measured in `k$`; one unit represents 1,000 US dollars. The starting budget is `1,000 k$`. A deal is a one-time order costing `10 k$` and asks one of the agent's living contacts for full information about a selected character.
+Money is measured in `k$`; one unit represents 1,000 US dollars. The starting budget is `1,000 k$`. A deal is a one-time order costing `10 k$` and asks one of the shared living contacts for full information about a selected character.
 
-The contact's integrity controls a ten-sided outcome roll. Integrity 0 never honors a deal and integrity 10 always honors it. A failed deal is either pocketed or diverted to the contact's own agenda, but both failures look identical to the player. Diverted money is stored only when the contact has a non-default agenda; a contact pursuing `usurpRole` also gains one weapons unit. A character on ordinary duty has no agenda storage, so diverted resources have no persistent gameplay effect.
+The contact's integrity controls a ten-sided outcome roll. Integrity 0 never honors a deal and integrity 10 always honors it. This is placeholder behavior and conflicts with the intended rule that high integrity makes cooperation with a foreign power less likely. A failed deal is either pocketed or diverted to the contact's own agenda, but both failures look identical to the player. Diverted money is stored only when the contact has a non-default agenda; a contact pursuing `usurpRole` also gains one weapons unit. A character on ordinary duty has no agenda storage, so diverted resources have no persistent gameplay effect.
 
 Implementation: `setAgentDeal()`, `dealOutcomeFor()`, and `resolveDealRoll()` in `source/agentoperations.mbas`.
 
@@ -129,7 +209,7 @@ Implementation: `setAgentDeal()`, `dealOutcomeFor()`, and `resolveDealRoll()` in
 
 The President has a hidden economic value from 0, socialist, to 100, free market. It starts at 50 and is clamped to that range. Reports translate it into one of five qualitative bands rather than revealing the number.
 
-For a Presidential report, all living native characters except the US agents, Soviet agents, and US tourist are treated as close enough to have an opinion. A reliable contact reports the correct band. A failed integrity roll moves the report one neighboring band in a random direction. For non-President targets, any living character can currently know about any other living character.
+For a Presidential report, only a living General, Advisor, or President's daughter can provide information. A reliable contact reports the correct band. A failed integrity roll moves the report one neighboring band in a random direction. Other targets use the Priest and Innkeeper integrity-based vicinity rules above.
 
 Implementation: `source/politics.mbas`, with report integration in `resolveInvestigationRoll()` in `source/agentoperations.mbas`.
 

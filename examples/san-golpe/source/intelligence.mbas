@@ -3,6 +3,7 @@ uses "characters.mbas"
 enum IntelLevel
     intelNone = 0
     intelName
+    intelObserved
     intelIntegrity
     intelAgenda
 end enum

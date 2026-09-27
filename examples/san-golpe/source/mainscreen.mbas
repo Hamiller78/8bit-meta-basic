@@ -4,26 +4,27 @@ uses "agentoperations.mbas"
 uses "politics.mbas"
 
 function showOverview(turnNumber)
-    local agentIndex, firstContact, targetIndex
+    local agentIndex, firstContactIndex, targetIndex
 
     cls
     print_centered text$("overviewHeading")
     print text$("overviewTurn"); " "; turnNumber; "  "; text$("overviewBudgetLabel"); " "; budget; " k$"
     print
+    print text$("overviewContacts"); ": "; contactCount%;
+    firstContactIndex = firstContact()
+    if firstContactIndex >= 0 then
+        print " ";
+        printKnownFirstName(firstContactIndex)
+        if contactCount% > 1 then
+            print " +"; contactCount% - 1;
+        end if
+    end if
+    print
+    print
     print text$("overviewAgents")
     for agentIndex = 0 to numberOfAgents - 1
         print agentIndex + 1; " ";
         printKnownName(agentIndex)
-        print
-        print " C: "; agentContactCount%(agentIndex);
-        firstContact = firstAgentContact(agentIndex)
-        if firstContact >= 0 then
-            print " ";
-            printKnownFirstName(firstContact)
-            if agentContactCount%(agentIndex) > 1 then
-                print " +"; agentContactCount%(agentIndex) - 1;
-            end if
-        end if
         print
         print " M: ";
         printMissionName(agentMissions%(agentIndex))
@@ -142,9 +143,9 @@ function showAgentMenu(agentIndex)
         printKnownName(agentIndex)
         print
         print
-        print text$("overviewContacts"); ": "; agentContactCount%(agentIndex)
+        print text$("overviewContacts"); ": "; contactCount%
         for characterIndex = 2 to numberOfCharacters - 1
-            if hasAgentContact(agentIndex, characterIndex) = 1 then
+            if hasContact(characterIndex) = 1 then
                 printKnownName(characterIndex)
                 print
             end if
@@ -177,9 +178,11 @@ function chooseMission(agentIndex)
     cls
     print_centered text$("overviewMissionHeading")
     print "1 "; text$("missionObserve")
-    print "2 "; text$("missionInvestigate")
-    print "3 "; text$("missionDeal")
-    print "4 "; text$("missionIdle")
+    print "2 "; text$("missionObserveCharacter")
+    print "3 "; text$("missionContact")
+    print "4 "; text$("missionInvestigate")
+    print "5 "; text$("missionDeal")
+    print "6 "; text$("missionIdle")
     print "0 "; text$("overviewBack")
     choice = getInput()
 
@@ -192,16 +195,32 @@ function chooseMission(agentIndex)
     if choice = KEY_2 then
         selectedPerson = choosePerson()
         if selectedPerson >= 0 then
+            if setAgentObserveCharacter(agentIndex, selectedPerson) = 0 then
+                showOrderMessage(3)
+            end if
+        end if
+    end if
+    if choice = KEY_3 then
+        selectedPerson = choosePerson()
+        if selectedPerson >= 0 then
+            if setAgentContact(agentIndex, selectedPerson) = 0 then
+                showOrderMessage(4)
+            end if
+        end if
+    end if
+    if choice = KEY_4 then
+        selectedPerson = choosePerson()
+        if selectedPerson >= 0 then
             if setAgentInvestigation(agentIndex, selectedPerson) = 0 then
                 showOrderMessage(1)
             end if
         end if
     end if
-    if choice = KEY_3 then
+    if choice = KEY_5 then
         if budget < dealCostK then
             showOrderMessage(2)
         else
-            selectedContact = chooseAgentContact(agentIndex)
+            selectedContact = chooseContact()
             if selectedContact >= 0 then
                 selectedPerson = choosePerson()
                 if selectedPerson >= 0 then
@@ -212,7 +231,7 @@ function chooseMission(agentIndex)
             end if
         end if
     end if
-    if choice = KEY_4 then
+    if choice = KEY_6 then
         setAgentIdle(agentIndex)
     end if
 end function
@@ -221,22 +240,29 @@ function showOrderMessage(messageKind)
     cls
     if messageKind = 1 then
         print_text "orderNeedsContact"
-    else
+    end if
+    if messageKind = 2 then
         print_text "orderNoFunds"
+    end if
+    if messageKind = 3 then
+        print_text "orderCannotObserve"
+    end if
+    if messageKind = 4 then
+        print_text "orderCannotContact"
     end if
     print
     print text$("continue")
     getInput()
 end function
 
-function chooseAgentContact(agentIndex)
+function chooseContact()
     local characterIndex, listedCount, choice, chosenNumber
 
     cls
     print_centered text$("overviewContacts")
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if hasAgentContact(agentIndex, characterIndex) = 1 then
+        if hasContact(characterIndex) = 1 then
             listedCount = listedCount + 1
             if listedCount < 10 then
                 print listedCount; " ";
@@ -261,7 +287,7 @@ function chooseAgentContact(agentIndex)
     end if
     listedCount = 0
     for characterIndex = 2 to numberOfCharacters - 1
-        if hasAgentContact(agentIndex, characterIndex) = 1 then
+        if hasContact(characterIndex) = 1 then
             listedCount = listedCount + 1
             if listedCount = chosenNumber then
                 return characterIndex
@@ -356,15 +382,11 @@ function showCharacterCard(characterIndex)
     print_centered text$("overviewPersonHeading")
     printKnownName(characterIndex)
     print
-    print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/3"
+    print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/4"
     print text$("overviewContacts"); ": ";
-    if hasAgentContact(0, characterIndex) = 1 then
-        print "1 ";
-    end if
-    if hasAgentContact(1, characterIndex) = 1 then
-        print "2 ";
-    end if
-    if hasAgentContact(0, characterIndex) = 0 and hasAgentContact(1, characterIndex) = 0 then
+    if hasContact(characterIndex) = 1 then
+        print "1";
+    else
         print text$("overviewNone");
     end if
     print
@@ -433,6 +455,12 @@ end function
 function printMissionName(missionValue)
     if missionValue = missionObserve then
         print text$("missionObserve");
+    end if
+    if missionValue = missionObserveCharacter then
+        print text$("missionObserveCharacter");
+    end if
+    if missionValue = missionContact then
+        print text$("missionContact");
     end if
     if missionValue = missionInvestigate then
         print text$("missionInvestigate");

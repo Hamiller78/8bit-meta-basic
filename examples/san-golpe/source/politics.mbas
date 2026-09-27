@@ -39,31 +39,36 @@ function economicPositionBand(value)
     return positionBand
 end function
 
-function isCloseToPresident(characterIndex)
-    local roleValue
-    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+function canCharacterKnowAbout(sourceIndex, targetIndex)
+    local sourceRole, targetRole
+    if sourceIndex < 0 or sourceIndex >= numberOfCharacters or targetIndex < 0 or targetIndex >= numberOfCharacters then
         return 0
     end if
-    roleValue = characters(characterIndex).role%
-    if characters(characterIndex).isAlive% and roleValue <> usagent and roleValue <> ussragent and roleValue <> ustourist then
-        return 1
-    end if
-    return 0
-end function
-
-'The placeholder model lets any living character potentially know another.
-'Knowledge accuracy is resolved separately by a roll.
-function canCharacterKnowAbout(sourceIndex, targetIndex)
-    if sourceIndex < 0 or sourceIndex >= numberOfCharacters or targetIndex < 0 or targetIndex >= numberOfCharacters then
+    if sourceIndex = targetIndex then
         return 0
     end if
     if characters(sourceIndex).isAlive% = 0 or characters(targetIndex).isAlive% = 0 then
         return 0
     end if
-    if characters(targetIndex).role% = president then
-        return isCloseToPresident(sourceIndex)
+    sourceRole = characters(sourceIndex).role%
+    targetRole = characters(targetIndex).role%
+    if targetRole = president then
+        if sourceRole = general or sourceRole = advisor or sourceRole = daughter then
+            return 1
+        end if
+        return 0
     end if
-    return 1
+    if sourceRole = priest then
+        if isSanGolpeNative(targetIndex) and characters(targetIndex).integrity% > 5 then
+            return 1
+        end if
+    end if
+    if sourceRole = innkeeper then
+        if isSanGolpeNative(targetIndex) and characters(targetIndex).integrity% < 6 then
+            return 1
+        end if
+    end if
+    return 0
 end function
 
 'A reliable contact reports the true qualitative band. An unreliable contact
