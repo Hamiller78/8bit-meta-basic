@@ -41,9 +41,30 @@ function showOverview(turnNumber)
         end if
     next agentIndex
     print
+    printDiscoveredCharacters()
+    print
     print "1/2 "; text$("overviewAgentOption")
     print "3 "; text$("overviewPeopleOption")
     print "4 "; text$("overviewEndTurnOption")
+end function
+
+function printDiscoveredCharacters()
+    local characterIndex, discoveredCount
+    print text$("overviewDiscovered"); ": ";
+    discoveredCount = 0
+    for characterIndex = 2 to numberOfCharacters - 1
+        if playerIntel%(characterIndex) >= intelName then
+            if discoveredCount > 0 then
+                print ", ";
+            end if
+            printKnownFirstName(characterIndex)
+            discoveredCount = discoveredCount + 1
+        end if
+    next characterIndex
+    if discoveredCount = 0 then
+        print text$("overviewNone");
+    end if
+    print
 end function
 
 function printAgentReports()

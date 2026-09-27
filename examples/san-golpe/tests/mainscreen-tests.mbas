@@ -48,6 +48,21 @@ test OverviewOffersAgentOrdersAndTurnEnd()
     assert_print "4 End turn"
 end test
 
+test OverviewDiscoveredListUsesKnownCharacters()
+    setupMainScreenCast()
+    initializeIntelligence()
+    characters(6).first$ = "Carlos"
+    characters(9).first$ = "Miguel"
+
+    printDiscoveredCharacters()
+    assert_print "DISCOVERED: None"
+
+    revealCharacter(6, intelName)
+    revealCharacter(9, intelName)
+    printDiscoveredCharacters()
+    assert_print "DISCOVERED: Carlos, Miguel"
+end test
+
 test AgentOrdersRemainIndependent()
     setupMainScreenCast()
     initializeIntelligence()
