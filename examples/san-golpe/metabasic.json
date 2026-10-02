@@ -6,6 +6,7 @@
     "source/characterfactory.mbas",
     "source/intelligence.mbas",
     "source/politics.mbas",
+    "source/presidentevents.mbas",
     "source/agentoperations.mbas",
     "source/intro.mbas",
     "source/mainscreen.mbas",

@@ -1,0 +1,9 @@
+{
+  "files": [
+    "source/characters.mbas",
+    "source/politics.mbas",
+    "source/presidentevents.mbas",
+    "tests/presidentevents-tests.mbas"
+  ],
+  "textsDir": "texts"
+}

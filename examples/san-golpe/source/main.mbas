@@ -2,6 +2,7 @@ uses "characterfactory.mbas"
 uses "characters.mbas"
 uses "intelligence.mbas"
 uses "politics.mbas"
+uses "presidentevents.mbas"
 uses "agentoperations.mbas"
 uses "intro.mbas"
 uses "mainscreen.mbas"
@@ -21,6 +22,7 @@ print_centered text$("creatingCharacters")
 createAllCharacters(true)
 initializeIntelligence()
 initializePolitics()
+initializePresidentEvents()
 initializeAgentOperations()
 
 gameover% = 0
@@ -28,8 +30,10 @@ turn% = 1
 turnover% = 0
 
 repeat
+    doPresidentTurn()
     resolveAgentMissions()
     doNpcActions()
+    printPresidentEvent()
     printAgentReports()
     set_pos TEXT_ROWS - 1, 1
     print_centered text$("continue")

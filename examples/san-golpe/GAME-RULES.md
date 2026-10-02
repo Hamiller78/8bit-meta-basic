@@ -173,9 +173,36 @@ Contacts are stored in one `contacts%()` array with one shared `contactCount%`; 
 
 ### Supporting implementation
 
-The current program resolves both agents' existing missions, processes NPC actions, shows reports, and then opens the main view. The player can inspect people, change either agent's mission, or end the turn. Results from newly assigned missions appear at the start of the following turn.
+At the start of each turn, the current program updates the world coffee price, selects and applies one President event, resolves both agents' existing missions, and processes NPC actions. It then shows the NPC events, President event, and agent reports before opening the main view. The player can inspect people, change either agent's mission, or end the turn. Results from newly assigned missions appear at the start of the following turn.
 
 This loop is implemented in `source/main.mbas`; menus and report rendering are in `source/mainscreen.mbas`.
+
+## President turn events
+
+### Confirmed rules
+
+At the start of every turn, the President performs one randomly selected event. Event probabilities depend on the President's socialism value, so the political direction of the President changes which events are more likely rather than merely changing their presentation.
+
+Every event has player-facing text. An event may change the President's own statistics, the statistics of one or more other characters, or both. Event selection, presentation, and effects are separate concerns: selecting an event determines what happened, the text reports it, and the effect logic applies its state changes.
+
+### Current implementation
+
+The existing `presidentEconomy%` scale is retained: `0` is socialist and `100` is free market. The first President event occurs on turn 1. `source/presidentevents.mbas` keeps selection, effects, and presentation separate and provides deterministic entry points for tests.
+
+The world coffee price is currently a hidden index from `0` to `100`, initially `50`. At the start of each turn it moves by a uniformly random amount from `-10` through `+10` and is clamped to its range. Prices at or below `25` are exceptionally low; prices at or above `75` are exceptionally high.
+
+The initial example event table is:
+
+| Event | Weight | Effect |
+| --- | --- | --- |
+| Praise Advisor or General | `10 + economy / 5` | Mentioned character integrity `+1` |
+| Criticize Advisor or General | `10 + (100 - economy) / 5` | Mentioned character integrity `-1` |
+| React to high coffee price | Eligible at price `75+`; weight `10 + economy / 2` | President economy `+5` toward free market |
+| React to low coffee price | Eligible at price `25-`; weight `10 + (100 - economy) / 2` | President economy `-5` toward socialism |
+
+Weights use integer division. Integrity is clamped to `0–10`; the President's economy and coffee price are clamped to `0–100`. Advisor and General are selected with equal probability when both are alive. Each event has localized English and German text.
+
+The precise weights, thresholds, coffee movement, and stat changes are balancing placeholders. The event-system structure and its dependence on the retained economy scale are confirmed.
 
 ## Placeholder mechanics
 
@@ -226,6 +253,7 @@ Focused configurations keep generated emulator test programs small:
 - `characterfactory-test.metabasic.json` covers character and name generation.
 - `agentoperations-test.metabasic.json` covers observation and the placeholder agent mechanics.
 - `mainscreen-test.metabasic.json` covers the main view and discovered-character display.
+- `presidentevents-test.metabasic.json` covers event weighting, selection, effects, bounds, and text output.
 
 When a confirmed rule changes, update its implementation, its focused tests, and this document together.
 
@@ -233,8 +261,8 @@ When a confirmed rule changes, update its implementation, its focused tests, and
 
 The following ideas are intentionally not confirmed rules or placeholder mechanics yet. They should be designed as one connected political and economic loop before implementation:
 
-- what the President does from round to round;
-- how the coffee price changes and influences the President;
+- which additional President events exist and what each one changes;
+- how the coffee price changes and influences the President's event probabilities or effects;
 - how the coffee price influences the Landowner;
 - what actions the Landowner takes;
 - when the player should seek to replace the President;

@@ -1,0 +1,183 @@
+uses "characters.mbas"
+uses "politics.mbas"
+
+const coffeePriceMinimum = 0
+const coffeePriceMaximum = 100
+const coffeePriceInitial = 50
+const coffeePriceLow = 25
+const coffeePriceHigh = 75
+
+enum PresidentEvent
+    presidentPraisesOfficial = 0
+    presidentCriticizesOfficial
+    presidentReactsToHighCoffee
+    presidentReactsToLowCoffee
+    numberOfPresidentEvents
+end enum
+
+worldCoffeePrice% = coffeePriceInitial
+currentPresidentEvent% = presidentPraisesOfficial
+currentPresidentEventTarget% = -1
+
+function initializePresidentEvents()
+    worldCoffeePrice% = coffeePriceInitial
+    currentPresidentEvent% = presidentPraisesOfficial
+    currentPresidentEventTarget% = -1
+end function
+
+function adjustCharacterIntegrity(characterIndex, change)
+    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+        return
+    end if
+    characters(characterIndex).integrity% = characters(characterIndex).integrity% + change
+    if characters(characterIndex).integrity% < 0 then
+        characters(characterIndex).integrity% = 0
+    end if
+    if characters(characterIndex).integrity% > 10 then
+        characters(characterIndex).integrity% = 10
+    end if
+end function
+
+function updateWorldCoffeePrice(change)
+    worldCoffeePrice% = worldCoffeePrice% + change
+    if worldCoffeePrice% < coffeePriceMinimum then
+        worldCoffeePrice% = coffeePriceMinimum
+    end if
+    if worldCoffeePrice% > coffeePriceMaximum then
+        worldCoffeePrice% = coffeePriceMaximum
+    end if
+end function
+
+function hasLivingGovernmentMember()
+    local advisorIndex, generalIndex
+    advisorIndex = findRole(advisor)
+    generalIndex = findRole(general)
+    if advisorIndex >= 0 and characters(advisorIndex).isAlive% = 1 then
+        return 1
+    end if
+    if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
+        return 1
+    end if
+    return 0
+end function
+
+function selectGovernmentMember(selection)
+    local advisorIndex, generalIndex
+    advisorIndex = findRole(advisor)
+    generalIndex = findRole(general)
+    if advisorIndex >= 0 and characters(advisorIndex).isAlive% = 1 then
+        if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
+            if selection MOD 2 = 0 then
+                return advisorIndex
+            end if
+            return generalIndex
+        end if
+        return advisorIndex
+    end if
+    if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
+        return generalIndex
+    end if
+    return -1
+end function
+
+'Example balancing: free-market Presidents praise more often; socialist
+'Presidents criticize more often. Extreme coffee events add directional weight.
+function presidentEventWeight(eventValue)
+    if eventValue = presidentPraisesOfficial then
+        if hasLivingGovernmentMember() = 0 then
+            return 0
+        end if
+        return 10 + int(presidentEconomy% / 5)
+    end if
+    if eventValue = presidentCriticizesOfficial then
+        if hasLivingGovernmentMember() = 0 then
+            return 0
+        end if
+        return 10 + int((economyMaximum - presidentEconomy%) / 5)
+    end if
+    if eventValue = presidentReactsToHighCoffee then
+        if worldCoffeePrice% >= coffeePriceHigh then
+            return 10 + int(presidentEconomy% / 2)
+        end if
+        return 0
+    end if
+    if eventValue = presidentReactsToLowCoffee then
+        if worldCoffeePrice% <= coffeePriceLow then
+            return 10 + int((economyMaximum - presidentEconomy%) / 2)
+        end if
+    end if
+    return 0
+end function
+
+function presidentEventTotalWeight()
+    local eventValue, totalWeight
+    totalWeight = 0
+    for eventValue = 0 to numberOfPresidentEvents - 1
+        totalWeight = totalWeight + presidentEventWeight(eventValue)
+    next eventValue
+    return totalWeight
+end function
+
+function presidentEventAt(selection)
+    local eventValue, eventWeight
+    for eventValue = 0 to numberOfPresidentEvents - 1
+        eventWeight = presidentEventWeight(eventValue)
+        if selection < eventWeight then
+            return eventValue
+        end if
+        selection = selection - eventWeight
+    next eventValue
+    return presidentPraisesOfficial
+end function
+
+function applyPresidentEvent(eventValue, targetSelection)
+    local targetIndex
+    currentPresidentEvent% = eventValue
+    currentPresidentEventTarget% = -1
+    if eventValue = presidentPraisesOfficial or eventValue = presidentCriticizesOfficial then
+        targetIndex = selectGovernmentMember(targetSelection)
+        currentPresidentEventTarget% = targetIndex
+        if eventValue = presidentPraisesOfficial then
+            adjustCharacterIntegrity(targetIndex, 1)
+        else
+            adjustCharacterIntegrity(targetIndex, -1)
+        end if
+    end if
+    if eventValue = presidentReactsToHighCoffee then
+        adjustPresidentEconomy(5)
+    end if
+    if eventValue = presidentReactsToLowCoffee then
+        adjustPresidentEconomy(-5)
+    end if
+end function
+
+function resolvePresidentEventRoll(selection, targetSelection)
+    applyPresidentEvent(presidentEventAt(selection), targetSelection)
+end function
+
+function doPresidentTurn()
+    local totalWeight
+    updateWorldCoffeePrice(int(rnd() * 21) - 10)
+    totalWeight = presidentEventTotalWeight()
+    resolvePresidentEventRoll(int(rnd() * totalWeight), int(rnd() * 2))
+end function
+
+function printPresidentEvent()
+    local targetName$
+    print
+    print text$("presidentEventHeading")
+    if currentPresidentEvent% = presidentPraisesOfficial then
+        targetName$ = characters(currentPresidentEventTarget%).first$ + " " + characters(currentPresidentEventTarget%).last$
+        print_text "presidentPraisesOfficial"; person = targetName$, 21
+    end if
+    if currentPresidentEvent% = presidentCriticizesOfficial then
+        targetName$ = characters(currentPresidentEventTarget%).first$ + " " + characters(currentPresidentEventTarget%).last$
+        print_text "presidentCriticizesOfficial"; person = targetName$, 21
+    end if
+    if currentPresidentEvent% = presidentReactsToHighCoffee then
+        print_text "presidentHighCoffee"; price = worldCoffeePrice%, 3
+    end if
+    if currentPresidentEvent% = presidentReactsToLowCoffee then
+        print_text "presidentLowCoffee"; price = worldCoffeePrice%, 3
+    end if
+end function

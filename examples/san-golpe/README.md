@@ -12,7 +12,7 @@ npm run build:c64 -- --project examples/san-golpe --language de --no-tools
 
 English is the default language. The project configuration selects the C64 uppercase/lowercase character set for the game; test runners use the standard C64 font unless `--font mixed` is requested explicitly. German umlauts use portable `ae`/`oe`/`ue` spellings in generated BASIC. Blank lines delimit paragraphs; single line breaks are treated as spaces during wrapping.
 
-Atari tokenized BASIC now packages successfully. Reusing expression temporaries and type-compatible function storage reduces this game's actual Atari variable count from 169 to 115, below the dialect's 128-variable limit. The build summary's text-based variable estimate can be higher than the number of names in Atari's variable table.
+Atari tokenized BASIC packages successfully. The current game uses 99 entries in Atari's variable table, below the dialect's 128-variable limit. The build summary's text-based estimate is 145 because it counts source-level and lowered names differently from the tokenized variable table.
 
 The focused test configurations keep the emulator programs small enough to load, while exercising the actual BASIC for each feature:
 
@@ -23,4 +23,6 @@ npm run launch:c64 -- --build-config examples/san-golpe/agentoperations-test.met
 npm run launch:spectrum -- --build-config examples/san-golpe/agentoperations-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:c64 -- --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:spectrum -- --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
+npm run launch:c64 -- --build-config examples/san-golpe/presidentevents-test.metabasic.json --run-tests --profile release --printer-output --restart
+npm run launch:spectrum -- --build-config examples/san-golpe/presidentevents-test.metabasic.json --run-tests --profile release --printer-output --restart
 ```
