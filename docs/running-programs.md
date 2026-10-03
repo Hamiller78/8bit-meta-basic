@@ -27,7 +27,7 @@ Use this workflow after changing executable Meta-BASIC application code or user-
    npm run launch:atari -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
    ```
 
-   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Test runners use the C64's default font even when the project selects mixed for its normal program; C64 test names are displayed in uppercase to match it. Pass `--font mixed` only for a focused font test. Keep the program's intended `--language` and profile.
+   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Test runners request no optional character groups even when the project normally requests `lowercase`; C64 test names are displayed in uppercase to match its default font. Pass `--font lowercase` only for a focused font test. Keep the program's intended `--language` and profile.
 
 4. Wait for the target runner to finish, then read the captured host file:
 
@@ -340,7 +340,7 @@ The example configuration uses `-userportdevice 2` to attach the RS-232/modem de
 
 If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
 
-On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with `--font mixed`: 2 tests passed, 46 assertions, and 0 failures. This records that earlier run; current test runners default to the standard C64 font.
+On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with the former `--font mixed` spelling, now `--font lowercase`: 2 tests passed, 46 assertions, and 0 failures. This records that earlier run; current test runners request no optional groups.
 
 ## The C64 Mini
 

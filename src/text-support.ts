@@ -4,10 +4,12 @@ import { builtinFunctions, canonicalFunctionName } from "./functions.js";
 import type { TargetId } from "./targets/index.js";
 import { targetEnvironments } from "./targets/environment.js";
 
-export type TextFont = "default" | "uppercase" | "mixed";
+export type TextCharacterGroup = "lowercase" | "international";
+export type TextFont = readonly TextCharacterGroup[];
+export type TextFontInput = TextFont | string;
 export interface TextOptions {
   readonly language?: string;
-  readonly font?: TextFont;
+  readonly font?: TextFontInput;
   readonly texts?: Readonly<Record<string, string>>;
 }
 
@@ -18,11 +20,28 @@ export function requireLanguage(value: string): string {
   return value.toLowerCase();
 }
 
-export function requireTextFont(value: string): TextFont {
-  if (value !== "default" && value !== "uppercase" && value !== "mixed") {
-    throw new Error(`Invalid font "${value}". Expected default, uppercase, or mixed.`);
+export function requireTextFont(value: unknown): TextFont {
+  const requested = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? legacyFontGroups(value)
+      : undefined;
+  if (!requested || requested.some((group) => group !== "lowercase" && group !== "international")) {
+    throw new Error('Invalid font selection. Expected an array containing "lowercase" and/or "international".');
   }
-  return value;
+  return (["lowercase", "international"] as const).filter((group) => requested.includes(group));
+}
+
+function legacyFontGroups(value: string): readonly string[] | undefined {
+  if (value === "default" || value === "uppercase") return [];
+  if (value === "mixed" || value === "lowercase") return ["lowercase"];
+  if (value === "international") return ["international"];
+  const groups = value.split(",").map((group) => group.trim()).filter(Boolean);
+  return groups.length ? groups : undefined;
+}
+
+export function hasTextCharacterGroup(font: TextFont, group: TextCharacterGroup): boolean {
+  return font.includes(group);
 }
 
 function mapStatements(program: Program, transform: (statement: PrintStatement) => readonly Statement[]): Program {
@@ -92,13 +111,24 @@ function resolveTextValue(key: string, location: PrintStatement["location"], opt
 /** Runs after constant folding, before control-flow lowering. */
 export function layoutText(program: Program, target: TargetId, options: TextOptions): Program {
   const columns = targetEnvironments[target].textColumns;
-  const font = options.font ?? "default";
+  const font = requireTextFont(options.font ?? []);
+  const lowercase = hasTextCharacterGroup(font, "lowercase");
   return mapStatements(program, (statement) => {
-    if (!statement.layout) return [statement];
+    if (!statement.layout) {
+      return [{
+        ...statement,
+        items: statement.items.flatMap((item) => {
+          if (item.kind !== "string") return [item];
+          let value = portableText(item.value, statement, target, font);
+          if (target === "c64" && !lowercase) value = value.toUpperCase();
+          return encodeText(value, target, font, statement, false);
+        })
+      }];
+    }
     const item = statement.items[0];
     if (item?.kind !== "string") throw new DiagnosticError(statement.location, "Text layout requires a compile-time string; runtime text cannot be wrapped at compile time.");
-    let value = portableText(item.value, statement);
-    if (!statement.textBindings && (font === "uppercase" || (target === "c64" && font !== "mixed"))) value = value.toUpperCase();
+    let value = portableText(item.value, statement, target, font);
+    if (!statement.textBindings && target === "c64" && !lowercase) value = value.toUpperCase();
     const width = statement.wrapWidth;
     if (width && (width.kind !== "number" || !Number.isInteger(width.value) || width.value < 1 || width.value > columns)) {
       throw new DiagnosticError(statement.location, `Text width must be a compile-time integer in 1..${columns}.`);
@@ -165,7 +195,7 @@ function layoutTextTemplate(
   }
 
   const transformed = template.map((part): TemplatePart => part.kind === "literal"
-    ? { ...part, value: font === "uppercase" || (target === "c64" && font !== "mixed") ? part.value.toUpperCase() : part.value }
+    ? { ...part, value: target === "c64" && !hasTextCharacterGroup(font, "lowercase") ? part.value.toUpperCase() : part.value }
     : part);
   const lines = wrapTemplate(transformed, available, statement);
   return lines.map((line) => {
@@ -347,15 +377,19 @@ export function wrapText(value: string, columns: number): string[] {
   return lines;
 }
 
-function portableText(value: string, statement: PrintStatement): string {
-  const replacements: Record<string, string> = { ä: "ae", ö: "oe", ü: "ue", Ä: "Ae", Ö: "Oe", Ü: "Ue", ß: "ss", ẞ: "SS", '“': '"', '”': '"', '„': '"', '’': "'", '–': "-", '—': "-", '…': "..." };
-  const text = value.replace(/[äöüÄÖÜßẞ“”„’–—…]/g, (char) => replacements[char]);
-  const unsupported = text.match(/[^\x20-\x7e\r\n\t]/u);
+function portableText(value: string, statement: PrintStatement, target: TargetId, font: TextFont): string {
+  const internationalAtari = target === "atari800xl" && hasTextCharacterGroup(font, "international");
+  const replacements: Record<string, string> = {
+    ...(internationalAtari ? {} : { ä: "ae", ö: "oe", ü: "ue", Ä: "Ae", Ö: "Oe", Ü: "Ue" }),
+    ß: "ss", ẞ: "SS", '“': '"', '”': '"', '„': '"', '’': "'", '–': "-", '—': "-", '…': "..."
+  };
+  const text = value.replace(/[äöüÄÖÜßẞ“”„’–—…]/g, (char) => replacements[char] ?? char);
+  const unsupported = text.match(internationalAtari ? /[^\x20-\x7e\r\n\täöüÄÖÜ]/u : /[^\x20-\x7e\r\n\t]/u);
   if (unsupported) throw new DiagnosticError(statement.location, `Unsupported text character "${unsupported[0]}". Use portable text or a supported German transliteration.`);
   return text;
 }
 
-function encodeText(text: string, target: TargetId, font: TextFont, statement: PrintStatement): Expression[] {
+function encodeText(text: string, target: TargetId, font: TextFont, statement: PrintStatement, validateAvailability = true): Expression[] {
   const location = statement.location;
   const items: Expression[] = [];
   let literal = "";
@@ -363,13 +397,13 @@ function encodeText(text: string, target: TargetId, font: TextFont, statement: P
   for (const char of text) {
     let code: number | undefined;
     if (char === '"') code = 34;
-    else if ((target === "c64" && /[\\^_`{|}~]/.test(char)) || (target === "spectrum" && /[\\^`]/.test(char)) || (target === "atari800xl" && /[`{|}~]/.test(char))) {
+    else if (validateAvailability && ((target === "c64" && /[\\^_`{|}~]/.test(char)) || (target === "spectrum" && /[\\^`]/.test(char)) || (target === "atari800xl" && /[`{|}~]/.test(char)))) {
       throw new DiagnosticError(location, `Character "${char}" is not available in the selected ${target} text font.`);
     }
     if (code !== undefined) {
       flush();
       items.push({ kind: "function-call", name: builtinFunctions.chr, args: [{ kind: "number", value: code, raw: String(code), location }], valueType: "string", location });
-    } else literal += target === "c64" && font !== "mixed" ? char.toUpperCase() : char;
+    } else literal += target === "c64" && !hasTextCharacterGroup(font, "lowercase") ? char.toUpperCase() : char;
   }
   flush();
   return items.length ? items : [{ kind: "string", value: "", location }];

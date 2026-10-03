@@ -223,13 +223,13 @@ print
 
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language de --no-tools
-npm run build:c64 -- --project examples/san-golpe --language en --font mixed --no-tools
-npm run launch:c64 -- --project examples/san-golpe --language de --font mixed
+npm run build:c64 -- --project examples/san-golpe --language en --font lowercase,international --no-tools
+npm run launch:c64 -- --project examples/san-golpe --language de --font lowercase,international
 npm run dev -- --config examples/san-golpe/metabasic.json --target spectrum --language de
 ```
 
-Build and launch scripts accept `--language` and `--font`. Fonts are `default`, `uppercase`, and `mixed`. On C64, `mixed` emits the character-set switch, lowercases BASIC syntax, and preserves the case of quoted strings through the `lowercase-syntax` `petcat` input transform. `uppercase` selects the C64 uppercase/graphics font. C64 `default` assumes the normal uppercase/graphics font. Spectrum and Atari keep their normal fonts; `uppercase` capitalizes layout text and `mixed` preserves its case. Font conversion applies to the three layout commands; ordinary `PRINT` strings retain their existing native behavior.
+Build and launch scripts accept `--language` and `--font`. The option declares independent character groups: `lowercase`, `international`, or both as `lowercase,international`. C64 reacts to `lowercase` by selecting its uppercase/lowercase character set and lowercasing BASIC syntax outside strings. Atari reacts to `international` by selecting its XL/XE international ROM set. Targets that already support a group need no switch.
 
-German umlauts and ß are transliterated before wrapping (`ä` → `ae`, `Ä` → `Ae`, `ß` → `ss`), and common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. This is portable text support, not a custom font loader or general character-set converter. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
+On international Atari builds, `ä`, `ö`, `ü` and their uppercase forms are stored as single-byte ATASCII in the packaged listing; the readable `.bas` keeps the Unicode spelling and the program pays no runtime `CHR$` cost. Unsupported targets fall back to `ae`/`oe`/`ue`; `ß` always falls back to `ss`. Common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
 
 For JSON builds, optional `textsDir`, `language`, and `font` fields set defaults. `textsDir` is relative to the configuration file and defaults to `texts`; CLI options override language/font defaults. Conventional `--project` builds preserve these fields from the project's `metabasic.json`, or use the project's sibling `texts/` folder when `textsDir` is omitted. Single-source CLI builds look beside the source for `texts/`, or use `--texts-dir path`. Library callers pass a selected-language `texts` dictionary in `CompileOptions`; the compiler core performs no filesystem I/O.

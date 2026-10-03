@@ -135,10 +135,20 @@ function toAtariDosNamePart(value, maxLength) {
 export function toAtariListingBytes(text) {
   const normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
   const bytes = [];
+  const internationalCodes = new Map([["\u00fc", 10], ["\u00e4", 11], ["\u00d6", 12], ["\u00f6", 15], ["\u00dc", 16], ["\u00c4", 123]]);
+  let inString = false;
 
   for (const char of normalized) {
     if (char === "\n") {
       bytes.push(0x9b);
+      continue;
+    }
+
+    if (char === '"') inString = !inString;
+    const internationalCode = internationalCodes.get(char);
+    if (internationalCode !== undefined) {
+      if (!inString) throw new Error("Atari international characters are supported only inside BASIC string literals.");
+      bytes.push(internationalCode);
       continue;
     }
 
@@ -316,7 +326,7 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
     `${JSON.stringify({
       textsDir,
       ...(projectConfiguration?.language !== undefined ? { language: projectConfiguration.language } : {}),
-      ...(testMode ? { font: "default" } : projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
+      ...(testMode ? { font: [] } : projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
       testMode,
       ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}),
       files: [...sourceFiles, ...testFiles]

@@ -43,12 +43,28 @@ describe("localized text and layout", () => {
     expect(() => compileSource('print_wrap title$', { filename: "intro.mbas", target: "c64" })).toThrow(/compile-time string/);
     expect(() => compileSource('print_wrap "😀"', { filename: "intro.mbas", target: "c64" })).toThrow(/Unsupported text character/);
   });
-  it("selects the C64 mixed font and preserves quoted text case", () => {
-    const result = compileSource('print_wrap "Hello WORLD"', { filename: "text.mbas", target: "c64", font: "mixed" });
+  it("selects the C64 lowercase font and preserves quoted text case", () => {
+    const result = compileSource('print_wrap "Hello WORLD"', { filename: "text.mbas", target: "c64", font: ["lowercase"] });
     expect(result).toContain("print chr$(14);");
     expect(result).toContain('print "Hello WORLD"');
     expect(result).not.toContain("CHR$(69)");
     expect(result.split("\n").every((line) => line.length <= 80)).toBe(true);
+  });
+  it("treats lowercase and international letters as independent requested groups", () => {
+    const source = 'print text$("message")';
+    const texts = { message: "Grüße aus Österreich" };
+    const atari = compileSource(source, { filename: "text.mbas", target: "atari800xl", texts, font: ["lowercase", "international"] });
+    const spectrum = compileSource(source, { filename: "text.mbas", target: "spectrum", texts, font: ["lowercase", "international"] });
+    const c64 = compileSource(source, { filename: "text.mbas", target: "c64", texts, font: ["lowercase", "international"] });
+    const fallback = compileSource(source, { filename: "text.mbas", target: "c64", texts });
+
+    expect(atari).toContain("POKE 756,204");
+    expect(atari).toContain('PRINT "Grüsse aus Österreich"');
+    expect(atari).not.toContain("CHR$(10)");
+    expect(spectrum).toContain('PRINT "Gruesse aus Oesterreich"');
+    expect(c64).toContain('print "Gruesse aus Oesterreich"');
+    expect(c64).toContain("print chr$(14);");
+    expect(fallback).toContain('PRINT "GRUESSE AUS OESTERREICH"');
   });
   it("supports explicit constant widths and rejects invalid widths", () => {
     expect(compileSource('print_wrap "one two three", 7', { filename: "width.mbas", target: "spectrum" })).toBe('10 PRINT "one two"\n20 PRINT "three"\n');
@@ -83,7 +99,7 @@ describe("localized text and layout", () => {
     const source = 'print_centered text$("progress"); created = count, 2; total = 11, 2';
     const texts = { progress: "Created: {created} / {total}" };
     const spectrum = compileSource(source, { filename: "progress.mbas", target: "spectrum", texts });
-    const c64 = compileSource(source, { filename: "progress.mbas", target: "c64", texts, font: "mixed" });
+    const c64 = compileSource(source, { filename: "progress.mbas", target: "c64", texts, font: ["lowercase"] });
     expect(spectrum).toContain('PRINT "        Created: ";');
     expect(c64).toContain('print "            Created: ";');
     expect(spectrum).toContain('" / ";11');
@@ -93,7 +109,7 @@ describe("localized text and layout", () => {
   it("inserts named values and lets translations reorder them", () => {
     const source = 'print_text "event"; actor = "ALPHA", 5; target = "BETA", 4';
     for (const target of targets) {
-      const result = compileSource(source, { filename: "text.mbas", target, texts: { event: "{target} joined {actor}." }, font: "mixed" });
+      const result = compileSource(source, { filename: "text.mbas", target, texts: { event: "{target} joined {actor}." }, font: ["lowercase"] });
       expect(result).not.toContain("{target}");
       expect(result.indexOf("BETA")).toBeLessThan(result.indexOf("ALPHA"));
       expect(result).toContain(" joined ");
@@ -103,7 +119,7 @@ describe("localized text and layout", () => {
     const result = compileSource('const maxName = 8\nprint_text "arrival", 12; name = "Al", maxName', {
       filename: "text.mbas",
       target: "spectrum",
-      font: "mixed",
+      font: ["lowercase"],
       texts: { arrival: "{name} arrived" }
     });
     expect(result).toContain('PRINT "Al"');
@@ -114,7 +130,7 @@ describe("localized text and layout", () => {
     const result = compileSource('print_text "heading"', {
       filename: "text.mbas",
       target: "c64",
-      font: "mixed",
+      font: ["lowercase"],
       texts: { heading: "Die Menschen in San Golpe sprechen über diese Ereignisse:" }
     });
     expect(result).toContain('print "Die Menschen in San Golpe sprechen ueber";');
@@ -169,10 +185,10 @@ describe("localized text and layout", () => {
       await writeFile(join(directory, "translations", "de", "intro.txt"), "Hallo");
       await writeFile(join(directory, "main.mbas"), 'print_text "intro"');
       const configPath = join(directory, "metabasic.json");
-      await writeFile(configPath, JSON.stringify({ files: ["main.mbas"], textsDir: "translations", language: "de", font: "uppercase" }));
+      await writeFile(configPath, JSON.stringify({ files: ["main.mbas"], textsDir: "translations", language: "de", font: [] }));
       const configuration = await loadBuildConfiguration(configPath);
-      expect(await build(configuration, { configPath, target: "spectrum" })).toContain('PRINT "HALLO"');
-      expect(await build(configuration, { configPath, target: "spectrum", language: "en", font: "mixed" })).toContain('PRINT "Hello"');
+      expect(await build(configuration, { configPath, target: "spectrum" })).toContain('PRINT "Hallo"');
+      expect(await build(configuration, { configPath, target: "spectrum", language: "en", font: ["lowercase"] })).toContain('PRINT "Hello"');
       await expect(build(configuration, { configPath, target: "spectrum", language: "fr" })).rejects.toThrow(/main.mbas:1.*intro.*fr/);
       await writeFile(configPath, JSON.stringify({ files: ["main.mbas"], font: "unknown" }));
       await expect(loadBuildConfiguration(configPath)).rejects.toThrow(/Invalid font/);
@@ -185,7 +201,7 @@ describe("localized text and layout", () => {
     const configuration = await loadBuildConfiguration(configPath);
     for (const target of targets) for (const language of ["en", "de"]) {
       const result = await build(configuration, { configPath, target, language });
-      expect(result.toLowerCase()).toContain(language === "de" ? "veroeffentlichte" : "small");
+      expect(result.toLowerCase()).toContain(language === "de" ? (target === "atari800xl" ? "veröffentlichte" : "veroeffentlichte") : "small");
       expect(result).not.toContain("PRINT_TEXT");
       const uppercaseResult = result.toUpperCase();
       const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTELLIGENCE.MBAS", "POLITICS.MBAS", "INTRO.MBAS", "MAINSCREEN.MBAS", "NPCLOGIC.MBAS", "DATA"];

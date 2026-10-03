@@ -1,4 +1,4 @@
-import { layoutText, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
+import { hasTextCharacterGroup, layoutText, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
 import { basename } from "node:path";
 import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
@@ -57,19 +57,27 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   const target = getTarget(options.target);
   const readability = options.readability ?? options.comments ?? 2;
   if (options.language) requireLanguage(options.language);
-  if (options.font) requireTextFont(options.font);
-  const analyzed = analyzeProgram(resolveTextResources(ast, options), targetEnvironments[options.target], { testMode: options.testMode });
+  const font = requireTextFont(options.font ?? []);
+  const textOptions = { ...options, font };
+  const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), targetEnvironments[options.target], { testMode: options.testMode });
   const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
-  let lowered = lowerProgram(layoutText(analyzed, options.target, options), {
+  let lowered = lowerProgram(layoutText(analyzed, options.target, textOptions), {
     testMode: options.testMode,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice,
-    testRunnerUppercaseNames: options.target === "c64" && options.font !== "mixed",
+    testRunnerUppercaseNames: options.target === "c64" && !hasTextCharacterGroup(font, "lowercase"),
     reservedNames
   });
-  if (options.target === "c64" && options.font && options.font !== "default") {
+  if (options.target === "c64" && hasTextCharacterGroup(font, "lowercase")) {
     const location = entrySourceLocation(ast, options.filename);
-    lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: options.font === "mixed" ? 14 : 142, trailingSemicolon: true, location }, ...lowered.instructions]);
+    lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: 14, trailingSemicolon: true, location }, ...lowered.instructions]);
+  }
+  if (options.target === "atari800xl" && hasTextCharacterGroup(font, "international")) {
+    const location = entrySourceLocation(ast, options.filename);
+    lowered = rebuildLabels(lowered, [
+      { kind: "poke", address: 756, value: { kind: "number", value: 204, raw: "204", location }, location },
+      ...lowered.instructions
+    ]);
   }
   if (options.target === "atari800xl" && usesTextLayout(ast)) {
     const location = entrySourceLocation(ast, options.filename);
@@ -82,7 +90,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true, reservedNames);
 
-  const outputLines = options.target === "c64" && options.font === "mixed"
+  const outputLines = options.target === "c64" && hasTextCharacterGroup(font, "lowercase")
     ? targetLowered.lines.map(lowercaseBasicSyntaxPreservingStrings)
     : targetLowered.lines;
   return {
@@ -90,7 +98,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     stats: analyzeBasicOutput(targetLowered.lines, options.target),
     debugInfo: buildDebugInfo(analyzed, targetLowered.numbered, targetLowered.program.instructions, targetLowered.program.labels, target, readability, {
       language: options.language ?? "en",
-      font: options.font ?? "default",
+      font,
       testMode: options.testMode ?? false
     })
   };

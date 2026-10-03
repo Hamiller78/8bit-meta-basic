@@ -44,10 +44,11 @@ describe("build scripts", () => {
     ]);
   });
 
-  it("rejects non-ASCII text in Atari LST output for now", async () => {
+  it("encodes international letters as one-byte ATASCII inside Atari string literals", async () => {
     const { toAtariListingBytes } = await import("../scripts/build-target.mjs");
 
-    expect(() => toAtariListingBytes("10 PRINT \"ä\"\n")).toThrow("ASCII");
+    expect([...toAtariListingBytes("10 PRINT \"üäÖöÜÄ\"\n")].slice(10, 16)).toEqual([10, 11, 12, 15, 16, 123]);
+    expect(() => toAtariListingBytes("10 REM ä\n")).toThrow("only inside BASIC string literals");
   });
 
   it("creates Atari DOS-compatible filenames for disk directories", async () => {
@@ -64,7 +65,7 @@ describe("build scripts", () => {
 
     expect(tools.map((tool: { name: string }) => tool.name)).toEqual(["basicParser", "dir2atr"]);
     expect(tools[0]).toMatchObject({
-      inputArtifact: "basic",
+      inputArtifact: "atariListing",
       outputExtension: ".tokenized.bas",
       copyToArtifact: "atariDiskDirectory",
       copyExtension: "BAS"
@@ -266,7 +267,7 @@ describe("build scripts", () => {
     await writeFile(join(dir, "demo", "metabasic.json"), JSON.stringify({
       textsDir: "translations",
       language: "de",
-      font: "mixed",
+      font: ["lowercase", "international"],
       files: ["source/math.mbas", "source/main.mbas"]
     }), "utf8");
 
@@ -280,12 +281,12 @@ describe("build scripts", () => {
     expect(sourceConfig.testMode).toBe(false);
     expect(sourceConfig.textsDir).toBe(join(dir, "demo", "translations"));
     expect(sourceConfig.language).toBe("de");
-    expect(sourceConfig.font).toBe("mixed");
+    expect(sourceConfig.font).toEqual(["lowercase", "international"]);
     expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
     expect(testConfig.language).toBe("de");
-    expect(testConfig.font).toBe("default");
+    expect(testConfig.font).toEqual([]);
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
     expect(printerConfig.testPrinterOutput).toBe(true);

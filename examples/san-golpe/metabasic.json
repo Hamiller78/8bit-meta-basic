@@ -13,5 +13,8 @@
     "source/npclogic.mbas"
   ],
   "textsDir": "texts",
-  "font": "mixed"
+  "font": [
+    "lowercase",
+    "international"
+  ]
 }

@@ -34,15 +34,15 @@ describe("C64 compiler", () => {
     expect(output).toContain("POKE 809,2");
   });
 
-  it("prints test names in the default C64 font unless mixed is explicitly selected", () => {
+  it("prints test names in the default C64 font unless lowercase is explicitly selected", () => {
     const source = "test MixedCase()\nassert_true false\nend test\n";
     const defaultFont = compileSource(source, { filename: "font-tests.mbas", target: "c64", readability: 0, testMode: true });
-    const mixedFont = compileSource(source, { filename: "font-tests.mbas", target: "c64", readability: 0, testMode: true, font: "mixed" });
+    const lowercaseFont = compileSource(source, { filename: "font-tests.mbas", target: "c64", readability: 0, testMode: true, font: ["lowercase"] });
 
     expect(defaultFont).toContain('PRINT "RUNNING MIXEDCASE...";');
     expect(defaultFont).toContain('PRINT "MIXEDCASE"');
-    expect(mixedFont).toContain('print "RUNNING MixedCase...";');
-    expect(mixedFont).toContain('print "MixedCase"');
+    expect(lowercaseFont).toContain('print "RUNNING MixedCase...";');
+    expect(lowercaseFont).toContain('print "MixedCase"');
   });
 
   it("reports C64 constant coordinate ranges", () => {

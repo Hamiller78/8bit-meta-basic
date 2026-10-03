@@ -56,7 +56,7 @@ The JSON format has `formatVersion: 1`, the selected target, language, font, rea
 - `variables` maps internal storage names to target BASIC names. `sourceAliases` may contain several parameter and local names because functions can reuse storage; the same storage may also appear as a function's `returnVariable`. Generated temporaries may have no source alias.
 - `structFields` maps each struct-array field to its target array. On Spectrum and C64, packed numeric fields share a two-dimensional array and `targetFieldIndex` gives the native second index. `targetElementIndexBase` gives the native first index (1 on Spectrum, 0 on C64 and Atari).
 
-These are compile-time mappings for reading and debugging generated BASIC; the sidecar is not loaded by the target machine. The source paths are those used for compilation, so a build from absolute project paths records absolute paths. Target variable names use the compiler's canonical spelling and can appear in a different case in a C64 mixed-font listing.
+These are compile-time mappings for reading and debugging generated BASIC; the sidecar is not loaded by the target machine. The source paths are those used for compilation, so a build from absolute project paths records absolute paths. Target variable names use the compiler's canonical spelling and can appear in a different case in a C64 listing that requests the `lowercase` group.
 
 The debug profile passes `.mbas` apostrophe comments through as generated `REM` lines. Trailing comments are emitted after the generated statement they annotate, so:
 
@@ -155,7 +155,7 @@ npm run test:language:spectrum -- --restart
 npm run test:language:atari -- --restart
 ```
 
-The suite's project configuration selects the mixed C64 font. Project builds preserve this setting and emit the character-set switch before the test runner begins. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
+The suite's project configuration requests lowercase text for normal builds. Test runners request no optional character groups unless the command explicitly overrides them. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
 
 ## Performance benchmarks
 
@@ -395,8 +395,10 @@ basicParser -A -b -f -o output.bas input.bas
 Configured pipeline:
 
 ```text
-Meta-BASIC .mbas -> Atari .bas text -> basicParser -A -b -f -> tokenized .BAS
+Meta-BASIC .mbas -> readable Atari .bas -> ATASCII .lst -> basicParser -A -b -f -> tokenized .BAS
 ```
+
+The `.lst` stage uses ATASCII line endings. When the `international` character group is selected, supported Unicode letters in BASIC string literals are encoded there as their single-byte international ATASCII values. The tokenizer therefore receives native bytes rather than `CHR$` expressions.
 
 Status: **integrated into the optional Windows tool pipeline**. Emulator/device loading of the tokenized output should still be recorded when repeated.
 

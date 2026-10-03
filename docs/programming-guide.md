@@ -343,13 +343,13 @@ print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
 
 The number after each expression is its maximum possible display length. The compiler uses those maxima when choosing line breaks and centering; the target evaluates and prints the expressions at runtime. A shorter value may therefore appear slightly off center, and native numeric output can add spacing. Translations may reorder the placeholders. The declared maximum must be a positive compile-time integer no larger than the output width; runtime values should not exceed it.
 
-English (`en`) is the default language. Select a translation and C64 font from the build command:
+English (`en`) is the default language. Select a translation and the character groups used by its text from the build command:
 
 ```text
-npm run build:c64 -- --project my-game --language de --font mixed
+npm run build:c64 -- --project my-game --language de --font lowercase,international
 ```
 
-Resource keys are case-sensitive. Every selected language needs its own value; there is no automatic English fallback. C64 `mixed` selects its uppercase/lowercase character set for the whole generated program.
+Resource keys are case-sensitive. Every selected language needs its own value; there is no automatic English fallback. `lowercase` makes C64 select its uppercase/lowercase character set. `international` makes Atari XL/XE select its international ROM font and package supported letters such as `ä` and `ö` as one-byte ATASCII. Other targets use transliterations such as `ae` and `oe` when they cannot honor a requested group.
 
 ## Input, time, and random numbers
 
@@ -428,7 +428,7 @@ cat build/rs232/debug/c64/my-game.txt
 cat build/altirra_drive/MCP.TXT
 ```
 
-Use `--module dice` on both the build and launch commands to select a matching test file when a focused runner is more useful. Test runners default to the standard C64 font even when a project's normal program uses mixed; pass `--font mixed` only when testing font behavior itself. Keep `--language` and the profile consistent. `debug` is convenient while diagnosing generated BASIC, while `release` catches problems caused by compact naming or memory pressure. Run every locally configured target emulator that is available. If an emulator cannot be run, report that target separately rather than treating a successful build as an emulator result. The complete setup and troubleshooting workflow is in [Running generated programs](running-programs.md#complete-emulator-test-workflow).
+Use `--module dice` on both the build and launch commands to select a matching test file when a focused runner is more useful. Test runners request no optional character groups even when a project normally uses them; pass `--font lowercase` only when testing that font behavior itself. Keep `--language` and the profile consistent. `debug` is convenient while diagnosing generated BASIC, while `release` catches problems caused by compact naming or memory pressure. Run every locally configured target emulator that is available. If an emulator cannot be run, report that target separately rather than treating a successful build as an emulator result. The complete setup and troubleshooting workflow is in [Running generated programs](running-programs.md#complete-emulator-test-workflow).
 
 Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
 

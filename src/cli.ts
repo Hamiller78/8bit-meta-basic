@@ -207,7 +207,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--language en|de] [--font default|uppercase|mixed] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64 [--language en|de] [--font lowercase,international] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
   }
 
   if (inputPath && configPath) {

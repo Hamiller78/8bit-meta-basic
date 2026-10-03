@@ -523,18 +523,17 @@ The compiler reserves the declared maximum length while wrapping and centering, 
 English (`en`) is the default; pass `--language de` for German. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
 
 ```sh
-npm run build:c64 -- --project examples/san-golpe --language de --font mixed --no-tools
+npm run build:c64 -- --project examples/san-golpe --language de --font lowercase,international --no-tools
 ```
 
-The CLI and build/launch scripts accept `--language` and `--font`. Font choices are:
+The CLI and build/launch scripts accept `--language` and `--font`. The font option declares the character groups used by the program, independently of any one target's font layout:
 
-- `default`: use the normal target font; C64 layout text is uppercase and assumes the uppercase/graphics character set.
-- `uppercase`: capitalize layout text and explicitly select the C64 uppercase/graphics character set.
-- `mixed`: preserve layout text case and select the C64 uppercase/lowercase character set. Generated BASIC syntax is lowercase while quoted strings retain their original case. Spectrum and Atari retain their normal fonts.
+- `lowercase`: preserve lowercase letters. C64 selects its uppercase/lowercase character set and emits lowercase BASIC syntax outside string literals. Spectrum and Atari already provide lowercase letters in their normal text fonts, so they need no switch.
+- `international`: preserve supported international letters where a target provides them. Atari XL/XE selects its ROM international character set with `POKE 756,204`. Spectrum and C64 currently use transliteration fallbacks.
 
-Font conversion applies to the static parts of `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED`. Inserted placeholder values retain their runtime contents. Ordinary `PRINT` retains its existing native string behavior. C64 mixed mode lowercases BASIC syntax outside quoted strings so the generated listing matches the selected character set; string contents remain unchanged.
+Groups may be combined as `--font lowercase,international`; JSON configurations use an array such as `"font": ["lowercase", "international"]`. With no requested groups, each target uses its normal font and applies fallbacks. Inserted placeholder values retain their runtime contents because they are not known at compile time.
 
-German characters are transliterated before measuring and wrapping text: `ä` → `ae`, `ö` → `oe`, `ü` → `ue`, `Ä` → `Ae`, `Ö` → `Oe`, `Ü` → `Ue`, `ß` → `ss`, and `ẞ` → `SS`. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics. Custom fonts and general Unicode conversion are not supported.
+When `international` is requested for Atari, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain single display characters. The readable `.bas` retains Unicode spelling; Atari `.LST` packaging converts each one to its single-byte ATASCII international code before tokenization, so no runtime `CHR$` fragments are needed. `ß` and `ẞ` still become `ss` and `SS` because the Atari ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`, and a C64 build without `lowercase` capitalizes static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
 
 JSON build configurations accept optional `textsDir`, `language`, and `font` fields. `textsDir` defaults to `texts` relative to the configuration file. CLI language/font options override configuration defaults. Conventional project builds preserve these fields from the project's `metabasic.json`, or use the project's `texts/` folder when `textsDir` is omitted. Single-source CLI builds look for `texts/` beside the source; `--texts-dir path` overrides resource discovery. Compiler library callers supply a selected-language `texts` dictionary through `CompileOptions`, keeping filesystem access outside the compiler core.
 
@@ -571,7 +570,7 @@ Builds may enable `testMode` through the compiler options, the CLI `--run-tests`
 
 Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
 
-Configured project fonts do not carry into test runners: test builds use the default font so C64 runner output matches the standard emulator display. The C64 runner displays test names in uppercase in this mode. An explicit `--font mixed` still enables a focused mixed-font test.
+Configured project font groups do not carry into test runners: test builds request no optional groups so C64 runner output matches the standard emulator display. The C64 runner displays test names in uppercase in this mode. An explicit `--font lowercase` still enables a focused lowercase-font test.
 
 ```basic
 function Add(Left, Right)

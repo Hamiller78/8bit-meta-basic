@@ -54,7 +54,7 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
   return compileProgramDetailed(program, {
     texts: options.texts ?? await loadTexts(options.textsDir ?? (configuration.textsDir ? resolve(baseDir, configuration.textsDir) : resolve(baseDir, "texts")), options.language ?? configuration.language ?? "en"),
     language: options.language ?? configuration.language ?? "en",
-    font: options.font ?? (testMode ? "default" : configuration.font),
+    font: options.font ?? (testMode ? [] : configuration.font),
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,
@@ -98,13 +98,13 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   }
 
   const { textsDir, language, font } = value as { textsDir?: unknown; language?: unknown; font?: unknown };
-  for (const [name, field] of Object.entries({ textsDir, language, font })) {
+  for (const [name, field] of Object.entries({ textsDir, language })) {
     if (field !== undefined && (typeof field !== "string" || !field)) throw new Error(`Invalid build configuration "${configPath}": "${name}" must be a nonempty string.`);
   }
   return {
     ...(textsDir !== undefined ? { textsDir: textsDir as string } : {}),
     ...(language !== undefined ? { language: requireLanguage(language as string) } : {}),
-    ...(font !== undefined ? { font: requireTextFont(font as string) } : {}),
+    ...(font !== undefined ? { font: requireTextFont(font) } : {}),
     files,
     ...(testMode !== undefined ? { testMode } : {}),
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),

@@ -20,7 +20,7 @@ describe("compiler debug information", () => {
 
     expect(debugInfo.formatVersion).toBe(1);
     expect(debugInfo.target).toBe(target);
-    expect(debugInfo).toMatchObject({ language: "en", font: "default", testMode: false });
+    expect(debugInfo).toMatchObject({ language: "en", font: [], testMode: false });
     expect(debugInfo.sourceFiles).toEqual(["mapping.mbas"]);
     expect(debugInfo.lines.map((line) => line.basicLine)).toEqual(basicLines);
     expect(debugInfo.lines.find((line) => line.instruction === "print" && line.source.line === 3)).toBeDefined();

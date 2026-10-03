@@ -3,5 +3,5 @@
     "source/main.mbas",
     "source/benchmarks.mbas"
   ],
-  "font": "mixed"
+  "font": ["lowercase"]
 }

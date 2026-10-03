@@ -18,4 +18,4 @@ npm run test:language:spectrum -- --restart
 npm run test:language:atari -- --restart
 ```
 
-The suite's `metabasic.json` selects the mixed C64 font. Project build and launch commands preserve that setting, so the generated C64 program switches character sets before the test runner prints its first line.
+The suite's `metabasic.json` requests the `lowercase` character group for normal builds. Test runners request no optional groups unless `--font lowercase` is passed explicitly.
