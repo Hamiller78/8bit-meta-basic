@@ -7,5 +7,6 @@
     "source/mainscreen.mbas",
     "tests/mainscreen-tests.mbas"
   ],
-  "textsDir": "texts"
+  "textsDir": "texts",
+  "font": ["lowercase", "international"]
 }

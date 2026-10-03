@@ -6,16 +6,19 @@ import { build, compileBuildConfiguration, loadBuildConfiguration } from "../src
 import { compileSource } from "../src/compiler.js";
 
 describe("build configuration", () => {
-  it("uses the default font for test runners unless lowercase is requested explicitly", async () => {
+  it("uses the project font for test runners unless explicitly overridden", async () => {
     await withTempProject(async (dir) => {
-      await writeFile(join(dir, "tests.mbas"), "test Smoke()\nassert_true true\nend test\n", "utf8");
+      await writeFile(join(dir, "tests.mbas"), 'test MixedCase()\nprint "Readable"\nassert_print "Readable"\nend test\n', "utf8");
       const configuration = { files: ["tests.mbas"], testMode: true, font: ["lowercase"] as const };
 
-      const standard = await build(configuration, { baseDir: dir, target: "c64", readability: 0 });
-      const lowercase = await build(configuration, { baseDir: dir, target: "c64", readability: 0, font: ["lowercase"] });
+      const projectFont = await build(configuration, { baseDir: dir, target: "c64", readability: 0 });
+      const overridden = await build(configuration, { baseDir: dir, target: "c64", readability: 0, font: [] });
 
-      expect(standard).not.toMatch(/^10 print chr\$\(14\);/u);
-      expect(lowercase).toMatch(/^10 print chr\$\(14\);/u);
+      expect(projectFont).toMatch(/^10 print chr\$\(14\);/u);
+      expect(projectFont).toContain('print "RUNNING MixedCase...";');
+      expect(projectFont).toContain('"Readable"');
+      expect(overridden).not.toMatch(/^10 print chr\$\(14\);/u);
+      expect(overridden).toContain('PRINT "RUNNING MIXEDCASE...";');
     });
   });
 

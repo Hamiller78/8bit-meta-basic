@@ -211,4 +211,10 @@ describe("localized text and layout", () => {
       expect(uppercaseResult.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
     }
   }, 30000);
+  it("keeps San-Golpe focused test configurations on the project font", async () => {
+    for (const name of ["agentoperations", "characterfactory", "mainscreen", "presidentevents"]) {
+      const configuration = await loadBuildConfiguration(`examples/san-golpe/${name}-test.metabasic.json`);
+      expect(configuration.font).toEqual(["lowercase", "international"]);
+    }
+  });
 });

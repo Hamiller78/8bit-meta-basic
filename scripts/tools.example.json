@@ -87,7 +87,6 @@
       {
         "name": "petcat",
         "path": "",
-        "inputTransform": "lowercase-syntax",
         "args": ["-w2", "-o", "{output}", "--", "{input}"],
         "outputExtension": ".prg"
       }

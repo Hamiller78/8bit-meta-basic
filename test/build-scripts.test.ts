@@ -103,6 +103,7 @@ describe("build scripts", () => {
   it("configures the C64 emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
+    expect(config.c64.tools[0]).not.toHaveProperty("inputTransform");
     expect(config.c64.emulator).toMatchObject({
       name: "x64sc",
       testOutputDevice: "rs232",
@@ -286,7 +287,7 @@ describe("build scripts", () => {
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
     expect(testConfig.language).toBe("de");
-    expect(testConfig.font).toEqual([]);
+    expect(testConfig.font).toEqual(["lowercase", "international"]);
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
     expect(printerConfig.testPrinterOutput).toBe(true);

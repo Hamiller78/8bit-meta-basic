@@ -155,7 +155,7 @@ npm run test:language:spectrum -- --restart
 npm run test:language:atari -- --restart
 ```
 
-The suite's project configuration requests lowercase text for normal builds. Test runners request no optional character groups unless the command explicitly overrides them. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
+The suite's project configuration requests lowercase text, and its test runners inherit that setting. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.
 
 ## Performance benchmarks
 

@@ -54,7 +54,7 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
   return compileProgramDetailed(program, {
     texts: options.texts ?? await loadTexts(options.textsDir ?? (configuration.textsDir ? resolve(baseDir, configuration.textsDir) : resolve(baseDir, "texts")), options.language ?? configuration.language ?? "en"),
     language: options.language ?? configuration.language ?? "en",
-    font: options.font ?? (testMode ? [] : configuration.font),
+    font: options.font ?? configuration.font,
     filename: options.configPath ?? "<build configuration>",
     target: options.target,
     readability: options.readability,

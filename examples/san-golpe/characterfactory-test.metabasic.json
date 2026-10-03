@@ -5,5 +5,6 @@
     "source/characterfactory.mbas",
     "tests/characterfactory-tests.mbas"
   ],
-  "textsDir": "texts"
+  "textsDir": "texts",
+  "font": ["lowercase", "international"]
 }

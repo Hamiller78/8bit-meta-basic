@@ -1,4 +1,5 @@
 {
+  "font": ["lowercase", "international"],
   "files": [
     "source/characters.mbas",
     "source/intelligence.mbas",

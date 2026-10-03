@@ -18,4 +18,4 @@ npm run test:language:spectrum -- --restart
 npm run test:language:atari -- --restart
 ```
 
-The suite's `metabasic.json` requests the `lowercase` character group for normal builds. Test runners request no optional groups unless `--font lowercase` is passed explicitly.
+The suite's `metabasic.json` requests the `lowercase` character group. Normal builds and test runners both inherit it, so the C64 runner switches fonts before its first output and uses the same character interpretation as the code under test.

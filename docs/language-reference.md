@@ -570,7 +570,7 @@ Builds may enable `testMode` through the compiler options, the CLI `--run-tests`
 
 Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
 
-Configured project font groups do not carry into test runners: test builds request no optional groups so C64 runner output matches the standard emulator display. The C64 runner displays test names in uppercase in this mode. An explicit `--font lowercase` still enables a focused lowercase-font test.
+Test builds inherit the project's configured font groups. This keeps application output, `ASSERT_PRINT` expectations, test names, and the generated runner readable under the same active character set. On C64, a project requesting `lowercase` switches the font before the runner's first output and emits the entire generated runner using matching BASIC/text casing. An explicit command-line `--font` remains an override, including an empty library-level font list when deliberately testing fallback behavior.
 
 ```basic
 function Add(Left, Right)
