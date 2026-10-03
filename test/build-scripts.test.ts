@@ -13,7 +13,7 @@ describe("build scripts", () => {
   });
 
   it("creates Atari LST bytes with Atari line endings", async () => {
-    const { toAtariListingBytes } = await import("../scripts/build-target.mjs");
+    const { toAtariListingBytes } = await import("../scripts/lib/build-target.mjs");
 
     expect([...toAtariListingBytes("10 PRINT \"OK\"\r\n20 GOTO 10\n")]).toEqual([
       0x31,
@@ -45,14 +45,14 @@ describe("build scripts", () => {
   });
 
   it("encodes international letters as one-byte ATASCII inside Atari string literals", async () => {
-    const { toAtariListingBytes } = await import("../scripts/build-target.mjs");
+    const { toAtariListingBytes } = await import("../scripts/lib/build-target.mjs");
 
     expect([...toAtariListingBytes("10 PRINT \"üäÖöÜÄ\"\n")].slice(10, 16)).toEqual([10, 11, 12, 15, 16, 123]);
     expect(() => toAtariListingBytes("10 REM ä\n")).toThrow("only inside BASIC string literals");
   });
 
   it("creates Atari DOS-compatible filenames for disk directories", async () => {
-    const { toAtariDosFileName } = await import("../scripts/build-target.mjs");
+    const { toAtariDosFileName } = await import("../scripts/lib/build-target.mjs");
 
     expect(toAtariDosFileName("colors", "lst")).toBe("COLORS.LST");
     expect(toAtariDosFileName("long-example_name", "basic")).toBe("LONGEXAM.BAS");
@@ -112,7 +112,7 @@ describe("build scripts", () => {
   });
 
   it("adds VICE warp arguments for C64 test launches only", async () => {
-    const { c64EmulatorArgsTemplate } = await import("../scripts/launch-c64.mjs");
+    const { c64EmulatorArgsTemplate } = await import("../scripts/lib/launch-c64.mjs");
     const emulator = {
       args: ["-autostart", "{artifact}", "-autostart-warp"],
       testArgs: ["-warp"],
@@ -145,7 +145,7 @@ describe("build scripts", () => {
   });
 
   it("decodes C64 PETSCII RS232 test output as readable host text", async () => {
-    const { decodePetsciiText } = await import("../scripts/rs232-capture.mjs");
+    const { decodePetsciiText } = await import("../scripts/lib/rs232-capture.mjs");
 
     expect(decodePetsciiText(Buffer.from([0xcd, 0xc5, 0xd4, 0xc1, 0x20, 0xc3, 0x68, 0x61, 0x72, 0x0d]))).toBe("META Char\n");
   });
@@ -163,7 +163,7 @@ describe("build scripts", () => {
   });
 
   it("adds Fuse speed-up arguments for test and explicit fast launches", async () => {
-    const { spectrumEmulatorArgsTemplate } = await import("../scripts/launch-spectrum.mjs");
+    const { spectrumEmulatorArgsTemplate } = await import("../scripts/lib/launch-spectrum.mjs");
     const emulator = { args: ["-tape", "{artifact}"], printerArgs: ["--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"] };
 
     expect(spectrumEmulatorArgsTemplate(emulator, { testMode: false, testPrinterOutput: false })).toEqual(["-tape", "{artifact}"]);
@@ -186,7 +186,7 @@ describe("build scripts", () => {
   });
 
   it("adds VICE warp arguments for C64 benchmark launches", async () => {
-    const { c64EmulatorArgsTemplate } = await import("../scripts/launch-c64.mjs");
+    const { c64EmulatorArgsTemplate } = await import("../scripts/lib/launch-c64.mjs");
     const emulator = { args: ["-autostart", "{artifact}"], testArgs: ["-warp"] };
 
     expect(c64EmulatorArgsTemplate(emulator, { testMode: false, fast: false })).toEqual(["-autostart", "{artifact}"]);
@@ -194,7 +194,7 @@ describe("build scripts", () => {
   });
 
   it("restarts Fuse under its executable and application process names", async () => {
-    const { linuxProcessIdsForExecutable, spectrumEmulatorProcessNames } = await import("../scripts/launch-spectrum.mjs");
+    const { linuxProcessIdsForExecutable, spectrumEmulatorProcessNames } = await import("../scripts/lib/launch-spectrum.mjs");
 
     expect(spectrumEmulatorProcessNames("/usr/bin/fuse-gtk", { name: "Fuse" })).toEqual(["fuse-gtk", "fuse"]);
     expect(spectrumEmulatorProcessNames("/opt/fuse/custom-fuse", { name: "Fuse emulator", processNames: ["fuse-real"] })).toEqual([
@@ -216,7 +216,7 @@ describe("build scripts", () => {
   });
 
   it("finds all configured emulator launch targets", async () => {
-    const { configuredLaunchTargets } = await import("../scripts/launch-all-targets.mjs");
+    const { configuredLaunchTargets } = await import("../scripts/lib/launch-all-targets.mjs");
 
     expect(
       configuredLaunchTargets({
@@ -247,7 +247,7 @@ describe("build scripts", () => {
   });
 
   it("derives build artifact names from single sources and project configs", async () => {
-    const { programIdentity } = await import("../scripts/build-target.mjs");
+    const { programIdentity } = await import("../scripts/lib/build-target.mjs");
 
     expect(programIdentity(process.cwd(), "examples/colors.mbas").name).toBe("colors");
     expect(programIdentity(process.cwd(), "examples/colors.mbas", "examples/multifile/metabasic.json").name).toBe("multifile");
@@ -256,7 +256,7 @@ describe("build scripts", () => {
   });
 
   it("writes conventional project build configs for source and test mode", async () => {
-    const { writeProjectBuildConfig } = await import("../scripts/build-target.mjs");
+    const { writeProjectBuildConfig } = await import("../scripts/lib/build-target.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-project-"));
 
     await mkdir(join(dir, "demo", "source"), { recursive: true });
@@ -294,7 +294,7 @@ describe("build scripts", () => {
   });
 
   it("filters conventional project tests by module name", async () => {
-    const { writeProjectBuildConfig } = await import("../scripts/build-target.mjs");
+    const { writeProjectBuildConfig } = await import("../scripts/lib/build-target.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-project-module-"));
 
     await mkdir(join(dir, "demo", "source"), { recursive: true });
@@ -313,7 +313,7 @@ describe("build scripts", () => {
   });
 
   it("creates conventional project and module scaffolds without overwriting files", async () => {
-    const { addModule, createProject } = await import("../scripts/scaffold-project.mjs");
+    const { addModule, createProject } = await import("../scripts/lib/scaffold-project.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-scaffold-"));
 
     await createProject({ cwd: dir, projectPath: "demo" });
@@ -327,7 +327,7 @@ describe("build scripts", () => {
   });
 
   it("finds all Meta-BASIC sources in one directory", async () => {
-    const { findMbasSources } = await import("../scripts/build-directory.mjs");
+    const { findMbasSources } = await import("../scripts/lib/build-directory.mjs");
     const dir = await mkdtemp(join(tmpdir(), "mbas-dir-"));
 
     await writeFile(join(dir, "beta.MBAS"), "print \"B\"\n", "utf8");

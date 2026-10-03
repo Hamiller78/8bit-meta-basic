@@ -46,7 +46,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 
 ## Scripts And Tools
 
-The `scripts/*.mjs` files are outside the compiler core. They build programs, run optional conversion tools, launch emulators, and manage host-side test-output files.
+The executable `scripts/*.mjs` files are thin command-line entry points outside the compiler core. Reusable build, packaging, launch, capture, and scaffolding logic lives in header-free `scripts/lib/*.mjs` modules so tests and other scripts never need to import an executable file or parse its shebang.
 
 `scripts/tools.example.json` is the committed template. `scripts/tools.local.json` is the per-machine copy where executable paths and emulator arguments belong. The compiler itself does not read these files.
 
