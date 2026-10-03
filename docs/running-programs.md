@@ -8,6 +8,8 @@ This is a practical field guide for loading generated programs into emulators an
 
 Record emulator/device version, host operating system, target video mode, and relevant menu settings whenever a procedure is verified.
 
+The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, or `c64`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target—for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
+
 ## Complete emulator test workflow
 
 Use this workflow after changing executable Meta-BASIC application code or user-visible compiler behavior. A compiler build proves that source can be lowered. The emulator run checks the generated artifact, target BASIC runtime, packaging tool, emulator configuration, and output transport together.
@@ -22,20 +24,20 @@ Use this workflow after changing executable Meta-BASIC application code or user-
 3. Launch each locally configured emulator with host output capture enabled. Use the same project, module, and profile options as the build:
 
    ```text
-   npm run launch:spectrum -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
-   npm run launch:c64 -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
-   npm run launch:atari -- --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
+   npm run launch -- spectrum48 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
+   npm run launch -- c64 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
+   npm run launch -- atari1 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
    ```
 
    The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Test runners inherit the project's character groups. On C64, the runner switches to the configured font before printing and uses matching casing for runner messages, test names, program output, and assertions. Pass `--font` only to override the project deliberately. Keep the program's intended `--language` and profile.
 
 4. Wait for the target runner to finish, then read the captured host file:
 
-   | Target | Emulator | Transport | Default release log |
-   | --- | --- | --- | --- |
-   | ZX Spectrum | Fuse | ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum/san-golpe.txt` |
-   | Commodore 64 | VICE | user-port RS-232 at 2400 baud | `build/rs232/release/c64/san-golpe.txt` |
-   | Atari 800XL | Altirra | writable H: shared drive | `build/altirra_drive/MCP.TXT` |
+   | Target configuration | Compiler target | Emulator | Transport | Default release log |
+   | --- | --- | --- | --- | --- |
+   | `spectrum48` | `spectrum` | Fuse | ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum48/san-golpe.txt` |
+   | `c64` | `c64` | VICE | user-port RS-232 at 2400 baud | `build/rs232/release/c64/san-golpe.txt` |
+   | `atari1` | `atari800xl` | Altirra | writable H: shared drive | `build/altirra_drive/MCP.TXT` |
 
    Replace `release` with the selected profile and `san-golpe` with the project or source name. The launcher clears the selected log before starting. C64 output arrives slowly because it is sent through emulated 2400-baud RS-232.
 
@@ -61,8 +63,8 @@ Status: **partly verified**.
 
 Configuration split:
 
-- JSON: set the `bas2tap` path, Fuse executable path, tape launch arguments, optional `testArgs`, and test-output file arguments in `scripts/tools.local.json`.
-- Manual: install Fuse and `bas2tap`; choose a 48K-compatible model if your Fuse default differs; decide whether your local Fuse needs `-auto-play` or already starts loaded tapes automatically.
+- JSON: set the shared `bas2tap` path under `targets.spectrum.tools`. Put the Fuse executable, explicit model argument, optional `testArgs`, and output settings in each named configuration such as `targetConfigurations.spectrum48` or `targetConfigurations.spectrum128`.
+- Manual: install Fuse and `bas2tap`; decide whether the local Fuse build needs `-auto-play` or already starts loaded tapes automatically.
 
 1. Build the Spectrum `.tap` using the configured `bas2tap` integration.
 2. Start Fuse with a Spectrum model compatible with the program.
@@ -117,7 +119,7 @@ Manual Fuse printer setup is not required for this path when the launcher argume
 Captured output is written to:
 
 ```text
-build/printer/<profile>/spectrum/<source-name>.txt
+build/printer/<profile>/<target-configuration>/<source-name>.txt
 ```
 
 The minimal verified experiment was:
@@ -137,7 +139,7 @@ Status: **current documented project workflow; emulator details need a clean rep
 
 Configuration split:
 
-- JSON: set shared Atari packaging tools in `atari800xl.tools`; set Altirra executable path, artifact launch arguments, and shared-drive output paths in `atari800xl.emulators.altirra`.
+- JSON: set shared Atari packaging tools in `targets.atari800xl.tools`; set the Atari 800XL model metadata, Altirra executable, artifact launch arguments, and shared-drive output paths in `targetConfigurations.atari1`.
 - Manual: install Altirra and the Atari packaging tools; if using test capture, create or select an Altirra profile with a writable H: host device pointing at the configured shared-drive folder.
 
 The launch helper can build the selected program and run the tokenized `.BAS` in Altirra:
@@ -215,7 +217,7 @@ npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --r
 
 Status: **script support added; emulator behavior should be checked per machine**.
 
-Atari800 7.x can be launched directly from the command line. Configure `atari800xl.emulators.atari800.path` in `scripts/tools.local.json`, then run:
+Atari800 7.x can be launched directly from the command line. Configure `targetConfigurations.atari2.emulator.path` in `scripts/tools.local.json`, then run:
 
 ```text
 npm run launch:atari800 -- --source examples/narf.mbas --restart
@@ -229,12 +231,12 @@ The example configuration uses:
 
 `-xl` and `-basic` should start the emulator directly into Atari BASIC. The launcher still builds the normal Atari 800XL target and uses the configured Atari tokenization/ATR tools. The default launch artifact is the tokenized `.BAS`; `--artifact basic`, `--artifact lst`, and `--artifact atr` are also available for experiments.
 
-For all-target launches, both Atari emulators are started when both are configured:
+For all-configuration launches, both Atari configurations are started when both have emulator paths. Named filtering replaces the former Atari-specific emulator switch:
 
 ```text
-npm run launch:all-targets -- --source examples/narf.mbas --restart
-npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator auto
-npm run launch:all-targets -- --source examples/narf.mbas --restart --atari-emulator atari800
+npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all -- --source examples/narf.mbas --restart --target-configuration atari1
+npm run launch:all -- --source examples/narf.mbas --restart --target-configuration atari2
 ```
 
 ## Atari 800XL test output capture

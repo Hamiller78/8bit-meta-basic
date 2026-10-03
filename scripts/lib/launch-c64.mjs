@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 import { parseDeviceKind } from "../device-options.mjs";
+import { loadToolConfiguration, resolveTargetConfiguration } from "../target-configurations.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -14,8 +15,12 @@ const defaultTestOutputDevice = "rs232";
 
 async function launchC64(options) {
   const cwd = options.cwd ?? process.cwd();
-  const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.c64?.emulator;
+  const config = await loadToolConfiguration(cwd, options.configPath);
+  const targetConfiguration = resolveTargetConfiguration(config, options.targetConfiguration, {
+    compilerTarget: "c64",
+    emulatorType: "vice"
+  });
+  const emulator = targetConfiguration.emulator;
   const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
 
   await buildTarget({
@@ -43,7 +48,7 @@ async function launchC64(options) {
   }
 
   if (!emulator?.path) {
-    throw new Error(`No C64 emulator path configured. Add c64.emulator.path to ${options.configPath}.`);
+    throw new Error(`No emulator path configured for target configuration "${options.targetConfiguration}" in ${options.configPath}.`);
   }
 
   const emulatorPath = resolve(cwd, emulator.path);
@@ -61,6 +66,7 @@ async function launchC64(options) {
     sourceName: program.name,
     profile: options.profile,
     target: "c64",
+    targetConfiguration: options.targetConfiguration,
     printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "c64", "printer"),
     rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "c64", "rs232"),
     rs232Endpoint: undefined
@@ -88,7 +94,9 @@ async function launchC64(options) {
   });
   child.unref();
 
-  console.log(`launched ${emulator.name ?? "c64 emulator"} with ${relativeToCwd(cwd, artifact)}`);
+  console.log(
+    `launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "C64"}) in ${emulator.name ?? "C64 emulator"} with ${relativeToCwd(cwd, artifact)}`
+  );
 }
 
 export function c64EmulatorArgsTemplate(emulator = {}, options = {}) {
@@ -110,6 +118,7 @@ function parseArgs(argv) {
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
+    targetConfiguration: "c64",
     runBuild: true,
     restart: false,
     fast: false
@@ -172,6 +181,11 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--target-configuration") {
+      options.targetConfiguration = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--skip-build") {
       options.runBuild = false;
       continue;
@@ -210,14 +224,6 @@ function configuredTestOutputDevice(emulator, fallback) {
   return emulator?.testOutputDevice ? parseDeviceKind(emulator.testOutputDevice, "emulator.testOutputDevice") : fallback;
 }
 
-async function loadConfig(configPath) {
-  if (!(await exists(configPath))) {
-    return undefined;
-  }
-
-  return JSON.parse(await readFile(configPath, "utf8"));
-}
-
 function replacePlaceholders(value, replacements) {
   return value.replaceAll(/\{([A-Za-z][A-Za-z0-9-]*)\}/g, (match, key) => replacements[key] ?? match);
 }
@@ -226,7 +232,7 @@ function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
   const template = device === "rs232"
     ? emulator.rs232OutputPath ?? "build/rs232/{profile}/{target}/{sourceName}.txt"
     : emulator.printerOutputPath ?? "build/printer/{profile}/{target}/{sourceName}.txt";
-  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, targetConfiguration: options.targetConfiguration, sourceName }));
 }
 
 async function prepareDeviceOutput(path) {

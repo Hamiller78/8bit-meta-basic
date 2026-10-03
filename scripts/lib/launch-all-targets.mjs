@@ -3,45 +3,31 @@ import { constants } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { parseDeviceKind } from "../device-options.mjs";
+import { launcherScriptFor, namedTargetConfigurations } from "../target-configurations.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
 const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
 
-const launchTargets = [
-  { target: "spectrum", script: "scripts/launch-spectrum.mjs" },
-  { target: "atari800xl", atariEmulator: "altirra", script: "scripts/launch-atari.mjs" },
-  { target: "atari800xl", atariEmulator: "atari800", script: "scripts/launch-atari800.mjs" },
-  { target: "c64", script: "scripts/launch-c64.mjs" }
-];
-
 export function configuredLaunchTargets(config, options = {}) {
-  return launchTargets.filter(({ target, atariEmulator }) => {
-    if (atariEmulator) {
-      const selectedAtari = options.atariEmulator ?? "all";
-      if (selectedAtari === "auto") {
-        const altirraConfigured = hasAtariEmulatorPath(config, "altirra");
-        if ((altirraConfigured && atariEmulator !== "altirra") || (!altirraConfigured && atariEmulator !== "atari800")) {
-          return false;
-        }
-      } else if (selectedAtari !== "all" && selectedAtari !== atariEmulator) {
-        return false;
-      }
-      return hasAtariEmulatorPath(config, atariEmulator);
-    }
-    return Boolean(config?.[target]?.emulator?.path);
-  });
-}
-
-function hasAtariEmulatorPath(config, name) {
-  return Boolean(config?.atari800xl?.emulators?.[name]?.path);
+  const selected = options.targetConfigurations ?? [];
+  return Object.entries(namedTargetConfigurations(config))
+    .filter(([name, targetConfiguration]) => {
+      return targetConfiguration?.emulator?.path && (selected.length === 0 || selected.includes(name));
+    })
+    .map(([name, targetConfiguration]) => ({
+      name,
+      target: targetConfiguration.compilerTarget,
+      emulatorPath: targetConfiguration.emulator.path,
+      script: launcherScriptFor(targetConfiguration)
+    }));
 }
 
 async function launchAll(options) {
   const cwd = options.cwd ?? process.cwd();
   const config = await loadConfig(resolve(cwd, options.configPath));
-  const configured = configuredLaunchTargets(config, { atariEmulator: options.atariEmulator });
+  const configured = configuredLaunchTargets(config, { targetConfigurations: options.targetConfigurations });
 
   if (configured.length === 0) {
     throw new Error(`No emulator paths configured. Add emulator.path entries to ${options.configPath}.`);
@@ -57,7 +43,6 @@ async function launchAll(options) {
     options.outDir,
     "--config",
     options.configPath,
-    ...(options.restart ? ["--restart"] : []),
     ...(options.testMode ? ["--run-tests"] : []),
     ...(options.testPrinterOutput ? ["--printer-output"] : []),
     ...(options.testPrinterOutput && options.testOutputDevice ? ["--test-output-device", options.testOutputDevice] : []),
@@ -65,18 +50,17 @@ async function launchAll(options) {
     ...(options.runBuild ? [] : ["--skip-build"])
   ];
 
-  const launches = configured.map(({ target, script }) => {
-    const args = [...commonArgs];
+  const restartedEmulators = new Set();
+  for (const { name, target, emulatorPath, script } of configured) {
+    const args = ["--target-configuration", name, ...commonArgs];
+    if (options.restart && !restartedEmulators.has(emulatorPath)) {
+      args.push("--restart");
+      restartedEmulators.add(emulatorPath);
+    }
     if (target === "atari800xl" && options.atariArtifact) {
       args.push("--artifact", options.atariArtifact);
     }
-    return runLaunch(script, args, cwd);
-  });
-
-  const results = await Promise.allSettled(launches);
-  const failures = results.filter((result) => result.status === "rejected");
-  if (failures.length > 0) {
-    throw new Error(`${failures.length} emulator launch${failures.length === 1 ? "" : "es"} failed.`);
+    await runLaunch(script, args, cwd);
   }
 }
 
@@ -111,7 +95,7 @@ function parseArgs(argv) {
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
     atariArtifact: undefined,
-    atariEmulator: "all",
+    targetConfigurations: [],
     runBuild: true,
     restart: false
   };
@@ -178,8 +162,8 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
-    if (arg === "--atari-emulator") {
-      options.atariEmulator = parseAtariEmulator(readValue(argv, index, arg));
+    if (arg === "--target-configuration") {
+      options.targetConfigurations.push(readValue(argv, index, arg));
       index += 1;
       continue;
     }
@@ -207,13 +191,6 @@ function parseArgs(argv) {
   }
 
   return options;
-}
-
-function parseAtariEmulator(value) {
-  if (value === "auto" || value === "altirra" || value === "atari800" || value === "all") {
-    return value;
-  }
-  throw new Error(`Invalid --atari-emulator value "${value}". Expected auto, altirra, atari800, or all.`);
 }
 
 function readValue(argv, index, option) {

@@ -4,6 +4,7 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { deviceKindUsage, parseDeviceKind } from "../device-options.mjs";
 import { toolOutputReportsFailure } from "../tool-output.mjs";
+import { compilerTargetConfiguration } from "../target-configurations.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64"];
 export const profiles = {
@@ -162,7 +163,7 @@ export function toAtariListingBytes(text) {
 
 async function runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir }) {
   const config = await loadToolConfig(resolve(cwd, configPath));
-  const tools = normalizeTools(config?.[target]);
+  const tools = normalizeTools(compilerTargetConfiguration(config, target));
 
   for (const tool of tools) {
     if (!tool.path) {

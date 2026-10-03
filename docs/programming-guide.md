@@ -423,7 +423,7 @@ npm run launch:c64 -- --project my-game --run-tests --profile debug --printer-ou
 `--printer-output` mirrors the test runner through the target's verified host transport. Spectrum/Fuse uses ZX Printer text output, C64/VICE uses RS-232, and Atari uses a shared-drive file. The launch command returning only confirms that the emulator started. Wait for the captured file to reach the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, then check that the reported values for both `FAILED` and `FAILURES` are zero:
 
 ```text
-cat build/printer/debug/spectrum/my-game.txt
+cat build/printer/debug/spectrum48/my-game.txt
 cat build/rs232/debug/c64/my-game.txt
 cat build/altirra_drive/MCP.TXT
 ```

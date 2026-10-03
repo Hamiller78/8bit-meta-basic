@@ -64,7 +64,7 @@ The build and launch helper scripts use `--build-config` for Meta-BASIC project 
 
 ```text
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
-npm run launch:all-targets -- --build-config examples/multifile/metabasic.json --restart
+npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
 ```
 
 For a conventional project folder, use `--project`. A project folder contains sibling `source/` and `tests/` folders. Normal builds compile `source/*.mbas`; test-mode builds compile `source/*.mbas` plus `tests/*.mbas` and generate the automatic test runner:
@@ -72,7 +72,7 @@ For a conventional project folder, use `--project`. A project folder contains si
 ```text
 npm run build:all-targets -- --project examples/project-demo --profile debug
 npm run build:all-targets -- --project examples/project-demo --run-tests --module math --profile debug
-npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
+npm run launch:all -- --project examples/project-demo --run-tests --restart
 ```
 
 Scaffold conventional projects and modules with:
@@ -98,8 +98,18 @@ npm run test:language:c64 -- --restart
 npm run test:language:atari -- --restart
 ```
 
-The launch scripts default to the verified capture transport for each target: Spectrum uses `TEXT_PRINTER`/Fuse ZX Printer text output, Atari uses `SHARED_DRIVE`/Altirra H: output below `build/altirra_drive/`, and C64 uses a small local RS-232 capture endpoint below `build/rs232/<profile>/c64/`.
-Atari800 7.x is also supported as an alternate Atari emulator through `npm run launch:atari800`; configure it in the `atari800xl.emulators.atari800` block of `scripts/tools.local.json`.
+Compiler targets and runnable computers are configured separately. The compiler targets remain `spectrum`, `atari800xl`, and `c64`; they select a BASIC dialect and shared packaging tools. Named entries under `targetConfigurations` select a concrete computer and emulator. The supplied names are `spectrum48`, `spectrum128`, `atari1`, `atari2`, and `c64`.
+
+Launch any named configuration directly:
+
+```text
+npm run launch -- spectrum48 --source examples/narf.mbas --restart
+npm run launch -- spectrum128 --source examples/narf.mbas --restart
+npm run launch -- atari1 --source examples/narf.mbas --restart
+npm run launch -- atari2 --source examples/narf.mbas --restart
+```
+
+The familiar `launch:spectrum`, `launch:atari`, `launch:atari800`, and `launch:c64` commands remain convenient aliases for those names. Test-output transports belong to the selected target configuration: the supplied Spectrum configurations use Fuse ZX Printer text output, `atari1` and `atari2` use their respective shared-drive arrangements, and `c64` uses VICE RS-232 capture.
 
 Build artifacts for all targets:
 
@@ -107,13 +117,13 @@ Build artifacts for all targets:
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 ```
 
-Launch every configured emulator for one source:
+Launch every named target configuration whose emulator has a path:
 
 ```text
-npm run launch:all-targets -- --source examples/narf.mbas --restart
+npm run launch:all -- --source examples/narf.mbas --restart
 ```
 
-When both Altirra and Atari800 are configured, `launch:all-targets` launches both Atari emulators by default. Use `--atari-emulator auto` to launch only one Atari emulator, preferring Altirra when configured.
+Select one or more configurations during an all-configuration launch by repeating `--target-configuration`, for example `npm run launch:all -- --target-configuration spectrum128 --target-configuration atari2`. `launch:all-targets` is retained as a compatibility alias, but the configurations—not compiler targets—are what it launches.
 
 Build profiles select the output readability:
 

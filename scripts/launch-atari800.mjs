@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 import { parseDeviceKind } from "./device-options.mjs";
+import { loadToolConfiguration, resolveTargetConfiguration } from "./target-configurations.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -23,8 +24,12 @@ const artifactExtensions = {
 
 async function launchAtari800(options) {
   const cwd = options.cwd ?? process.cwd();
-  const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.atari800xl?.emulators?.atari800;
+  const config = await loadToolConfiguration(cwd, options.configPath);
+  const targetConfiguration = resolveTargetConfiguration(config, options.targetConfiguration, {
+    compilerTarget: "atari800xl",
+    emulatorType: "atari800"
+  });
+  const emulator = targetConfiguration.emulator;
   const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
   const atariSharedDriveSpec = emulator?.sharedDriveSpec ?? defaultSharedDriveSpec;
 
@@ -57,7 +62,7 @@ async function launchAtari800(options) {
   }
 
   if (!emulator?.path) {
-    throw new Error(`No Atari800 emulator path configured. Add atari800xl.emulators.atari800.path to ${options.configPath}.`);
+    throw new Error(`No emulator path configured for target configuration "${options.targetConfiguration}" in ${options.configPath}.`);
   }
 
   const emulatorPath = resolve(cwd, emulator.path);
@@ -77,6 +82,7 @@ async function launchAtari800(options) {
     sourceName: program.name,
     profile: options.profile,
     target: "atari800xl",
+    targetConfiguration: options.targetConfiguration,
     printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "atari800xl", "printer"),
     rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "atari800xl", "rs232"),
     sharedDrive: sharedDrivePath(cwd, emulator, options, program.name, "atari800xl"),
@@ -98,7 +104,9 @@ async function launchAtari800(options) {
   });
   child.unref();
 
-  console.log(`launched ${emulator.name ?? "Atari800"} with ${relativeToCwd(cwd, artifact)}`);
+  console.log(
+    `launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "Atari"}) in ${emulator.name ?? "Atari800"} with ${relativeToCwd(cwd, artifact)}`
+  );
 }
 
 function parseArgs(argv) {
@@ -113,6 +121,7 @@ function parseArgs(argv) {
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
+    targetConfiguration: "atari2",
     artifact: "tokenized-bas",
     runBuild: true,
     restart: false
@@ -175,6 +184,11 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--target-configuration") {
+      options.targetConfiguration = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--artifact") {
       options.artifact = readValue(argv, index, arg);
       index += 1;
@@ -218,14 +232,6 @@ function configuredTestOutputDevice(emulator, fallback) {
   return emulator?.testOutputDevice ? parseDeviceKind(emulator.testOutputDevice, "emulator.testOutputDevice") : fallback;
 }
 
-async function loadConfig(configPath) {
-  if (!(await exists(configPath))) {
-    return undefined;
-  }
-
-  return JSON.parse(await readFile(configPath, "utf8"));
-}
-
 function buildArtifacts(cwd, options) {
   const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
   return {
@@ -245,18 +251,18 @@ function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
   const template = device === "rs232"
     ? emulator.rs232OutputPath ?? "build/rs232/{profile}/{target}/{sourceName}.txt"
     : emulator.printerOutputPath ?? "build/printer/{profile}/{target}/{sourceName}.txt";
-  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, targetConfiguration: options.targetConfiguration, sourceName }));
 }
 
 function sharedDrivePath(cwd, emulator, options, sourceName, target) {
   const template = emulator.sharedDrivePath ?? "build/atari800_drive";
-  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, targetConfiguration: options.targetConfiguration, sourceName }));
 }
 
 function sharedDriveOutputPath(cwd, emulator, options, sourceName, target) {
   const configured = emulator.sharedDriveOutputPath;
   if (configured) {
-    return resolve(cwd, replacePlaceholders(configured, { profile: options.profile, target, sourceName }));
+    return resolve(cwd, replacePlaceholders(configured, { profile: options.profile, target, targetConfiguration: options.targetConfiguration, sourceName }));
   }
 
   return join(sharedDrivePath(cwd, emulator, options, sourceName, target), "MCP.TXT");

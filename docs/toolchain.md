@@ -18,8 +18,9 @@ npm run test:language:build
 npm run new:project -- examples/my-game
 npm run new:module -- --project examples/my-game --module scoring
 npm run build:directory -- --source-dir examples --profile debug
-npm run launch:all-targets -- --source examples/narf.mbas --restart
-npm run launch:all-targets -- --project examples/project-demo --run-tests --restart
+npm run launch:all -- --source examples/narf.mbas --restart
+npm run launch:all -- --project examples/project-demo --run-tests --restart
+npm run launch -- spectrum128 --source examples/narf.mbas --restart
 npm run launch:atari -- --source examples/narf.mbas
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 npm run launch:c64 -- --source examples/narf.mbas
@@ -210,22 +211,37 @@ scripts/tools.local.json
 
 and configure local executable paths. Keep `tools.local.json` out of version control because paths differ per machine.
 
-The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, and `{target}`. They always produce `.bas` text even when an optional conversion tool is absent.
+The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, `{target}`, and `{targetConfiguration}`. Here `{target}` is the compiler target, while `{targetConfiguration}` is the selected runnable configuration name. They always produce `.bas` text even when an optional conversion tool is absent.
 
 Device-output launch arguments may also use `{printerOutput}`, `{rs232Output}`, and `{rs232Endpoint}`. `{printerOutput}` and `{rs232Output}` expand to host output files. `{rs232Endpoint}` is a dynamically created `127.0.0.1:<port>` endpoint used by the C64/VICE RS-232 capture workflow.
 Spectrum printer launch arguments may also use `{nullDevice}`, which expands to `NUL` on Windows and `/dev/null` elsewhere. Atari shared-drive settings use `sharedDriveSpec`, `sharedDrivePath`, and `sharedDriveOutputPath`.
 
-Each launch script understands an `emulator` block with an `{artifact}` placeholder. It builds the selected source, runs the configured conversion tools, then starts the emulator and exits without waiting for the emulator window.
+The configuration has two distinct sections:
+
+- `targets` contains packaging tools shared by a compiler backend. These keys are the compiler targets `spectrum`, `atari800xl`, and `c64`.
+- `targetConfigurations` contains freely named runnable setups. Each entry declares `compilerTarget`, descriptive `computer` metadata, and an `emulator` block with a required `type`, executable `path`, arguments, and output transport. The supplied emulator types are `fuse`, `altirra`, `atari800`, and `vice`.
+
+The generic launcher builds with the selected entry's `compilerTarget`, runs that target's conversion tools, then starts the configured emulator and exits without waiting for its window:
+
+```text
+npm run launch -- spectrum48 --source examples/narf.mbas
+npm run launch -- spectrum128 --source examples/narf.mbas
+npm run launch -- atari1 --source examples/narf.mbas
+npm run launch -- atari2 --source examples/narf.mbas
+npm run launch -- c64 --source examples/narf.mbas
+```
+
+Names are local policy rather than hard-coded platform identifiers: entries named `atari1` and `atari2` work equally well when their `compilerTarget` and `emulator.type` are valid. The `computer` object records intended model, memory, video standard, BASIC, and ROM assumptions; emulator arguments remain the executable settings that enforce those choices.
 
 Use `--restart` when switching examples to close existing emulator processes before launching the new one. Fuse has no command-line option for replacing another instance. On Linux, the Spectrum launcher finds processes using the configured emulator executable, including launches through symlinks such as `/usr/bin/fuse`, and then falls back to the configured executable and application names. If a package uses a wrapper with another process name, add it to an emulator `processNames` array.
 
-To launch every target with an emulator path configured:
+To launch every named target configuration with an emulator path configured:
 
 ```text
-npm run launch:all-targets -- --source examples/narf.mbas --restart
+npm run launch:all -- --source examples/narf.mbas --restart
 ```
 
-The all-targets launch script skips targets without `emulator.path` in `scripts/tools.local.json`. Atari uses the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to launch the ATR artifact instead. When both Altirra and Atari800 are configured, both are launched by default; pass `--atari-emulator auto` to launch only one Atari emulator, preferring Altirra when configured.
+The all-configurations launcher skips entries without `emulator.path`. Restrict it by repeating `--target-configuration`, for example `--target-configuration spectrum128 --target-configuration atari2`. Atari configurations use the tokenized `.BAS` artifact by default; pass `--atari-artifact atr` to use the ATR artifact for selected Atari configurations. `launch:all-targets` remains a compatibility alias for this command.
 
 ## Configuration Boundary
 
@@ -233,9 +249,9 @@ Use `scripts/tools.local.json` for values the scripts can pass to external tools
 
 | Area | Put in JSON | Do manually |
 | --- | --- | --- |
-| Spectrum/Fuse | `bas2tap` path, Fuse path, tape launch args, test speed args, printer text-file args and output path | Install Fuse and `bas2tap`; choose the desired Spectrum model if your local Fuse default is not 48K; keep or remove `-auto-play` depending on your Fuse setup |
-| Atari 800XL | Shared `basicParser` and `dir2atr` paths in `atari800xl.tools`; Altirra settings in `atari800xl.emulators.altirra`; Atari800 settings in `atari800xl.emulators.atari800` | Install/configure the chosen emulator; for Altirra, set up a writable H: host device in the profile used for tests; for Atari800 7.x, provide usable Atari OS/BASIC ROM configuration if your build does not auto-detect it |
-| C64/VICE | `petcat` path, VICE path, autostart args, RS-232 capture args and output path | Install VICE; verify userport RS-232 is enabled when inspecting the GUI; leave `IP232` unchecked for the local capture helper |
+| Spectrum/Fuse | `bas2tap` under `targets.spectrum`; separate `spectrum48`/`spectrum128` computer metadata, Fuse path, explicit machine args, test speed, and output settings under `targetConfigurations` | Install Fuse and `bas2tap`; keep or remove `-auto-play` depending on the Fuse setup |
+| Atari 800XL | `basicParser` and `dir2atr` under `targets.atari800xl`; separate Altirra and Atari800 computer/emulator entries under `targetConfigurations` | Install/configure the chosen emulator; set up the configured host drive; provide the ROM set described by that configuration |
+| C64/VICE | `petcat` under `targets.c64`; C64 model metadata, VICE path, autostart, and RS-232 capture under `targetConfigurations.c64` | Install VICE; verify userport RS-232 is enabled when inspecting the GUI; leave `IP232` unchecked for the local capture helper |
 
 The committed `scripts/tools.example.json` documents the expected shape. The local copy is intentionally machine-specific and should not be committed.
 
@@ -253,14 +269,21 @@ Status: **tested manually in Fuse**, but the precise emulator procedure should b
 
 ## Spectrum: emulator launch
 
-Configure Fuse in `scripts/tools.local.json`:
+Configure a named Fuse target in `scripts/tools.local.json` (the example also contains a `spectrum128` entry using `--machine 128`):
 
 ```json
-  "emulator": {
-  "name": "Fuse",
-  "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
-  "args": ["-tape", "{artifact}", "-auto-play"],
-  "testArgs": ["--speed", "1000"]
+"targetConfigurations": {
+  "spectrum48": {
+    "compilerTarget": "spectrum",
+    "computer": { "model": "ZX Spectrum 48K", "ramKib": 48 },
+    "emulator": {
+      "name": "Fuse",
+      "type": "fuse",
+      "path": "C:\\Program Files (x86)\\Fuse\\fuse.exe",
+      "args": ["--machine", "48", "-tape", "{artifact}", "-auto-play"],
+      "testArgs": ["--speed", "1000"]
+    }
+  }
 }
 ```
 
@@ -287,20 +310,27 @@ VICE's `petcat` converts text into tokenized Commodore BASIC V2:
 Meta-BASIC .mbas -> C64 .bas text -> petcat -w2 -> .prg
 ```
 
-The integration applies a lowercase input transformation because `petcat` interprets lowercase host ASCII as ordinary uppercase C64 text in its listing format.
+The compiler emits the casing required by the selected C64 character groups. The packaging step passes that listing to `petcat` without a second whole-file casing transformation.
 
 Status: packaging hook implemented; exact emulator and Mini procedures need to be kept in the running guide.
 
 ## Commodore 64: emulator launch
 
-Configure VICE in `scripts/tools.local.json`:
+Configure the named C64/VICE target in `scripts/tools.local.json`:
 
 ```json
-"emulator": {
-  "name": "x64sc",
-  "path": "C:\\Emulator\\C64\\GTK3VICE-3.5-win64\\bin\\x64sc.exe",
-  "args": ["-autostart", "{artifact}", "-autostart-warp"],
-  "testArgs": ["-warp"]
+"targetConfigurations": {
+  "c64": {
+    "compilerTarget": "c64",
+    "computer": { "model": "Commodore 64", "ramKib": 64 },
+    "emulator": {
+      "type": "vice",
+      "name": "x64sc",
+      "path": "C:\\Emulator\\C64\\GTK3VICE-3.5-win64\\bin\\x64sc.exe",
+      "args": ["-autostart", "{artifact}", "-autostart-warp"],
+      "testArgs": ["-warp"]
+    }
+  }
 }
 ```
 
@@ -327,7 +357,7 @@ For test-runner output inspection in VICE, prefer RS-232 capture over the printe
 npm run test:language:c64 -- --restart
 ```
 
-The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, converts the received PETSCII test log to readable UTF-8 text, and writes it to `build/rs232/<profile>/c64/<source-name>.txt`.
+The launch script starts `scripts/rs232-capture.mjs`, passes VICE a temporary `127.0.0.1:<port>` value through `{rs232Endpoint}`, converts the received PETSCII test log to readable UTF-8 text, and writes it to `build/rs232/<profile>/<target-configuration>/<source-name>.txt`.
 
 The example VICE arguments are:
 
@@ -357,7 +387,7 @@ The verified minimal Fuse experiment was a 48K program containing `LPRINT "HELLO
 
 For Atari/Altirra, the source language can emit `OPEN_DEVICE ..., PRINTER`, `OPEN_DEVICE ..., RS232`, or `OPEN_DEVICE ..., SHARED_DRIVE`, lowering to `P:`, `R:`, or `H6:MCP.TXT` respectively. `SHARED_DRIVE` is the verified test-runner capture path: configure Altirra's Host device (H:) in the test profile to map H1/H6 to the configured `sharedDrivePath`, leave the device writable, and use `--printer-output --test-output-device shared-drive`. The launcher clears the configured `sharedDriveOutputPath` before starting the emulator.
 
-For Atari800 7.x, configure `atari800xl.emulators.atari800.path` and use:
+For Atari800 7.x, configure `targetConfigurations.atari2.emulator.path` and use:
 
 ```text
 npm run launch:atari800 -- --source examples/narf.mbas --restart
@@ -411,13 +441,20 @@ A useful automated check would tokenize a generated listing and detokenize it ag
 
 ## Atari 800XL: emulator launch
 
-Configure Altirra in `scripts/tools.local.json`:
+Configure the `atari1` target in `scripts/tools.local.json`:
 
 ```json
-"emulator": {
-  "name": "Altirra",
-  "path": "C:\\Emulator\\Altirra-4.40\\Altirra64.exe",
-  "args": ["{artifact}"]
+"targetConfigurations": {
+  "atari1": {
+    "compilerTarget": "atari800xl",
+    "computer": { "model": "Atari 800XL", "basic": "built-in Atari BASIC" },
+    "emulator": {
+      "type": "altirra",
+      "name": "Altirra",
+      "path": "C:\\Emulator\\Altirra-4.40\\Altirra64.exe",
+      "args": ["{artifact}"]
+    }
+  }
 }
 ```
 

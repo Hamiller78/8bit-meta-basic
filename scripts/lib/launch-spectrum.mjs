@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 import { parseDeviceKind } from "../device-options.mjs";
+import { loadToolConfiguration, resolveTargetConfiguration } from "../target-configurations.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -13,8 +14,12 @@ const defaultTestOutputDevice = "text-printer";
 
 async function launchSpectrum(options) {
   const cwd = options.cwd ?? process.cwd();
-  const config = await loadConfig(resolve(cwd, options.configPath));
-  const emulator = config?.spectrum?.emulator;
+  const config = await loadToolConfiguration(cwd, options.configPath);
+  const targetConfiguration = resolveTargetConfiguration(config, options.targetConfiguration, {
+    compilerTarget: "spectrum",
+    emulatorType: "fuse"
+  });
+  const emulator = targetConfiguration.emulator;
   const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
 
   await buildTarget({
@@ -42,7 +47,7 @@ async function launchSpectrum(options) {
   }
 
   if (!emulator?.path) {
-    throw new Error(`No Spectrum emulator path configured. Add spectrum.emulator.path to ${options.configPath}.`);
+    throw new Error(`No emulator path configured for target configuration "${options.targetConfiguration}" in ${options.configPath}.`);
   }
 
   const emulatorPath = resolve(cwd, emulator.path);
@@ -60,6 +65,7 @@ async function launchSpectrum(options) {
     sourceName: program.name,
     profile: options.profile,
     target: "spectrum",
+    targetConfiguration: options.targetConfiguration,
     nullDevice: process.platform === "win32" ? "NUL" : "/dev/null",
     printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "printer"),
     rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "spectrum", "rs232")
@@ -84,7 +90,9 @@ async function launchSpectrum(options) {
   });
   child.unref();
 
-  console.log(`launched ${emulator.name ?? "Spectrum emulator"} with ${relativeToCwd(cwd, artifact)}`);
+  console.log(
+    `launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "ZX Spectrum"}) in ${emulator.name ?? "Spectrum emulator"} with ${relativeToCwd(cwd, artifact)}`
+  );
 }
 
 export function spectrumEmulatorArgsTemplate(emulator = {}, options = {}) {
@@ -106,6 +114,7 @@ function parseArgs(argv) {
     profile: defaultProfile,
     outDir: defaultOutDir,
     configPath: defaultToolConfig,
+    targetConfiguration: "spectrum48",
     runBuild: true,
     restart: false,
     fast: false
@@ -168,6 +177,11 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === "--target-configuration") {
+      options.targetConfiguration = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
     if (arg === "--skip-build") {
       options.runBuild = false;
       continue;
@@ -206,14 +220,6 @@ function configuredTestOutputDevice(emulator, fallback) {
   return emulator?.testOutputDevice ? parseDeviceKind(emulator.testOutputDevice, "emulator.testOutputDevice") : fallback;
 }
 
-async function loadConfig(configPath) {
-  if (!(await exists(configPath))) {
-    return undefined;
-  }
-
-  return JSON.parse(await readFile(configPath, "utf8"));
-}
-
 function replacePlaceholders(value, replacements) {
   return value.replaceAll(/\{([A-Za-z][A-Za-z0-9-]*)\}/g, (match, key) => replacements[key] ?? match);
 }
@@ -222,7 +228,7 @@ function deviceOutputPath(cwd, emulator, options, sourceName, target, device) {
   const template = device === "rs232"
     ? emulator.rs232OutputPath ?? "build/rs232/{profile}/{target}/{sourceName}.txt"
     : emulator.printerOutputPath ?? "build/printer/{profile}/{target}/{sourceName}.txt";
-  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, sourceName }));
+  return resolve(cwd, replacePlaceholders(template, { profile: options.profile, target, targetConfiguration: options.targetConfiguration, sourceName }));
 }
 
 async function prepareDeviceOutput(path) {

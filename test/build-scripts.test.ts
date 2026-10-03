@@ -61,7 +61,7 @@ describe("build scripts", () => {
 
   it("configures Atari tokenization before ATR packaging", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
-    const tools = config.atari800xl.tools;
+    const tools = config.targets.atari800xl.tools;
 
     expect(tools.map((tool: { name: string }) => tool.name)).toEqual(["basicParser", "dir2atr"]);
     expect(tools[0]).toMatchObject({
@@ -74,7 +74,8 @@ describe("build scripts", () => {
       inputArtifact: "atariDiskDirectory",
       outputExtension: ".atr"
     });
-    expect(config.atari800xl.emulators.altirra).toMatchObject({
+    expect(config.targetConfigurations.atari1.emulator).toMatchObject({
+      type: "altirra",
       name: "Altirra",
       testOutputDevice: "shared-drive",
       sharedDrivePath: "build/altirra_drive",
@@ -90,21 +91,27 @@ describe("build scripts", () => {
   it("configures the Atari800 emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
-    expect(config.atari800xl.emulators.atari800).toMatchObject({
+    expect(config.targetConfigurations.atari2).toMatchObject({
+      compilerTarget: "atari800xl",
+      computer: { model: "Atari 800XL", basic: "built-in Atari BASIC", romSet: "original Atari ROMs" },
+      emulator: {
+      type: "atari800",
       name: "Atari800",
       testOutputDevice: "shared-drive",
       sharedDriveSpec: "H1:MCP.TXT",
       sharedDrivePath: "build/atari800_drive",
       sharedDriveOutputPath: "build/atari800_drive/MCP.TXT",
       args: ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"]
+      }
     });
   });
 
   it("configures the C64 emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
-    expect(config.c64.tools[0]).not.toHaveProperty("inputTransform");
-    expect(config.c64.emulator).toMatchObject({
+    expect(config.targets.c64.tools[0]).not.toHaveProperty("inputTransform");
+    expect(config.targetConfigurations.c64.emulator).toMatchObject({
+      type: "vice",
       name: "x64sc",
       testOutputDevice: "rs232",
       args: ["-autostart", "{artifact}", "-autostart-warp"],
@@ -136,13 +143,14 @@ describe("build scripts", () => {
   it("configures C64 RS232 capture through a local endpoint", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
-    expect(config.c64.emulator.printerArgs).toContain("-iecdevice4");
-    expect(config.c64.emulator.printerArgs).not.toContain("-busdevice4");
-    expect(config.c64.emulator.rs232OutputPath).toBe("build/rs232/{profile}/{target}/{sourceName}.txt");
-    expect(config.c64.emulator.rs232Args).toContain("-userportdevice");
-    expect(config.c64.emulator.rs232Args).not.toContain("-rsuser");
-    expect(config.c64.emulator.rs232Args).toContain("{rs232Endpoint}");
-    expect(config.c64.emulator.rs232Args).not.toContain("{rs232Output}");
+    const emulator = config.targetConfigurations.c64.emulator;
+    expect(emulator.printerArgs).toContain("-iecdevice4");
+    expect(emulator.printerArgs).not.toContain("-busdevice4");
+    expect(emulator.rs232OutputPath).toBe("build/rs232/{profile}/{targetConfiguration}/{sourceName}.txt");
+    expect(emulator.rs232Args).toContain("-userportdevice");
+    expect(emulator.rs232Args).not.toContain("-rsuser");
+    expect(emulator.rs232Args).toContain("{rs232Endpoint}");
+    expect(emulator.rs232Args).not.toContain("{rs232Output}");
   });
 
   it("decodes C64 PETSCII RS232 test output as readable host text", async () => {
@@ -154,12 +162,22 @@ describe("build scripts", () => {
   it("configures the Spectrum emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
-    expect(config.spectrum.emulator).toMatchObject({
+    expect(config.targetConfigurations.spectrum48).toMatchObject({
+      compilerTarget: "spectrum",
+      computer: { model: "ZX Spectrum 48K", ramKib: 48 },
+      emulator: {
+      type: "fuse",
       name: "Fuse",
       testOutputDevice: "text-printer",
-      args: ["-tape", "{artifact}", "-auto-play"],
+      args: ["--machine", "48", "-tape", "{artifact}", "-auto-play"],
       testArgs: ["--speed", "1000"],
       printerArgs: ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
+      }
+    });
+    expect(config.targetConfigurations.spectrum128).toMatchObject({
+      compilerTarget: "spectrum",
+      computer: { model: "ZX Spectrum 128K", ramKib: 128 },
+      emulator: { type: "fuse", args: ["--machine", "128", "-tape", "{artifact}", "-auto-play"] }
     });
   });
 
@@ -220,31 +238,70 @@ describe("build scripts", () => {
     const { configuredLaunchTargets } = await import("../scripts/lib/launch-all-targets.mjs");
 
     expect(
-      configuredLaunchTargets({
-        spectrum: { emulator: { path: "fuse" } },
-        atari800xl: { emulators: { altirra: { path: "" }, atari800: { path: "atari800" } } },
-        c64: { emulator: { path: "x64sc" } }
-      }).map((entry: { script: string }) => entry.script)
+      configuredLaunchTargets({ targetConfigurations: {
+        spectrum48: { compilerTarget: "spectrum", emulator: { type: "fuse", path: "fuse" } },
+        atari1: { compilerTarget: "atari800xl", emulator: { type: "altirra", path: "" } },
+        atari2: { compilerTarget: "atari800xl", emulator: { type: "atari800", path: "atari800" } },
+        c64: { compilerTarget: "c64", emulator: { type: "vice", path: "x64sc" } }
+      } }).map((entry: { script: string }) => entry.script)
     ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
 
     expect(
-      configuredLaunchTargets({
-        spectrum: { emulator: { path: "fuse" } },
-        atari800xl: { emulators: { altirra: { path: "altirra" }, atari800: { path: "atari800" } } },
-        c64: { emulator: { path: "x64sc" } }
-      }).map((entry: { script: string }) => entry.script)
+      configuredLaunchTargets({ targetConfigurations: {
+        spectrum48: { compilerTarget: "spectrum", emulator: { type: "fuse", path: "fuse" } },
+        atari1: { compilerTarget: "atari800xl", emulator: { type: "altirra", path: "altirra" } },
+        atari2: { compilerTarget: "atari800xl", emulator: { type: "atari800", path: "atari800" } },
+        c64: { compilerTarget: "c64", emulator: { type: "vice", path: "x64sc" } }
+      } }).map((entry: { script: string }) => entry.script)
     ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
 
     expect(
       configuredLaunchTargets(
-        {
-          spectrum: { emulator: { path: "fuse" } },
-          atari800xl: { emulators: { altirra: { path: "" }, atari800: { path: "atari800" } } },
-          c64: { emulator: { path: "x64sc" } }
-        },
-        { atariEmulator: "atari800" }
+        { targetConfigurations: {
+          spectrum48: { compilerTarget: "spectrum", emulator: { type: "fuse", path: "fuse" } },
+          atari1: { compilerTarget: "atari800xl", emulator: { type: "altirra", path: "altirra" } },
+          atari2: { compilerTarget: "atari800xl", emulator: { type: "atari800", path: "atari800" } },
+          c64: { compilerTarget: "c64", emulator: { type: "vice", path: "x64sc" } }
+        } },
+        { targetConfigurations: ["atari2"] }
       ).map((entry: { script: string }) => entry.script)
-    ).toEqual(["scripts/launch-spectrum.mjs", "scripts/launch-atari800.mjs", "scripts/launch-c64.mjs"]);
+    ).toEqual(["scripts/launch-atari800.mjs"]);
+  });
+
+  it("resolves freely named target configurations independently of compiler targets", async () => {
+    const { launcherScriptFor, resolveTargetConfiguration } = await import("../scripts/target-configurations.mjs");
+    const config = {
+      targetConfigurations: {
+        atari1: {
+          compilerTarget: "atari800xl",
+          computer: { model: "Atari 800XL", romSet: "replacement ROMs" },
+          emulator: { type: "altirra", path: "altirra" }
+        },
+        atari2: {
+          compilerTarget: "atari800xl",
+          computer: { model: "Atari 800XL", romSet: "original ROMs" },
+          emulator: { type: "atari800", path: "atari800" }
+        }
+      }
+    };
+
+    expect(resolveTargetConfiguration(config, "atari1").computer.romSet).toBe("replacement ROMs");
+    expect(resolveTargetConfiguration(config, "atari2").computer.romSet).toBe("original ROMs");
+    expect(launcherScriptFor(resolveTargetConfiguration(config, "atari1"))).toBe("scripts/launch-atari.mjs");
+    expect(launcherScriptFor(resolveTargetConfiguration(config, "atari2"))).toBe("scripts/launch-atari800.mjs");
+    expect(() => resolveTargetConfiguration(config, "atari1", { emulatorType: "atari800" })).toThrow("not \"atari800\"");
+  });
+
+  it("parses the target configuration as the generic launcher's positional selection", async () => {
+    const { parseLaunchTargetArgs } = await import("../scripts/launch-target.mjs");
+
+    expect(parseLaunchTargetArgs(["spectrum128", "--source", "game.mbas"])).toMatchObject({
+      targetConfiguration: "spectrum128",
+      forwardedArgs: ["--source", "game.mbas"]
+    });
+    expect(() => parseLaunchTargetArgs(["spectrum48", "--target-configuration", "spectrum128"])).toThrow(
+      "first positional argument"
+    );
   });
 
   it("derives build artifact names from single sources and project configs", async () => {
