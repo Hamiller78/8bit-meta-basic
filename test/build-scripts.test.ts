@@ -326,6 +326,8 @@ describe("build scripts", () => {
       textsDir: "translations",
       language: "de",
       font: ["lowercase", "international"],
+      minimumScreenColumns: 40,
+      minimumScreenRows: 24,
       files: ["source/math.mbas", "source/main.mbas"]
     }), "utf8");
 
@@ -340,11 +342,15 @@ describe("build scripts", () => {
     expect(sourceConfig.textsDir).toBe(join(dir, "demo", "translations"));
     expect(sourceConfig.language).toBe("de");
     expect(sourceConfig.font).toEqual(["lowercase", "international"]);
+    expect(sourceConfig.minimumScreenColumns).toBe(40);
+    expect(sourceConfig.minimumScreenRows).toBe(24);
     expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
     expect(testConfig.language).toBe("de");
     expect(testConfig.font).toEqual(["lowercase", "international"]);
+    expect(testConfig.minimumScreenColumns).toBe(40);
+    expect(testConfig.minimumScreenRows).toBe(24);
     expect(testConfig.files).toHaveLength(3);
     expect(testConfig.files.at(-1)).toContain("math-tests.mbas");
     expect(printerConfig.testPrinterOutput).toBe(true);

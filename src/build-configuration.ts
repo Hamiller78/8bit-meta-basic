@@ -5,11 +5,17 @@ import type { Program } from "./ast.js";
 import { compileProgramDetailed, type CompileOptions, type CompileResult } from "./compiler.js";
 import { deviceCliList, isDeviceKind, type DeviceKind } from "./devices.js";
 import { parseSource } from "./parser.js";
+import { targetEnvironments } from "./targets/environment.js";
+
+export const defaultMinimumScreenColumns = 32;
+export const defaultMinimumScreenRows = 22;
 
 export interface BuildConfiguration {
   readonly textsDir?: string;
   readonly language?: string;
   readonly font?: TextFont;
+  readonly minimumScreenColumns?: number;
+  readonly minimumScreenRows?: number;
   readonly files: readonly string[];
   readonly testMode?: boolean;
   readonly testPrinterOutput?: boolean;
@@ -49,6 +55,7 @@ export async function build(configuration: BuildConfiguration, options: BuildOpt
 
 export async function buildDetailed(configuration: BuildConfiguration, options: BuildOptions): Promise<CompileResult> {
   const baseDir = options.baseDir ?? (options.configPath ? dirname(resolve(options.configPath)) : process.cwd());
+  validateTargetScreenSize(configuration, options.target);
   const program = await readBuildProgram(configuration, baseDir);
   const testMode = options.testMode ?? configuration.testMode ?? false;
   return compileProgramDetailed(program, {
@@ -97,19 +104,46 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be ${deviceCliList} when present.`);
   }
 
-  const { textsDir, language, font } = value as { textsDir?: unknown; language?: unknown; font?: unknown };
+  const { textsDir, language, font, minimumScreenColumns, minimumScreenRows } = value as {
+    textsDir?: unknown;
+    language?: unknown;
+    font?: unknown;
+    minimumScreenColumns?: unknown;
+    minimumScreenRows?: unknown;
+  };
   for (const [name, field] of Object.entries({ textsDir, language })) {
     if (field !== undefined && (typeof field !== "string" || !field)) throw new Error(`Invalid build configuration "${configPath}": "${name}" must be a nonempty string.`);
+  }
+  for (const [name, field] of Object.entries({ minimumScreenColumns, minimumScreenRows })) {
+    if (field !== undefined && (typeof field !== "number" || !Number.isInteger(field) || field < 1)) {
+      throw new Error(`Invalid build configuration "${configPath}": "${name}" must be a positive integer when present.`);
+    }
   }
   return {
     ...(textsDir !== undefined ? { textsDir: textsDir as string } : {}),
     ...(language !== undefined ? { language: requireLanguage(language as string) } : {}),
     ...(font !== undefined ? { font: requireTextFont(font) } : {}),
+    ...(minimumScreenColumns !== undefined ? { minimumScreenColumns: minimumScreenColumns as number } : {}),
+    ...(minimumScreenRows !== undefined ? { minimumScreenRows: minimumScreenRows as number } : {}),
     files,
     ...(testMode !== undefined ? { testMode } : {}),
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
     ...(testOutputDevice !== undefined ? { testOutputDevice } : {})
   };
+}
+
+export function validateTargetScreenSize(configuration: BuildConfiguration, target: CompileOptions["target"]): void {
+  const minimumColumns = configuration.minimumScreenColumns ?? defaultMinimumScreenColumns;
+  const minimumRows = configuration.minimumScreenRows ?? defaultMinimumScreenRows;
+  const environment = targetEnvironments[target];
+  if (environment.textColumns >= minimumColumns && environment.textRows >= minimumRows) {
+    return;
+  }
+
+  throw new Error(
+    `Target "${target}" provides a ${environment.textColumns}x${environment.textRows} text screen, but this project requires at least ${minimumColumns} columns by ${minimumRows} rows. ` +
+    `Lower "minimumScreenColumns" or "minimumScreenRows" only if the project supports the smaller screen.`
+  );
 }
 
 async function readBuildProgram(configuration: BuildConfiguration, baseDir: string): Promise<Program> {

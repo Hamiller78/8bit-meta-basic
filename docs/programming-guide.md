@@ -33,9 +33,13 @@ List source modules in the order in which they should appear in generated BASIC.
     "source/characters.mbas",
     "source/names.mbas"
   ],
-  "textsDir": "texts"
+  "textsDir": "texts",
+  "minimumScreenColumns": 32,
+  "minimumScreenRows": 22
 }
 ```
+
+`minimumScreenColumns` and `minimumScreenRows` describe the smallest text screen the project supports. Both are optional; omitted projects default to the ZX Spectrum text area of 32 columns by 22 rows. A build fails before compilation when the selected target is smaller. Lower these values only after accommodating the narrower or shorter layout—for example, a future VIC-20 target would require a project to opt into its narrower screen.
 
 Build the project for one or every target:
 

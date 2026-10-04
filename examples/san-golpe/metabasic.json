@@ -1,4 +1,6 @@
 {
+  "minimumScreenColumns": 32,
+  "minimumScreenRows": 22,
   "files": [
     "source/main.mbas",
     "source/characters.mbas",

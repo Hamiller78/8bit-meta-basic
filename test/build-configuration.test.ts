@@ -274,6 +274,36 @@ describe("build configuration", () => {
     });
   });
 
+  it("requires Spectrum-sized screens by default", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), 'print "OK"\n', "utf8");
+      const configuration = { files: ["main.mbas"] };
+
+      await expect(build(configuration, { baseDir: dir, target: "spectrum", readability: 0 })).resolves.toContain('PRINT "OK"');
+      await expect(build(configuration, { baseDir: dir, target: "atari800xl", readability: 0 })).resolves.toContain('PRINT "OK"');
+      await expect(build(configuration, { baseDir: dir, target: "c64", readability: 0 })).resolves.toContain('PRINT "OK"');
+    });
+  });
+
+  it("rejects targets smaller than a project's configured screen requirements", async () => {
+    await withTempProject(async (dir) => {
+      await writeFile(join(dir, "main.mbas"), 'print "OK"\n', "utf8");
+
+      await expect(build(
+        { files: ["main.mbas"], minimumScreenColumns: 33 },
+        { baseDir: dir, target: "spectrum", readability: 0 }
+      )).rejects.toThrow('Target "spectrum" provides a 32x22 text screen, but this project requires at least 33 columns by 22 rows');
+      await expect(build(
+        { files: ["main.mbas"], minimumScreenRows: 23 },
+        { baseDir: dir, target: "spectrum", readability: 0 }
+      )).rejects.toThrow('requires at least 32 columns by 23 rows');
+      await expect(build(
+        { files: ["main.mbas"], minimumScreenColumns: 40, minimumScreenRows: 24 },
+        { baseDir: dir, target: "atari800xl", readability: 0 }
+      )).resolves.toContain('PRINT "OK"');
+    });
+  });
+
   it("loads printer-output test runner mode from build configuration JSON", async () => {
     await withTempProject(async (dir) => {
       const configPath = join(dir, "metabasic.json");
@@ -321,6 +351,10 @@ describe("build configuration", () => {
       await expect(loadBuildConfiguration(join(dir, "bad-printer-output.json"))).rejects.toThrow('"testPrinterOutput" must be a boolean');
       await writeFile(join(dir, "bad-test-device.json"), JSON.stringify({ testOutputDevice: "modem", files: ["main.mbas"] }), "utf8");
       await expect(loadBuildConfiguration(join(dir, "bad-test-device.json"))).rejects.toThrow('"testOutputDevice" must be "printer", "text-printer", "shared-drive", or "rs232"');
+      await writeFile(join(dir, "bad-screen-columns.json"), JSON.stringify({ minimumScreenColumns: 0, files: ["main.mbas"] }), "utf8");
+      await expect(loadBuildConfiguration(join(dir, "bad-screen-columns.json"))).rejects.toThrow('"minimumScreenColumns" must be a positive integer');
+      await writeFile(join(dir, "bad-screen-rows.json"), JSON.stringify({ minimumScreenRows: 22.5, files: ["main.mbas"] }), "utf8");
+      await expect(loadBuildConfiguration(join(dir, "bad-screen-rows.json"))).rejects.toThrow('"minimumScreenRows" must be a positive integer');
       await expect(loadBuildConfiguration(badJsonPath)).rejects.toThrow("Invalid JSON");
       await expect(loadBuildConfiguration(join(dir, "missing.json"))).rejects.toThrow("Build configuration file not found");
     });

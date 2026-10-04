@@ -36,6 +36,8 @@ Compile an ordered multi-file program through a small JSON build configuration:
 
 ```json
 {
+  "minimumScreenColumns": 32,
+  "minimumScreenRows": 22,
   "files": [
     "src/main.mbas",
     "src/game.mbas",
@@ -43,6 +45,8 @@ Compile an ordered multi-file program through a small JSON build configuration:
   ]
 }
 ```
+
+These optional minimums default to 32 columns and 22 rows. A project must explicitly lower them if it supports a smaller screen; otherwise such a compile target is rejected before code generation.
 
 ```text
 npm run dev -- --config metabasic.json --target spectrum

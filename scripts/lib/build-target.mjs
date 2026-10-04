@@ -326,6 +326,8 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
       textsDir,
       ...(projectConfiguration?.language !== undefined ? { language: projectConfiguration.language } : {}),
       ...(projectConfiguration?.font !== undefined ? { font: projectConfiguration.font } : {}),
+      ...(projectConfiguration?.minimumScreenColumns !== undefined ? { minimumScreenColumns: projectConfiguration.minimumScreenColumns } : {}),
+      ...(projectConfiguration?.minimumScreenRows !== undefined ? { minimumScreenRows: projectConfiguration.minimumScreenRows } : {}),
       testMode,
       ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}),
       files: [...sourceFiles, ...testFiles]
