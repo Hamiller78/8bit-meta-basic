@@ -60,7 +60,11 @@ Player knowledge is stored separately from the true character data:
 
 Knowledge can only increase. `revealCharacter(index, level)` never lowers it. The two player agents begin at level 1; all other characters begin unknown.
 
-The main view shows the budget, the shared contacts, both player agents and their missions, and a compact `DISCOVERED` list. That list contains the first name of every discovered non-agent character and displays `None` when empty. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
+The main view is a fixed 22-row character overview. The government is arranged as an organigram: the President appears above the General, daughter, and Advisor. A second group contains the Priest, Innkeeper, and Landowner. A final four-row area shows one of the two Soviet agents; key 5 switches between them. The screen uses plain positioned text for now, without drawn character boxes.
+
+Each character entry has four rows: name, role, agenda, and player status. On 40-column targets a known name is shown as first initial, a period, a space, and the family name. On 32-column targets only the family name is shown. Undiscovered names and unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including discovered, observed, assessed, known, contacted, or dead. Compact localized labels are limited to ten characters so the three-column groups fit on a 32-column screen.
+
+The top row retains compact keys for the two agent menus, known-character directory, and ending the turn, together with turn and budget. The separate known-character directory continues to list every discovered character with their full name and all details permitted by the current knowledge level.
 
 This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
 
@@ -252,7 +256,7 @@ Focused configurations keep generated emulator test programs small:
 
 - `characterfactory-test.metabasic.json` covers character and name generation.
 - `agentoperations-test.metabasic.json` covers observation and the placeholder agent mechanics.
-- `mainscreen-test.metabasic.json` covers the main view and discovered-character display.
+- `mainscreen-test.metabasic.json` covers the fixed main-view layout, width-dependent names, compact knowledge state, Soviet-agent selection, and the known-character directory.
 - `presidentevents-test.metabasic.json` covers event weighting, selection, effects, bounds, and text output.
 
 When a confirmed rule changes, update its implementation, its focused tests, and this document together.

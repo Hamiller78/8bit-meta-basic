@@ -3,69 +3,184 @@ uses "intelligence.mbas"
 uses "agentoperations.mbas"
 uses "politics.mbas"
 
+overviewUssrSelection% = 0
+
 function showOverview(turnNumber)
-    local agentIndex, firstContactIndex, targetIndex
+    local presidentIndex, generalIndex, daughterIndex, advisorIndex
+    local priestIndex, innkeeperIndex, landownerIndex, ussrIndex
+    local leftColumn, middleColumn, rightColumn
 
     cls
-    print_centered text$("overviewHeading")
-    print text$("overviewTurn"); " "; turnNumber; "  "; text$("overviewBudgetLabel"); " "; budget; " k$"
-    print
-    print text$("overviewContacts"); ": "; contactCount%;
-    firstContactIndex = firstContact()
-    if firstContactIndex >= 0 then
-        print " ";
-        printKnownFirstName(firstContactIndex)
-        if contactCount% > 1 then
-            print " +"; contactCount% - 1;
-        end if
+    set_pos 1, 1
+    print text$("overviewTurnKey"); turnNumber; " $"; budget; "K 1/2"; text$("overviewAgentsKey"); " 3"; text$("overviewPeopleKey"); " 4"; text$("overviewEndKey");
+
+    set_pos 2, 1
+    print_centered text$("overviewGovernment")
+
+    if TEXT_COLUMNS >= 40 then
+        leftColumn = 1
+        middleColumn = 15
+        rightColumn = 29
+    else
+        leftColumn = 1
+        middleColumn = 12
+        rightColumn = 23
     end if
-    print
-    print
-    print text$("overviewAgents")
-    for agentIndex = 0 to numberOfAgents - 1
-        print agentIndex + 1; " ";
-        printKnownName(agentIndex)
-        print
-        print " M: ";
-        printMissionName(agentMissions%(agentIndex))
-        print
-        if agentMissions%(agentIndex) = missionObserve then
-            print "    ";
-            printLocationName(agentMissionValues%(agentIndex))
-            print
-        end if
-        targetIndex = agentTargets%(agentIndex)
-        if targetIndex >= 0 then
-            print "    ";
-            printKnownFirstName(targetIndex)
-            print
-        end if
-    next agentIndex
-    print
-    printDiscoveredCharacters()
-    print
-    print "1/2 "; text$("overviewAgentOption")
-    print "3 "; text$("overviewPeopleOption")
-    print "4 "; text$("overviewEndTurnOption")
+
+    presidentIndex = findRole(president)
+    generalIndex = findRole(general)
+    daughterIndex = findRole(daughter)
+    advisorIndex = findRole(advisor)
+    priestIndex = findRole(priest)
+    innkeeperIndex = findRole(innkeeper)
+    landownerIndex = findRole(landowner)
+
+    printOverviewCharacterAt(presidentIndex, 3, middleColumn)
+    set_pos 7, int(TEXT_COLUMNS / 2) + 1
+    print "|";
+    set_pos 8, 1
+    if TEXT_COLUMNS >= 40 then
+        print_centered "+------------+------------+"
+    else
+        print_centered "+----------+----------+"
+    end if
+    printOverviewCharacterAt(generalIndex, 9, leftColumn)
+    printOverviewCharacterAt(daughterIndex, 9, middleColumn)
+    printOverviewCharacterAt(advisorIndex, 9, rightColumn)
+
+    set_pos 13, 1
+    print_centered text$("overviewOtherFigures")
+    printOverviewCharacterAt(priestIndex, 14, leftColumn)
+    printOverviewCharacterAt(innkeeperIndex, 14, middleColumn)
+    printOverviewCharacterAt(landownerIndex, 14, rightColumn)
+
+    set_pos 18, 1
+    print "5 "; text$("overviewUssrActivity"); " "; overviewUssrSelection% + 1; "/2";
+    ussrIndex = findUssrAgent(overviewUssrSelection%)
+    printOverviewCharacterAt(ussrIndex, 19, leftColumn)
 end function
 
-function printDiscoveredCharacters()
-    local characterIndex, discoveredCount
-    print text$("overviewDiscovered"); ": ";
-    discoveredCount = 0
-    for characterIndex = 2 to numberOfCharacters - 1
-        if playerIntel%(characterIndex) >= intelName then
-            if discoveredCount > 0 then
-                print ", ";
+function printOverviewCharacterAt(characterIndex, firstRow, firstColumn)
+    set_pos firstRow, firstColumn
+    printOverviewName(characterIndex)
+    set_pos firstRow + 1, firstColumn
+    printOverviewRole(characterIndex)
+    set_pos firstRow + 2, firstColumn
+    printOverviewAgenda(characterIndex)
+    set_pos firstRow + 3, firstColumn
+    printOverviewStatus(characterIndex)
+end function
+
+function printOverviewName(characterIndex)
+    if characterIndex < 0 then
+        print text$("overviewUnknownShort");
+        return
+    end if
+    if playerIntel%(characterIndex) < intelName then
+        print text$("overviewUnknownShort");
+        return
+    end if
+    if TEXT_COLUMNS >= 40 then
+        print left$(characters(characterIndex).first$, 1); ". "; characters(characterIndex).last$;
+    else
+        print characters(characterIndex).last$;
+    end if
+end function
+
+function printOverviewRole(characterIndex)
+    local roleValue
+    roleValue = characters(characterIndex).role%
+    if roleValue = president then
+        print text$("overviewRolePresident");
+    end if
+    if roleValue = daughter then
+        print text$("overviewRoleDaughter");
+    end if
+    if roleValue = advisor then
+        print text$("overviewRoleAdvisor");
+    end if
+    if roleValue = general then
+        print text$("overviewRoleGeneral");
+    end if
+    if roleValue = priest then
+        print text$("overviewRolePriest");
+    end if
+    if roleValue = innkeeper then
+        print text$("overviewRoleInnkeeper");
+    end if
+    if roleValue = landowner then
+        print text$("overviewRoleLandowner");
+    end if
+    if roleValue = ussragent then
+        print text$("overviewRoleUssrAgent");
+    end if
+end function
+
+function printOverviewAgenda(characterIndex)
+    local agendaIndex, agendaValue
+    if playerIntel%(characterIndex) < intelAgenda then
+        print text$("overviewUnknownShort");
+        return
+    end if
+    agendaIndex = characters(characterIndex).agenda%
+    agendaValue = doDuty
+    if agendaIndex >= 0 then
+        agendaValue = characterAgendas(agendaIndex).kind%
+    end if
+    if agendaValue = doDuty then
+        print text$("overviewAgendaDuty");
+    end if
+    if agendaValue = usurpRole then
+        print text$("overviewAgendaPower");
+    end if
+    if agendaValue = findLove then
+        print text$("overviewAgendaLove");
+    end if
+    if agendaValue = secretSpy then
+        print text$("overviewAgendaSpy");
+    end if
+end function
+
+function printOverviewStatus(characterIndex)
+    local intelValue
+    if characters(characterIndex).isAlive% = 0 then
+        print text$("overviewStatusDead");
+        return
+    end if
+    if hasContact(characterIndex) = 1 then
+        print text$("overviewStatusContacted");
+        return
+    end if
+    intelValue = playerIntel%(characterIndex)
+    if intelValue = intelNone then
+        print text$("overviewUnknownShort");
+    end if
+    if intelValue = intelName then
+        print text$("overviewStatusDiscovered");
+    end if
+    if intelValue = intelObserved then
+        print text$("overviewStatusObserved");
+    end if
+    if intelValue = intelIntegrity then
+        print text$("overviewStatusAssessed");
+    end if
+    if intelValue = intelAgenda then
+        print text$("overviewStatusKnown");
+    end if
+end function
+
+function findUssrAgent(selection)
+    local characterIndex, foundCount
+    foundCount = 0
+    for characterIndex = 0 to numberOfCharacters - 1
+        if characters(characterIndex).role% = ussragent then
+            if foundCount = selection then
+                return characterIndex
             end if
-            printKnownFirstName(characterIndex)
-            discoveredCount = discoveredCount + 1
+            foundCount = foundCount + 1
         end if
     next characterIndex
-    if discoveredCount = 0 then
-        print text$("overviewNone");
-    end if
-    print
+    return -1
 end function
 
 function printAgentReports()
@@ -130,6 +245,9 @@ function handleOverviewInput()
     end if
     if choice = KEY_4 then
         return 1
+    end if
+    if choice = KEY_5 then
+        overviewUssrSelection% = 1 - overviewUssrSelection%
     end if
     return 0
 end function

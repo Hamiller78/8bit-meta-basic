@@ -4,6 +4,8 @@ The fictional intro is stored in `texts/en/intro.txt` and `texts/de/intro.txt`. 
 
 Game design, confirmed rules, placeholder mechanics, and their implementation are documented in [GAME-RULES.md](GAME-RULES.md). Keep that document synchronized with rule and gameplay-code changes.
 
+The main view uses a fixed 22-row character overview on every supported target. Government figures and other prominent characters appear in three columns; 40-column targets show an initial plus family name, while the 32-column Spectrum shows only the family name. A four-row Soviet-agent area is switched with key 5. The current presentation is plain positioned text, deliberately leaving graphical or bordered character boxes for later Meta-BASIC support.
+
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language en --no-tools
 npm run build:all-targets -- --project examples/san-golpe --language de --no-tools
@@ -25,6 +27,10 @@ npm run launch:c64 -- --build-config examples/san-golpe/agentoperations-test.met
 npm run launch:spectrum -- --build-config examples/san-golpe/agentoperations-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:c64 -- --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:spectrum -- --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
+npm run launch -- atari1 --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
+npm run launch -- atari2 --build-config examples/san-golpe/mainscreen-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:c64 -- --build-config examples/san-golpe/presidentevents-test.metabasic.json --run-tests --profile release --printer-output --restart
 npm run launch:spectrum -- --build-config examples/san-golpe/presidentevents-test.metabasic.json --run-tests --profile release --printer-output --restart
 ```
+
+`atari1` runs the Atari 800XL build in Altirra with the replacement ROM set. `atari2` runs the same Atari 800XL build in Atari800 with the original ROM set. Both use their configured shared-drive transport for test output.

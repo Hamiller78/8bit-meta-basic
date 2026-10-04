@@ -164,8 +164,8 @@ data "Javier", "Luis", "Pedro", "Ramon", "Antonio"
 data "Esmeranza", "Maria", "Carmen", "Sofia", "Lucia"
 
 'Spanish last names
-data "Gonzales", "Garcia", "Rodriguez", "Martinez", "Lopez"
-data "Hernandez", "Sanchez", "Perez", "Ramirez", "Torres"
+data "Gonzales", "Garcia", "Romero", "Martinez", "Lopez"
+data "Navarro", "Sanchez", "Perez", "Ramirez", "Torres"
 
 'English male first names
 data "John", "James", "Robert", "David", "Michael"

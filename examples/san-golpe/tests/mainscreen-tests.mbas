@@ -5,9 +5,11 @@ uses "../source/mainscreen.mbas"
 
 function setupMainScreenCast()
     local characterIndex
+    overviewUssrSelection% = 0
     for characterIndex = 0 to numberOfCharacters - 1
         characters(characterIndex).role% = none
         characters(characterIndex).isAlive% = 1
+        characters(characterIndex).agenda% = -1
     next characterIndex
     characters(0).role% = usagent
     characters(1).role% = usagent
@@ -38,28 +40,52 @@ test AgentsStartWithoutContactsOrOrders()
     assert_eq -1, agentTargets%(1)
 end test
 
-test OverviewOffersAgentOrdersAndTurnEnd()
+test OverviewUsesTheFixedTwentyTwoRowLayout()
     setupMainScreenCast()
     initializeIntelligence()
     initializeAgentOperations()
 
     showOverview(1)
-    assert_print "4 End turn"
+    assert_print "UNKNOWN"
 end test
 
-test OverviewDiscoveredListUsesKnownCharacters()
+test OverviewUsesNamesAppropriateToScreenWidth()
     setupMainScreenCast()
     initializeIntelligence()
-    characters(6).first$ = "Carlos"
-    characters(9).first$ = "Miguel"
+    characters(4).first$ = "Juan"
+    characters(4).last$ = "Navarro"
+    revealCharacter(4, intelName)
 
-    printDiscoveredCharacters()
-    assert_print "DISCOVERED: None"
+    printOverviewName(4)
+    if TEXT_COLUMNS >= 40 then
+        assert_print "J. Navarro"
+    else
+        assert_print "Navarro"
+    end if
+end test
 
-    revealCharacter(6, intelName)
-    revealCharacter(9, intelName)
-    printDiscoveredCharacters()
-    assert_print "DISCOVERED: Carlos, Miguel"
+test OverviewShowsCompactKnowledgeState()
+    setupMainScreenCast()
+    initializeIntelligence()
+    initializeAgentOperations()
+
+    printOverviewStatus(4)
+    assert_print "UNKNOWN"
+    revealCharacter(4, intelObserved)
+    printOverviewStatus(4)
+    assert_print "OBSERVED"
+    addContact(4)
+    printOverviewStatus(4)
+    assert_print "CONTACTED"
+    revealCharacter(4, intelAgenda)
+    printOverviewAgenda(4)
+    assert_print "DUTY"
+end test
+
+test OverviewCanSelectEitherSovietAgent()
+    setupMainScreenCast()
+    assert_eq 2, findUssrAgent(0)
+    assert_eq 3, findUssrAgent(1)
 end test
 
 test AgentOrdersRemainIndependent()
