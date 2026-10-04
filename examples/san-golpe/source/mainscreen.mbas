@@ -36,8 +36,8 @@ function showOverview(turnNumber)
     landownerIndex = findRole(landowner)
 
     printOverviewCharacterAt(presidentIndex, 3, middleColumn)
-    set_pos 7, int(TEXT_COLUMNS / 2) + 1
-    print "|";
+    set_pos 7, int(TEXT_COLUMNS / 2)
+    print "+";
     set_pos 8, 1
     if TEXT_COLUMNS >= 40 then
         print_centered "+------------+------------+"
@@ -76,7 +76,7 @@ function printOverviewName(characterIndex)
         print text$("overviewUnknownShort");
         return
     end if
-    if playerIntel%(characterIndex) < intelName then
+    if characters(characterIndex).role% = ussragent and playerIntel%(characterIndex) < intelName then
         print text$("overviewUnknownShort");
         return
     end if
@@ -234,6 +234,10 @@ end function
 function handleOverviewInput()
     local choice
     choice = getInput()
+    return handleOverviewChoice(choice)
+end function
+
+function handleOverviewChoice(choice)
     if choice = KEY_1 then
         showAgentMenu(0)
     end if

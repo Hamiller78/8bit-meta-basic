@@ -62,7 +62,7 @@ Knowledge can only increase. `revealCharacter(index, level)` never lowers it. Th
 
 The main view is a fixed 22-row character overview. The government is arranged as an organigram: the President appears above the General, daughter, and Advisor. A second group contains the Priest, Innkeeper, and Landowner. A final four-row area shows one of the two Soviet agents; key 5 switches between them. The screen uses plain positioned text for now, without drawn character boxes.
 
-Each character entry has four rows: name, role, agenda, and player status. On 40-column targets a known name is shown as first initial, a period, a space, and the family name. On 32-column targets only the family name is shown. Undiscovered names and unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including discovered, observed, assessed, known, contacted, or dead. Compact localized labels are limited to ten characters so the three-column groups fit on a 32-column screen.
+Each character entry has four rows: name, role, agenda, and player status. The identities of the public figures are known at game start even though their habits have not yet been discovered, so their names are always shown on the organigram. Soviet-agent names remain unknown until those agents are discovered. On 40-column targets a visible name is shown as first initial, a period, a space, and the family name. On 32-column targets only the family name is shown. Unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including discovered, observed, assessed, known, contacted, or dead. Compact localized labels are limited to ten characters so the three-column groups fit on a 32-column screen.
 
 The top row retains compact keys for the two agent menus, known-character directory, and ending the turn, together with turn and budget. The separate known-character directory continues to list every discovered character with their full name and all details permitted by the current knowledge level.
 
@@ -178,6 +178,8 @@ Contacts are stored in one `contacts%()` array with one shared `contactCount%`; 
 ### Supporting implementation
 
 At the start of each turn, the current program updates the world coffee price, selects and applies one President event, resolves both agents' existing missions, and processes NPC actions. It then shows the NPC events, President event, and agent reports before opening the main view. The player can inspect people, change either agent's mission, or end the turn. Results from newly assigned missions appear at the start of the following turn.
+
+Keys without an assigned main-view action, including Enter, are ignored and simply redraw the overview.
 
 This loop is implemented in `source/main.mbas`; menus and report rendering are in `source/mainscreen.mbas`.
 

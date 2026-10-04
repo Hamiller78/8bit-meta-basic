@@ -37,8 +37,8 @@ describe("control-flow optimization", () => {
     const atari = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target: "atari800xl", readability: 0 });
     expect(atari).toMatch(/ON 1 \+ ABS\(.+ = 1\) \+ 2 \* ABS\(.+ = 2\) \+ 3 \* ABS\(.+ = 3\) GOTO/u);
     const c64 = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target: "c64", readability: 0 });
-    expect(c64).toMatch(/ON [A-Z][A-Z0-9]* \+ 1 GOTO \d+,\d+,\d+/u);
-    expect(c64).not.toMatch(/IF [A-Z][A-Z0-9]* = [012] THEN GOTO/u);
+    expect(c64).not.toContain(" ON ");
+    expect(c64.match(/IF .+ = [123] THEN \d+/g)).toHaveLength(3);
   });
 
   it("uses a straight IF chain for Spectrum computed dispatch", () => {
@@ -74,7 +74,8 @@ describe("control-flow optimization", () => {
     expect(atari).toMatch(/ON 1 \+ ABS\(.+ = 1\) \+ 2 \* ABS\(.+ = 2\) \+ 3 \* ABS\(.+ = 3\) GOSUB/u);
     expect(atari).not.toMatch(/IF .+ < 1.+ > 3.+ THEN/u);
     const c64 = compileSource(source, { filename: "call-dispatch.mbas", target: "c64", readability: 0 });
-    expect(c64).toMatch(/ON [A-Z][A-Z0-9]* \+ 1 GOSUB \d+,\d+,\d+/u);
+    expect(c64).not.toContain(" ON ");
+    expect(c64.match(/IF .+ = [123] THEN GOSUB \d+/g)).toHaveLength(3);
     const spectrum = compileSource(source, { filename: "call-dispatch.mbas", target: "spectrum", readability: 0 });
     expect(spectrum.match(/IF STATE \+ 1 = [123] THEN GO SUB/g)).toHaveLength(3);
   });

@@ -33,7 +33,12 @@ export const c64Target: TargetBackend = {
     const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
     const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
-    return rebuildLabels(withKeyboardInput, packNumericStructFields(withKeyboardInput.instructions, true));
+    const safeDispatchInstructions = withKeyboardInput.instructions.flatMap((instruction) =>
+      instruction.kind === "on-goto" || instruction.kind === "on-gosub"
+        ? lowerSafeC64Dispatch(instruction)
+        : [instruction]
+    );
+    return rebuildLabels(withKeyboardInput, packNumericStructFields(safeDispatchInstructions, true));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
@@ -154,6 +159,26 @@ let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+}
+
+function lowerSafeC64Dispatch(instruction: Extract<Instruction, { kind: "on-goto" | "on-gosub" }>): Instruction[] {
+  const location = instruction.location;
+  const cases = instruction.labels
+    .map((label, index) => ({ label, index: index + 1 }))
+    .filter(({ label }) => normalizeLabel(label) !== normalizeLabel(instruction.fallbackLabel));
+
+  return cases.map((entry) => ({
+    kind: instruction.kind === "on-goto" ? "if-goto" : "if-gosub",
+    condition: {
+      kind: "binary",
+      operator: "=",
+      left: instruction.expression,
+      right: { kind: "number", value: entry.index, raw: String(entry.index), location },
+      location
+    },
+    label: entry.label,
+    location
+  }));
 }
 
 function c64LogicalFileNumber(handle: string): number {
