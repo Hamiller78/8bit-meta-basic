@@ -93,9 +93,15 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   const outputLines = options.target === "c64" && hasTextCharacterGroup(font, "lowercase")
     ? targetLowered.lines.map(lowercaseBasicSyntaxPreservingStrings)
     : targetLowered.lines;
+  const sourceFiles = analyzed.sourceFiles ?? [...new Set(analyzed.statements.map((statement) => statement.location.filename))];
   return {
     output: `${outputLines.join("\n")}\n`,
-    stats: analyzeBasicOutput(targetLowered.lines, options.target),
+    stats: analyzeBasicOutput(
+      outputLines,
+      options.target,
+      targetLowered.numbered.lines.map((line) => line.instruction.location.filename),
+      sourceFiles,
+    ),
     debugInfo: buildDebugInfo(analyzed, targetLowered.numbered, targetLowered.program.instructions, targetLowered.program.labels, target, readability, {
       language: options.language ?? "en",
       font,

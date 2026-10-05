@@ -45,6 +45,10 @@ Build profiles select how much readability scaffolding is kept in generated BASI
 | `balanced` | 1 | Prominent module separators and source labels |
 | `release` | 0 | Compact output without generated comments |
 
+When a build writes a BASIC artifact, its summary includes an estimated rendered BASIC size and a per-module breakdown. The estimate is calculated from the final numbered target listing after lowering, target-specific expansion, compact naming, line packing, and line-length repair. Each supported target character and each logical line terminator count as one byte. Generated instructions are charged to the source location that caused them; lines without a configured source module appear under `<generated>`.
+
+This is a comparative code-size estimate, not an exact free-RAM prediction. Native BASIC tokenizers replace keywords and encode numbers differently, and variable tables, arrays, strings, emulator ROMs, and runtime allocation consume additional memory. Use `free_memory()` or a tokenized artifact's tooling report when exact target memory matters.
+
 ## Debug information sidecar
 
 Every CLI build written with `--output program.bas` also writes `program.debug.json` beside it. The `build:*` and `launch:*` scripts use this output mode, so their BASIC artifacts have matching sidecars in the same build directory. To choose another sidecar path, pass `--debug-info path/to/map.json` to the compiler. This option also works when BASIC is printed to standard output; without `--output` or `--debug-info`, no file is written.

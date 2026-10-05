@@ -56,6 +56,8 @@ function showOverview(turnNumber)
 
     set_pos 18, 1
     print "5 "; text$("overviewUssrActivity"); " "; overviewUssrSelection% + 1; "/2";
+    set_pos 18, TEXT_COLUMNS - 8
+    print "RAM"; int(free_memory() / 1024); "K";
     ussrIndex = findUssrAgent(overviewUssrSelection%)
     printOverviewCharacterAt(ussrIndex, 19, leftColumn)
 end function

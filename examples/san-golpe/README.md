@@ -4,7 +4,7 @@ The fictional intro is stored in `texts/en/intro.txt` and `texts/de/intro.txt`. 
 
 Game design, confirmed rules, placeholder mechanics, and their implementation are documented in [GAME-RULES.md](GAME-RULES.md). Keep that document synchronized with rule and gameplay-code changes.
 
-The main view uses a fixed 22-row character overview on every supported target. Government figures and other prominent characters appear in three columns; their public identities are visible from the start, while Soviet-agent names require discovery. Forty-column targets show an initial plus family name, while the 32-column Spectrum shows only the family name. A four-row Soviet-agent area is switched with key 5. The current presentation is plain positioned text, deliberately leaving graphical or bordered character boxes for later Meta-BASIC support.
+The main view uses a fixed 22-row character overview on every supported target. Government figures and other prominent characters appear in three columns; their public identities are visible from the start, while Soviet-agent names require discovery. Forty-column targets show an initial plus family name, while the 32-column Spectrum shows only the family name. A four-row Soviet-agent area is switched with key 5, and its heading includes a compact whole-KiB free-RAM reading for debugging. The current presentation is plain positioned text, deliberately leaving graphical or bordered character boxes for later Meta-BASIC support.
 
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language en --no-tools

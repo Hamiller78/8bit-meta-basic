@@ -64,7 +64,7 @@ The main view is a fixed 22-row character overview. The government is arranged a
 
 Each character entry has four rows: name, role, agenda, and player status. The identities of the public figures are known at game start even though their habits have not yet been discovered, so their names are always shown on the organigram. Soviet-agent names remain unknown until those agents are discovered. On 40-column targets a visible name is shown as first initial, a period, a space, and the family name. On 32-column targets only the family name is shown. Unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including discovered, observed, assessed, known, contacted, or dead. Compact localized labels are limited to ten characters so the three-column groups fit on a 32-column screen.
 
-The top row retains compact keys for the two agent menus, known-character directory, and ending the turn, together with turn and budget. The separate known-character directory continues to list every discovered character with their full name and all details permitted by the current knowledge level.
+The top row retains compact keys for the two agent menus, known-character directory, and ending the turn, together with turn and budget. For debugging, the Soviet-agent heading row shows the target's currently free BASIC memory as a whole-KiB `RAM nK` value. The separate known-character directory continues to list every discovered character with their full name and all details permitted by the current knowledge level.
 
 This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
 

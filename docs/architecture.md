@@ -40,7 +40,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.
 - `src/compiler.ts` coordinates final rendering and may retry with generated temporaries when complex generated code would exceed a target line-length limit.
-- `src/output-stats.ts` reports generated-line and variable-use information.
+- `src/output-stats.ts` reports generated-line and variable-use information, plus final rendered-BASIC byte estimates attributed to source modules through instruction locations.
 - `src/build-configuration.ts` loads `metabasic.json` style program descriptions.
 - `src/cli.ts` is the thin command-line shell around the compiler.
 

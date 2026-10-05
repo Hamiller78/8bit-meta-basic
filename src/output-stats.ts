@@ -1,5 +1,12 @@
 import { testJoystickNames } from "./joystick.js";
 
+export interface ModuleOutputStats {
+  readonly sourceFile: string;
+  readonly displayName: string;
+  readonly lineCount: number;
+  readonly estimatedBytes: number;
+}
+
 export interface OutputStats {
   readonly lineCount: number;
   readonly firstLineNumber?: number;
@@ -11,6 +18,8 @@ export interface OutputStats {
   readonly numericArrays: readonly string[];
   readonly stringArrays: readonly string[];
   readonly variableRoles: VariableRoleStats;
+  readonly estimatedCodeBytes: number;
+  readonly modules: readonly ModuleOutputStats[];
 }
 
 export interface VariableRoleStats {
@@ -27,6 +36,8 @@ export interface VariableRoleStats {
 export function analyzeBasicOutput(
   lines: readonly string[],
   target?: string,
+  lineSourceFiles: readonly string[] = [],
+  sourceFiles: readonly string[] = [],
 ): OutputStats {
   const numericVariables = new Set<string>();
   const stringVariables = new Set<string>();
@@ -81,6 +92,7 @@ export function analyzeBasicOutput(
     ...numericArrays,
     ...stringArrays,
   ]);
+  const estimatedCodeBytes = lines.reduce((total, line) => total + estimatedLineBytes(line), 0);
 
   return {
     lineCount: lines.length,
@@ -93,6 +105,8 @@ export function analyzeBasicOutput(
     numericArrays: sorted(numericArrays),
     stringArrays: sorted(stringArrays),
     variableRoles: classifyVariableRoles(allVariables),
+    estimatedCodeBytes,
+    modules: analyzeModules(lines, lineSourceFiles, sourceFiles),
   };
 }
 
@@ -115,6 +129,8 @@ export function formatOutputStats(stats: OutputStats): string {
     "Transpiler output:",
     `  BASIC lines: ${stats.lineCount}${lineRange}`,
     `  Longest line: ${longestLine}`,
+    `  Estimated rendered BASIC size: ${stats.estimatedCodeBytes} bytes`,
+    ...formatModuleStats(stats.modules, stats.estimatedCodeBytes),
     `  Variables total: ${totalVariables}`,
     `    Numeric scalars: ${stats.numericVariables.length}${formatNames(stats.numericVariables)}`,
     `    String scalars: ${stats.stringVariables.length}${formatNames(stats.stringVariables)}`,
@@ -130,6 +146,65 @@ export function formatOutputStats(stats: OutputStats): string {
     `    TEST runtime: ${stats.variableRoles.testRuntime.length}${formatNames(stats.variableRoles.testRuntime)}`,
     `    Other generated bookkeeping: ${stats.variableRoles.generatedBookkeeping.length}${formatNames(stats.variableRoles.generatedBookkeeping)}`,
   ].join("\n");
+}
+
+function analyzeModules(
+  lines: readonly string[],
+  lineSourceFiles: readonly string[],
+  sourceFiles: readonly string[],
+): readonly ModuleOutputStats[] {
+  if (lineSourceFiles.length === 0) {
+    return [];
+  }
+
+  const canonical = (filename: string): string => filename.replaceAll("\\", "/").toLowerCase();
+  const knownFiles = new Map(sourceFiles.map((filename) => [canonical(filename), filename]));
+  const totals = new Map<string, { sourceFile: string; lineCount: number; estimatedBytes: number }>();
+
+  lines.forEach((line, index) => {
+    const reportedSource = lineSourceFiles[index] ?? "<generated>";
+    const sourceFile = knownFiles.get(canonical(reportedSource)) ?? "<generated>";
+    const current = totals.get(sourceFile) ?? { sourceFile, lineCount: 0, estimatedBytes: 0 };
+    current.lineCount += 1;
+    current.estimatedBytes += estimatedLineBytes(line);
+    totals.set(sourceFile, current);
+  });
+
+  const orderedFiles = sourceFiles.filter((filename, index) =>
+    sourceFiles.findIndex((candidate) => canonical(candidate) === canonical(filename)) === index
+  );
+  const ordered = [...orderedFiles, ...(totals.has("<generated>") ? ["<generated>"] : [])];
+  const result: ModuleOutputStats[] = [];
+  for (const sourceFile of ordered) {
+    const entry = totals.get(sourceFile);
+    if (!entry) continue;
+    result.push({
+      ...entry,
+      displayName: entry.sourceFile === "<generated>"
+        ? entry.sourceFile
+        : entry.sourceFile.replaceAll("\\", "/").split("/").at(-1)!,
+    });
+  }
+  return result;
+}
+
+function estimatedLineBytes(line: string): number {
+  // Target text encodings represent every supported/transliterated display character
+  // as one byte. Include one logical line terminator per generated BASIC line.
+  return [...line].length + 1;
+}
+
+function formatModuleStats(modules: readonly ModuleOutputStats[], totalBytes: number): readonly string[] {
+  if (modules.length === 0) {
+    return [];
+  }
+  return [
+    "  Estimated code by module:",
+    ...modules.map((module) => {
+      const percentage = totalBytes === 0 ? "0.0" : (module.estimatedBytes * 100 / totalBytes).toFixed(1);
+      return `    ${module.displayName}: ${module.estimatedBytes} bytes (${percentage}%, ${module.lineCount} lines)`;
+    }),
+  ];
 }
 
 function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
