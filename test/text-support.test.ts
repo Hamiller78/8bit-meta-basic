@@ -66,6 +66,17 @@ describe("localized text and layout", () => {
     expect(c64).toContain("print chr$(14);");
     expect(fallback).toContain('PRINT "GRUESSE AUS OESTERREICH"');
   });
+  it("preserves all-uppercase words when transliterating uppercase umlauts", () => {
+    const source = 'print text$("message")';
+    const texts = { message: "PRÄSIDENT Präsident ÖL Öl ÜBER Über" };
+    const spectrum = compileSource(source, { filename: "text.mbas", target: "spectrum", texts, font: ["lowercase", "international"] });
+    const c64 = compileSource(source, { filename: "text.mbas", target: "c64", texts, font: ["lowercase", "international"] });
+    const atari = compileSource(source, { filename: "text.mbas", target: "atari800xl", texts, font: ["lowercase", "international"] });
+
+    expect(spectrum).toContain('PRINT "PRAESIDENT Praesident OEL Oel UEBER Ueber"');
+    expect(c64).toContain('print "PRAESIDENT Praesident OEL Oel UEBER Ueber"');
+    expect(atari).toContain('PRINT "PRÄSIDENT Präsident ÖL Öl ÜBER Über"');
+  });
   it("supports explicit constant widths and rejects invalid widths", () => {
     expect(compileSource('print_wrap "one two three", 7', { filename: "width.mbas", target: "spectrum" })).toBe('10 PRINT "one two"\n20 PRINT "three"\n');
     for (const width of ["0", "33", "1.5", "width"]) {

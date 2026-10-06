@@ -14,7 +14,7 @@ npm run build:all-targets -- --project examples/san-golpe --language de --no-too
 npm run build:c64 -- --project examples/san-golpe --language de --no-tools
 ```
 
-English is the default language. The project requests the `lowercase` and `international` character groups. C64 therefore selects its uppercase/lowercase set, while Atari XL/XE selects its international ROM set. The German resources use real umlauts; Atari packages them as single-byte ATASCII, while Spectrum and C64 fall back to `ae`/`oe`/`ue`. `ß` falls back to `ss` on every current target. Test runners inherit these project groups, keeping their messages and output assertions consistent with the game. Blank lines delimit paragraphs; single line breaks are treated as spaces during wrapping.
+English is the default language. The project requests the `lowercase` and `international` character groups. C64 therefore selects its uppercase/lowercase set, while Atari XL/XE selects its international ROM set. The German resources use real umlauts; Atari packages them as single-byte ATASCII, while Spectrum and C64 use `ae`/`oe`/`ue`, capitalized as `AE`/`OE`/`UE` inside all-uppercase words. `ß` falls back to `ss` on every current target. Test runners inherit these project groups, keeping their messages and output assertions consistent with the game. Blank lines delimit paragraphs; single line breaks are treated as spaces during wrapping.
 
 The release build currently reports 114 Atari variables, below the dialect's 128-variable limit. This compiler-side count is useful as an early warning; the tokenized artifact remains the authority for the final Atari variable table.
 

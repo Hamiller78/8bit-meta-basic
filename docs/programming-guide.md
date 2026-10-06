@@ -353,7 +353,7 @@ English (`en`) is the default language. Select a translation and the character g
 npm run build:c64 -- --project my-game --language de --font lowercase,international
 ```
 
-Resource keys are case-sensitive. Every selected language needs its own value; there is no automatic English fallback. `lowercase` makes C64 select its uppercase/lowercase character set. `international` makes Atari XL/XE select its international ROM font and package supported letters such as `ä` and `ö` as one-byte ATASCII. Other targets use transliterations such as `ae` and `oe` when they cannot honor a requested group.
+Resource keys are case-sensitive. Every selected language needs its own value; there is no automatic English fallback. `lowercase` makes C64 select its uppercase/lowercase character set. `international` makes Atari XL/XE select its international ROM font and package supported letters such as `ä` and `ö` as one-byte ATASCII. Other targets use transliterations such as `ae` and `oe` when they cannot honor a requested group; all-uppercase words retain their casing, for example `PRÄSIDENT` becomes `PRAESIDENT`.
 
 ## Input, time, and random numbers
 

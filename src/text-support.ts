@@ -383,10 +383,24 @@ function portableText(value: string, statement: PrintStatement, target: TargetId
     ...(internationalAtari ? {} : { ä: "ae", ö: "oe", ü: "ue", Ä: "Ae", Ö: "Oe", Ü: "Ue" }),
     ß: "ss", ẞ: "SS", '“': '"', '”': '"', '„': '"', '’': "'", '–': "-", '—': "-", '…': "..."
   };
-  const text = value.replace(/[äöüÄÖÜßẞ“”„’–—…]/g, (char) => replacements[char] ?? char);
+  const text = value.replace(/[äöüÄÖÜßẞ“”„’–—…]/g, (char, offset: number) => {
+    if (!internationalAtari && /[ÄÖÜ]/.test(char) && isInsideUppercaseWord(value, offset)) {
+      return ({ Ä: "AE", Ö: "OE", Ü: "UE" } as Record<string, string>)[char];
+    }
+    return replacements[char] ?? char;
+  });
   const unsupported = text.match(internationalAtari ? /[^\x20-\x7e\r\n\täöüÄÖÜ]/u : /[^\x20-\x7e\r\n\t]/u);
   if (unsupported) throw new DiagnosticError(statement.location, `Unsupported text character "${unsupported[0]}". Use portable text or a supported German transliteration.`);
   return text;
+}
+
+function isInsideUppercaseWord(value: string, offset: number): boolean {
+  let start = offset;
+  let end = offset + 1;
+  while (start > 0 && /\p{L}/u.test(value[start - 1])) start -= 1;
+  while (end < value.length && /\p{L}/u.test(value[end])) end += 1;
+  const word = value.slice(start, end);
+  return word !== word.toLocaleLowerCase() && word === word.toLocaleUpperCase();
 }
 
 function encodeText(text: string, target: TargetId, font: TextFont, statement: PrintStatement, validateAvailability = true): Expression[] {
