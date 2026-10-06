@@ -23,7 +23,7 @@ createAllCharacters(true)
 initializeIntelligence()
 initializePolitics()
 initializePresidentEvents()
-initializeAgentOperations()
+initializeUsaActions()
 
 gameover% = 0
 turn% = 1
@@ -31,10 +31,10 @@ turnover% = 0
 
 repeat
     doPresidentTurn()
-    resolveAgentMissions()
+    resolveUsaActions()
     doNpcActions()
     printPresidentEvent()
-    printAgentReports()
+    printUsaActionReports()
     set_pos TEXT_ROWS - 1, 1
     print_centered text$("continue")
     getInput()

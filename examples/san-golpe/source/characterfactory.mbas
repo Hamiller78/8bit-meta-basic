@@ -6,19 +6,13 @@ function createAllCharacters(showProgress)
 
     resetCharacterFactory()
 
-    createRoleCharacter(usagent, us, showProgress)
-    createRoleCharacter(usagent, us, showProgress)
-    createRoleCharacter(ussragent, russian, showProgress)
-    createRoleCharacter(ussragent, russian, showProgress)
-
-    presidentIndex = createRoleCharacter(president, native, showProgress)
-    daughterIndex = createRoleCharacter(daughter, native, showProgress)
-    createRoleCharacter(advisor, native, showProgress)
-    createRoleCharacter(general, native, showProgress)
-    createRoleCharacter(priest, native, showProgress)
-    createRoleCharacter(innkeeper, native, showProgress)
-    createRoleCharacter(landowner, native, showProgress)
-    createRoleCharacter(ustourist, us, showProgress)
+    presidentIndex = createRoleCharacter(president, showProgress)
+    daughterIndex = createRoleCharacter(daughter, showProgress)
+    createRoleCharacter(advisor, showProgress)
+    createRoleCharacter(general, showProgress)
+    createRoleCharacter(priest, showProgress)
+    createRoleCharacter(innkeeper, showProgress)
+    createRoleCharacter(landowner, showProgress)
 
     if presidentIndex <> -1 and daughterIndex <> -1 then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
@@ -27,10 +21,10 @@ function createAllCharacters(showProgress)
     assignSecretAgendas()
 end function
 
-function createRoleCharacter(characterRole, nationality, showProgress)
+function createRoleCharacter(characterRole, showProgress)
     local characterIndex
 
-    characterIndex = createCharacter(nationality, characterRole)
+    characterIndex = createCharacter(characterRole)
     if characterIndex <> -1 then
         if showProgress then
             set_pos int(TEXT_ROWS / 2) + 2, 1
@@ -49,7 +43,7 @@ function resetCharacterFactory()
 end function
 
 'Returns an index into characters(), or -1 when no name is available.
-function createCharacter(nationality, characterRole)
+function createCharacter(characterRole)
     local characterIndex, firstName$, lastName$
 
     if characterFactoryInitialized = 0 then
@@ -60,17 +54,17 @@ function createCharacter(nationality, characterRole)
         return -1
     end if
 
-    if availableFirstNames(nationality, characterRole) = 0 then
+    if availableFirstNames(characterRole) = 0 then
         return -1
     end if
-    if characterRole <> daughter and availableLastNames(nationality) = 0 then
+    if characterRole <> daughter and availableLastNames() = 0 then
         return -1
     end if
 
-    firstName$ = takeFirstName$(nationality, characterRole)
+    firstName$ = takeFirstName$(characterRole)
     lastName$ = ""
     if characterRole <> daughter then
-        lastName$ = takeLastName$(nationality)
+        lastName$ = takeLastName$()
     end if
     characterIndex = createdCharacterCount
 

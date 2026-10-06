@@ -24,8 +24,6 @@ function initializeIntelligence()
         playerIntel%(characterIndex) = intelNone
         characterIndex = characterIndex + 1
     wend
-    playerIntel%(0) = intelName
-    playerIntel%(1) = intelName
 end function
 
 'Knowledge can only grow; later missions can call this after a successful reveal.

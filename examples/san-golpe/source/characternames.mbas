@@ -3,35 +3,19 @@ uses "characters.mbas"
 const spanishMaleFirstNames = 10
 const daughterFirstNames = 5
 const spanishLastNames = 10
-const englishMaleFirstNames = 5
-const englishLastNames = 5
-const russianMaleFirstNames = 5
-const russianLastNames = 5
 
 const spanishMaleNameOffset = 0
 const daughterFirstNameOffset = spanishMaleNameOffset + spanishMaleFirstNames
 const spanishLastNameOffset = daughterFirstNameOffset + daughterFirstNames
-const englishMaleNameOffset = spanishLastNameOffset + spanishLastNames
-const englishLastNameOffset = englishMaleNameOffset + englishMaleFirstNames
-const russianMaleNameOffset = englishLastNameOffset + englishLastNames
-const russianLastNameOffset = russianMaleNameOffset + russianMaleFirstNames
 
 function resetNameSelection()
     spanishMaleNameIndex = int(rnd() * spanishMaleFirstNames)
     daughterFirstNameIndex = int(rnd() * daughterFirstNames)
     spanishLastNameIndex = int(rnd() * spanishLastNames)
-    englishMaleNameIndex = int(rnd() * englishMaleFirstNames)
-    englishLastNameIndex = int(rnd() * englishLastNames)
-    russianMaleNameIndex = int(rnd() * russianMaleFirstNames)
-    russianLastNameIndex = int(rnd() * russianLastNames)
 
     spanishMaleNamesRemaining = spanishMaleFirstNames
     daughterFirstNamesRemaining = daughterFirstNames
     spanishLastNamesRemaining = spanishLastNames
-    englishMaleNamesRemaining = englishMaleFirstNames
-    englishLastNamesRemaining = englishLastNames
-    russianMaleNamesRemaining = russianMaleFirstNames
-    russianLastNamesRemaining = russianLastNames
 end function
 
 'RESTORE is program-wide; character names must remain the first DATA values.
@@ -44,39 +28,21 @@ function readCharacterName$(nameOffset, nameIndex)
     return name$
 end function
 
-function availableFirstNames(nationality, characterRole)
+function availableFirstNames(characterRole)
     if characterRole = daughter then
         return daughterFirstNamesRemaining
     end if
-    if nationality = native then
-        return spanishMaleNamesRemaining
-    end if
-    if nationality = us then
-        return englishMaleNamesRemaining
-    end if
-    if nationality = russian then
-        return russianMaleNamesRemaining
-    end if
-    return 0
+    return spanishMaleNamesRemaining
 end function
 
-function availableLastNames(nationality)
-    if nationality = native then
-        return spanishLastNamesRemaining
-    end if
-    if nationality = us then
-        return englishLastNamesRemaining
-    end if
-    if nationality = russian then
-        return russianLastNamesRemaining
-    end if
-    return 0
+function availableLastNames()
+    return spanishLastNamesRemaining
 end function
 
-function takeFirstName$(nationality, characterRole)
+function takeFirstName$(characterRole)
     local selectedName$
 
-    if availableFirstNames(nationality, characterRole) = 0 then
+    if availableFirstNames(characterRole) = 0 then
         return ""
     end if
 
@@ -89,71 +55,29 @@ function takeFirstName$(nationality, characterRole)
         daughterFirstNamesRemaining = daughterFirstNamesRemaining - 1
         return selectedName$
     end if
-    if nationality = native then
-        selectedName$ = readCharacterName$(spanishMaleNameOffset, spanishMaleNameIndex)
-        spanishMaleNameIndex = spanishMaleNameIndex + 1
-        if spanishMaleNameIndex = spanishMaleFirstNames then
-            spanishMaleNameIndex = 0
-        end if
-        spanishMaleNamesRemaining = spanishMaleNamesRemaining - 1
-        return selectedName$
+    selectedName$ = readCharacterName$(spanishMaleNameOffset, spanishMaleNameIndex)
+    spanishMaleNameIndex = spanishMaleNameIndex + 1
+    if spanishMaleNameIndex = spanishMaleFirstNames then
+        spanishMaleNameIndex = 0
     end if
-    if nationality = us then
-        selectedName$ = readCharacterName$(englishMaleNameOffset, englishMaleNameIndex)
-        englishMaleNameIndex = englishMaleNameIndex + 1
-        if englishMaleNameIndex = englishMaleFirstNames then
-            englishMaleNameIndex = 0
-        end if
-        englishMaleNamesRemaining = englishMaleNamesRemaining - 1
-        return selectedName$
-    end if
-    if nationality = russian then
-        selectedName$ = readCharacterName$(russianMaleNameOffset, russianMaleNameIndex)
-        russianMaleNameIndex = russianMaleNameIndex + 1
-        if russianMaleNameIndex = russianMaleFirstNames then
-            russianMaleNameIndex = 0
-        end if
-        russianMaleNamesRemaining = russianMaleNamesRemaining - 1
-        return selectedName$
-    end if
-    return ""
+    spanishMaleNamesRemaining = spanishMaleNamesRemaining - 1
+    return selectedName$
 end function
 
-function takeLastName$(nationality)
+function takeLastName$()
     local selectedName$
 
-    if availableLastNames(nationality) = 0 then
+    if availableLastNames() = 0 then
         return ""
     end if
 
-    if nationality = native then
-        selectedName$ = readCharacterName$(spanishLastNameOffset, spanishLastNameIndex)
-        spanishLastNameIndex = spanishLastNameIndex + 1
-        if spanishLastNameIndex = spanishLastNames then
-            spanishLastNameIndex = 0
-        end if
-        spanishLastNamesRemaining = spanishLastNamesRemaining - 1
-        return selectedName$
+    selectedName$ = readCharacterName$(spanishLastNameOffset, spanishLastNameIndex)
+    spanishLastNameIndex = spanishLastNameIndex + 1
+    if spanishLastNameIndex = spanishLastNames then
+        spanishLastNameIndex = 0
     end if
-    if nationality = us then
-        selectedName$ = readCharacterName$(englishLastNameOffset, englishLastNameIndex)
-        englishLastNameIndex = englishLastNameIndex + 1
-        if englishLastNameIndex = englishLastNames then
-            englishLastNameIndex = 0
-        end if
-        englishLastNamesRemaining = englishLastNamesRemaining - 1
-        return selectedName$
-    end if
-    if nationality = russian then
-        selectedName$ = readCharacterName$(russianLastNameOffset, russianLastNameIndex)
-        russianLastNameIndex = russianLastNameIndex + 1
-        if russianLastNameIndex = russianLastNames then
-            russianLastNameIndex = 0
-        end if
-        russianLastNamesRemaining = russianLastNamesRemaining - 1
-        return selectedName$
-    end if
-    return ""
+    spanishLastNamesRemaining = spanishLastNamesRemaining - 1
+    return selectedName$
 end function
 
 'Spanish male first names
@@ -166,15 +90,3 @@ data "Esmeranza", "Maria", "Carmen", "Sofia", "Lucia"
 'Spanish last names
 data "Gonzales", "Garcia", "Romero", "Martinez", "Lopez"
 data "Navarro", "Sanchez", "Perez", "Ramirez", "Torres"
-
-'English male first names
-data "John", "James", "Robert", "David", "Michael"
-
-'English last names
-data "Smith", "Johnson", "Brown", "Taylor", "Mellish"
-
-'Russian male first names
-data "Vladimir", "Ivan", "Alexei", "Dmitri", "Sergei"
-
-'Russian last names
-data "Smirnov", "Ivanov", "Petrov", "Volkov", "Sokolov"

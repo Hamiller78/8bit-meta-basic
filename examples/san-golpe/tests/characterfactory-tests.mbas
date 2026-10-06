@@ -5,8 +5,8 @@ uses "../source/characterfactory.mbas"
 test ProgramModeDoesNotInterruptNameInitialization()
     program_mode
     resetNameSelection()
-    assert_eq "Vladimir", readCharacterName$(russianMaleNameOffset, 0)
-    assert_eq "Sokolov", readCharacterName$(russianLastNameOffset, russianLastNames - 1)
+    assert_eq "Pablo", readCharacterName$(spanishMaleNameOffset, 0)
+    assert_eq "Torres", readCharacterName$(spanishLastNameOffset, spanishLastNames - 1)
 end test
 
 test CharacterNamesAreUsedOnlyOnce()
@@ -14,13 +14,13 @@ test CharacterNamesAreUsedOnlyOnce()
 
     resetCharacterFactory()
 
-    for characterIndex = 0 to englishMaleFirstNames - 1
-        assert_eq characterIndex, createCharacter(us, none)
+    for characterIndex = 0 to numberOfCharacters - 1
+        assert_eq characterIndex, createCharacter(none)
     next characterIndex
-    assert_eq -1, createCharacter(us, none)
+    assert_eq -1, createCharacter(none)
 
-    for firstIndex = 0 to englishMaleFirstNames - 2
-        for secondIndex = firstIndex + 1 to englishMaleFirstNames - 1
+    for firstIndex = 0 to numberOfCharacters - 2
+        for secondIndex = firstIndex + 1 to numberOfCharacters - 1
             assert_ne characters(firstIndex).first$, characters(secondIndex).first$
             assert_ne characters(firstIndex).last$, characters(secondIndex).last$
         next secondIndex
@@ -31,7 +31,7 @@ test CharacterAttributesHaveSafeDefaults()
     local characterIndex
 
     resetCharacterFactory()
-    characterIndex = createCharacter(us, none)
+    characterIndex = createCharacter(none)
 
     assert_ne -1, characterIndex
     assert_eq none, characters(characterIndex).role%
@@ -46,21 +46,16 @@ test AllCharacterRolesAreCreated()
     createAllCharacters(false)
 
     assert_eq numberOfCharacters, createdCharacterCount
-    assert_eq usagent, characters(0).role%
-    assert_eq usagent, characters(1).role%
-    assert_eq ussragent, characters(2).role%
-    assert_eq ussragent, characters(3).role%
-    assert_eq president, characters(4).role%
-    assert_eq daughter, characters(5).role%
-    assert_eq characters(4).last$, characters(5).last$
+    assert_eq president, characters(0).role%
+    assert_eq daughter, characters(1).role%
+    assert_eq characters(0).last$, characters(1).last$
     assert_eq daughterFirstNames - 1, daughterFirstNamesRemaining
     assert_eq spanishLastNames - 6, spanishLastNamesRemaining
-    assert_eq advisor, characters(6).role%
-    assert_eq general, characters(7).role%
-    assert_eq priest, characters(8).role%
-    assert_eq innkeeper, characters(9).role%
-    assert_eq landowner, characters(10).role%
-    assert_eq ustourist, characters(11).role%
+    assert_eq advisor, characters(2).role%
+    assert_eq general, characters(3).role%
+    assert_eq priest, characters(4).role%
+    assert_eq innkeeper, characters(5).role%
+    assert_eq landowner, characters(6).role%
 
     for characterIndex = 0 to createdCharacterCount - 1
         assert_true characters(characterIndex).integrity% >= 0
@@ -94,17 +89,17 @@ end test
 test DutyNeedsNoAgendaRecord()
     local agendaIndex
     characterAgendaCount% = 0
-    characters(4).agenda% = -1
-    assert_eq -1, characters(4).agenda%
+    characters(0).agenda% = -1
+    assert_eq -1, characters(0).agenda%
     assert_eq 0, characterAgendaCount%
     agendaIndex = characterAgendaCount%
     characterAgendaCount% = characterAgendaCount% + 1
-    characters(4).agenda% = agendaIndex
+    characters(0).agenda% = agendaIndex
     characterAgendas(agendaIndex).kind% = usurpRole
-    characterAgendas(agendaIndex).target% = 6
+    characterAgendas(agendaIndex).target% = 2
     characterAgendas(agendaIndex).money = 0
     characterAgendas(agendaIndex).weapons% = 0
     assert_eq 1, characterAgendaCount%
     assert_eq usurpRole, characterAgendas(agendaIndex).kind%
-    assert_eq 6, characterAgendas(agendaIndex).target%
+    assert_eq 2, characterAgendas(agendaIndex).target%
 end test

@@ -1,16 +1,8 @@
-const numberOfCharacters = 12
+const numberOfCharacters = 7
 const maximumCharacterAgendas = 3
-
-enum Nationality
-    native = 0
-    us
-    russian
-end enum
 
 enum Role
     none = 0
-    usagent
-    ussragent
     president
     daughter
     advisor
@@ -18,7 +10,6 @@ enum Role
     priest
     innkeeper
     landowner
-    ustourist
 end enum
 
 enum Agenda
@@ -56,14 +47,5 @@ function findRole(wantedRole)
         end if
     next characterIndex
     return -1
-end function
-
-function isSanGolpeNative(characterIndex)
-    local roleValue
-    roleValue = characters(characterIndex).role%
-    if roleValue = president or roleValue = daughter or roleValue = advisor or roleValue = general or roleValue = priest or roleValue = innkeeper or roleValue = landowner then
-        return 1
-    end if
-    return 0
 end function
 

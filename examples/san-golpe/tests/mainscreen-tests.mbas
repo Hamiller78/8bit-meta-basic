@@ -5,7 +5,6 @@ uses "../source/mainscreen.mbas"
 
 function setupMainScreenCast()
     local characterIndex
-    overviewUssrSelection% = 0
     for characterIndex = 0 to numberOfCharacters - 1
         characters(characterIndex).first$ = "Test"
         characters(characterIndex).last$ = "Person"
@@ -13,51 +12,47 @@ function setupMainScreenCast()
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).agenda% = -1
     next characterIndex
-    characters(0).role% = usagent
-    characters(1).role% = usagent
-    characters(2).role% = ussragent
-    characters(3).role% = ussragent
-    characters(4).role% = president
-    characters(5).role% = daughter
-    characters(6).role% = advisor
-    characters(7).role% = general
-    characters(8).role% = priest
-    characters(9).role% = innkeeper
-    characters(10).role% = landowner
-    characters(11).role% = ustourist
+    characters(0).role% = president
+    characters(1).role% = daughter
+    characters(2).role% = advisor
+    characters(3).role% = general
+    characters(4).role% = priest
+    characters(5).role% = innkeeper
+    characters(6).role% = landowner
 end function
 
-test AgentsStartWithoutContactsOrOrders()
+test UsaStartsWithTwoIdleActionSlots()
     setupMainScreenCast()
     initializeIntelligence()
-    initializeAgentOperations()
+    initializeUsaActions()
 
     assert_eq 1000, budget
     assert_eq 0, contactCount%
     assert_eq 0, hasContact(findRole(innkeeper))
     assert_eq 0, hasContact(findRole(priest))
-    assert_eq missionIdle, agentMissions%(0)
-    assert_eq -1, agentTargets%(0)
-    assert_eq missionIdle, agentMissions%(1)
-    assert_eq -1, agentTargets%(1)
+    assert_eq 2, numberOfUsaActions
+    assert_eq 2, numberOfUssrActions
+    assert_eq missionIdle, usaActions%(0)
+    assert_eq -1, usaTargets%(0)
+    assert_eq missionIdle, usaActions%(1)
+    assert_eq -1, usaTargets%(1)
 end test
 
-test OverviewUsesTheFixedTwentyTwoRowLayout()
+test OverviewUsesTheSevenCharacterCast()
     setupMainScreenCast()
     initializeIntelligence()
-    initializeAgentOperations()
+    initializeUsaActions()
 
-    showOverview(1)
-    assert_print "UNKNOWN"
+    assert_eq 7, numberOfCharacters
 end test
 
 test OverviewUsesNamesAppropriateToScreenWidth()
     setupMainScreenCast()
     initializeIntelligence()
-    characters(4).first$ = "Juan"
-    characters(4).last$ = "Navarro"
+    characters(0).first$ = "Juan"
+    characters(0).last$ = "Navarro"
 
-    printOverviewName(4)
+    printOverviewName(0)
     if TEXT_COLUMNS >= 40 then
         assert_print "J. Navarro"
     else
@@ -65,85 +60,57 @@ test OverviewUsesNamesAppropriateToScreenWidth()
     end if
 end test
 
-test OverviewHidesOnlyUndiscoveredSovietNames()
-    setupMainScreenCast()
-    initializeIntelligence()
-    characters(2).first$ = "Ivan"
-    characters(2).last$ = "Ivanov"
-
-    printOverviewName(2)
-    assert_print "UNKNOWN"
-    revealCharacter(2, intelName)
-    printOverviewName(2)
-    if TEXT_COLUMNS >= 40 then
-        assert_print "I. Ivanov"
-    else
-        assert_print "Ivanov"
-    end if
-end test
-
 test OverviewShowsCompactKnowledgeState()
     setupMainScreenCast()
     initializeIntelligence()
-    initializeAgentOperations()
+    initializeUsaActions()
 
-    printOverviewStatus(4)
+    printOverviewStatus(0)
     assert_print "UNKNOWN"
-    revealCharacter(4, intelObserved)
-    printOverviewStatus(4)
+    revealCharacter(0, intelObserved)
+    printOverviewStatus(0)
     assert_print "OBSERVED"
-    addContact(4)
-    printOverviewStatus(4)
+    addContact(0)
+    printOverviewStatus(0)
     assert_print "CONTACTED"
-    revealCharacter(4, intelAgenda)
-    printOverviewAgenda(4)
+    revealCharacter(0, intelAgenda)
+    printOverviewAgenda(0)
     assert_print "DUTY"
-end test
-
-test OverviewCanSelectEitherSovietAgent()
-    setupMainScreenCast()
-    assert_eq 2, findUssrAgent(0)
-    assert_eq 3, findUssrAgent(1)
 end test
 
 test OverviewIgnoresEnterWithoutDispatchError()
     setupMainScreenCast()
     initializeIntelligence()
-    initializeAgentOperations()
+    initializeUsaActions()
 
     assert_eq 0, handleOverviewChoice(KEY_ENTER)
-    assert_eq 0, overviewUssrSelection%
 end test
 
-test AgentOrdersRemainIndependent()
+test UsaActionSlotsRemainIndependent()
     setupMainScreenCast()
     initializeIntelligence()
-    initializeAgentOperations()
+    initializeUsaActions()
 
-    assert_eq 1, setAgentObserve(0, pubLocation)
+    assert_eq 1, setUsaObserve(0, pubLocation)
     revealCharacter(findRole(advisor), intelObserved)
     assert_eq 1, addContact(findRole(advisor))
     revealCharacter(findRole(president), intelObserved)
-    assert_eq 1, setAgentInvestigation(1, findRole(president))
-    assert_eq missionObserve, agentMissions%(0)
-    assert_eq pubLocation, agentMissionValues%(0)
-    assert_eq missionInvestigate, agentMissions%(1)
-    assert_eq findRole(president), agentTargets%(1)
+    assert_eq 1, setUsaInvestigation(1, findRole(president))
+    assert_eq missionObserve, usaActions%(0)
+    assert_eq pubLocation, usaActionValues%(0)
+    assert_eq missionInvestigate, usaActions%(1)
+    assert_eq findRole(president), usaTargets%(1)
 
-    setAgentIdle(0)
-    assert_eq missionIdle, agentMissions%(0)
-    assert_eq -1, agentTargets%(0)
-    assert_eq missionInvestigate, agentMissions%(1)
+    setUsaIdle(0)
+    assert_eq missionIdle, usaActions%(0)
+    assert_eq -1, usaTargets%(0)
+    assert_eq missionInvestigate, usaActions%(1)
 end test
 
-test InitialKnowledgeContainsOnlyThePlayerAgents()
+test InitialKnowledgeContainsNoForeignAgentCharacters()
     setupMainScreenCast()
     initializeIntelligence()
 
-    assert_eq intelName, playerIntel%(0)
-    assert_eq intelName, playerIntel%(1)
-    assert_eq intelNone, playerIntel%(2)
-    assert_eq intelNone, playerIntel%(3)
     assert_eq intelNone, playerIntel%(findRole(president))
     assert_eq intelNone, playerIntel%(findRole(priest))
 end test

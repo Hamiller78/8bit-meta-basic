@@ -59,12 +59,12 @@ function canCharacterKnowAbout(sourceIndex, targetIndex)
         return 0
     end if
     if sourceRole = priest then
-        if isSanGolpeNative(targetIndex) and characters(targetIndex).integrity% > 5 then
+        if characters(targetIndex).integrity% > 5 then
             return 1
         end if
     end if
     if sourceRole = innkeeper then
-        if isSanGolpeNative(targetIndex) and characters(targetIndex).integrity% < 6 then
+        if characters(targetIndex).integrity% < 6 then
             return 1
         end if
     end if
