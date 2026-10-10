@@ -27,7 +27,8 @@ describe("localized text and layout", () => {
     });
     it(`positions without advancing the cursor for ${target}`, () => {
       const result = compileSource('set_pos 3, 4\nprint "Hello"', { filename: "position.mbas", target });
-      expect(result).toContain(target === "spectrum" ? 'PRINT AT 2,3;"";' : target === "atari800xl" ? "POSITION 3,2" : "POKE 214,2");
+      expect(result).toContain(target === "spectrum" ? "PRINT AT 2,3;" : target === "atari800xl" ? "POSITION 3,2" : "POKE 214,2");
+      if (target === "atari800xl") expect(result).not.toContain('PRINT "";');
       expect(() => compileSource("set_pos 0, 1", { filename: "bad.mbas", target })).toThrow(/bad.mbas:1/);
     });
     it(`folds constants before wrapping on ${target}`, () => {

@@ -5,15 +5,15 @@ describe("compile-time cursor coordinates", () => {
   const source = "set_pos int(TEXT_ROWS / 2) + 2, int((TEXT_COLUMNS - 16) / 2) + 1\n";
 
   it("emits literal Spectrum coordinates", () => {
-    expect(compileSource(source, { filename: "position.mbas", target: "spectrum", readability: 0 })).toBe('10 PRINT AT 12,8;"";\n');
+    expect(compileSource(source, { filename: "position.mbas", target: "spectrum", readability: 0 })).toBe("10 PRINT AT 12,8;\n");
   });
 
   it("emits literal Atari coordinates", () => {
-    expect(compileSource(source, { filename: "position.mbas", target: "atari800xl", readability: 0 })).toBe('10 POSITION 12,13:PRINT "";\n');
+    expect(compileSource(source, { filename: "position.mbas", target: "atari800xl", readability: 0 })).toBe("10 POSITION 12,13\n");
   });
 
   it("emits literal C64 coordinates", () => {
-    expect(compileSource(source, { filename: "position.mbas", target: "c64", readability: 0 })).toBe('10 POKE 214,13:POKE 211,12:SYS 58732:PRINT "";\n');
+    expect(compileSource(source, { filename: "position.mbas", target: "c64", readability: 0 })).toBe("10 POKE 214,13:POKE 211,12:SYS 58732\n");
   });
 
   it("sets only the current column on every target", () => {

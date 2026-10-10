@@ -147,6 +147,32 @@ export function expandSetColumns(
   return rebuildLabels(program, instructions);
 }
 
+export function expandSetPositions(
+  program: LoweredProgram,
+  targetName: string,
+  maxRow: number,
+  maxColumn: number,
+  expand: (instruction: Extract<Instruction, { kind: "set-position" }>) => readonly Instruction[]
+): LoweredProgram {
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "set-position") {
+      validateConstantCoordinate(instruction.row, "row", maxRow, targetName, "SET_POS");
+      validateConstantCoordinate(instruction.column, "column", maxColumn, targetName, "SET_POS");
+      instructions.push(...expand({
+        ...instruction,
+        row: lowerPositionedPrintCoordinate(instruction.row),
+        column: lowerPositionedPrintCoordinate(instruction.column)
+      }));
+    } else {
+      instructions.push(instruction);
+    }
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
 export function rebuildLabels(program: LoweredProgram, instructions: readonly Instruction[]): LoweredProgram {
   const labels = new Map<string, LabelDefinition>();
 

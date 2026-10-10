@@ -219,6 +219,7 @@ function isPackableInstruction(instruction: Instruction): boolean {
     case "read-key":
     case "randomize":
     case "position":
+    case "graphics-mode":
     case "setcolor":
     case "poke":
     case "print-chr":

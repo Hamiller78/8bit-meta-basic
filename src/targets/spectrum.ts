@@ -21,7 +21,7 @@ import {
 } from "./string-array-lengths.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
-import { expandPositionedPrints, expandSetColumns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -31,7 +31,10 @@ export const spectrumTarget: TargetBackend = {
   variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const byteLowered = lowerByteStorage(program, "spectrum");
-    const columns = expandSetColumns(byteLowered, "Spectrum", 31, (instruction) => [instruction]);
+    const positions = expandSetPositions(byteLowered, "Spectrum", 21, 31, (instruction) => [
+      { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
+    ]);
+    const columns = expandSetColumns(positions, "Spectrum", 31, (instruction) => [instruction]);
     const expanded = expandPositionedPrints(columns, "Spectrum", 21, 31, (instruction) => [instruction]);
     const stringArrayStorage = buildStringArrayStorage(expanded.instructions);
     const allocateInternalLabel = createInternalLabelAllocator(expanded);
@@ -129,6 +132,8 @@ export const spectrumTarget: TargetBackend = {
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "set-column":
         return `${lineNumber} PRINT AT 24-PEEK 23689,${renderExpression(instruction.column, renderOptions)};`;
+      case "set-position":
+        throw new Error("Internal error: unexpected set-position instruction for Spectrum.");
       case "open-device":
         rejectSpectrumSharedDrive(instruction.device, instruction.location);
         if (instruction.device === "text-printer") {
@@ -189,6 +194,8 @@ export const spectrumTarget: TargetBackend = {
       case "randomize":
         return instruction.seed ? `${lineNumber} RANDOMIZE ${renderExpression(instruction.seed, renderOptions)}` : `${lineNumber} RANDOMIZE`;
       case "position":
+        return `${lineNumber} PRINT AT ${renderExpression(instruction.row, renderOptions)},${renderExpression(instruction.column, renderOptions)};`;
+      case "graphics-mode":
       case "setcolor":
       case "poke":
       case "print-chr":
@@ -983,6 +990,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "program-mode":
     case "paper":
     case "print":
+    case "set-position":
     case "set-column":
     case "open-device":
     case "print-device":
@@ -1005,6 +1013,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "on-goto":
     case "on-gosub":
     case "position":
+    case "graphics-mode":
     case "setcolor":
     case "poke":
     case "print-chr":

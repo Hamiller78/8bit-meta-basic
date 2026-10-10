@@ -209,12 +209,12 @@ class Parser {
     };
   }
 
-  parseSetPos(location: SourceLocation): PrintStatement {
+  parseSetPos(location: SourceLocation): Statement {
     const row = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
     this.expectPunctuation(",", "SET_POS requires row, column.");
     const column = this.parseExpressionUntilLine();
     this.expectLineEnd();
-    return { kind: "print", items: [{ kind: "string", value: "", location }], trailingSemicolon: true, positionOnly: true, at: { row, column, location }, location };
+    return { kind: "set-position", row, column, location };
   }
 
   parseSetColumn(location: SourceLocation): Statement {

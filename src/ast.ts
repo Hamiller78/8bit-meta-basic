@@ -30,6 +30,7 @@ export type Statement =
   | PrintDeviceStatement
   | CloseDeviceStatement
   | PrintStatement
+  | SetPositionStatement
   | SetColumnStatement
   | DataStatement
   | ReadStatement
@@ -101,7 +102,6 @@ export interface PrintStatement {
   readonly layout?: "wrap" | "center";
   readonly textResource?: boolean;
   readonly textBindings?: readonly TextBinding[];
-  readonly positionOnly?: boolean;
   readonly layoutOutput?: boolean;
   readonly wrapWidth?: Expression;
   readonly kind: "print";
@@ -172,6 +172,13 @@ export interface PrintAtPosition {
 
 export interface SetColumnStatement {
   readonly kind: "set-column";
+  readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface SetPositionStatement {
+  readonly kind: "set-position";
+  readonly row: Expression;
   readonly column: Expression;
   readonly location: SourceLocation;
 }

@@ -484,6 +484,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("folds LEN, LEFT$, and RIGHT$ when their arguments are literals", () => {
+    expect(compileSource('print len("HELLO"); left$("ABCDE", 2); right$("ABCDE", 0)\n', { filename: "literal-slices.mbas", target: "spectrum" })).toBe(
+      ['10 PRINT 5;"AB";""', ""].join("\n")
+    );
+  });
+
   it("renders CHR$ and CODE as Spectrum character conversion functions", () => {
     expect(compileSource('digit$ = chr$(48 + value)\nprint digit$; code("A"); asc("B")\n', { filename: "chars.mbas", target: "spectrum" })).toBe(
       ['10 LET A$=CHR$ (48 + VALUE)', '20 PRINT A$;CODE "A";CODE "B"', ""].join("\n")

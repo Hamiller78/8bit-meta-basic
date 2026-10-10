@@ -499,6 +499,19 @@ function analyzeStatements(
           )
         });
         break;
+      case "set-position":
+        analyzed.push({
+          ...statement,
+          row: requireNumericExpression(
+            foldExpression(statement.row, constants, inConstantExpression, arrays, functions, scope, structValues),
+            "SET_POS row"
+          ),
+          column: requireNumericExpression(
+            foldExpression(statement.column, constants, inConstantExpression, arrays, functions, scope, structValues),
+            "SET_POS column"
+          )
+        });
+        break;
       case "open-device":
         analyzed.push(statement);
         break;
@@ -1679,6 +1692,16 @@ function foldFunctionCall(
       throw new DiagnosticError(expression.args[1].location, `${name} length argument must be numeric.`);
     }
 
+    if (source.kind === "string" && length.kind === "number" && Number.isInteger(length.value) && length.value >= 0) {
+      return {
+        kind: "string",
+        value: name === builtinFunctions.left
+          ? source.value.slice(0, length.value)
+          : length.value === 0 ? "" : source.value.slice(-length.value),
+        location: expression.location
+      };
+    }
+
     return { ...expression, name, args: [source, length] };
   }
 
@@ -1690,6 +1713,10 @@ function foldFunctionCall(
 
     if (!isStringExpression(source)) {
       throw new DiagnosticError(expression.args[0].location, "LEN argument must be a string expression.");
+    }
+
+    if (source.kind === "string") {
+      return { kind: "number", value: source.value.length, raw: String(source.value.length), location: expression.location };
     }
 
     return { ...expression, name, args: [source] };

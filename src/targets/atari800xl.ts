@@ -19,7 +19,7 @@ import {
   stringArrayStorageFor,
   type StringArrayStorage
 } from "./string-array-lengths.js";
-import { atariColorCodes, expandPositionedPrints, expandSetColumns, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerByteStorage } from "./byte-storage.js";
 
 export const atari800xlTarget: TargetBackend = {
@@ -30,12 +30,15 @@ export const atari800xlTarget: TargetBackend = {
   variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const byteLowered = lowerByteStorage(program, "atari800xl");
-    const columns = expandSetColumns(byteLowered, "Atari 800XL", 39, (instruction) => [
+    const positions = expandSetPositions(byteLowered, "Atari 800XL", 23, 39, (instruction) => [
+      { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
+    ]);
+    const columns = expandSetColumns(positions, "Atari 800XL", 39, (instruction) => [
       { kind: "poke", address: 85, value: instruction.column, location: instruction.location }
     ]);
     const positioned = expandPositionedPrints(columns, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
-      { ...instruction, at: undefined }
+      { ...instruction, at: undefined, screenOutput: true }
     ]);
     const stringArrayStorage = buildStringArrayStorage(positioned.instructions);
     const allocateInternalLabel = createInternalLabelAllocator(positioned);
@@ -204,7 +207,15 @@ export const atari800xlTarget: TargetBackend = {
         instructions.push(instruction);
       }
     }
-    return rebuildLabels(expanded, hoistAtariStringDimensions(instructions));
+    const hoisted = hoistAtariStringDimensions(instructions);
+    const firstScreenOutput = hoisted.find(
+      (instruction): instruction is Extract<Instruction, { kind: "print" }> =>
+        instruction.kind === "print" && instruction.screenOutput === true
+    );
+    const initialized = firstScreenOutput
+      ? [{ kind: "graphics-mode", mode: 0, location: hoisted[0]?.location ?? firstScreenOutput.location } as const, ...hoisted]
+      : hoisted;
+    return rebuildLabels(expanded, initialized);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildAtariVariableMap(currentProgramInstructions, readability);
@@ -226,9 +237,11 @@ export const atari800xlTarget: TargetBackend = {
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
-        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+        return `${lineNumber} PRINT${instruction.screenOutput ? " #6;" : " "}${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "set-column":
         throw new Error("Internal error: unexpected set-column instruction for Atari 800XL.");
+      case "set-position":
+        throw new Error("Internal error: unexpected set-position instruction for Atari 800XL.");
       case "open-device":
         return `${lineNumber} OPEN #${atariIocbNumber(instruction.handle, instruction.location)},8,0,"${atariDeviceSpec(instruction.device)}"`;
       case "print-device":
@@ -285,6 +298,8 @@ export const atari800xlTarget: TargetBackend = {
         throw new Error("Internal error: unexpected randomize instruction for Atari 800XL.");
       case "position":
         return `${lineNumber} POSITION ${renderExpression(instruction.column, renderOptions)},${renderExpression(instruction.row, renderOptions)}`;
+      case "graphics-mode":
+        return `${lineNumber} GRAPHICS ${instruction.mode}`;
       case "setcolor":
         return `${lineNumber} SETCOLOR ${instruction.register},${instruction.hue},${instruction.luminance}`;
       case "print-chr":
@@ -458,6 +473,8 @@ function materializeAtariStringArrayReads(
       };
     case "set-column":
       return { prefix, instruction: { ...instruction, column: rewrite(instruction.column) } };
+    case "set-position":
+      return { prefix, instruction: { ...instruction, row: rewrite(instruction.row), column: rewrite(instruction.column) } };
     case "print-device":
       return { prefix, instruction: { ...instruction, items: instruction.items.map(rewrite) } };
     case "data":
@@ -501,6 +518,7 @@ function materializeAtariStringArrayReads(
     case "suppress-scroll-prompt":
     case "program-mode":
     case "paper":
+    case "graphics-mode":
     case "open-device":
     case "close-device":
     case "check-device":
@@ -1058,7 +1076,7 @@ function isDirectAtariSliceSource(expression: Expression): boolean {
   if (expression.kind === "parenthesized") {
     return isDirectAtariSliceSource(expression.expression);
   }
-  return expression.kind === "identifier" || expression.kind === "string" || expression.kind === "array-access";
+  return expression.kind === "identifier" || expression.kind === "array-access";
 }
 
 function flattenStringConcatenation(expression: Expression): readonly Expression[] | undefined {
@@ -1457,6 +1475,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "program-mode":
     case "paper":
     case "print":
+    case "set-position":
     case "set-column":
     case "open-device":
     case "print-device":
@@ -1476,6 +1495,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "on-goto":
     case "on-gosub":
     case "position":
+    case "graphics-mode":
     case "setcolor":
     case "poke":
     case "print-chr":

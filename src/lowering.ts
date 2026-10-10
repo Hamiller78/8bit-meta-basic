@@ -59,6 +59,7 @@ export type Instruction =
   | ProgramModeInstruction
   | PaperInstruction
   | PrintInstruction
+  | SetPositionInstruction
   | SetColumnInstruction
   | OpenDeviceInstruction
   | PrintDeviceInstruction
@@ -87,6 +88,7 @@ export type Instruction =
   | OnGotoInstruction
   | OnGosubInstruction
   | PositionInstruction
+  | GraphicsModeInstruction
   | SetColorInstruction
   | PokeInstruction
   | PrintChrInstruction
@@ -163,6 +165,8 @@ export interface PrintInstruction {
   readonly kind: "print";
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
+  /** Target lowering may mark positioned text for direct screen-device output. */
+  readonly screenOutput?: boolean;
   readonly at?: {
     readonly row: Expression;
     readonly column: Expression;
@@ -172,6 +176,13 @@ export interface PrintInstruction {
 
 export interface SetColumnInstruction {
   readonly kind: "set-column";
+  readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface SetPositionInstruction {
+  readonly kind: "set-position";
+  readonly row: Expression;
   readonly column: Expression;
   readonly location: SourceLocation;
 }
@@ -373,6 +384,12 @@ export interface PositionInstruction {
   readonly kind: "position";
   readonly row: Expression;
   readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface GraphicsModeInstruction {
+  readonly kind: "graphics-mode";
+  readonly mode: number;
   readonly location: SourceLocation;
 }
 
@@ -918,7 +935,6 @@ function lowerStatements(
               }
             : undefined;
           const items = statement.items.map((item) => lowerExpression(item, instructions, context, options));
-          if (options.capturePrints && statement.positionOnly) break;
           if (options.capturePrints && at) {
             instructions.push({ kind: "let", name: testPrintAtRowName, expression: at.row, location: statement.location });
             instructions.push({ kind: "let", name: testPrintAtColumnName, expression: at.column, location: statement.location });
@@ -947,6 +963,16 @@ function lowerStatements(
             ...(at ? { at } : {}),
             location: statement.location
           }));
+        }
+        break;
+      case "set-position":
+        if (!options.capturePrints) {
+          instructions.push({
+            kind: "set-position",
+            row: lowerExpression(statement.row, instructions, context, options),
+            column: lowerExpression(statement.column, instructions, context, options),
+            location: statement.location
+          });
         }
         break;
       case "set-column":
@@ -1582,6 +1608,12 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       };
     case "set-column":
       return { ...statement, column: substituteInlineExpression(statement.column, parameters) };
+    case "set-position":
+      return {
+        ...statement,
+        row: substituteInlineExpression(statement.row, parameters),
+        column: substituteInlineExpression(statement.column, parameters)
+      };
     case "print-device":
       return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
     case "let":

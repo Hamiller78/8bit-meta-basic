@@ -4,12 +4,14 @@ uses "agentoperations.mbas"
 uses "politics.mbas"
 
 const overviewCharacterCount = numberOfCharacters - 1
+const overviewFirstCharacterRow = 11
+const overviewLastCharacterRow = 14
+const overviewFixedBoxWidth = 12 - 2 * int(39 / TEXT_COLUMNS)
 
 overviewPage% = 0
 
 function showOverview(turnNumber)
-    local presidentIndex, boxesPerPage, pageCount, pageStart, boxesOnPage
-    local boxIndex, characterPosition, characterIndex, characterColumn
+    local presidentIndex
 
     cls
     set_pos 1, 1
@@ -21,7 +23,16 @@ function showOverview(turnNumber)
     presidentIndex = findRole(president)
     printOverviewCharacterBox(presidentIndex, 4, overviewPresidentColumn())
 
-    boxesPerPage = overviewBoxesPerPage()
+    drawOverviewCharacterPage(-1)
+
+    set_pos 18, 1
+    print "USA "; numberOfUsaActions; " USSR "; numberOfUssrActions;
+    set_pos 18, TEXT_COLUMNS - 8
+    print "RAM"; int(free_memory() / 1024); "K";
+end function
+
+function printOverviewPageControls()
+    local pageCount
     pageCount = overviewPageCount()
     if overviewPage% >= pageCount then
         overviewPage% = 0
@@ -30,32 +41,38 @@ function showOverview(turnNumber)
     print "<";
     set_column 1
     print_centered text$("overviewPage"); current = overviewPage% + 1, 2; total = pageCount, 2
-    set_pos 9, TEXT_COLUMNS
+    set_pos 9, TEXT_COLUMNS - 1
     print ">";
+end function
 
+function drawOverviewCharacterPage(previousPage)
+    local boxesPerPage, pageStart, boxesOnPage, lastPage, clearRow
+    local boxIndex, characterPosition, characterIndex, characterColumn
+    boxesPerPage = overviewBoxesPerPage()
     pageStart = overviewPage% * boxesPerPage
     boxesOnPage = boxesPerPage
     if pageStart + boxesOnPage > overviewCharacterCount then
         boxesOnPage = overviewCharacterCount - pageStart
     end if
+    if previousPage >= 0 and overviewCharacterCount MOD boxesPerPage <> 0 then
+        lastPage = overviewPageCount() - 1
+        if previousPage = lastPage or overviewPage% = lastPage then
+            for clearRow = overviewFirstCharacterRow to overviewLastCharacterRow
+                print_at clearRow, 1, string$(" ", TEXT_COLUMNS - 1);
+            next clearRow
+        end if
+    end if
+    printOverviewPageControls()
     for boxIndex = 0 to boxesOnPage - 1
         characterPosition = pageStart + boxIndex
         characterIndex = findRole(overviewCharacterRoleAt(characterPosition))
         characterColumn = overviewBoxColumn(boxIndex, boxesOnPage)
-        printOverviewCharacterBox(characterIndex, 11, characterColumn)
+        printOverviewCharacterBox(characterIndex, overviewFirstCharacterRow, characterColumn)
     next boxIndex
-
-    set_pos 18, 1
-    print "USA "; numberOfUsaActions; " USSR "; numberOfUssrActions;
-    set_pos 18, TEXT_COLUMNS - 8
-    print "RAM"; int(free_memory() / 1024); "K";
 end function
 
 function overviewBoxWidth()
-    if TEXT_COLUMNS >= 40 then
-        return 12
-    end if
-    return 10
+    return overviewFixedBoxWidth
 end function
 
 function overviewBoxesPerPage()
@@ -79,14 +96,15 @@ function overviewPresidentColumn()
 end function
 
 function overviewBoxColumn(boxIndex, boxesOnPage)
-    local boxWidth, gapWidth, usedWidth, firstColumn
+    local boxWidth, layoutWidth, gapWidth, usedWidth, firstColumn
     boxWidth = overviewBoxWidth()
+    layoutWidth = TEXT_COLUMNS - 1
     gapWidth = 0
     if boxesOnPage > 1 then
-        gapWidth = int((TEXT_COLUMNS - boxesOnPage * boxWidth) / (boxesOnPage - 1))
+        gapWidth = int((layoutWidth - boxesOnPage * boxWidth) / (boxesOnPage - 1))
     end if
     usedWidth = boxesOnPage * boxWidth + (boxesOnPage - 1) * gapWidth
-    firstColumn = int((TEXT_COLUMNS - usedWidth) / 2) + 1
+    firstColumn = int((layoutWidth - usedWidth) / 2) + 1
     return firstColumn + boxIndex * (boxWidth + gapWidth)
 end function
 
@@ -104,61 +122,60 @@ function overviewCharacterRoleAt(characterPosition)
 end function
 
 function printOverviewCharacterBox(characterIndex, firstRow, firstColumn)
-    set_pos firstRow, firstColumn
-    printOverviewName(characterIndex)
-    print
-    set_column firstColumn
-    printOverviewRole(characterIndex)
-    print
-    set_column firstColumn
-    printOverviewAgenda(characterIndex)
-    print
-    set_column firstColumn
-    printOverviewStatus(characterIndex)
+    printOverviewName(characterIndex, firstRow, firstColumn)
+    printOverviewRole(characterIndex, firstRow + 1, firstColumn)
+    printOverviewAgenda(characterIndex, firstRow + 2, firstColumn)
+    printOverviewStatus(characterIndex, firstRow + 3, firstColumn)
 end function
 
-function printOverviewName(characterIndex)
+function printOverviewField(value$, row, column)
+    print_at row, column, value$; left$("            ", overviewFixedBoxWidth - len(value$));
+end function
+
+function printOverviewName(characterIndex, row, column)
+    local displayName$
     if characterIndex < 0 then
-        print text$("overviewUnknownShort");
+        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
         return
     end if
     if TEXT_COLUMNS >= 40 then
-        print left$(characters(characterIndex).first$, 1); ". "; characters(characterIndex).last$;
+        displayName$ = left$(characters(characterIndex).first$, 1) + ". " + characters(characterIndex).last$
     else
-        print characters(characterIndex).last$;
+        displayName$ = characters(characterIndex).last$
     end if
+    printOverviewField(displayName$, row, column)
 end function
 
-function printOverviewRole(characterIndex)
+function printOverviewRole(characterIndex, row, column)
     local roleValue
     roleValue = characters(characterIndex).role%
     if roleValue = president then
-        print text$("overviewRolePresident");
+        print_at row, column, text$("overviewRolePresident"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRolePresident")));
     end if
     if roleValue = daughter then
-        print text$("overviewRoleDaughter");
+        print_at row, column, text$("overviewRoleDaughter"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleDaughter")));
     end if
     if roleValue = advisor then
-        print text$("overviewRoleAdvisor");
+        print_at row, column, text$("overviewRoleAdvisor"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleAdvisor")));
     end if
     if roleValue = general then
-        print text$("overviewRoleGeneral");
+        print_at row, column, text$("overviewRoleGeneral"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleGeneral")));
     end if
     if roleValue = priest then
-        print text$("overviewRolePriest");
+        print_at row, column, text$("overviewRolePriest"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRolePriest")));
     end if
     if roleValue = innkeeper then
-        print text$("overviewRoleInnkeeper");
+        print_at row, column, text$("overviewRoleInnkeeper"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleInnkeeper")));
     end if
     if roleValue = landowner then
-        print text$("overviewRoleLandowner");
+        print_at row, column, text$("overviewRoleLandowner"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleLandowner")));
     end if
 end function
 
-function printOverviewAgenda(characterIndex)
+function printOverviewAgenda(characterIndex, row, column)
     local agendaIndex, agendaValue
     if playerIntel%(characterIndex) < intelAgenda then
-        print text$("overviewUnknownShort");
+        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
         return
     end if
     agendaIndex = characters(characterIndex).agenda%
@@ -167,44 +184,44 @@ function printOverviewAgenda(characterIndex)
         agendaValue = characterAgendas(agendaIndex).kind%
     end if
     if agendaValue = doDuty then
-        print text$("overviewAgendaDuty");
+        print_at row, column, text$("overviewAgendaDuty"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaDuty")));
     end if
     if agendaValue = usurpRole then
-        print text$("overviewAgendaPower");
+        print_at row, column, text$("overviewAgendaPower"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaPower")));
     end if
     if agendaValue = findLove then
-        print text$("overviewAgendaLove");
+        print_at row, column, text$("overviewAgendaLove"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaLove")));
     end if
     if agendaValue = secretSpy then
-        print text$("overviewAgendaSpy");
+        print_at row, column, text$("overviewAgendaSpy"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaSpy")));
     end if
 end function
 
-function printOverviewStatus(characterIndex)
+function printOverviewStatus(characterIndex, row, column)
     local intelValue
     if characters(characterIndex).isAlive% = 0 then
-        print text$("overviewStatusDead");
+        print_at row, column, text$("overviewStatusDead"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusDead")));
         return
     end if
     if hasContact(characterIndex) = 1 then
-        print text$("overviewStatusContacted");
+        print_at row, column, text$("overviewStatusContacted"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusContacted")));
         return
     end if
     intelValue = playerIntel%(characterIndex)
     if intelValue = intelNone then
-        print text$("overviewUnknownShort");
+        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
     end if
     if intelValue = intelName then
-        print text$("overviewStatusDiscovered");
+        print_at row, column, text$("overviewStatusDiscovered"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusDiscovered")));
     end if
     if intelValue = intelObserved then
-        print text$("overviewStatusObserved");
+        print_at row, column, text$("overviewStatusObserved"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusObserved")));
     end if
     if intelValue = intelIntegrity then
-        print text$("overviewStatusAssessed");
+        print_at row, column, text$("overviewStatusAssessed"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusAssessed")));
     end if
     if intelValue = intelAgenda then
-        print text$("overviewStatusKnown");
+        print_at row, column, text$("overviewStatusKnown"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusKnown")));
     end if
 end function
 
@@ -257,8 +274,15 @@ end function
 
 'Returns 1 only when the player ends the turn.
 function handleOverviewInput()
-    local choice
-    choice = getInput()
+    local choice, previousPage
+    repeat
+        choice = getInput()
+        if choice = GAME_LEFT or choice = GAME_RIGHT then
+            previousPage = overviewPage%
+            handleOverviewChoice(choice)
+            drawOverviewCharacterPage(previousPage)
+        end if
+    until choice = KEY_1 or choice = KEY_2 or choice = KEY_3 or choice = KEY_4
     return handleOverviewChoice(choice)
 end function
 

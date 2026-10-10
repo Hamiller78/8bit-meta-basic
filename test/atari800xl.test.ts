@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { compileSource } from "../src/compiler.js";
 
 describe("Atari 800XL compiler", () => {
-  it("renders assignment without LET and expands PRINT_AT to POSITION plus PRINT", () => {
+  it("renders assignment without LET and expands PRINT_AT to POSITION plus direct screen output", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "atari.mbas", target: "atari800xl" })).toBe(
-      ["10 X=1", "20 POSITION 4,9", '30 PRINT "WARNING";X', ""].join("\n")
+      ["10 GRAPHICS 0", "20 X=1", "30 POSITION 4,9", '40 PRINT #6;"WARNING";X', ""].join("\n")
     );
   });
 
@@ -56,7 +56,7 @@ describe("Atari 800XL compiler", () => {
         filename: "env.mbas",
         target: "atari800xl"
       })
-    ).toBe(["10 POSITION 39,23", '20 PRINT "EDGE"', ""].join("\n"));
+    ).toBe(["10 GRAPHICS 0", "20 POSITION 39,23", '30 PRINT #6;"EDGE"', ""].join("\n"));
   });
 
   it("renders GOSUB and RETURN", () => {
@@ -304,6 +304,17 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("materializes a string literal before applying a dynamic Atari substring range", () => {
+    expect(compileSource('print left$("            ", 12 - len(value$));\n', { filename: "literal-slice.mbas", target: "atari800xl" })).toBe(
+      [
+        "10 DIM MBTEMP$(255)",
+        '20 MBTEMP$="            "',
+        "30 PRINT MBTEMP$(1,12 - LEN(VALUE$));",
+        ""
+      ].join("\n")
+    );
+  });
+
   it("lowers concatenation used as a string slice source", () => {
     expect(compileSource('name$ = "Ada"\nprint left$(name$ + "     ", 8)\n', { filename: "slice-concatenation.mbas", target: "atari800xl" })).toBe(
       [
@@ -436,7 +447,7 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("TEXTQUEUE$(I * 39 + 1,(I + 1) * 39)=MBARRAY$");
     expect(output).toContain("MBL1(I)=LEN(MBARRAY$)");
     expect(output).toContain("POSITION TEXTQUEUECOLUMN(I) - 1,TEXTQUEUEROW(I) - 1");
-    expect(output).toContain("PRINT MBREAD$(1,1)");
+    expect(output).toContain("PRINT #6;MBREAD$(1,1)");
     expect(output.indexOf("DIM MBREAD$(255)")).toBeLessThan(output.indexOf("MBREAD$=TEXTQUEUE$("));
   });
 
@@ -547,18 +558,19 @@ describe("Atari 800XL compiler", () => {
 
     expect(compileSource(source, { filename: "colors.mbas", target: "atari800xl" })).toBe(
       [
-        "10 SETCOLOR 4,7,8",
-        "20 SETCOLOR 2,0,0",
-        "30 SETCOLOR 1,0,14",
-        "40 PRINT CHR$(125);",
-        '50 PRINT "----------------------------------------"',
-        "60 POSITION 4,2",
-        '70 PRINT "META-BASIC COLOURS"',
-        "80 SETCOLOR 1,10,8",
-        "90 POSITION 0,4",
-        '100 PRINT "PRINT AND PRINT_AT"',
-        "110 SETCOLOR 1,0,14",
-        '120 PRINT "----------------------------------------"',
+        "10 GRAPHICS 0",
+        "20 SETCOLOR 4,7,8",
+        "30 SETCOLOR 2,0,0",
+        "40 SETCOLOR 1,0,14",
+        "50 PRINT CHR$(125);",
+        '60 PRINT "----------------------------------------"',
+        "70 POSITION 4,2",
+        '80 PRINT #6;"META-BASIC COLOURS"',
+        "90 SETCOLOR 1,10,8",
+        "100 POSITION 0,4",
+        '110 PRINT #6;"PRINT AND PRINT_AT"',
+        "120 SETCOLOR 1,0,14",
+        '130 PRINT "----------------------------------------"',
         ""
       ].join("\n")
     );

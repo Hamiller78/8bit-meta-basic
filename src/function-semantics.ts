@@ -611,6 +611,8 @@ export function statementExpressions(statement: Statement): readonly Expression[
       ];
     case "set-column":
       return [statement.column];
+    case "set-position":
+      return [statement.row, statement.column];
     case "print-device":
       return statement.items;
     case "data":

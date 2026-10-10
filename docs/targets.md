@@ -94,7 +94,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Requesting the `international` character group emits `POKE 756,204` to select the XL/XE international ROM character set. Supported umlauts stay readable in generated `.bas` text and become their one-byte ATASCII codes in the `.LST` passed to `basicParser`; they do not generate runtime `CHR$` fragments.
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
-- `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`.
+- `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`, then writes through the graphics-zero `S:` screen device with `PRINT #6`. This bypasses channel 0's logical-line editor, which can move existing physical rows when several independently positioned fields share a row. When a program uses this direct screen output, its generated startup executes `GRAPHICS 0` once to ensure channel 6 is open before the first positioned write; launchers and loaders are not required to preserve the interpreter's initial channel setup.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.

@@ -255,9 +255,9 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `text$("key")` | Compile time | Resolve a selected-language resource for output |
 | `mid$(text$, start, length)` | Runtime | Extract a string section |
 | `mid$(text$, start)` | Runtime | Extract from a position through the end of the string |
-| `left$(text$, length)` | Runtime | Extract the left part of a string |
-| `right$(text$, length)` | Runtime | Extract the right part of a string |
-| `len(text$)` | Runtime | Return string length |
+| `left$(text$, length)` | Compile time for literal arguments; otherwise runtime | Extract the left part of a string |
+| `right$(text$, length)` | Compile time for literal arguments; otherwise runtime | Extract the right part of a string |
+| `len(text$)` | Compile time for a literal argument; otherwise runtime | Return string length |
 | `chr$(code)` | Runtime | Convert a numeric character code to a one-character string |
 | `code(text$)` | Runtime | Convert the first character of a string to a numeric code |
 | `asc(text$)` | Runtime | Alias-style source spelling for `code(text$)` |
@@ -453,7 +453,7 @@ print "STATUS"
 print
 ```
 
-Coordinates are numeric expressions and are 1-based, as with `PRINT_AT`. `SET_POS` uses row, column order. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. Neither cursor command replaces the last captured output used by test-mode print assertions.
+Coordinates are numeric expressions and are 1-based, as with `PRINT_AT`. `SET_POS` uses row, column order and changes the cursor without emitting text; in particular, Atari lowering is a bare `POSITION` rather than an empty `PRINT`. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. Neither cursor command replaces the last captured output used by test-mode print assertions.
 
 `SET_COLUMN` lowers to the native cursor state on each target: Spectrum rebuilds its complete print position using the current row, while Atari and C64 each update their cursor-column variable with one `POKE`.
 

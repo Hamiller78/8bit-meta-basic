@@ -7,6 +7,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "set-column":
       return [instruction.column];
+    case "set-position":
+      return [instruction.row, instruction.column];
     case "print-device":
       return instruction.items;
     case "data":
@@ -51,6 +53,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "suppress-scroll-prompt":
     case "program-mode":
     case "paper":
+    case "graphics-mode":
     case "setcolor":
     case "print-chr":
     case "dim-string":
@@ -76,6 +79,8 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
       };
     case "set-column":
       return { ...instruction, column: map(instruction.column) };
+    case "set-position":
+      return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "print-device":
       return { ...instruction, items: instruction.items.map(map) };
     case "data":

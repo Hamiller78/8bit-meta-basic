@@ -58,7 +58,7 @@ test OverviewPagesCharactersForTheScreenWidth()
     assert_eq landowner, overviewCharacterRoleAt(5)
 
     assert_true overviewBoxColumn(0, overviewBoxesPerPage()) >= 1
-    assert_true overviewBoxColumn(overviewBoxesPerPage() - 1, overviewBoxesPerPage()) + overviewBoxWidth() - 1 <= TEXT_COLUMNS
+    assert_true overviewBoxColumn(overviewBoxesPerPage() - 1, overviewBoxesPerPage()) + overviewBoxWidth() - 1 <= TEXT_COLUMNS - 1
     if overviewBoxesPerPage() > 1 then
         assert_true overviewBoxColumn(1, overviewBoxesPerPage()) >= overviewBoxColumn(0, overviewBoxesPerPage()) + overviewBoxWidth()
     end if
@@ -84,11 +84,11 @@ test OverviewUsesNamesAppropriateToScreenWidth()
     characters(0).first$ = "Juan"
     characters(0).last$ = "Navarro"
 
-    printOverviewName(0)
+    printOverviewName(0, 1, 1)
     if TEXT_COLUMNS >= 40 then
-        assert_print "J. Navarro"
+        assert_printat 1, 1, "J. Navarro  "
     else
-        assert_print "Navarro"
+        assert_printat 1, 1, "Navarro   "
     end if
 end test
 
@@ -97,17 +97,33 @@ test OverviewShowsCompactKnowledgeState()
     initializeIntelligence()
     initializeUsaActions()
 
-    printOverviewStatus(0)
-    assert_print "UNKNOWN"
+    printOverviewStatus(0, 1, 1)
+    if TEXT_COLUMNS >= 40 then
+        assert_printat 1, 1, "UNKNOWN     "
+    else
+        assert_printat 1, 1, "UNKNOWN   "
+    end if
     revealCharacter(0, intelObserved)
-    printOverviewStatus(0)
-    assert_print "OBSERVED"
+    printOverviewStatus(0, 1, 1)
+    if TEXT_COLUMNS >= 40 then
+        assert_printat 1, 1, "OBSERVED    "
+    else
+        assert_printat 1, 1, "OBSERVED  "
+    end if
     addContact(0)
-    printOverviewStatus(0)
-    assert_print "CONTACTED"
+    printOverviewStatus(0, 1, 1)
+    if TEXT_COLUMNS >= 40 then
+        assert_printat 1, 1, "CONTACTED   "
+    else
+        assert_printat 1, 1, "CONTACTED "
+    end if
     revealCharacter(0, intelAgenda)
-    printOverviewAgenda(0)
-    assert_print "DUTY"
+    printOverviewAgenda(0, 1, 1)
+    if TEXT_COLUMNS >= 40 then
+        assert_printat 1, 1, "DUTY        "
+    else
+        assert_printat 1, 1, "DUTY      "
+    end if
 end test
 
 test OverviewIgnoresEnterWithoutDispatchError()
