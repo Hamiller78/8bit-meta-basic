@@ -28,6 +28,7 @@ export interface CompileOptions extends TextOptions {
   readonly readability?: ReadabilityLevel;
   readonly comments?: ReadabilityLevel;
   readonly testMode?: boolean;
+  readonly testScreenOutput?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
@@ -63,6 +64,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
   let lowered = lowerProgram(layoutText(analyzed, options.target, textOptions), {
     testMode: options.testMode,
+    testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice,
     testRunnerUppercaseNames: options.target === "c64" && !hasTextCharacterGroup(font, "lowercase"),

@@ -44,6 +44,7 @@ async function launchAll(options) {
     "--config",
     options.configPath,
     ...(options.testMode ? ["--run-tests"] : []),
+    ...(options.testScreenOutput ? ["--test-screen-output"] : []),
     ...(options.testPrinterOutput ? ["--printer-output"] : []),
     ...(options.testPrinterOutput && options.testOutputDevice ? ["--test-output-device", options.testOutputDevice] : []),
     ...(options.moduleName ? ["--module", options.moduleName] : []),
@@ -88,6 +89,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testScreenOutput: false,
     testPrinterOutput: false,
     testOutputDevice: undefined,
     moduleName: undefined,
@@ -126,6 +128,10 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--test-screen-output") {
+      options.testScreenOutput = true;
       continue;
     }
     if (arg === "--printer-output") {
@@ -188,6 +194,9 @@ function parseArgs(argv) {
   }
   if (options.testPrinterOutput && !options.testMode) {
     throw new Error("--printer-output can only be used with --run-tests.");
+  }
+  if (options.testScreenOutput && !options.testMode) {
+    throw new Error("--test-screen-output can only be used with --run-tests.");
   }
 
   return options;

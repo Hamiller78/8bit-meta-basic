@@ -440,6 +440,8 @@ Use `--module dice` on both the build and launch commands to select a matching t
 
 Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
 
+For emulator-level output checks, enable `testScreenOutput` in the project configuration (or pass `--test-screen-output` with `--run-tests`), print normally, and compare `SCREEN_CODE(row, column)` with `CODE("X")`. Unlike `ASSERT_PRINTAT`, this reads what the target actually placed on its display.
+
 ## Common mistakes
 
 | Mistake | Meta-BASIC form |

@@ -51,6 +51,7 @@ export async function buildDirectory(options) {
           language: options.language,
           font: options.font,
           testMode: options.testMode === true,
+          testScreenOutput: options.testScreenOutput === true,
           testPrinterOutput: options.testPrinterOutput === true,
           testOutputDevice: options.testOutputDevice,
           outDir: options.outDir ?? defaultOutDir,
@@ -75,6 +76,7 @@ function parseArgs(argv) {
     configPath: defaultToolConfig,
     runTools: true,
     testMode: false,
+    testScreenOutput: false,
     testPrinterOutput: false,
     testOutputDevice: undefined
   };
@@ -124,6 +126,10 @@ function parseArgs(argv) {
       options.testMode = true;
       continue;
     }
+    if (arg === "--test-screen-output") {
+      options.testScreenOutput = true;
+      continue;
+    }
     if (arg === "--printer-output") {
       options.testPrinterOutput = true;
       continue;
@@ -138,6 +144,9 @@ function parseArgs(argv) {
 
   if (options.testPrinterOutput && !options.testMode) {
     throw new Error("--printer-output can only be used with --run-tests.");
+  }
+  if (options.testScreenOutput && !options.testMode) {
+    throw new Error("--test-screen-output can only be used with --run-tests.");
   }
 
   return options;

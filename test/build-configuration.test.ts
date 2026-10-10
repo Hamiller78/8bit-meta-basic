@@ -274,6 +274,20 @@ describe("build configuration", () => {
     });
   });
 
+  it("loads real screen output for test builds from configuration JSON", async () => {
+    await withTempProject(async (dir) => {
+      const configPath = join(dir, "metabasic.json");
+      await writeFile(configPath, JSON.stringify({ testMode: true, testScreenOutput: true, files: ["tests.mbas"] }), "utf8");
+      await writeFile(join(dir, "tests.mbas"), 'test Screen()\nprint_at 2, 3, "HI"\nend test\n', "utf8");
+
+      const configuration = await loadBuildConfiguration(configPath);
+      const output = await build(configuration, { configPath, target: "spectrum", readability: 0 });
+
+      expect(configuration.testScreenOutput).toBe(true);
+      expect(output).toContain('PRINT AT 1,2;"HI"');
+    });
+  });
+
   it("requires Spectrum-sized screens by default", async () => {
     await withTempProject(async (dir) => {
       await writeFile(join(dir, "main.mbas"), 'print "OK"\n', "utf8");
@@ -347,6 +361,8 @@ describe("build configuration", () => {
       await expect(loadBuildConfiguration(invalidPath)).rejects.toThrow('"files" must be an array of source file paths');
       await writeFile(join(dir, "bad-test-mode.json"), JSON.stringify({ testMode: "yes", files: ["main.mbas"] }), "utf8");
       await expect(loadBuildConfiguration(join(dir, "bad-test-mode.json"))).rejects.toThrow('"testMode" must be a boolean');
+      await writeFile(join(dir, "bad-test-screen-output.json"), JSON.stringify({ testScreenOutput: "yes", files: ["main.mbas"] }), "utf8");
+      await expect(loadBuildConfiguration(join(dir, "bad-test-screen-output.json"))).rejects.toThrow('"testScreenOutput" must be a boolean');
       await writeFile(join(dir, "bad-printer-output.json"), JSON.stringify({ testPrinterOutput: "yes", files: ["main.mbas"] }), "utf8");
       await expect(loadBuildConfiguration(join(dir, "bad-printer-output.json"))).rejects.toThrow('"testPrinterOutput" must be a boolean');
       await writeFile(join(dir, "bad-test-device.json"), JSON.stringify({ testOutputDevice: "modem", files: ["main.mbas"] }), "utf8");

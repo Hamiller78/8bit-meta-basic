@@ -1240,6 +1240,7 @@ const renderKnownAtariFunction = createFunctionRenderer(
     [builtinFunctions.mid, renderAtariMid],
     [builtinFunctions.rnd, () => "RND(0)"],
     [builtinFunctions.right, renderAtariRight],
+    [builtinFunctions.screenCode, renderAtariScreenCode],
     [builtinFunctions.sgn, renderAtariUnaryNumericFunction],
     [builtinFunctions.sin, renderAtariUnaryNumericFunction],
     [builtinFunctions.sqr, renderAtariUnaryNumericFunction],
@@ -1310,6 +1311,11 @@ function renderAtariChr(expression: FunctionCallExpression, options: { readonly 
 
 function renderAtariCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAtariScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [row, column] = expression.args;
+  return `(PEEK(PEEK(88) + 256 * PEEK(89) + (${renderExpression(row, options)} - 1) * 40 + ${renderExpression(column, options)} - 1) + 32)`;
 }
 
 function renderAtariStr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

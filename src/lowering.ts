@@ -430,6 +430,7 @@ export interface SysInstruction {
 
 export interface LowerOptions {
   readonly testMode?: boolean;
+  readonly testScreenOutput?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly testRunnerUppercaseNames?: boolean;
@@ -561,7 +562,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
         instructions.push({ kind: "return", location: moduleInitialization.at(-1)!.location });
       }
       for (const statement of functionStatements.filter((candidate) => candidate.location.filename === filename)) {
-        lowerFunctionStatement(statement, instructions, generator, context, false);
+        lowerFunctionStatement(statement, instructions, generator, context, false, false);
       }
     }
     functionsEmitted = true;
@@ -577,7 +578,12 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
         throw new DiagnosticError(statement.location, `Internal error: TEST ${statement.name} was not analyzed before lowering.`);
       }
       instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
-      lowerStatements(statement.body, instructions, generator, context, statement.implementation, { testMode: true, currentTestName: statement.name, capturePrints: true });
+      lowerStatements(statement.body, instructions, generator, context, statement.implementation, {
+        testMode: true,
+        currentTestName: statement.name,
+        capturePrints: true,
+        emitTestScreenOutput: options.testScreenOutput === true
+      });
       if (instructions[instructions.length - 1]?.kind !== "return") {
         instructions.push({ kind: "return", location: statement.location });
       }
@@ -590,7 +596,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
       instructions.push({ kind: "goto", label: endLabel, location: functionStatements[0].location });
     }
     for (const statement of functionStatements) {
-      lowerFunctionStatement(statement, instructions, generator, context, options.testMode === true);
+      lowerFunctionStatement(statement, instructions, generator, context, options.testMode === true, options.testScreenOutput === true);
     }
     if (!options.testMode) {
       instructions.push({ kind: "label", name: endLabel, internal: true, location: functionStatements[0].location });
@@ -610,7 +616,8 @@ function lowerFunctionStatement(
   instructions: Instruction[],
   nextInternalLabel: () => string,
   context: FunctionCallLoweringContext,
-  testMode: boolean
+  testMode: boolean,
+  testScreenOutput: boolean
 ): void {
   if (!statement.implementation) {
     throw new DiagnosticError(statement.location, `Internal error: FUNCTION ${statement.name} was not analyzed before lowering.`);
@@ -618,7 +625,8 @@ function lowerFunctionStatement(
   instructions.push({ kind: "label", name: statement.implementation.entryLabel, internal: true, location: statement.location });
   lowerStatements(statement.body, instructions, nextInternalLabel, context, statement.implementation, {
     testMode,
-    capturePrints: testMode
+    capturePrints: testMode,
+    emitTestScreenOutput: testMode && testScreenOutput
   });
   if (instructions[instructions.length - 1]?.kind !== "return") {
     instructions.push({ kind: "return", location: statement.location });
@@ -736,6 +744,7 @@ interface LowerStatementOptions {
   readonly testMode?: boolean;
   readonly currentTestName?: string;
   readonly capturePrints?: boolean;
+  readonly emitTestScreenOutput?: boolean;
   readonly loopControls?: readonly LoopControl[];
 }
 
@@ -851,7 +860,7 @@ function lowerStatements(
             location: statement.location
           });
         }
-        if (options.capturePrints) {
+        if (options.capturePrints && !options.emitTestScreenOutput) {
           break;
         }
         instructions.push({
@@ -863,7 +872,7 @@ function lowerStatements(
       case "border-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenBorderColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
-          break;
+          if (!options.emitTestScreenOutput) break;
         }
         instructions.push({
           kind: "border-color",
@@ -874,7 +883,7 @@ function lowerStatements(
       case "text-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
-          break;
+          if (!options.emitTestScreenOutput) break;
         }
         instructions.push({
           kind: "text-color",
@@ -885,7 +894,7 @@ function lowerStatements(
       case "screen-background-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testScreenBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
-          break;
+          if (!options.emitTestScreenOutput) break;
         }
         instructions.push({
           kind: "screen-background-color",
@@ -896,7 +905,7 @@ function lowerStatements(
       case "cell-text-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testCellTextColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
-          break;
+          if (!options.emitTestScreenOutput) break;
         }
         instructions.push({
           kind: "cell-text-color",
@@ -907,7 +916,7 @@ function lowerStatements(
       case "cell-background-color":
         if (options.capturePrints) {
           captureTestColor(instructions, testCellBackgroundColorName, statement.color as Extract<Expression, { kind: "color" }>, statement.location);
-          break;
+          if (!options.emitTestScreenOutput) break;
         }
         instructions.push({
           kind: "cell-background-color",
@@ -916,7 +925,7 @@ function lowerStatements(
         });
         break;
       case "suppress-scroll-prompt":
-        if (!options.capturePrints) {
+        if (!options.capturePrints || options.emitTestScreenOutput) {
           instructions.push({ kind: "suppress-scroll-prompt", location: statement.location });
         }
         break;
@@ -952,7 +961,7 @@ function lowerStatements(
               location: statement.location
             });
           }
-          if (options.capturePrints) {
+          if (options.capturePrints && !options.emitTestScreenOutput) {
             break;
           }
           const groups = statement.layoutOutput ? splitTextItems(items) : [items];
@@ -966,7 +975,7 @@ function lowerStatements(
         }
         break;
       case "set-position":
-        if (!options.capturePrints) {
+        if (!options.capturePrints || options.emitTestScreenOutput) {
           instructions.push({
             kind: "set-position",
             row: lowerExpression(statement.row, instructions, context, options),

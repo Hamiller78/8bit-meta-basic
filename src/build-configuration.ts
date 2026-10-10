@@ -18,6 +18,7 @@ export interface BuildConfiguration {
   readonly minimumScreenRows?: number;
   readonly files: readonly string[];
   readonly testMode?: boolean;
+  readonly testScreenOutput?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
 }
@@ -67,6 +68,7 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
     readability: options.readability,
     comments: options.comments,
     testMode,
+    testScreenOutput: options.testScreenOutput ?? configuration.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
     testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice,
     atariSharedDriveSpec: options.atariSharedDriveSpec,
@@ -94,6 +96,10 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   const testMode = (value as { testMode?: unknown }).testMode;
   if (testMode !== undefined && typeof testMode !== "boolean") {
     throw new Error(`Invalid build configuration "${configPath}": "testMode" must be a boolean when present.`);
+  }
+  const testScreenOutput = (value as { testScreenOutput?: unknown }).testScreenOutput;
+  if (testScreenOutput !== undefined && typeof testScreenOutput !== "boolean") {
+    throw new Error(`Invalid build configuration "${configPath}": "testScreenOutput" must be a boolean when present.`);
   }
   const testPrinterOutput = (value as { testPrinterOutput?: unknown }).testPrinterOutput;
   if (testPrinterOutput !== undefined && typeof testPrinterOutput !== "boolean") {
@@ -127,6 +133,7 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     ...(minimumScreenRows !== undefined ? { minimumScreenRows: minimumScreenRows as number } : {}),
     files,
     ...(testMode !== undefined ? { testMode } : {}),
+    ...(testScreenOutput !== undefined ? { testScreenOutput } : {}),
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
     ...(testOutputDevice !== undefined ? { testOutputDevice } : {})
   };

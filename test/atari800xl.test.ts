@@ -292,6 +292,12 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("reads a visible screen character code with portable coordinates", () => {
+    expect(compileSource("value = screen_code(3, 4)\n", { filename: "screen.mbas", target: "atari800xl" })).toBe(
+      ["10 VALUE=(PEEK(PEEK(88) + 256 * PEEK(89) + (3 - 1) * 40 + 4 - 1) + 32)", ""].join("\n")
+    );
+  });
+
   it("renders LEFT$ and RIGHT$ as Atari substring ranges", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "atari800xl" })).toBe(
       ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(1,5);TICKERTEXT$(LEN(TICKERTEXT$) - 5 + 1,LEN(TICKERTEXT$))", ""].join("\n")

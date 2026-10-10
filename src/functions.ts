@@ -18,6 +18,7 @@ export const builtinFunctions = {
   mid: "MID$",
   rnd: "RND",
   right: "RIGHT$",
+  screenCode: "SCREEN_CODE",
   setJiffies: "SET_JIFFIES",
   setKeyCode: "SET_KEY_CODE",
   setKeyPressed: "SET_KEY_PRESSED",

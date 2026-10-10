@@ -328,6 +328,7 @@ describe("build scripts", () => {
       font: ["lowercase", "international"],
       minimumScreenColumns: 40,
       minimumScreenRows: 24,
+      testScreenOutput: true,
       files: ["source/math.mbas", "source/main.mbas"]
     }), "utf8");
 
@@ -339,6 +340,7 @@ describe("build scripts", () => {
     const printerConfig = JSON.parse(await readFile(printerConfigPath, "utf8"));
 
     expect(sourceConfig.testMode).toBe(false);
+    expect(sourceConfig.testScreenOutput).toBeUndefined();
     expect(sourceConfig.textsDir).toBe(join(dir, "demo", "translations"));
     expect(sourceConfig.language).toBe("de");
     expect(sourceConfig.font).toEqual(["lowercase", "international"]);
@@ -347,6 +349,7 @@ describe("build scripts", () => {
     expect(sourceConfig.files.map((file: string) => file.endsWith(".mbas"))).toEqual([true, true]);
     expect(sourceConfig.files.map((file: string) => file.split(/[\\/]/u).at(-1))).toEqual(["math.mbas", "main.mbas"]);
     expect(testConfig.testMode).toBe(true);
+    expect(testConfig.testScreenOutput).toBe(true);
     expect(testConfig.language).toBe("de");
     expect(testConfig.font).toEqual(["lowercase", "international"]);
     expect(testConfig.minimumScreenColumns).toBe(40);

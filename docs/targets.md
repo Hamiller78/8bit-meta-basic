@@ -13,7 +13,7 @@ All targets share one parsed syntax tree and target-independent control-flow low
 | `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
 | `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` |
 | Jump | `GO TO` | `GOTO` | `GOTO` |
-| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT` | POKE/ROM-call macro + `PRINT` |
+| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` |
 | Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE |
 
 Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
@@ -44,8 +44,9 @@ Spectrum:
 Atari 800XL:
 
 ```basic
-10 POSITION 4,9
-20 PRINT "WARNING"
+10 GRAPHICS 0
+20 POSITION 4,9
+30 PRINT #6;"WARNING"
 ```
 
 C64:
@@ -77,6 +78,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - When a struct array has multiple numeric fields, the compiler packs those fields into one two-dimensional Spectrum numeric array: the first dimension selects the element and the second selects the field. This saves single-letter array names; Meta-BASIC source still uses ordinary struct field access. String fields remain separate string arrays.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`, plus hidden numeric arrays holding each element's logical length. Reads slice to the stored length, so implementation padding is excluded while deliberate trailing spaces remain part of the value.
 - `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
+- Printing into the bottom-right cell does not scroll the Spectrum display. Atari and C64 differ, so portable layouts should leave that one cell unused.
 - `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `SHARED_DRIVE` is not supported on Spectrum.
 - `CLS colour` uses `PAPER` and then `CLS`.
@@ -86,6 +88,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `KEY_PRESSED()` checks `INKEY$ <> ""`; `KEY_CODE()` uses `INKEY$`, so short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
+- `SCREEN_CODE` uses native `SCREEN$` followed by `CODE`.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
 
 ## Atari 800XL
@@ -95,6 +98,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
 - `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`, then writes through the graphics-zero `S:` screen device with `PRINT #6`. This bypasses channel 0's logical-line editor, which can move existing physical rows when several independently positioned fields share a row. When a program uses this direct screen output, its generated startup executes `GRAPHICS 0` once to ensure channel 6 is open before the first positioned write; launchers and loaders are not required to preserve the interpreter's initial channel setup.
+- Writing the bottom-right cell through `PRINT #6` scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
 - `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.
@@ -111,7 +115,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - `JIFFIES()` reads the three-byte `RTCLOK` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` lowers to native `FRE(0)`.
 - `RND()` lowers to `RND(0)`; `RANDOMIZE` is accepted but ignored.
-- The compiler does not emit `GRAPHICS 0` automatically.
+- `SCREEN_CODE` reads the current `SAVMSC` screen buffer and converts ordinary printable screen codes to their comparable character codes.
 
 Atari colour values are deterministic approximations and can look different between PAL, NTSC, emulators, and displays.
 
@@ -120,6 +124,7 @@ Atari colour values are deterministic approximations and can look different betw
 - The backend targets built-in Commodore BASIC V2 without an extension cartridge or injected runtime.
 - Assignments omit `LET`.
 - `PRINT_AT` lowers 1-based source coordinates to writes to zero-based row and column editor variables followed by `SYS 58732`.
+- Printing into the bottom-right cell scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
@@ -130,6 +135,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
+- `SCREEN_CODE` reads the standard BASIC text screen at address 1024 and converts ordinary printable screen codes to their comparable PETSCII codes.
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.

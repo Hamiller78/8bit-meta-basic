@@ -32,6 +32,7 @@ async function launchC64(options) {
     language: options.language,
     font: options.font,
     testMode: options.testMode,
+    testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testMode ? options.testPrinterOutput : false,
     testOutputDevice,
     moduleName: options.moduleName,
@@ -112,6 +113,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testScreenOutput: false,
     testPrinterOutput: false,
     testOutputDevice: undefined,
     moduleName: undefined,
@@ -150,6 +152,10 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--test-screen-output") {
+      options.testScreenOutput = true;
       continue;
     }
     if (arg === "--printer-output") {
@@ -208,6 +214,9 @@ function parseArgs(argv) {
   }
   if (options.moduleName && (!options.projectPath || !options.testMode)) {
     throw new Error("--module can only be used with --project and --run-tests.");
+  }
+  if (options.testScreenOutput && !options.testMode) {
+    throw new Error("--test-screen-output can only be used with --run-tests.");
   }
   return options;
 }

@@ -278,6 +278,18 @@ describe("Meta-BASIC test mode", () => {
     expect(count(output, "LET MBASSERT=MBASSERT + 1")).toBe(1);
   });
 
+  it("can capture test output while also writing it to the real screen", () => {
+    const output = compileSource(
+      ['test ScreenOutput()', 'print_at 2, 3, "HI"', 'assert_printat 2, 3, "HI"', "end test"].join("\n"),
+      { filename: "screen-output.mbas", target: "spectrum", readability: 0, testMode: true, testScreenOutput: true }
+    );
+
+    expect(output).toContain("LET MBTPROW=2");
+    expect(output).toContain("LET MBTPCOL=3");
+    expect(output).toContain('PRINT AT 1,2;"HI"');
+    expect(count(output, "LET MBASSERT=MBASSERT + 1")).toBe(1);
+  });
+
   it("tracks portable colour commands for colour assertions", () => {
     const output = compileSource(
       [

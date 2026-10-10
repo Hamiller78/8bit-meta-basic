@@ -496,6 +496,12 @@ describe("Spectrum compiler", () => {
     );
   });
 
+  it("reads a visible screen character code with portable coordinates", () => {
+    expect(compileSource("value = screen_code(3, 4)\n", { filename: "screen.mbas", target: "spectrum" })).toBe(
+      ["10 LET VALUE=CODE SCREEN$ ((3 - 1),(4 - 1))", ""].join("\n")
+    );
+  });
+
   it("renders LEFT$ and RIGHT$ as Spectrum string slicing", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "spectrum" })).toBe(
       ['10 LET A$="HELLO WORLD"', "20 PRINT A$( TO 5);A$(LEN A$ - 5 + 1 TO )", ""].join("\n")
@@ -794,6 +800,13 @@ describe("Spectrum compiler", () => {
     expect(() => compileSource("print asc(65)\n", { filename: "chars.mbas", target: "spectrum" })).toThrow(
       "ASC argument must be a string expression"
     );
+  });
+
+  it("reports invalid SCREEN_CODE calls", () => {
+    expect(() => compileSource("print screen_code(1)\n", { filename: "screen.mbas", target: "spectrum" })).toThrow("SCREEN_CODE expects exactly two arguments");
+    expect(() => compileSource('print screen_code("1", 1)\n', { filename: "screen.mbas", target: "spectrum" })).toThrow("SCREEN_CODE row and column arguments must be numeric");
+    expect(() => compileSource("print screen_code(0, 1)\n", { filename: "screen.mbas", target: "spectrum" })).toThrow("SCREEN_CODE row coordinate 0 is outside the supported range 1..22");
+    expect(() => compileSource("print screen_code(1, 33)\n", { filename: "screen.mbas", target: "spectrum" })).toThrow("SCREEN_CODE column coordinate 33 is outside the supported range 1..32");
   });
 
   it("reports invalid LEFT$ and RIGHT$ calls", () => {

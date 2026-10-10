@@ -1532,6 +1532,23 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.screenCode) {
+    if (expression.args.length !== 2) {
+      throw new DiagnosticError(expression.location, "SCREEN_CODE expects exactly two arguments.");
+    }
+    const args = expression.args.map((arg) => foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope, structValues));
+    for (const [index, arg] of args.entries()) {
+      if (isStringExpression(arg) || arg.kind === "color") {
+        throw new DiagnosticError(expression.args[index].location, "SCREEN_CODE row and column arguments must be numeric.");
+      }
+    }
+    const textRows = constants.get("text_rows")?.value;
+    const textColumns = constants.get("text_columns")?.value;
+    validateScreenCodeCoordinate(args[0], "row", textRows);
+    validateScreenCodeCoordinate(args[1], "column", textColumns);
+    return { ...expression, name, args, valueType: "number" };
+  }
+
   if (name === builtinFunctions.getJoystick) {
     if (expression.args.length !== 1) {
       throw new DiagnosticError(expression.location, "GET_JOYSTICK expects exactly one argument.");
@@ -1727,6 +1744,15 @@ function foldFunctionCall(
 
 function isSupportedDeviceName(name: string): boolean {
   return isSourceDeviceName(name);
+}
+
+function validateScreenCodeCoordinate(expression: Expression, name: "row" | "column", maximum: ConstantValue | undefined): void {
+  if (expression.kind !== "number" || typeof maximum !== "number") {
+    return;
+  }
+  if (!Number.isInteger(expression.value) || expression.value < 1 || expression.value > maximum) {
+    throw new DiagnosticError(expression.location, `SCREEN_CODE ${name} coordinate ${expression.value} is outside the supported range 1..${maximum}.`);
+  }
 }
 
 function isNumericRuntimeFunctionName(name: string): boolean {

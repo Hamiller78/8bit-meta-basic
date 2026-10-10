@@ -35,6 +35,7 @@ export async function buildTarget(options) {
   let buildConfigPath = options.buildConfigPath;
   const projectPath = options.projectPath;
   const testMode = options.testMode === true;
+  const testScreenOutput = options.testScreenOutput === true;
   const testPrinterOutput = options.testPrinterOutput === true;
   const testOutputDevice = options.testOutputDevice ?? defaultTestOutputDevices[target] ?? "printer";
   const moduleName = options.moduleName;
@@ -56,7 +57,7 @@ export async function buildTarget(options) {
   }
 
   if (projectPath) {
-    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode, testPrinterOutput, testOutputDevice, moduleName });
+    buildConfigPath = await writeProjectBuildConfig({ cwd, projectPath, outDir, testMode, testScreenOutput, testPrinterOutput, testOutputDevice, moduleName });
   }
 
   const program = programIdentity(cwd, source, buildConfigPath, projectPath);
@@ -81,6 +82,7 @@ export async function buildTarget(options) {
       basicPath,
       ...(profile === "debug" ? ["--source-comments"] : []),
       ...(testMode ? ["--run-tests"] : []),
+      ...(testScreenOutput ? ["--test-screen-output"] : []),
       ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : []),
       ...(atariSharedDriveSpec ? ["--atari-shared-drive-spec", atariSharedDriveSpec] : [])
     ],
@@ -302,7 +304,7 @@ export function programIdentity(cwd, source, buildConfigPath, projectPath) {
   };
 }
 
-export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, testPrinterOutput = false, testOutputDevice = "printer", moduleName } = {}) {
+export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath, outDir = defaultOutDir, testMode = false, testScreenOutput = false, testPrinterOutput = false, testOutputDevice = "printer", moduleName } = {}) {
   const projectRoot = resolve(cwd, projectPath);
   const projectConfiguration = await readProjectConfiguration(projectRoot);
   const sourceFiles = await findProjectSourceFiles(projectRoot, projectConfiguration);
@@ -329,6 +331,7 @@ export async function writeProjectBuildConfig({ cwd = process.cwd(), projectPath
       ...(projectConfiguration?.minimumScreenColumns !== undefined ? { minimumScreenColumns: projectConfiguration.minimumScreenColumns } : {}),
       ...(projectConfiguration?.minimumScreenRows !== undefined ? { minimumScreenRows: projectConfiguration.minimumScreenRows } : {}),
       testMode,
+      ...((testScreenOutput || (testMode && projectConfiguration?.testScreenOutput === true)) ? { testScreenOutput: true } : {}),
       ...(testPrinterOutput ? { testPrinterOutput, testOutputDevice } : {}),
       files: [...sourceFiles, ...testFiles]
     }, null, 2)}\n`,
@@ -471,6 +474,7 @@ function parseArgs(argv) {
     buildConfigPath: undefined,
     projectPath: undefined,
     testMode: false,
+    testScreenOutput: false,
     testPrinterOutput: false,
     testOutputDevice: undefined,
     moduleName: undefined,
@@ -516,6 +520,10 @@ function parseArgs(argv) {
     }
     if (arg === "--run-tests") {
       options.testMode = true;
+      continue;
+    }
+    if (arg === "--test-screen-output") {
+      options.testScreenOutput = true;
       continue;
     }
     if (arg === "--printer-output") {
@@ -566,7 +574,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;
@@ -578,6 +586,9 @@ function parseArgs(argv) {
   }
   if (options.testPrinterOutput && !options.testMode) {
     throw new Error("--printer-output can only be used with --run-tests.");
+  }
+  if (options.testScreenOutput && !options.testMode) {
+    throw new Error("--test-screen-output can only be used with --run-tests.");
   }
 
   return options;

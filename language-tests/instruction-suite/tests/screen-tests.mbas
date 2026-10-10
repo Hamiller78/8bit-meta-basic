@@ -1,0 +1,22 @@
+test PositionedOutputReachesScreen()
+    cls
+    print_at 3, 4, "7"; "8";
+    assert_eq code("7"), screen_code(3, 4)
+    assert_eq code("8"), screen_code(3, 5)
+end test
+
+test RightEdgeDoesNotScroll()
+    cls
+    print_at 1, 1, "1";
+    print_at 2, TEXT_COLUMNS, "8";
+    assert_eq code("1"), screen_code(1, 1)
+    assert_eq code("8"), screen_code(2, TEXT_COLUMNS)
+end test
+
+test BottomEdgeDoesNotScrollBeforeCorner()
+    cls
+    print_at 1, 1, "1";
+    print_at TEXT_ROWS, TEXT_COLUMNS - 1, "9";
+    assert_eq code("1"), screen_code(1, 1)
+    assert_eq code("9"), screen_code(TEXT_ROWS, TEXT_COLUMNS - 1)
+end test

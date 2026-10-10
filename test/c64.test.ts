@@ -348,6 +348,12 @@ describe("C64 compiler", () => {
     ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A");ASC("B")', ""].join("\n"));
   });
 
+  it("reads a visible screen character code with portable coordinates", () => {
+    const output = compileSource("value = screen_code(3, 4)\n", { filename: "screen.mbas", target: "c64" });
+    expect(output).toContain("PEEK(983 + 3 * 40 + 4)");
+    expect(output).toContain("< 32");
+  });
+
   it("renders LEFT$ and RIGHT$ directly for C64", () => {
     expect(
       compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', {

@@ -277,6 +277,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `key_code()` | Runtime | Poll the keyboard without waiting |
 | `key_pressed()` | Runtime | Check whether a key is waiting without blocking |
 | `get_joystick(control)` | Runtime | Read a joystick axis or fire button without blocking |
+| `screen_code(row, column)` | Runtime | Read the character code currently visible at a 1-based text-screen position |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
 `CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
@@ -286,6 +287,10 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 Math functions lower to the target BASIC function of the same name when evaluated at runtime. The compiler folds `INT` with a constant argument, including inside cursor coordinates such as `set_pos int(TEXT_ROWS / 2), 1`, so generated BASIC uses literal positions. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
 
 `FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, and Spectrum uses the 48K ROM free-memory routine.
+
+`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, and C64 reads the standard BASIC text screen at address 1024. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
+
+The bottom-right cell is a native scrolling boundary on Atari and C64: printing a character there scrolls the screen immediately, even when the statement has a trailing semicolon. Spectrum `PRINT AT` leaves the bottom-right character in place. Portable layouts that must not scroll should therefore leave the bottom-right cell unused. Other cells on the bottom and right edges remain usable.
 
 Random numbers use:
 
@@ -570,11 +575,14 @@ Builds may enable `testMode` through the compiler options, the CLI `--run-tests`
 ```json
 {
   "testMode": true,
+  "testScreenOutput": true,
   "files": ["tests.mbas"]
 }
 ```
 
 Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
+
+By default, application `PRINT`, `PRINT_AT`, cursor, clear-screen, and colour operations inside tests are captured for assertions without touching the real display. Set `testScreenOutput` to `true`, or pass `--test-screen-output` together with `--run-tests`, to capture those operations and execute them as well. This permits emulator tests to inspect actual target output with `SCREEN_CODE` while keeping `ASSERT_PRINT` and `ASSERT_PRINTAT` available.
 
 Test builds inherit the project's configured font groups. This keeps application output, `ASSERT_PRINT` expectations, test names, and the generated runner readable under the same active character set. On C64, a project requesting `lowercase` switches the font before the runner's first output and emits the entire generated runner using matching BASIC/text casing. An explicit command-line `--font` remains an override, including an empty library-level font list when deliberately testing fallback behavior.
 
@@ -624,7 +632,7 @@ When launched through the helper scripts, `--printer-output` mirrors the test ru
 `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
 For portable output assertions, prefer string output; numeric formatting still follows the target BASIC conversion rules.
 
-`ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory.
+`ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory; use `testScreenOutput` together with `SCREEN_CODE` when the actual rendered screen is what matters.
 
 Colour assertions compare the latest portable colour command state captured in test mode. `CLS colour` counts as setting the screen background colour. Colour assertion values use portable colour names such as `BLUE` and `WHITE`, not target-specific numeric colour codes.
 

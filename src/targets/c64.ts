@@ -284,6 +284,7 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.mid, renderC64Mid],
     [builtinFunctions.rnd, () => "RND(1)"],
     [builtinFunctions.right, renderC64Right],
+    [builtinFunctions.screenCode, renderC64ScreenCode],
     [builtinFunctions.sgn, renderC64UnaryNumericFunction],
     [builtinFunctions.sin, renderC64UnaryNumericFunction],
     [builtinFunctions.sqr, renderC64UnaryNumericFunction],
@@ -306,6 +307,12 @@ function renderC64Chr(expression: FunctionCallExpression, options: { readonly va
 
 function renderC64Code(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderC64ScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [row, column] = expression.args;
+  const cell = `PEEK(983 + ${renderExpression(row, options)} * 40 + ${renderExpression(column, options)})`;
+  return `(${cell} - 64 * (${cell} < 32))`;
 }
 
 function renderC64Str(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
