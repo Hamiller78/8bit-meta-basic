@@ -45,7 +45,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 | Label and jumps | `name:`, `goto name`, `gosub name`, `return` |
 | Program termination | `end` |
 | Output | `print`, `print items`, `print_at row, column, items` |
-| Cursor | `set_pos row, column` |
+| Cursor | `set_pos row, column`, `set_column column` |
 | Compile-time layout | `print_wrap text`, `print_centered text`, `print_text "key"` |
 | Data stream | `data values`, `read variables`, `restore` |
 | Random numbers | `randomize [seed]`, `rnd()` |
@@ -443,15 +443,19 @@ The comma after the column is required. Constant coordinates are checked against
 
 ### Cursor positioning and blank lines
 
-Bare `PRINT` emits a blank line. `SET_POS row, column` moves the cursor without visible output or a newline:
+Bare `PRINT` emits a blank line. `SET_POS row, column` moves the cursor without visible output or a newline. `SET_COLUMN column` changes only the current column and preserves the current row:
 
 ```basic
 set_pos 3, 5
 print "READY"
+set_column 20
+print "STATUS"
 print
 ```
 
-Coordinates are numeric expressions in 1-based row, column order, as with `PRINT_AT`. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. `SET_POS` does not replace the last captured output used by test-mode print assertions.
+Coordinates are numeric expressions and are 1-based, as with `PRINT_AT`. `SET_POS` uses row, column order. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. Neither cursor command replaces the last captured output used by test-mode print assertions.
+
+`SET_COLUMN` lowers to the native cursor state on each target: Spectrum rebuilds its complete print position using the current row, while Atari and C64 each update their cursor-column variable with one `POKE`.
 
 ### Compile-time text layout
 

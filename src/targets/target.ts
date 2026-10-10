@@ -127,6 +127,26 @@ export function expandPositionedPrints(
   return rebuildLabels(program, instructions);
 }
 
+export function expandSetColumns(
+  program: LoweredProgram,
+  targetName: string,
+  maxColumn: number,
+  expand: (instruction: Extract<Instruction, { kind: "set-column" }>) => readonly Instruction[]
+): LoweredProgram {
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "set-column") {
+      validateConstantCoordinate(instruction.column, "column", maxColumn, targetName, "SET_COLUMN");
+      instructions.push(...expand({ ...instruction, column: lowerPositionedPrintCoordinate(instruction.column) }));
+    } else {
+      instructions.push(instruction);
+    }
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
 export function rebuildLabels(program: LoweredProgram, instructions: readonly Instruction[]): LoweredProgram {
   const labels = new Map<string, LabelDefinition>();
 
@@ -175,7 +195,13 @@ function lowerPositionedPrintCoordinate(expression: Expression): Expression {
   };
 }
 
-function validateConstantCoordinate(expression: Expression, axis: "row" | "column", max: number, targetName: string): void {
+function validateConstantCoordinate(
+  expression: Expression,
+  axis: "row" | "column",
+  max: number,
+  targetName: string,
+  commandName = "PRINT_AT"
+): void {
   if (expression.kind !== "number") {
     return;
   }
@@ -184,7 +210,7 @@ function validateConstantCoordinate(expression: Expression, axis: "row" | "colum
   if (!Number.isInteger(expression.value) || expression.value < 1 || expression.value > humanMax) {
     throw new DiagnosticError(
       expression.location,
-      `${targetName} PRINT_AT ${axis} coordinate ${formatNumber(expression.value)} is outside the supported range 1..${humanMax}.`
+      `${targetName} ${commandName} ${axis} coordinate ${formatNumber(expression.value)} is outside the supported range 1..${humanMax}.`
     );
   }
 }

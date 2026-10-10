@@ -10,6 +10,8 @@ function setupOperations()
         characters(characterIndex).role% = none
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).integrity% = 5
+        characters(characterIndex).influence% = 1
+        characters(characterIndex).socialism% = 50
         characters(characterIndex).agenda% = -1
     next characterIndex
     characters(0).role% = president
@@ -29,24 +31,25 @@ function addTestContact(characterIndex)
     return addContact(characterIndex)
 end function
 
-test PresidentEconomyIsHiddenBehindQualitativeReports()
-    local advisorIndex
+test PresidentAlignmentIsHiddenBehindQualitativeReports()
+    local presidentIndex, advisorIndex
     setupOperations()
+    presidentIndex = findRole(president)
     advisorIndex = findRole(advisor)
 
-    assert_eq economyInitial, presidentEconomy%
-    adjustPresidentEconomy(-80)
-    assert_eq economyMinimum, presidentEconomy%
-    adjustPresidentEconomy(140)
-    assert_eq economyMaximum, presidentEconomy%
-    adjustPresidentEconomy(-50)
-    assert_eq economicMiddle, economicPositionBand(presidentEconomy%)
+    assert_eq presidentSocialismInitial, characters(presidentIndex).socialism%
+    adjustPresidentSocialism(-80)
+    assert_eq politicalMinimum, characters(presidentIndex).socialism%
+    adjustPresidentSocialism(140)
+    assert_eq politicalMaximum, characters(presidentIndex).socialism%
+    adjustPresidentSocialism(-50)
+    assert_eq politicalMiddle, politicalAlignmentBand(characters(presidentIndex).socialism%)
 
     characters(advisorIndex).integrity% = 10
-    assert_eq economicMiddle, reportedPresidentEconomyBand(advisorIndex, 9, 0)
+    assert_eq politicalMiddle, reportedPresidentAlignmentBand(advisorIndex, 9, 0)
     characters(advisorIndex).integrity% = 0
-    assert_eq socialistLeaning, reportedPresidentEconomyBand(advisorIndex, 0, 0)
-    assert_eq freeMarketLeaning, reportedPresidentEconomyBand(advisorIndex, 0, 9)
+    assert_eq authoritarianLeaning, reportedPresidentAlignmentBand(advisorIndex, 0, 0)
+    assert_eq socialistLeaning, reportedPresidentAlignmentBand(advisorIndex, 0, 9)
 end test
 
 test CharacterVicinityControlsKnowledge()
@@ -84,7 +87,7 @@ test PresidentInvestigationUsesAnInsiderReport()
     resolveInvestigationRoll(0, presidentIndex, 0)
     assert_eq reportPoliticalInsight, usaReports%(0)
     assert_eq advisorIndex, usaReportTargets%(0)
-    assert_eq economicMiddle, usaActionValues%(0)
+    assert_eq politicalMiddle, usaActionValues%(0)
 end test
 
 test OnlyANearbyContactOpensThePresident()

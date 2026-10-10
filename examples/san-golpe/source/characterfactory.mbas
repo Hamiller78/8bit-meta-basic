@@ -73,6 +73,8 @@ function createCharacter(characterRole)
     characters(characterIndex).role% = characterRole
     characters(characterIndex).isAlive% = 1
     characters(characterIndex).integrity% = int(rnd() * 11)
+    characters(characterIndex).influence% = 1 + int(rnd() * 10)
+    characters(characterIndex).socialism% = int(rnd() * 101)
     characters(characterIndex).agenda% = -1
 
     createdCharacterCount = createdCharacterCount + 1

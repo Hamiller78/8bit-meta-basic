@@ -291,7 +291,11 @@ Coordinates are always 1-based and written as `row, column`:
 print_at 3, 5, "WARNING"
 set_pos TEXT_ROWS, 1
 print "BOTTOM ROW";
+set_column 20
+print "RIGHT-HAND FIELD"
 ```
+
+`SET_COLUMN` retains the current row, which is useful when assembling aligned fields with several print statements.
 
 Use portable screen commands for common text-mode operations:
 

@@ -30,6 +30,7 @@ export type Statement =
   | PrintDeviceStatement
   | CloseDeviceStatement
   | PrintStatement
+  | SetColumnStatement
   | DataStatement
   | ReadStatement
   | RestoreStatement
@@ -165,6 +166,12 @@ export interface ProgramModeStatement {
 
 export interface PrintAtPosition {
   readonly row: Expression;
+  readonly column: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface SetColumnStatement {
+  readonly kind: "set-column";
   readonly column: Expression;
   readonly location: SourceLocation;
 }

@@ -21,7 +21,7 @@ import {
 } from "./string-array-lengths.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
-import { expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, expandSetColumns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -31,7 +31,8 @@ export const spectrumTarget: TargetBackend = {
   variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const byteLowered = lowerByteStorage(program, "spectrum");
-    const expanded = expandPositionedPrints(byteLowered, "Spectrum", 21, 31, (instruction) => [instruction]);
+    const columns = expandSetColumns(byteLowered, "Spectrum", 31, (instruction) => [instruction]);
+    const expanded = expandPositionedPrints(columns, "Spectrum", 21, 31, (instruction) => [instruction]);
     const stringArrayStorage = buildStringArrayStorage(expanded.instructions);
     const allocateInternalLabel = createInternalLabelAllocator(expanded);
     const keyStringTempName = allocateKeyStringTempName(expanded.instructions);
@@ -126,6 +127,8 @@ export const spectrumTarget: TargetBackend = {
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "set-column":
+        return `${lineNumber} PRINT AT 24-PEEK 23689,${renderExpression(instruction.column, renderOptions)};`;
       case "open-device":
         rejectSpectrumSharedDrive(instruction.device, instruction.location);
         if (instruction.device === "text-printer") {
@@ -980,6 +983,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "program-mode":
     case "paper":
     case "print":
+    case "set-column":
     case "open-device":
     case "print-device":
     case "close-device":

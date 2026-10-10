@@ -14,6 +14,7 @@ All targets share one parsed syntax tree and target-independent control-flow low
 | `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` |
 | Jump | `GO TO` | `GOTO` | `GOTO` |
 | Positioned output | Native `PRINT AT` | `POSITION` + `PRINT` | POKE/ROM-call macro + `PRINT` |
+| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE |
 
 Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
 
@@ -61,6 +62,8 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Spectrum: rows `1..22`, columns `1..32`
 - Atari: rows `1..24`, columns `1..40`
 - C64: rows `1..25`, columns `1..40`
+
+`SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
 
 ## ZX Spectrum
 

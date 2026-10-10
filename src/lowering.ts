@@ -59,6 +59,7 @@ export type Instruction =
   | ProgramModeInstruction
   | PaperInstruction
   | PrintInstruction
+  | SetColumnInstruction
   | OpenDeviceInstruction
   | PrintDeviceInstruction
   | CloseDeviceInstruction
@@ -166,6 +167,12 @@ export interface PrintInstruction {
     readonly row: Expression;
     readonly column: Expression;
   };
+  readonly location: SourceLocation;
+}
+
+export interface SetColumnInstruction {
+  readonly kind: "set-column";
+  readonly column: Expression;
   readonly location: SourceLocation;
 }
 
@@ -942,6 +949,13 @@ function lowerStatements(
           }));
         }
         break;
+      case "set-column":
+        instructions.push({
+          kind: "set-column",
+          column: lowerExpression(statement.column, instructions, context, options),
+          location: statement.location
+        });
+        break;
       case "open-device":
         if (!options.capturePrints) {
           instructions.push({ kind: "open-device", handle: statement.handle, device: statement.device, location: statement.location });
@@ -1566,6 +1580,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
             }
           : {})
       };
+    case "set-column":
+      return { ...statement, column: substituteInlineExpression(statement.column, parameters) };
     case "print-device":
       return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
     case "let":

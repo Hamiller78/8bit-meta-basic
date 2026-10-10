@@ -1,183 +1,137 @@
 uses "characters.mbas"
 uses "politics.mbas"
 
-const coffeePriceMinimum = 0
-const coffeePriceMaximum = 100
-const coffeePriceInitial = 50
-const coffeePriceLow = 25
-const coffeePriceHigh = 75
+const responseSocialismChange = 5
 
-enum PresidentEvent
-    presidentPraisesOfficial = 0
-    presidentCriticizesOfficial
-    presidentReactsToHighCoffee
-    presidentReactsToLowCoffee
-    numberOfPresidentEvents
+enum RoundEvent
+    coffeePriceCollapse = 0
+    coffeePriceBoom
+    bananaBlight
+    dockStrike
+    foreignPlantationOffer
+    missingParadeCannon
+    numberOfRoundEvents
 end enum
 
-worldCoffeePrice% = coffeePriceInitial
-currentPresidentEvent% = presidentPraisesOfficial
-currentPresidentEventTarget% = -1
+enum PresidentResponse
+    responseAuthoritarian = 0
+    responseBalanced
+    responseSocial
+end enum
+
+currentRoundEvent% = coffeePriceCollapse
+currentInfluencer% = -1
+currentPresidentResponse% = responseBalanced
 
 function initializePresidentEvents()
-    worldCoffeePrice% = coffeePriceInitial
-    currentPresidentEvent% = presidentPraisesOfficial
-    currentPresidentEventTarget% = -1
+    currentRoundEvent% = coffeePriceCollapse
+    currentInfluencer% = -1
+    currentPresidentResponse% = responseBalanced
 end function
 
-function adjustCharacterIntegrity(characterIndex, change)
+function influenceWeight(characterIndex)
     if characterIndex < 0 or characterIndex >= numberOfCharacters then
-        return
-    end if
-    characters(characterIndex).integrity% = characters(characterIndex).integrity% + change
-    if characters(characterIndex).integrity% < 0 then
-        characters(characterIndex).integrity% = 0
-    end if
-    if characters(characterIndex).integrity% > 10 then
-        characters(characterIndex).integrity% = 10
-    end if
-end function
-
-function updateWorldCoffeePrice(change)
-    worldCoffeePrice% = worldCoffeePrice% + change
-    if worldCoffeePrice% < coffeePriceMinimum then
-        worldCoffeePrice% = coffeePriceMinimum
-    end if
-    if worldCoffeePrice% > coffeePriceMaximum then
-        worldCoffeePrice% = coffeePriceMaximum
-    end if
-end function
-
-function hasLivingGovernmentMember()
-    local advisorIndex, generalIndex
-    advisorIndex = findRole(advisor)
-    generalIndex = findRole(general)
-    if advisorIndex >= 0 and characters(advisorIndex).isAlive% = 1 then
-        return 1
-    end if
-    if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
-        return 1
-    end if
-    return 0
-end function
-
-function selectGovernmentMember(selection)
-    local advisorIndex, generalIndex
-    advisorIndex = findRole(advisor)
-    generalIndex = findRole(general)
-    if advisorIndex >= 0 and characters(advisorIndex).isAlive% = 1 then
-        if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
-            if selection MOD 2 = 0 then
-                return advisorIndex
-            end if
-            return generalIndex
-        end if
-        return advisorIndex
-    end if
-    if generalIndex >= 0 and characters(generalIndex).isAlive% = 1 then
-        return generalIndex
-    end if
-    return -1
-end function
-
-'Example balancing: free-market Presidents praise more often; socialist
-'Presidents criticize more often. Extreme coffee events add directional weight.
-function presidentEventWeight(eventValue)
-    if eventValue = presidentPraisesOfficial then
-        if hasLivingGovernmentMember() = 0 then
-            return 0
-        end if
-        return 10 + int(presidentEconomy% / 5)
-    end if
-    if eventValue = presidentCriticizesOfficial then
-        if hasLivingGovernmentMember() = 0 then
-            return 0
-        end if
-        return 10 + int((economyMaximum - presidentEconomy%) / 5)
-    end if
-    if eventValue = presidentReactsToHighCoffee then
-        if worldCoffeePrice% >= coffeePriceHigh then
-            return 10 + int(presidentEconomy% / 2)
-        end if
         return 0
     end if
-    if eventValue = presidentReactsToLowCoffee then
-        if worldCoffeePrice% <= coffeePriceLow then
-            return 10 + int((economyMaximum - presidentEconomy%) / 2)
-        end if
+    if characters(characterIndex).role% = president or characters(characterIndex).isAlive% = 0 then
+        return 0
     end if
-    return 0
+    if characters(characterIndex).influence% < 0 then
+        return 0
+    end if
+    return characters(characterIndex).influence%
 end function
 
-function presidentEventTotalWeight()
-    local eventValue, totalWeight
+function influenceTotalWeight()
+    local characterIndex, totalWeight
     totalWeight = 0
-    for eventValue = 0 to numberOfPresidentEvents - 1
-        totalWeight = totalWeight + presidentEventWeight(eventValue)
-    next eventValue
+    for characterIndex = 0 to numberOfCharacters - 1
+        totalWeight = totalWeight + influenceWeight(characterIndex)
+    next characterIndex
     return totalWeight
 end function
 
-function presidentEventAt(selection)
-    local eventValue, eventWeight
-    for eventValue = 0 to numberOfPresidentEvents - 1
-        eventWeight = presidentEventWeight(eventValue)
-        if selection < eventWeight then
-            return eventValue
+function influencerAt(selection)
+    local characterIndex, weight
+    for characterIndex = 0 to numberOfCharacters - 1
+        weight = influenceWeight(characterIndex)
+        if selection < weight then
+            return characterIndex
         end if
-        selection = selection - eventWeight
-    next eventValue
-    return presidentPraisesOfficial
+        selection = selection - weight
+    next characterIndex
+    return -1
 end function
 
-function applyPresidentEvent(eventValue, targetSelection)
-    local targetIndex
-    currentPresidentEvent% = eventValue
-    currentPresidentEventTarget% = -1
-    if eventValue = presidentPraisesOfficial or eventValue = presidentCriticizesOfficial then
-        targetIndex = selectGovernmentMember(targetSelection)
-        currentPresidentEventTarget% = targetIndex
-        if eventValue = presidentPraisesOfficial then
-            adjustCharacterIntegrity(targetIndex, 1)
-        else
-            adjustCharacterIntegrity(targetIndex, -1)
-        end if
+'The two political values are added directly. The possible sum is 0..200.
+function presidentResponseFor(influencerIndex)
+    local presidentIndex, combinedSocialism
+    presidentIndex = findRole(president)
+    if presidentIndex < 0 then
+        return responseBalanced
     end if
-    if eventValue = presidentReactsToHighCoffee then
-        adjustPresidentEconomy(5)
+    combinedSocialism = characters(presidentIndex).socialism% * 2
+    if influencerIndex >= 0 and influencerIndex < numberOfCharacters then
+        combinedSocialism = characters(presidentIndex).socialism% + characters(influencerIndex).socialism%
     end if
-    if eventValue = presidentReactsToLowCoffee then
-        adjustPresidentEconomy(-5)
+    if combinedSocialism < 67 then
+        return responseAuthoritarian
     end if
+    if combinedSocialism < 134 then
+        return responseBalanced
+    end if
+    return responseSocial
 end function
 
-function resolvePresidentEventRoll(selection, targetSelection)
-    applyPresidentEvent(presidentEventAt(selection), targetSelection)
+function resolveRoundEvent(eventValue, influenceSelection)
+    currentRoundEvent% = eventValue MOD numberOfRoundEvents
+    currentInfluencer% = influencerAt(influenceSelection)
+    currentPresidentResponse% = presidentResponseFor(currentInfluencer%)
+    if currentPresidentResponse% = responseSocial then
+        adjustPresidentSocialism(responseSocialismChange)
+    end if
+    if currentPresidentResponse% = responseAuthoritarian then
+        adjustPresidentSocialism(-responseSocialismChange)
+    end if
 end function
 
 function doPresidentTurn()
     local totalWeight
-    updateWorldCoffeePrice(int(rnd() * 21) - 10)
-    totalWeight = presidentEventTotalWeight()
-    resolvePresidentEventRoll(int(rnd() * totalWeight), int(rnd() * 2))
+    totalWeight = influenceTotalWeight()
+    resolveRoundEvent(int(rnd() * numberOfRoundEvents), int(rnd() * totalWeight))
 end function
 
 function printPresidentEvent()
-    local targetName$
     print
     print text$("presidentEventHeading")
-    if currentPresidentEvent% = presidentPraisesOfficial then
-        targetName$ = characters(currentPresidentEventTarget%).first$ + " " + characters(currentPresidentEventTarget%).last$
-        print_text "presidentPraisesOfficial"; person = targetName$, 21
+    if currentRoundEvent% = coffeePriceCollapse then
+        print_text "roundEventCoffeeCollapse"
     end if
-    if currentPresidentEvent% = presidentCriticizesOfficial then
-        targetName$ = characters(currentPresidentEventTarget%).first$ + " " + characters(currentPresidentEventTarget%).last$
-        print_text "presidentCriticizesOfficial"; person = targetName$, 21
+    if currentRoundEvent% = coffeePriceBoom then
+        print_text "roundEventCoffeeBoom"
     end if
-    if currentPresidentEvent% = presidentReactsToHighCoffee then
-        print_text "presidentHighCoffee"; price = worldCoffeePrice%, 3
+    if currentRoundEvent% = bananaBlight then
+        print_text "roundEventBananaBlight"
     end if
-    if currentPresidentEvent% = presidentReactsToLowCoffee then
-        print_text "presidentLowCoffee"; price = worldCoffeePrice%, 3
+    if currentRoundEvent% = dockStrike then
+        print_text "roundEventDockStrike"
+    end if
+    if currentRoundEvent% = foreignPlantationOffer then
+        print_text "roundEventForeignPlantation"
+    end if
+    if currentRoundEvent% = missingParadeCannon then
+        print_text "roundEventMissingCannon"
+    end if
+    if currentInfluencer% >= 0 then
+        print text$("presidentInfluencedBy"); " "; characters(currentInfluencer%).first$; " "; characters(currentInfluencer%).last$
+    end if
+    if currentPresidentResponse% = responseSocial then
+        print text$("presidentResponseSocial")
+    end if
+    if currentPresidentResponse% = responseBalanced then
+        print text$("presidentResponseBalanced")
+    end if
+    if currentPresidentResponse% = responseAuthoritarian then
+        print text$("presidentResponseAuthoritarian")
     end if
 end function

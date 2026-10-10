@@ -49,6 +49,7 @@ describe("lexer", () => {
     expect(keywords.has("PROGRAM_MODE")).toBe(true);
     expect(keywords.has("BORDER_COLOR")).toBe(true);
     expect(keywords.has("PRINT_AT")).toBe(true);
+    expect(keywords.has("SET_COLUMN")).toBe(true);
     expect(keywords.has("AND")).toBe(true);
     expect(keywords.has("FOR")).toBe(true);
     expect(keywords.has("STRUCT")).toBe(true);

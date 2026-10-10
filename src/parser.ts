@@ -28,6 +28,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["PRINT_TEXT", (parser, location) => parser.parseTextPrint(location, "wrap", true)],
   ["PRINT_CENTERED", (parser, location) => parser.parseTextPrint(location, "center")],
   ["SET_POS", (parser, location) => parser.parseSetPos(location)],
+  ["SET_COLUMN", (parser, location) => parser.parseSetColumn(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
   ["PRINT_DEVICE", (parser, location) => parser.parsePrintDevice(location)],
   ["PROGRAM_MODE", (parser, location) => parser.parseProgramMode(location)],
@@ -214,6 +215,12 @@ class Parser {
     const column = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "print", items: [{ kind: "string", value: "", location }], trailingSemicolon: true, positionOnly: true, at: { row, column, location }, location };
+  }
+
+  parseSetColumn(location: SourceLocation): Statement {
+    const column = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "set-column", column, location };
   }
 
   parseOpenDevice(location: SourceLocation): Statement {

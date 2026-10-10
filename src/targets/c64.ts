@@ -12,7 +12,7 @@ import { createFunctionRenderer, type FunctionCallExpression } from "./function-
 import { instructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
-import { c64ColorCodes, expandPositionedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { c64ColorCodes, expandPositionedPrints, expandSetColumns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -22,7 +22,10 @@ export const c64Target: TargetBackend = {
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
     const byteLowered = lowerByteStorage(program, "c64");
-    const expanded = expandPositionedPrints(byteLowered, "C64", 24, 39, (instruction) => [
+    const columns = expandSetColumns(byteLowered, "C64", 39, (instruction) => [
+      { kind: "poke", address: 211, value: instruction.column, location: instruction.location }
+    ]);
+    const expanded = expandPositionedPrints(columns, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.at!.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.at!.column, location: instruction.location },
       { kind: "sys", address: 58732, location: instruction.location },
@@ -62,6 +65,8 @@ export const c64Target: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "set-column":
+        throw new Error("Internal error: unexpected set-column instruction for C64.");
       case "open-device":
         rejectC64SharedDrive(instruction.device, instruction.location);
         if (instruction.handle === "__mb_probe") {

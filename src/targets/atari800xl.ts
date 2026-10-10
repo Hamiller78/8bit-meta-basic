@@ -19,7 +19,7 @@ import {
   stringArrayStorageFor,
   type StringArrayStorage
 } from "./string-array-lengths.js";
-import { atariColorCodes, expandPositionedPrints, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { atariColorCodes, expandPositionedPrints, expandSetColumns, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerByteStorage } from "./byte-storage.js";
 
 export const atari800xlTarget: TargetBackend = {
@@ -30,7 +30,10 @@ export const atari800xlTarget: TargetBackend = {
   variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const byteLowered = lowerByteStorage(program, "atari800xl");
-    const positioned = expandPositionedPrints(byteLowered, "Atari 800XL", 23, 39, (instruction) => [
+    const columns = expandSetColumns(byteLowered, "Atari 800XL", 39, (instruction) => [
+      { kind: "poke", address: 85, value: instruction.column, location: instruction.location }
+    ]);
+    const positioned = expandPositionedPrints(columns, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.at!.row, column: instruction.at!.column, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
@@ -224,6 +227,8 @@ export const atari800xlTarget: TargetBackend = {
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
         return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "set-column":
+        throw new Error("Internal error: unexpected set-column instruction for Atari 800XL.");
       case "open-device":
         return `${lineNumber} OPEN #${atariIocbNumber(instruction.handle, instruction.location)},8,0,"${atariDeviceSpec(instruction.device)}"`;
       case "print-device":
@@ -451,6 +456,8 @@ function materializeAtariStringArrayReads(
           ...(instruction.at ? { at: { row: rewrite(instruction.at.row), column: rewrite(instruction.at.column) } } : {})
         }
       };
+    case "set-column":
+      return { prefix, instruction: { ...instruction, column: rewrite(instruction.column) } };
     case "print-device":
       return { prefix, instruction: { ...instruction, items: instruction.items.map(rewrite) } };
     case "data":
@@ -1450,6 +1457,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "program-mode":
     case "paper":
     case "print":
+    case "set-column":
     case "open-device":
     case "print-device":
     case "close-device":

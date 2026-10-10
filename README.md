@@ -233,7 +233,7 @@ print
 
 `PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40). Placeholder maxima are positive compile-time integers no larger than that width. Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
 
-`SET_POS row, column` sets the cursor without printing visible text or advancing to the next line. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
+`SET_POS row, column` sets both cursor coordinates without printing visible text or advancing to the next line. `SET_COLUMN column` changes only the column while retaining the current row. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
 
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language de --no-tools

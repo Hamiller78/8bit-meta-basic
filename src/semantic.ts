@@ -490,6 +490,15 @@ function analyzeStatements(
             : {})
         });
         break;
+      case "set-column":
+        analyzed.push({
+          ...statement,
+          column: requireNumericExpression(
+            foldExpression(statement.column, constants, inConstantExpression, arrays, functions, scope, structValues),
+            "SET_COLUMN column"
+          )
+        });
+        break;
       case "open-device":
         analyzed.push(statement);
         break;

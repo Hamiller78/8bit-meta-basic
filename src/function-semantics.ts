@@ -609,6 +609,8 @@ export function statementExpressions(statement: Statement): readonly Expression[
         ...(statement.textBindings?.flatMap((binding) => [binding.expression, binding.maxLength]) ?? []),
         ...statement.items
       ];
+    case "set-column":
+      return [statement.column];
     case "print-device":
       return statement.items;
     case "data":

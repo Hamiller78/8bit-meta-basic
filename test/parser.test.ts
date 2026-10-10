@@ -487,6 +487,13 @@ describe("parser", () => {
     expect(() => parseSource('print_at 1,5; "NO"\n', "old-separator.mbas")).toThrow("Expected comma after PRINT_AT column");
   });
 
+  it("parses SET_COLUMN as a column-only cursor move", () => {
+    expect(parseSource("set_column 5 + offset\n", "column.mbas").statements).toMatchObject([
+      { kind: "set-column", column: { kind: "binary", operator: "+" } }
+    ]);
+    expect(() => parseSource("set_column\n", "column.mbas")).toThrow("Missing expression operand");
+  });
+
   it("parses CLS and global/cell colour commands", () => {
     expect(
       parseSource(

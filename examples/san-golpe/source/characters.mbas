@@ -25,6 +25,8 @@ struct Character
     role%
     isAlive%   '0 = dead, 1 = alive
     integrity%  'meaning depends on role, but 0 to 10, where 10 truly believes in their role and 0 is a complete fraud
+    influence%  'weight when somebody sways the President
+    socialism%  'political alignment from 0 authoritarian to 100 socialist
     agenda%     'index in characterAgendas(), or -1 for ordinary duty
 end struct
 

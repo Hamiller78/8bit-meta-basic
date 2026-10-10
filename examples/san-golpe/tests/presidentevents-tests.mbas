@@ -8,88 +8,88 @@ function setupPresidentEvents()
         characters(characterIndex).role% = none
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).integrity% = 5
+        characters(characterIndex).influence% = 1
+        characters(characterIndex).socialism% = 50
     next characterIndex
-    characters(4).role% = president
-    characters(6).role% = advisor
-    characters(7).role% = general
-    characters(6).first$ = "Carlos"
-    characters(6).last$ = "Vega"
-    characters(7).first$ = "Miguel"
-    characters(7).last$ = "Santos"
+    characters(0).role% = president
+    characters(1).role% = daughter
+    characters(2).role% = advisor
+    characters(3).role% = general
+    characters(4).role% = priest
+    characters(5).role% = innkeeper
+    characters(6).role% = landowner
+    characters(2).first$ = "Carlos"
+    characters(2).last$ = "Vega"
     initializePolitics()
     initializePresidentEvents()
 end function
 
-test EventWeightsFollowTheEconomicPosition()
+test InfluenceIsAWeightedCharacterSelection()
     setupPresidentEvents()
-    presidentEconomy% = economyMinimum
-    assert_eq 10, presidentEventWeight(presidentPraisesOfficial)
-    assert_eq 30, presidentEventWeight(presidentCriticizesOfficial)
-    assert_eq 0, presidentEventWeight(presidentReactsToHighCoffee)
-    assert_eq 0, presidentEventWeight(presidentReactsToLowCoffee)
+    characters(1).influence% = 1
+    characters(2).influence% = 3
+    characters(3).influence% = 2
+    characters(4).influence% = 0
+    characters(5).influence% = 0
+    characters(6).influence% = 0
 
-    presidentEconomy% = economyMaximum
-    assert_eq 30, presidentEventWeight(presidentPraisesOfficial)
-    assert_eq 10, presidentEventWeight(presidentCriticizesOfficial)
-
-    worldCoffeePrice% = coffeePriceHigh
-    assert_eq 60, presidentEventWeight(presidentReactsToHighCoffee)
-    worldCoffeePrice% = coffeePriceLow
-    presidentEconomy% = economyMinimum
-    assert_eq 60, presidentEventWeight(presidentReactsToLowCoffee)
+    assert_eq 6, influenceTotalWeight()
+    assert_eq 1, influencerAt(0)
+    assert_eq 2, influencerAt(1)
+    assert_eq 2, influencerAt(3)
+    assert_eq 3, influencerAt(4)
+    assert_eq 3, influencerAt(5)
+    characters(2).isAlive% = 0
+    assert_eq 3, influenceTotalWeight()
 end test
 
-test WeightedSelectionUsesAllEligibleEvents()
+test CombinedSocialismChoosesTheResponse()
     setupPresidentEvents()
-    presidentEconomy% = economyInitial
-    assert_eq 40, presidentEventTotalWeight()
-    assert_eq presidentPraisesOfficial, presidentEventAt(0)
-    assert_eq presidentPraisesOfficial, presidentEventAt(19)
-    assert_eq presidentCriticizesOfficial, presidentEventAt(20)
-    assert_eq presidentCriticizesOfficial, presidentEventAt(39)
-
-    worldCoffeePrice% = coffeePriceHigh
-    assert_eq presidentReactsToHighCoffee, presidentEventAt(presidentEventTotalWeight() - 1)
+    characters(0).socialism% = 50
+    characters(2).socialism% = 16
+    assert_eq responseAuthoritarian, presidentResponseFor(2)
+    characters(2).socialism% = 17
+    assert_eq responseBalanced, presidentResponseFor(2)
+    characters(2).socialism% = 83
+    assert_eq responseBalanced, presidentResponseFor(2)
+    characters(2).socialism% = 84
+    assert_eq responseSocial, presidentResponseFor(2)
 end test
 
-test SpeechEventsChangeTheMentionedOfficial()
+test ResponseMovesThePresidentWithinBounds()
     setupPresidentEvents()
-    characters(6).integrity% = 9
-    characters(7).integrity% = 1
+    characters(1).influence% = 0
+    characters(2).influence% = 1
+    characters(3).influence% = 0
+    characters(4).influence% = 0
+    characters(5).influence% = 0
+    characters(6).influence% = 0
 
-    applyPresidentEvent(presidentPraisesOfficial, 0)
-    assert_eq 6, currentPresidentEventTarget%
-    assert_eq 10, characters(6).integrity%
-    applyPresidentEvent(presidentPraisesOfficial, 0)
-    assert_eq 10, characters(6).integrity%
+    characters(0).socialism% = 98
+    characters(2).socialism% = 100
+    resolveRoundEvent(bananaBlight, 0)
+    assert_eq bananaBlight, currentRoundEvent%
+    assert_eq 2, currentInfluencer%
+    assert_eq responseSocial, currentPresidentResponse%
+    assert_eq politicalMaximum, characters(0).socialism%
 
-    applyPresidentEvent(presidentCriticizesOfficial, 1)
-    assert_eq 7, currentPresidentEventTarget%
-    assert_eq 0, characters(7).integrity%
-    applyPresidentEvent(presidentCriticizesOfficial, 1)
-    assert_eq 0, characters(7).integrity%
+    characters(0).socialism% = 2
+    characters(2).socialism% = 0
+    resolveRoundEvent(dockStrike, 0)
+    assert_eq responseAuthoritarian, currentPresidentResponse%
+    assert_eq politicalMinimum, characters(0).socialism%
 end test
 
-test CoffeeEventsMoveThePresidentWithinBounds()
+test RoundEventTextShowsInfluenceAndResponse()
     setupPresidentEvents()
-    presidentEconomy% = 98
-    applyPresidentEvent(presidentReactsToHighCoffee, 0)
-    assert_eq economyMaximum, presidentEconomy%
-    presidentEconomy% = 2
-    applyPresidentEvent(presidentReactsToLowCoffee, 0)
-    assert_eq economyMinimum, presidentEconomy%
+    characters(1).influence% = 0
+    characters(2).influence% = 1
+    characters(3).influence% = 0
+    characters(4).influence% = 0
+    characters(5).influence% = 0
+    characters(6).influence% = 0
 
-    worldCoffeePrice% = 95
-    updateWorldCoffeePrice(10)
-    assert_eq coffeePriceMaximum, worldCoffeePrice%
-    worldCoffeePrice% = 5
-    updateWorldCoffeePrice(-10)
-    assert_eq coffeePriceMinimum, worldCoffeePrice%
-end test
-
-test PresidentEventTextUsesTheSelectedResult()
-    setupPresidentEvents()
-    applyPresidentEvent(presidentPraisesOfficial, 0)
+    resolveRoundEvent(coffeePriceCollapse, 0)
     printPresidentEvent()
-    assert_print "In a speech, the President praises Carlos Vega."
+    assert_print "BALANCED"
 end test

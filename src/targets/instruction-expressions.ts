@@ -5,6 +5,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
   switch (instruction.kind) {
     case "print":
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
+    case "set-column":
+      return [instruction.column];
     case "print-device":
       return instruction.items;
     case "data":
@@ -72,6 +74,8 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
         items: instruction.items.map(map),
         ...(instruction.at ? { at: { row: map(instruction.at.row), column: map(instruction.at.column) } } : {})
       };
+    case "set-column":
+      return { ...instruction, column: map(instruction.column) };
     case "print-device":
       return { ...instruction, items: instruction.items.map(map) };
     case "data":

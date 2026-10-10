@@ -33,7 +33,7 @@ function showOverview(turnNumber)
     innkeeperIndex = findRole(innkeeper)
     landownerIndex = findRole(landowner)
 
-    printOverviewCharacterAt(presidentIndex, 3, middleColumn)
+    printOverviewCharacterBox(presidentIndex, 3, middleColumn)
     set_pos 7, int(TEXT_COLUMNS / 2)
     print "+";
     set_pos 8, 1
@@ -42,15 +42,15 @@ function showOverview(turnNumber)
     else
         print_centered "+----------+----------+"
     end if
-    printOverviewCharacterAt(generalIndex, 9, leftColumn)
-    printOverviewCharacterAt(daughterIndex, 9, middleColumn)
-    printOverviewCharacterAt(advisorIndex, 9, rightColumn)
+    printOverviewCharacterBox(generalIndex, 9, leftColumn)
+    printOverviewCharacterBox(daughterIndex, 9, middleColumn)
+    printOverviewCharacterBox(advisorIndex, 9, rightColumn)
 
     set_pos 13, 1
     print_centered text$("overviewOtherFigures")
-    printOverviewCharacterAt(priestIndex, 14, leftColumn)
-    printOverviewCharacterAt(innkeeperIndex, 14, middleColumn)
-    printOverviewCharacterAt(landownerIndex, 14, rightColumn)
+    printOverviewCharacterBox(priestIndex, 14, leftColumn)
+    printOverviewCharacterBox(innkeeperIndex, 14, middleColumn)
+    printOverviewCharacterBox(landownerIndex, 14, rightColumn)
 
     set_pos 18, 1
     print "USA "; numberOfUsaActions; " USSR "; numberOfUssrActions;
@@ -58,14 +58,17 @@ function showOverview(turnNumber)
     print "RAM"; int(free_memory() / 1024); "K";
 end function
 
-function printOverviewCharacterAt(characterIndex, firstRow, firstColumn)
+function printOverviewCharacterBox(characterIndex, firstRow, firstColumn)
     set_pos firstRow, firstColumn
     printOverviewName(characterIndex)
-    set_pos firstRow + 1, firstColumn
+    print
+    set_column firstColumn
     printOverviewRole(characterIndex)
-    set_pos firstRow + 2, firstColumn
+    print
+    set_column firstColumn
     printOverviewAgenda(characterIndex)
-    set_pos firstRow + 3, firstColumn
+    print
+    set_column firstColumn
     printOverviewStatus(characterIndex)
 end function
 
@@ -195,7 +198,7 @@ function printUsaActionReports()
             if reportValue = reportPoliticalInsight then
                 printKnownFirstName(usaReportTargets%(actionIndex))
                 print ": "; text$("reportPresidentThinking"); " ";
-                printEconomicPosition(usaActionValues%(actionIndex))
+                printPoliticalAlignment(usaActionValues%(actionIndex))
             end if
             targetIndex = usaReportTargets%(actionIndex)
             if targetIndex >= 0 and reportValue <> reportDealFailed and reportValue <> reportPoliticalInsight then
@@ -561,21 +564,21 @@ function printMissionName(missionValue)
     end if
 end function
 
-function printEconomicPosition(positionValue)
-    if positionValue = stronglySocialist then
-        print text$("economyStronglySocialist");
+function printPoliticalAlignment(positionValue)
+    if positionValue = stronglyAuthoritarian then
+        print text$("alignmentStronglyAuthoritarian");
+    end if
+    if positionValue = authoritarianLeaning then
+        print text$("alignmentAuthoritarianLeaning");
+    end if
+    if positionValue = politicalMiddle then
+        print text$("alignmentMiddle");
     end if
     if positionValue = socialistLeaning then
-        print text$("economySocialistLeaning");
+        print text$("alignmentSocialistLeaning");
     end if
-    if positionValue = economicMiddle then
-        print text$("economyMiddle");
-    end if
-    if positionValue = freeMarketLeaning then
-        print text$("economyFreeMarketLeaning");
-    end if
-    if positionValue = stronglyFreeMarket then
-        print text$("economyStronglyFreeMarket");
+    if positionValue = stronglySocialist then
+        print text$("alignmentStronglySocialist");
     end if
 end function
 

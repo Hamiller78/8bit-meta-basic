@@ -399,7 +399,7 @@ function resolveInvestigationRoll(actionIndex, characterIndex, roll)
         end if
         if characters(characterIndex).role% = president then
             contactIndex = firstContactFor(characterIndex)
-            reportedBand = reportedPresidentEconomyBand(contactIndex, roll MOD 10, int(roll / 10))
+            reportedBand = reportedPresidentAlignmentBand(contactIndex, roll MOD 10, int(roll / 10))
             usaReports%(actionIndex) = reportPoliticalInsight
             usaReportTargets%(actionIndex) = contactIndex
             usaActionValues%(actionIndex) = reportedBand

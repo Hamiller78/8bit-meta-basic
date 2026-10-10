@@ -37,6 +37,10 @@ test CharacterAttributesHaveSafeDefaults()
     assert_eq none, characters(characterIndex).role%
     assert_true characters(characterIndex).integrity% >= 0
     assert_true characters(characterIndex).integrity% <= 10
+    assert_true characters(characterIndex).influence% >= 1
+    assert_true characters(characterIndex).influence% <= 10
+    assert_true characters(characterIndex).socialism% >= 0
+    assert_true characters(characterIndex).socialism% <= 100
     assert_eq -1, characters(characterIndex).agenda%
 end test
 
@@ -60,6 +64,10 @@ test AllCharacterRolesAreCreated()
     for characterIndex = 0 to createdCharacterCount - 1
         assert_true characters(characterIndex).integrity% >= 0
         assert_true characters(characterIndex).integrity% <= 10
+        assert_true characters(characterIndex).influence% >= 1
+        assert_true characters(characterIndex).influence% <= 10
+        assert_true characters(characterIndex).socialism% >= 0
+        assert_true characters(characterIndex).socialism% <= 100
     next characterIndex
 
     assert_true characterAgendaCount% <= maximumCharacterAgendas

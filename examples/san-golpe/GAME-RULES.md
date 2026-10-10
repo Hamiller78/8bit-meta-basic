@@ -39,7 +39,7 @@ Characters use the San Golpe male first-name pool, except the daughter, who uses
 
 New characters are alive, have integrity from 0 through 10, and initially follow `doDuty`. `doDuty` is represented by the absence of an agenda record and consumes no agenda slot. After the full cast is created, each character has a 75% chance to remain on duty; `usurpRole`, `findLove`, and `secretSpy` each have an equal share of the remaining 25%. At most three characters can receive a non-default agenda. Once those three sparse slots are occupied, remaining characters stay on duty. Usurpation and love choose another character as their target. The spy agenda has no target yet.
 
-`Character` contains the character's name, role, living state, integrity, and one agenda-slot index. An index of `-1` means ordinary duty and no agenda record. A separate `CharacterAgenda` record contains the agenda kind, optional target, money, and weapons. Only three non-default agenda records are allocated; there is no seven-entry parallel agenda array. Agenda access follows the slot index directly rather than scanning. Money and weapons exist only as resources for a non-default agenda.
+`Character` contains the character's name, role, living state, integrity, influence, socialist alignment, and one agenda-slot index. An index of `-1` means ordinary duty and no agenda record. A separate `CharacterAgenda` record contains the agenda kind, optional target, money, and weapons. Only three non-default agenda records are allocated; there is no seven-entry parallel agenda array. Agenda access follows the slot index directly rather than scanning. Money and weapons exist only as resources for a non-default agenda.
 
 The sparse pool is defined in `source/characters.mbas`. Assignment is implemented by `assignSecretAgendas()` and `chooseAgendaTarget()` in `source/characterfactory.mbas`.
 
@@ -65,7 +65,7 @@ Each character entry has four rows: name, role, agenda, and player status. The i
 
 The top row retains compact keys for the two USA action slots, known-character directory, and ending the turn, together with turn and budget. Row 18 shows the two actions available to each power and the target's currently free BASIC memory as a whole-KiB `RAM nK` value. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
 
-This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
+This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. `printOverviewCharacterBox()` writes each four-row character entry after one full cursor position, using `SET_COLUMN` to return to the entry's first column after each newline. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
 
 ## USA action: Observe Location
 
@@ -168,7 +168,7 @@ Contacts are stored in one `contacts%()` array with one shared `contactCount%`; 
 
 ### Supporting implementation
 
-At the start of each turn, the current program updates the world coffee price, selects and applies one President event, resolves both USA action slots, and processes NPC actions. It then shows the NPC events, President event, and USA action reports before opening the main view. The player can inspect people, change either USA action, or end the turn. Results from newly assigned actions appear at the start of the following turn. USSR action resolution is still pending design.
+At the start of each turn, the current program selects a world event, chooses the character who influences the President, resolves the President's response, resolves both USA action slots, and processes NPC actions. It then shows the NPC events, the palace-balcony announcement, and USA action reports before opening the main view. The player can inspect people, change either USA action, or end the turn. Results from newly assigned actions appear at the start of the following turn. USSR action resolution is still pending design.
 
 Keys without an assigned main-view action, including Enter, are ignored and simply redraw the overview.
 
@@ -178,28 +178,21 @@ This loop is implemented in `source/main.mbas`; menus and report rendering are i
 
 ### Confirmed rules
 
-At the start of every turn, the President performs one randomly selected event. Event probabilities depend on the President's socialism value, so the political direction of the President changes which events are more likely rather than merely changing their presentation.
+At the start of every round, one random world event occurs. Events may be historically inspired or use banana-republic humor.
 
-Every event has player-facing text. An event may change the President's own statistics, the statistics of one or more other characters, or both. Event selection, presentation, and effects are separate concerns: selecting an event determines what happened, the text reports it, and the effect logic applies its state changes.
+The President chooses one of three responses: more social, balanced, or authoritarian. He announces the event, the character who influenced him, and his response from the palace balcony.
+
+Every living character except the President has an influence value and a socialist-alignment value. One character is selected randomly with their influence as the weight. The selected character's socialist value is added to the President's value to choose the response. Seeing who influenced the decision and which response resulted gives the player indirect clues about both that character's influence and political alignment.
 
 ### Current implementation
 
-The existing `presidentEconomy%` scale is retained: `0` is socialist and `100` is free market. The first President event occurs on turn 1. `source/presidentevents.mbas` keeps selection, effects, and presentation separate and provides deterministic entry points for tests.
+`Character.influence%` and `Character.socialism%` are currently initialized from `1–10` and `0–100`, respectively. The President starts at `50` socialism and is excluded from the influence draw. Dead characters and characters with zero influence have zero selection weight.
 
-The world coffee price is currently a hidden index from `0` to `100`, initially `50`. At the start of each turn it moves by a uniformly random amount from `-10` through `+10` and is clamped to its range. Prices at or below `25` are exceptionally low; prices at or above `75` are exceptionally high.
+The response formula adds the President's and influencer's socialism values, producing `0–200`: below `67` is authoritarian, `67–133` is balanced, and `134+` is more social. A social response currently moves the President `+5` toward socialism; an authoritarian response moves him `-5`; balanced leaves him unchanged. Values are clamped to `0–100`.
 
-The initial example event table is:
+The initial equally likely event table contains a coffee-price collapse, a coffee-price boom, banana blight, a dock strike, a foreign plantation concession request, and the army misplacing a parade cannon. These event choices, equal probabilities, response thresholds, and the `5`-point response movement are balancing placeholders. The event/influencer/response structure is confirmed.
 
-| Event | Weight | Effect |
-| --- | --- | --- |
-| Praise Advisor or General | `10 + economy / 5` | Mentioned character integrity `+1` |
-| Criticize Advisor or General | `10 + (100 - economy) / 5` | Mentioned character integrity `-1` |
-| React to high coffee price | Eligible at price `75+`; weight `10 + economy / 2` | President economy `+5` toward free market |
-| React to low coffee price | Eligible at price `25-`; weight `10 + (100 - economy) / 2` | President economy `-5` toward socialism |
-
-Weights use integer division. Integrity is clamped to `0–10`; the President's economy and coffee price are clamped to `0–100`. Advisor and General are selected with equal probability when both are alive. Each event has localized English and German text.
-
-The precise weights, thresholds, coffee movement, and stat changes are balancing placeholders. The event-system structure and its dependence on the retained economy scale are confirmed.
+`source/presidentevents.mbas` implements the system with shared formulas rather than event-specific political branches. `influenceTotalWeight()` and `influencerAt()` perform the weighted selection, `presidentResponseFor()` applies the combined-alignment formula, and `resolveRoundEvent()` stores the announcement and response.
 
 ## Placeholder mechanics
 
@@ -231,7 +224,7 @@ Implementation: `setUsaDeal()`, `dealOutcomeFor()`, and `resolveDealRoll()` in `
 
 ### Presidential politics
 
-The President has a hidden economic value from 0, socialist, to 100, free market. It starts at 50 and is clamped to that range. Reports translate it into one of five qualitative bands rather than revealing the number.
+The President has the same hidden political-alignment value as other characters: 0 is strongly authoritarian and 100 is strongly socialist. It starts at 50 and is clamped to that range. Reports translate it into one of five qualitative bands rather than revealing the number.
 
 For a Presidential report, only a living General, Advisor, or President's daughter can provide information. A reliable contact reports the correct band. A failed integrity roll moves the report one neighboring band in a random direction. Other targets use the Priest and Innkeeper integrity-based vicinity rules above.
 
@@ -250,7 +243,7 @@ Focused configurations keep generated emulator test programs small:
 - `characterfactory-test.metabasic.json` covers character and name generation.
 - `agentoperations-test.metabasic.json` covers observation and the placeholder USA action mechanics.
 - `mainscreen-test.metabasic.json` covers the fixed main-view layout, width-dependent names, compact knowledge state, two independent USA action slots, and the known-character directory.
-- `presidentevents-test.metabasic.json` covers event weighting, selection, effects, bounds, and text output.
+- `presidentevents-test.metabasic.json` covers weighted influencer selection, response thresholds, effects, bounds, and announcement output.
 
 When a confirmed rule changes, update its implementation, its focused tests, and this document together.
 
@@ -259,8 +252,8 @@ When a confirmed rule changes, update its implementation, its focused tests, and
 The following ideas are intentionally not confirmed rules or placeholder mechanics yet. They should be designed as one connected political and economic loop before implementation:
 
 - which additional President events exist and what each one changes;
-- how the coffee price changes and influences the President's event probabilities or effects;
-- how the coffee price influences the Landowner;
+- whether world events later change persistent economic state in addition to provoking a response;
+- how coffee-related events influence the Landowner;
 - what actions the Landowner takes;
 - when the player should seek to replace the President;
 - when the player should protect the President instead;

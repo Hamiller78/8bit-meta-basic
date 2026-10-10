@@ -48,6 +48,7 @@ export const keywords = new Set([
   "PRINT_TEXT",
   "PRINT_CENTERED",
   "SET_POS",
+  "SET_COLUMN",
   "PRINT_DEVICE",
   "OPEN_DEVICE",
   "READ",
