@@ -3,10 +3,13 @@ uses "intelligence.mbas"
 uses "agentoperations.mbas"
 uses "politics.mbas"
 
+const overviewCharacterCount = numberOfCharacters - 1
+
+overviewPage% = 0
+
 function showOverview(turnNumber)
-    local presidentIndex, generalIndex, daughterIndex, advisorIndex
-    local priestIndex, innkeeperIndex, landownerIndex
-    local leftColumn, middleColumn, rightColumn
+    local presidentIndex, boxesPerPage, pageCount, pageStart, boxesOnPage
+    local boxIndex, characterPosition, characterIndex, characterColumn
 
     cls
     set_pos 1, 1
@@ -15,47 +18,89 @@ function showOverview(turnNumber)
     set_pos 2, 1
     print_centered text$("overviewGovernment")
 
-    if TEXT_COLUMNS >= 40 then
-        leftColumn = 1
-        middleColumn = 15
-        rightColumn = 29
-    else
-        leftColumn = 1
-        middleColumn = 12
-        rightColumn = 23
-    end if
-
     presidentIndex = findRole(president)
-    generalIndex = findRole(general)
-    daughterIndex = findRole(daughter)
-    advisorIndex = findRole(advisor)
-    priestIndex = findRole(priest)
-    innkeeperIndex = findRole(innkeeper)
-    landownerIndex = findRole(landowner)
+    printOverviewCharacterBox(presidentIndex, 4, overviewPresidentColumn())
 
-    printOverviewCharacterBox(presidentIndex, 3, middleColumn)
-    set_pos 7, int(TEXT_COLUMNS / 2)
-    print "+";
-    set_pos 8, 1
-    if TEXT_COLUMNS >= 40 then
-        print_centered "+------------+------------+"
-    else
-        print_centered "+----------+----------+"
+    boxesPerPage = overviewBoxesPerPage()
+    pageCount = overviewPageCount()
+    if overviewPage% >= pageCount then
+        overviewPage% = 0
     end if
-    printOverviewCharacterBox(generalIndex, 9, leftColumn)
-    printOverviewCharacterBox(daughterIndex, 9, middleColumn)
-    printOverviewCharacterBox(advisorIndex, 9, rightColumn)
+    set_pos 9, 1
+    print "<";
+    set_column 1
+    print_centered text$("overviewPage"); current = overviewPage% + 1, 2; total = pageCount, 2
+    set_pos 9, TEXT_COLUMNS
+    print ">";
 
-    set_pos 13, 1
-    print_centered text$("overviewOtherFigures")
-    printOverviewCharacterBox(priestIndex, 14, leftColumn)
-    printOverviewCharacterBox(innkeeperIndex, 14, middleColumn)
-    printOverviewCharacterBox(landownerIndex, 14, rightColumn)
+    pageStart = overviewPage% * boxesPerPage
+    boxesOnPage = boxesPerPage
+    if pageStart + boxesOnPage > overviewCharacterCount then
+        boxesOnPage = overviewCharacterCount - pageStart
+    end if
+    for boxIndex = 0 to boxesOnPage - 1
+        characterPosition = pageStart + boxIndex
+        characterIndex = findRole(overviewCharacterRoleAt(characterPosition))
+        characterColumn = overviewBoxColumn(boxIndex, boxesOnPage)
+        printOverviewCharacterBox(characterIndex, 11, characterColumn)
+    next boxIndex
 
     set_pos 18, 1
     print "USA "; numberOfUsaActions; " USSR "; numberOfUssrActions;
     set_pos 18, TEXT_COLUMNS - 8
     print "RAM"; int(free_memory() / 1024); "K";
+end function
+
+function overviewBoxWidth()
+    if TEXT_COLUMNS >= 40 then
+        return 12
+    end if
+    return 10
+end function
+
+function overviewBoxesPerPage()
+    local boxesPerPage
+    boxesPerPage = int((TEXT_COLUMNS + 1) / (overviewBoxWidth() + 1))
+    if boxesPerPage < 1 then
+        boxesPerPage = 1
+    end if
+    if boxesPerPage > overviewCharacterCount then
+        boxesPerPage = overviewCharacterCount
+    end if
+    return boxesPerPage
+end function
+
+function overviewPageCount()
+    return int((overviewCharacterCount + overviewBoxesPerPage() - 1) / overviewBoxesPerPage())
+end function
+
+function overviewPresidentColumn()
+    return int((TEXT_COLUMNS - overviewBoxWidth()) / 2) + 1
+end function
+
+function overviewBoxColumn(boxIndex, boxesOnPage)
+    local boxWidth, gapWidth, usedWidth, firstColumn
+    boxWidth = overviewBoxWidth()
+    gapWidth = 0
+    if boxesOnPage > 1 then
+        gapWidth = int((TEXT_COLUMNS - boxesOnPage * boxWidth) / (boxesOnPage - 1))
+    end if
+    usedWidth = boxesOnPage * boxWidth + (boxesOnPage - 1) * gapWidth
+    firstColumn = int((TEXT_COLUMNS - usedWidth) / 2) + 1
+    return firstColumn + boxIndex * (boxWidth + gapWidth)
+end function
+
+function overviewCharacterRoleAt(characterPosition)
+    if characterPosition = 0 then
+        return general
+    end if
+    if characterPosition = 1 then
+        return daughter
+    end if
+    if characterPosition = 2 then
+        return advisor
+    end if
+    return characterPosition + 2
 end function
 
 function printOverviewCharacterBox(characterIndex, firstRow, firstColumn)
@@ -218,6 +263,18 @@ function handleOverviewInput()
 end function
 
 function handleOverviewChoice(choice)
+    if choice = GAME_LEFT then
+        overviewPage% = overviewPage% - 1
+        if overviewPage% < 0 then
+            overviewPage% = overviewPageCount() - 1
+        end if
+    end if
+    if choice = GAME_RIGHT then
+        overviewPage% = overviewPage% + 1
+        if overviewPage% >= overviewPageCount() then
+            overviewPage% = 0
+        end if
+    end if
     if choice = KEY_1 then
         showUsaActionMenu(0)
     end if

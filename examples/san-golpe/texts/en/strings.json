@@ -45,6 +45,7 @@
   "overviewPeopleKey": "P",
   "overviewEndKey": "E",
   "overviewGovernment": "GOVERNMENT",
+  "overviewPage": "{current}/{total}",
   "overviewOtherFigures": "OTHER FIGURES",
   "overviewUnknownShort": "UNKNOWN",
   "overviewRolePresident": "PRESIDENT",

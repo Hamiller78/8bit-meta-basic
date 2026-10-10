@@ -46,6 +46,38 @@ test OverviewUsesTheSevenCharacterCast()
     assert_eq 7, numberOfCharacters
 end test
 
+test OverviewPagesCharactersForTheScreenWidth()
+    setupMainScreenCast()
+
+    assert_eq int((TEXT_COLUMNS - overviewBoxWidth()) / 2) + 1, overviewPresidentColumn()
+    assert_eq int((TEXT_COLUMNS + 1) / (overviewBoxWidth() + 1)), overviewBoxesPerPage()
+    assert_eq int((overviewCharacterCount + overviewBoxesPerPage() - 1) / overviewBoxesPerPage()), overviewPageCount()
+    assert_eq general, overviewCharacterRoleAt(0)
+    assert_eq advisor, overviewCharacterRoleAt(2)
+    assert_eq priest, overviewCharacterRoleAt(3)
+    assert_eq landowner, overviewCharacterRoleAt(5)
+
+    assert_true overviewBoxColumn(0, overviewBoxesPerPage()) >= 1
+    assert_true overviewBoxColumn(overviewBoxesPerPage() - 1, overviewBoxesPerPage()) + overviewBoxWidth() - 1 <= TEXT_COLUMNS
+    if overviewBoxesPerPage() > 1 then
+        assert_true overviewBoxColumn(1, overviewBoxesPerPage()) >= overviewBoxColumn(0, overviewBoxesPerPage()) + overviewBoxWidth()
+    end if
+end test
+
+test OverviewPagesWrapWithLeftAndRight()
+    overviewPage% = 0
+    assert_eq 0, handleOverviewChoice(GAME_LEFT)
+    assert_eq overviewPageCount() - 1, overviewPage%
+    assert_eq 0, handleOverviewChoice(GAME_RIGHT)
+    assert_eq 0, overviewPage%
+    assert_eq 0, handleOverviewChoice(GAME_RIGHT)
+    if overviewPageCount() > 1 then
+        assert_eq 1, overviewPage%
+    else
+        assert_eq 0, overviewPage%
+    end if
+end test
+
 test OverviewUsesNamesAppropriateToScreenWidth()
     setupMainScreenCast()
     initializeIntelligence()
