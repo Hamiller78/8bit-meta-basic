@@ -252,7 +252,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | --- | --- | --- |
 | `string$(text$, count)` | Compile time | Repeat a string |
 | `space$(count)` | Compile time | Produce spaces |
-| `text$("key")` | Compile time | Resolve a selected-language resource for output |
+| `text$("key")` | Compile time | Resolve a selected-language resource in output or a string constant |
 | `mid$(text$, start, length)` | Runtime | Extract a string section |
 | `mid$(text$, start)` | Runtime | Extract from a position through the end of the string |
 | `left$(text$, length)` | Compile time for literal arguments; otherwise runtime | Extract the left part of a string |
@@ -509,7 +509,7 @@ Each language directory may contain a `strings.json` object for short texts:
 }
 ```
 
-Use one UTF-8 `.txt` file per long text when editing paragraphs is more convenient. Its filename stem becomes the resource key, so `intro.txt` provides `intro`. `PRINT_TEXT "intro"` resolves a resource and wraps it directly. The compile-time expression `TEXT$("continue")` resolves a resource for other output forms, such as `PRINT_CENTERED TEXT$("continue")` or `PRINT TEXT$("continue")`. Both resource forms use the same lookup. Keys are case-sensitive and must be written as string literals. Defining the same key in `strings.json` and a `.txt` file is an error.
+Use one UTF-8 `.txt` file per long text when editing paragraphs is more convenient. Its filename stem becomes the resource key, so `intro.txt` provides `intro`. `PRINT_TEXT "intro"` resolves a resource and wraps it directly. The compile-time expression `TEXT$("continue")` resolves a resource for other output forms, such as `PRINT_CENTERED TEXT$("continue")`, `PRINT TEXT$("continue")`, or `CONST continueText$ = TEXT$("continue")`. Both resource forms use the same lookup. Keys are case-sensitive and must be written as string literals. Defining the same key in `strings.json` and a `.txt` file is an error.
 
 Localized resources used by `PRINT_TEXT` or `PRINT_CENTERED` may contain named placeholders:
 

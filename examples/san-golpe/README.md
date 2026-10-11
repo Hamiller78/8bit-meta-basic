@@ -4,7 +4,7 @@ The fictional intro is stored in `texts/en/intro.txt` and `texts/de/intro.txt`. 
 
 Game design, confirmed rules, placeholder mechanics, and their implementation are documented in [GAME-RULES.md](GAME-RULES.md). Keep that document synchronized with rule and gameplay-code changes.
 
-The cast is limited to seven named San Golpe figures. USA and USSR operatives are not characters; each power instead has two actions per turn. The current interface implements the two USA action slots, while USSR action types and resolution remain pending design. The English and Russian character-name pools and the US tourist have been removed.
+The cast is limited to seven named San Golpe figures. Character names and roles are strings; there is no numeric role enum. Each role supplies inclusive creation ranges for influence and political alignment, so the General is consistently influential while the Daughter's and Priest's influence can vary across the full scale. USA and USSR operatives are not characters; each power instead has two actions per turn. The current interface implements the two USA action slots, while USSR action types and resolution remain pending design. The English and Russian character-name pools and the US tourist have been removed.
 
 Each round begins with a random world event. A living non-President character is selected using influence as a random weight; that character's socialist alignment is combined with the President's to produce a social, balanced, or authoritarian response announced from the palace balcony. The announcement names the influencer, giving the player indirect evidence about hidden influence and political alignment.
 

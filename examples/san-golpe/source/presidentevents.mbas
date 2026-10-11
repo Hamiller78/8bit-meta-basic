@@ -33,7 +33,7 @@ function influenceWeight(characterIndex)
     if characterIndex < 0 or characterIndex >= numberOfCharacters then
         return 0
     end if
-    if characters(characterIndex).role% = president or characters(characterIndex).isAlive% = 0 then
+    if characterIndex = presidentCharacter or characters(characterIndex).isAlive% = 0 then
         return 0
     end if
     if characters(characterIndex).influence% < 0 then
@@ -65,14 +65,10 @@ end function
 
 'The two political values are added directly. The possible sum is 0..200.
 function presidentResponseFor(influencerIndex)
-    local presidentIndex, combinedSocialism
-    presidentIndex = findRole(president)
-    if presidentIndex < 0 then
-        return responseBalanced
-    end if
-    combinedSocialism = characters(presidentIndex).socialism% * 2
+    local combinedSocialism
+    combinedSocialism = characters(presidentCharacter).socialism% * 2
     if influencerIndex >= 0 and influencerIndex < numberOfCharacters then
-        combinedSocialism = characters(presidentIndex).socialism% + characters(influencerIndex).socialism%
+        combinedSocialism = characters(presidentCharacter).socialism% + characters(influencerIndex).socialism%
     end if
     if combinedSocialism < 67 then
         return responseAuthoritarian

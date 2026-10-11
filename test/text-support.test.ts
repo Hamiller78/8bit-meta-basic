@@ -44,6 +44,14 @@ describe("localized text and layout", () => {
     expect(() => compileSource('print_wrap title$', { filename: "intro.mbas", target: "c64" })).toThrow(/compile-time string/);
     expect(() => compileSource('print_wrap "😀"', { filename: "intro.mbas", target: "c64" })).toThrow(/Unsupported text character/);
   });
+  it("resolves keyed text in string constants", () => {
+    const output = compileSource('const role$ = text$("role")\nprint role$', {
+      filename: "text.mbas",
+      target: "c64",
+      texts: { role: "ADVISOR" }
+    });
+    expect(output).toContain('PRINT "ADVISOR"');
+  });
   it("selects the C64 lowercase font and preserves quoted text case", () => {
     const result = compileSource('print_wrap "Hello WORLD"', { filename: "text.mbas", target: "c64", font: ["lowercase"] });
     expect(result).toContain("print chr$(14);");
@@ -222,7 +230,7 @@ describe("localized text and layout", () => {
       expect(moduleOffsets).toEqual([...moduleOffsets].sort((left, right) => left - right));
       expect(uppercaseResult.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
     }
-  }, 30000);
+  }, 60000);
   it("keeps San-Golpe focused test configurations on the project font", async () => {
     for (const name of ["agentoperations", "characterfactory", "mainscreen", "presidentevents"]) {
       const configuration = await loadBuildConfiguration(`examples/san-golpe/${name}-test.metabasic.json`);

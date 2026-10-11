@@ -142,28 +142,26 @@ end function
 
 'Common characters carry weight 3 and rare characters weight 1.
 function observationWeight(characterIndex, locationValue)
-    local roleValue
     if characterIndex < 0 or characterIndex >= numberOfCharacters then
         return 0
     end if
     if characters(characterIndex).isAlive% = 0 or playerIntel%(characterIndex) >= intelName then
         return 0
     end if
-    roleValue = characters(characterIndex).role%
-    if roleValue = president then
+    if characterIndex = presidentCharacter then
         return 0
     end if
     if locationValue = palaceLocation then
-        if roleValue = general or roleValue = advisor then
+        if characterIndex = generalCharacter or characterIndex = advisorCharacter then
             return 3
         end if
-        if roleValue = daughter or roleValue = landowner then
+        if characterIndex = daughterCharacter or characterIndex = landownerCharacter then
             return 1
         end if
         return 0
     end if
     if locationValue = churchLocation then
-        if roleValue = priest then
+        if characterIndex = priestCharacter then
             return 3
         end if
         if characters(characterIndex).integrity% > 3 then
@@ -172,7 +170,7 @@ function observationWeight(characterIndex, locationValue)
         return 0
     end if
     if locationValue = pubLocation then
-        if roleValue = innkeeper then
+        if characterIndex = innkeeperCharacter then
             return 3
         end if
         if characters(characterIndex).integrity% < 9 then
@@ -397,7 +395,7 @@ function resolveInvestigationRoll(actionIndex, characterIndex, roll)
         if playerIntel%(characterIndex) >= intelAgenda then
             setUsaIdle(actionIndex)
         end if
-        if characters(characterIndex).role% = president then
+        if characterIndex = presidentCharacter then
             contactIndex = firstContactFor(characterIndex)
             reportedBand = reportedPresidentAlignmentBand(contactIndex, roll MOD 10, int(roll / 10))
             usaReports%(actionIndex) = reportPoliticalInsight

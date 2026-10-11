@@ -28,8 +28,8 @@ function readCharacterName$(nameOffset, nameIndex)
     return name$
 end function
 
-function availableFirstNames(characterRole)
-    if characterRole = daughter then
+function availableFirstNames(usesDaughterNames)
+    if usesDaughterNames then
         return daughterFirstNamesRemaining
     end if
     return spanishMaleNamesRemaining
@@ -39,14 +39,14 @@ function availableLastNames()
     return spanishLastNamesRemaining
 end function
 
-function takeFirstName$(characterRole)
+function takeFirstName$(usesDaughterNames)
     local selectedName$
 
-    if availableFirstNames(characterRole) = 0 then
+    if availableFirstNames(usesDaughterNames) = 0 then
         return ""
     end if
 
-    if characterRole = daughter then
+    if usesDaughterNames then
         selectedName$ = readCharacterName$(daughterFirstNameOffset, daughterFirstNameIndex)
         daughterFirstNameIndex = daughterFirstNameIndex + 1
         if daughterFirstNameIndex = daughterFirstNames then

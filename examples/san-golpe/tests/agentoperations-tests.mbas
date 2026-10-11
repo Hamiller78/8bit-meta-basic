@@ -7,20 +7,20 @@ function setupOperations()
     local characterIndex
     characterAgendaCount% = 0
     for characterIndex = 0 to numberOfCharacters - 1
-        characters(characterIndex).role% = none
+        characters(characterIndex).role$ = noRole$
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).integrity% = 5
         characters(characterIndex).influence% = 1
         characters(characterIndex).socialism% = 50
         characters(characterIndex).agenda% = -1
     next characterIndex
-    characters(0).role% = president
-    characters(1).role% = daughter
-    characters(2).role% = advisor
-    characters(3).role% = general
-    characters(4).role% = priest
-    characters(5).role% = innkeeper
-    characters(6).role% = landowner
+    characters(0).role$ = presidentRole$
+    characters(1).role$ = daughterRole$
+    characters(2).role$ = advisorRole$
+    characters(3).role$ = generalRole$
+    characters(4).role$ = priestRole$
+    characters(5).role$ = innkeeperRole$
+    characters(6).role$ = landownerRole$
     initializeIntelligence()
     initializePolitics()
     initializeUsaActions()
@@ -34,10 +34,10 @@ end function
 test PresidentAlignmentIsHiddenBehindQualitativeReports()
     local presidentIndex, advisorIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    advisorIndex = findRole(advisor)
+    presidentIndex = presidentCharacter
+    advisorIndex = advisorCharacter
 
-    assert_eq presidentSocialismInitial, characters(presidentIndex).socialism%
+    assert_eq 50, characters(presidentIndex).socialism%
     adjustPresidentSocialism(-80)
     assert_eq politicalMinimum, characters(presidentIndex).socialism%
     adjustPresidentSocialism(140)
@@ -55,12 +55,12 @@ end test
 test CharacterVicinityControlsKnowledge()
     local presidentIndex, advisorIndex, daughterIndex, generalIndex, priestIndex, innkeeperIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    advisorIndex = findRole(advisor)
-    daughterIndex = findRole(daughter)
-    generalIndex = findRole(general)
-    priestIndex = findRole(priest)
-    innkeeperIndex = findRole(innkeeper)
+    presidentIndex = presidentCharacter
+    advisorIndex = advisorCharacter
+    daughterIndex = daughterCharacter
+    generalIndex = generalCharacter
+    priestIndex = priestCharacter
+    innkeeperIndex = innkeeperCharacter
 
     assert_eq 1, canCharacterKnowAbout(advisorIndex, presidentIndex)
     assert_eq 0, canCharacterKnowAbout(0, presidentIndex)
@@ -77,8 +77,8 @@ end test
 test PresidentInvestigationUsesAnInsiderReport()
     local presidentIndex, advisorIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    advisorIndex = findRole(advisor)
+    presidentIndex = presidentCharacter
+    advisorIndex = advisorCharacter
 
     addTestContact(advisorIndex)
     revealCharacter(presidentIndex, intelObserved)
@@ -93,9 +93,9 @@ end test
 test OnlyANearbyContactOpensThePresident()
     local presidentIndex, advisorIndex, innkeeperIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    advisorIndex = findRole(advisor)
-    innkeeperIndex = findRole(innkeeper)
+    presidentIndex = presidentCharacter
+    advisorIndex = advisorCharacter
+    innkeeperIndex = innkeeperCharacter
 
     revealCharacter(presidentIndex, intelObserved)
     assert_eq 1, canApproach(presidentIndex)
@@ -113,7 +113,7 @@ end test
 test CharacterObservationUnlocksSharedContact()
     local advisorIndex
     setupOperations()
-    advisorIndex = findRole(advisor)
+    advisorIndex = advisorCharacter
 
     revealCharacter(advisorIndex, intelName)
     assert_eq 0, addContact(advisorIndex)
@@ -135,13 +135,13 @@ end test
 test ObservationRulesUseThreeToOneWeights()
     local presidentIndex, daughterIndex, advisorIndex, generalIndex, priestIndex, innkeeperIndex, landownerIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    daughterIndex = findRole(daughter)
-    advisorIndex = findRole(advisor)
-    generalIndex = findRole(general)
-    priestIndex = findRole(priest)
-    innkeeperIndex = findRole(innkeeper)
-    landownerIndex = findRole(landowner)
+    presidentIndex = presidentCharacter
+    daughterIndex = daughterCharacter
+    advisorIndex = advisorCharacter
+    generalIndex = generalCharacter
+    priestIndex = priestCharacter
+    innkeeperIndex = innkeeperCharacter
+    landownerIndex = landownerCharacter
 
     assert_eq 0, observationWeight(presidentIndex, palaceLocation)
     assert_eq 3, observationWeight(generalIndex, palaceLocation)
@@ -167,11 +167,11 @@ end test
 test ObservationDiscoversAnUnknownCharacterOnlyOnce()
     local presidentIndex, daughterIndex, advisorIndex, generalIndex, landownerIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    daughterIndex = findRole(daughter)
-    advisorIndex = findRole(advisor)
-    generalIndex = findRole(general)
-    landownerIndex = findRole(landowner)
+    presidentIndex = presidentCharacter
+    daughterIndex = daughterCharacter
+    advisorIndex = advisorCharacter
+    generalIndex = generalCharacter
+    landownerIndex = landownerCharacter
 
     assert_eq daughterIndex, observationCandidateAt(palaceLocation, 0)
     assert_eq advisorIndex, observationCandidateAt(palaceLocation, 1)
@@ -193,8 +193,8 @@ end test
 test ContactAllowsDeeperInvestigation()
     local presidentIndex, advisorIndex
     setupOperations()
-    presidentIndex = findRole(president)
-    advisorIndex = findRole(advisor)
+    presidentIndex = presidentCharacter
+    advisorIndex = advisorCharacter
 
     assert_eq 0, setUsaInvestigation(0, presidentIndex)
     addTestContact(advisorIndex)
@@ -215,8 +215,8 @@ end test
 test DealsDependOnIntegrity()
     local priestIndex, targetIndex, agendaIndex
     setupOperations()
-    priestIndex = findRole(priest)
-    targetIndex = findRole(advisor)
+    priestIndex = priestCharacter
+    targetIndex = advisorCharacter
     characters(targetIndex).integrity% = 6
     addTestContact(priestIndex)
     revealCharacter(targetIndex, intelObserved)
@@ -268,9 +268,9 @@ end test
 test DealsNeedALivingContact()
     local advisorIndex, presidentIndex, priestIndex
     setupOperations()
-    advisorIndex = findRole(advisor)
-    presidentIndex = findRole(president)
-    priestIndex = findRole(priest)
+    advisorIndex = advisorCharacter
+    presidentIndex = presidentCharacter
+    priestIndex = priestCharacter
 
     assert_eq 0, setUsaDeal(0, advisorIndex, presidentIndex)
     addTestContact(advisorIndex)

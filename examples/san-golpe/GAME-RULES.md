@@ -30,16 +30,16 @@ Characters use the San Golpe male first-name pool, except the daughter, who uses
 
 ### Implementation
 
-- `source/characters.mbas` defines the seven-character array, roles, the sparse agenda pool, and their fields. Nationality and agent roles are not stored. There is no gender field or gender enum.
-- `source/characterfactory.mbas` creates the seven local figures in a stable role order. It creates the daughter without taking a family name, then copies the President's family name to her.
+- `source/characters.mbas` defines the seven-character array, stable cast indexes, localized string roles, the sparse agenda pool, and their fields. There is no role enum: names and roles are strings. Mechanics identify the fixed cast by index instead of scanning or comparing role strings. Nationality and agent roles are not stored. There is no gender field or gender enum.
+- `source/characterfactory.mbas` creates the seven local figures in that stable order. Each definition supplies its localized role string and inclusive initial ranges for influence and political alignment. It creates the daughter without taking a family name, then copies the President's family name to her.
 - `source/characternames.mbas` contains only San Golpe male names, daughter names, and San Golpe family names. Name selection starts at a random pool position and proceeds without repetition.
-- `createCharacter(role)` returns the new zero-based character index, or `-1` if the character array or a required name pool is exhausted.
+- `createCharacter(role$, usesDaughterNames, influenceMinimum, influenceMaximum, alignmentMinimum, alignmentMaximum)` rolls both values within the supplied inclusive ranges and returns the new zero-based character index, or `-1` if the character array or a required name pool is exhausted. These ranges and the name-pool selector are creation parameters and are not stored on every character.
 
 ### Placeholder character state
 
 New characters are alive, have integrity from 0 through 10, and initially follow `doDuty`. `doDuty` is represented by the absence of an agenda record and consumes no agenda slot. After the full cast is created, each character has a 75% chance to remain on duty; `usurpRole`, `findLove`, and `secretSpy` each have an equal share of the remaining 25%. At most three characters can receive a non-default agenda. Once those three sparse slots are occupied, remaining characters stay on duty. Usurpation and love choose another character as their target. The spy agenda has no target yet.
 
-`Character` contains the character's name, role, living state, integrity, influence, socialist alignment, and one agenda-slot index. An index of `-1` means ordinary duty and no agenda record. A separate `CharacterAgenda` record contains the agenda kind, optional target, money, and weapons. Only three non-default agenda records are allocated; there is no seven-entry parallel agenda array. Agenda access follows the slot index directly rather than scanning. Money and weapons exist only as resources for a non-default agenda.
+`Character` contains the character's string name and role, living state, integrity, influence, socialist alignment, and one agenda-slot index. An index of `-1` means ordinary duty and no agenda record. A separate `CharacterAgenda` record contains the agenda kind, optional target, money, and weapons. Only three non-default agenda records are allocated; there is no seven-entry parallel agenda array. Agenda access follows the slot index directly rather than scanning. Money and weapons exist only as resources for a non-default agenda.
 
 The sparse pool is defined in `source/characters.mbas`. Assignment is implemented by `assignSecretAgendas()` and `chooseAgendaTarget()` in `source/characterfactory.mbas`.
 
@@ -65,7 +65,7 @@ Each character entry has four rows: name, role, agenda, and player status. Page 
 
 The top row retains compact keys for the two USA action slots, known-character directory, and ending the turn, together with turn and budget. Left and Right redraw the paged character area; the four displayed numeric choices leave the overview to perform their action. Other key presses are ignored without redrawing the screen. Row 18 shows the two actions available to each power and the target's currently free BASIC memory as a whole-KiB `RAM nK` value. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
 
-This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. The same `drawOverviewCharacterPage()` routine handles the initial post-`CLS` drawing and later page changes; a negative previous-page value identifies the initial draw. Every box field is padded to its fixed width as it is written. Dynamic character names use `printOverviewField()`, while padding for fixed localized labels is folded into literal spaces by the compiler. Names remain unpadded in character storage so speeches and event reports can use them directly. There is no separate per-box clearing pass, and shorter new values cannot leave characters from the previous page. On Atari, the resulting `PRINT_AT` uses the direct `S:` screen channel instead of the logical-line editor. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
+This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. The same `drawOverviewCharacterPage()` routine handles the initial post-`CLS` drawing and later page changes; a negative previous-page value identifies the initial draw. Every box field is padded to its fixed width as it is written. Names and the already-localized stored role string use `printOverviewField()` directly; there is no role-to-label decision tree. Names remain unpadded in character storage so speeches and event reports can use them directly. There is no separate per-box clearing pass, and shorter new values cannot leave characters from the previous page. On Atari, the resulting `PRINT_AT` uses the direct `S:` screen channel instead of the logical-line editor. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
 
 ## USA action: Observe Location
 
@@ -186,7 +186,19 @@ Every living character except the President has an influence value and a sociali
 
 ### Current implementation
 
-`Character.influence%` and `Character.socialism%` are currently initialized from `1–10` and `0–100`, respectively. The President starts at `50` socialism and is excluded from the influence draw. Dead characters and characters with zero influence have zero selection weight.
+Initial influence and socialist alignment are rolled from role-specific inclusive ranges:
+
+| Role | Influence | Socialist alignment | Intent |
+| --- | ---: | ---: | --- |
+| President | 0 | 35–65 | Cannot influence himself; begins moderately aligned |
+| Daughter | 0–10 | 20–80 | Palace access, but highly unpredictable personal weight |
+| Advisor | 4–8 | 25–75 | Usually relevant, politically flexible |
+| General | 7–10 | 0–40 | Always influential and generally authoritarian-leaning |
+| Priest | 0–10 | 20–80 | Influence varies greatly with standing and personality |
+| Innkeeper | 2–6 | 30–70 | Modest informal influence and broadly centrist politics |
+| Landowner | 4–8 | 0–35 | Substantial influence and generally authoritarian-leaning |
+
+Dead characters and characters with zero influence have zero selection weight. `initializePolitics()` preserves the President's rolled alignment and only ensures that his influence remains zero.
 
 The response formula adds the President's and influencer's socialism values, producing `0–200`: below `67` is authoritarian, `67–133` is balanced, and `134+` is more social. A social response currently moves the President `+5` toward socialism; an authoritarian response moves him `-5`; balanced leaves him unchanged. Values are clamped to `0–100`.
 

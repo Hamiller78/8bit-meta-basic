@@ -1,18 +1,47 @@
 uses "characters.mbas"
 uses "characternames.mbas"
 
+const presidentInfluenceMinimum = 0
+const presidentInfluenceMaximum = 0
+const presidentAlignmentMinimum = 35
+const presidentAlignmentMaximum = 65
+const daughterInfluenceMinimum = 0
+const daughterInfluenceMaximum = 10
+const daughterAlignmentMinimum = 20
+const daughterAlignmentMaximum = 80
+const advisorInfluenceMinimum = 4
+const advisorInfluenceMaximum = 8
+const advisorAlignmentMinimum = 25
+const advisorAlignmentMaximum = 75
+const generalInfluenceMinimum = 7
+const generalInfluenceMaximum = 10
+const generalAlignmentMinimum = 0
+const generalAlignmentMaximum = 40
+const priestInfluenceMinimum = 0
+const priestInfluenceMaximum = 10
+const priestAlignmentMinimum = 20
+const priestAlignmentMaximum = 80
+const innkeeperInfluenceMinimum = 2
+const innkeeperInfluenceMaximum = 6
+const innkeeperAlignmentMinimum = 30
+const innkeeperAlignmentMaximum = 70
+const landownerInfluenceMinimum = 4
+const landownerInfluenceMaximum = 8
+const landownerAlignmentMinimum = 0
+const landownerAlignmentMaximum = 35
+
 function createAllCharacters(showProgress)
     local presidentIndex, daughterIndex
 
     resetCharacterFactory()
 
-    presidentIndex = createRoleCharacter(president, showProgress)
-    daughterIndex = createRoleCharacter(daughter, showProgress)
-    createRoleCharacter(advisor, showProgress)
-    createRoleCharacter(general, showProgress)
-    createRoleCharacter(priest, showProgress)
-    createRoleCharacter(innkeeper, showProgress)
-    createRoleCharacter(landowner, showProgress)
+    presidentIndex = createRoleCharacter(presidentRole$, false, presidentInfluenceMinimum, presidentInfluenceMaximum, presidentAlignmentMinimum, presidentAlignmentMaximum, showProgress)
+    daughterIndex = createRoleCharacter(daughterRole$, true, daughterInfluenceMinimum, daughterInfluenceMaximum, daughterAlignmentMinimum, daughterAlignmentMaximum, showProgress)
+    createRoleCharacter(advisorRole$, false, advisorInfluenceMinimum, advisorInfluenceMaximum, advisorAlignmentMinimum, advisorAlignmentMaximum, showProgress)
+    createRoleCharacter(generalRole$, false, generalInfluenceMinimum, generalInfluenceMaximum, generalAlignmentMinimum, generalAlignmentMaximum, showProgress)
+    createRoleCharacter(priestRole$, false, priestInfluenceMinimum, priestInfluenceMaximum, priestAlignmentMinimum, priestAlignmentMaximum, showProgress)
+    createRoleCharacter(innkeeperRole$, false, innkeeperInfluenceMinimum, innkeeperInfluenceMaximum, innkeeperAlignmentMinimum, innkeeperAlignmentMaximum, showProgress)
+    createRoleCharacter(landownerRole$, false, landownerInfluenceMinimum, landownerInfluenceMaximum, landownerAlignmentMinimum, landownerAlignmentMaximum, showProgress)
 
     if presidentIndex <> -1 and daughterIndex <> -1 then
         characters(daughterIndex).last$ = characters(presidentIndex).last$
@@ -21,10 +50,10 @@ function createAllCharacters(showProgress)
     assignSecretAgendas()
 end function
 
-function createRoleCharacter(characterRole, showProgress)
+function createRoleCharacter(characterRole$, usesDaughterNames, influenceMinimum, influenceMaximum, alignmentMinimum, alignmentMaximum, showProgress)
     local characterIndex
 
-    characterIndex = createCharacter(characterRole)
+    characterIndex = createCharacter(characterRole$, usesDaughterNames, influenceMinimum, influenceMaximum, alignmentMinimum, alignmentMaximum)
     if characterIndex <> -1 then
         if showProgress then
             set_pos int(TEXT_ROWS / 2) + 2, 1
@@ -43,7 +72,7 @@ function resetCharacterFactory()
 end function
 
 'Returns an index into characters(), or -1 when no name is available.
-function createCharacter(characterRole)
+function createCharacter(characterRole$, usesDaughterNames, influenceMinimum, influenceMaximum, alignmentMinimum, alignmentMaximum)
     local characterIndex, firstName$, lastName$
 
     if characterFactoryInitialized = 0 then
@@ -54,31 +83,35 @@ function createCharacter(characterRole)
         return -1
     end if
 
-    if availableFirstNames(characterRole) = 0 then
+    if availableFirstNames(usesDaughterNames) = 0 then
         return -1
     end if
-    if characterRole <> daughter and availableLastNames() = 0 then
+    if usesDaughterNames = 0 and availableLastNames() = 0 then
         return -1
     end if
 
-    firstName$ = takeFirstName$(characterRole)
+    firstName$ = takeFirstName$(usesDaughterNames)
     lastName$ = ""
-    if characterRole <> daughter then
+    if usesDaughterNames = 0 then
         lastName$ = takeLastName$()
     end if
     characterIndex = createdCharacterCount
 
     characters(characterIndex).first$ = firstName$
     characters(characterIndex).last$ = lastName$
-    characters(characterIndex).role% = characterRole
+    characters(characterIndex).role$ = characterRole$
     characters(characterIndex).isAlive% = 1
     characters(characterIndex).integrity% = int(rnd() * 11)
-    characters(characterIndex).influence% = 1 + int(rnd() * 10)
-    characters(characterIndex).socialism% = int(rnd() * 101)
+    characters(characterIndex).influence% = randomInitialValue(influenceMinimum, influenceMaximum)
+    characters(characterIndex).socialism% = randomInitialValue(alignmentMinimum, alignmentMaximum)
     characters(characterIndex).agenda% = -1
 
     createdCharacterCount = createdCharacterCount + 1
     return characterIndex
+end function
+
+function randomInitialValue(minimumValue, maximumValue)
+    return minimumValue + int(rnd() * (maximumValue - minimumValue + 1))
 end function
 
 function assignSecretAgendas()

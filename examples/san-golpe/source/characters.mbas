@@ -1,16 +1,22 @@
 const numberOfCharacters = 7
 const maximumCharacterAgendas = 3
 
-enum Role
-    none = 0
-    president
-    daughter
-    advisor
-    general
-    priest
-    innkeeper
-    landowner
-end enum
+const presidentCharacter = 0
+const daughterCharacter = 1
+const advisorCharacter = 2
+const generalCharacter = 3
+const priestCharacter = 4
+const innkeeperCharacter = 5
+const landownerCharacter = 6
+
+const noRole$ = ""
+const presidentRole$ = text$("overviewRolePresident")
+const daughterRole$ = text$("overviewRoleDaughter")
+const advisorRole$ = text$("overviewRoleAdvisor")
+const generalRole$ = text$("overviewRoleGeneral")
+const priestRole$ = text$("overviewRolePriest")
+const innkeeperRole$ = text$("overviewRoleInnkeeper")
+const landownerRole$ = text$("overviewRoleLandowner")
 
 enum Agenda
     doDuty = 0
@@ -22,7 +28,7 @@ end enum
 struct Character
     first$(10)
     last$(10)
-    role%
+    role$(10)
     isAlive%   '0 = dead, 1 = alive
     integrity%  'meaning depends on role, but 0 to 10, where 10 truly believes in their role and 0 is a complete fraud
     influence%  'weight when somebody sways the President
@@ -40,14 +46,4 @@ end struct
 dim characters as Character(numberOfCharacters)
 dim characterAgendas as CharacterAgenda(maximumCharacterAgendas)
 characterAgendaCount% = 0
-
-function findRole(wantedRole)
-    local characterIndex
-    for characterIndex = 0 to numberOfCharacters - 1
-        if characters(characterIndex).role% = wantedRole then
-            return characterIndex
-        end if
-    next characterIndex
-    return -1
-end function
 

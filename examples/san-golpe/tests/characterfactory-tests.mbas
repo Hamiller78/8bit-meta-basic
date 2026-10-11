@@ -15,9 +15,9 @@ test CharacterNamesAreUsedOnlyOnce()
     resetCharacterFactory()
 
     for characterIndex = 0 to numberOfCharacters - 1
-        assert_eq characterIndex, createCharacter(none)
+        assert_eq characterIndex, createCharacter(noRole$, false, 1, 10, 0, 100)
     next characterIndex
-    assert_eq -1, createCharacter(none)
+    assert_eq -1, createCharacter(noRole$, false, 1, 10, 0, 100)
 
     for firstIndex = 0 to numberOfCharacters - 2
         for secondIndex = firstIndex + 1 to numberOfCharacters - 1
@@ -31,16 +31,16 @@ test CharacterAttributesHaveSafeDefaults()
     local characterIndex
 
     resetCharacterFactory()
-    characterIndex = createCharacter(none)
+    characterIndex = createCharacter(noRole$, false, 2, 4, 30, 40)
 
     assert_ne -1, characterIndex
-    assert_eq none, characters(characterIndex).role%
+    assert_eq noRole$, characters(characterIndex).role$
     assert_true characters(characterIndex).integrity% >= 0
     assert_true characters(characterIndex).integrity% <= 10
-    assert_true characters(characterIndex).influence% >= 1
-    assert_true characters(characterIndex).influence% <= 10
-    assert_true characters(characterIndex).socialism% >= 0
-    assert_true characters(characterIndex).socialism% <= 100
+    assert_true characters(characterIndex).influence% >= 2
+    assert_true characters(characterIndex).influence% <= 4
+    assert_true characters(characterIndex).socialism% >= 30
+    assert_true characters(characterIndex).socialism% <= 40
     assert_eq -1, characters(characterIndex).agenda%
 end test
 
@@ -50,25 +50,53 @@ test AllCharacterRolesAreCreated()
     createAllCharacters(false)
 
     assert_eq numberOfCharacters, createdCharacterCount
-    assert_eq president, characters(0).role%
-    assert_eq daughter, characters(1).role%
+    assert_eq presidentRole$, characters(0).role$
+    assert_eq daughterRole$, characters(1).role$
     assert_eq characters(0).last$, characters(1).last$
     assert_eq daughterFirstNames - 1, daughterFirstNamesRemaining
     assert_eq spanishLastNames - 6, spanishLastNamesRemaining
-    assert_eq advisor, characters(2).role%
-    assert_eq general, characters(3).role%
-    assert_eq priest, characters(4).role%
-    assert_eq innkeeper, characters(5).role%
-    assert_eq landowner, characters(6).role%
+    assert_eq advisorRole$, characters(2).role$
+    assert_eq generalRole$, characters(3).role$
+    assert_eq priestRole$, characters(4).role$
+    assert_eq innkeeperRole$, characters(5).role$
+    assert_eq landownerRole$, characters(6).role$
 
     for characterIndex = 0 to createdCharacterCount - 1
         assert_true characters(characterIndex).integrity% >= 0
         assert_true characters(characterIndex).integrity% <= 10
-        assert_true characters(characterIndex).influence% >= 1
+        assert_true characters(characterIndex).influence% >= 0
         assert_true characters(characterIndex).influence% <= 10
         assert_true characters(characterIndex).socialism% >= 0
         assert_true characters(characterIndex).socialism% <= 100
     next characterIndex
+
+    assert_eq 0, characters(0).influence%
+    assert_true characters(0).socialism% >= presidentAlignmentMinimum
+    assert_true characters(0).socialism% <= presidentAlignmentMaximum
+    assert_true characters(1).influence% >= daughterInfluenceMinimum
+    assert_true characters(1).influence% <= daughterInfluenceMaximum
+    assert_true characters(1).socialism% >= daughterAlignmentMinimum
+    assert_true characters(1).socialism% <= daughterAlignmentMaximum
+    assert_true characters(2).influence% >= advisorInfluenceMinimum
+    assert_true characters(2).influence% <= advisorInfluenceMaximum
+    assert_true characters(2).socialism% >= advisorAlignmentMinimum
+    assert_true characters(2).socialism% <= advisorAlignmentMaximum
+    assert_true characters(3).influence% >= generalInfluenceMinimum
+    assert_true characters(3).influence% <= generalInfluenceMaximum
+    assert_true characters(3).socialism% >= generalAlignmentMinimum
+    assert_true characters(3).socialism% <= generalAlignmentMaximum
+    assert_true characters(4).influence% >= priestInfluenceMinimum
+    assert_true characters(4).influence% <= priestInfluenceMaximum
+    assert_true characters(4).socialism% >= priestAlignmentMinimum
+    assert_true characters(4).socialism% <= priestAlignmentMaximum
+    assert_true characters(5).influence% >= innkeeperInfluenceMinimum
+    assert_true characters(5).influence% <= innkeeperInfluenceMaximum
+    assert_true characters(5).socialism% >= innkeeperAlignmentMinimum
+    assert_true characters(5).socialism% <= innkeeperAlignmentMaximum
+    assert_true characters(6).influence% >= landownerInfluenceMinimum
+    assert_true characters(6).influence% <= landownerInfluenceMaximum
+    assert_true characters(6).socialism% >= landownerAlignmentMinimum
+    assert_true characters(6).socialism% <= landownerAlignmentMaximum
 
     assert_true characterAgendaCount% <= maximumCharacterAgendas
     for agendaIndex = 0 to characterAgendaCount% - 1

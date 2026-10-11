@@ -11,8 +11,6 @@ const overviewFixedBoxWidth = 12 - 2 * int(39 / TEXT_COLUMNS)
 overviewPage% = 0
 
 function showOverview(turnNumber)
-    local presidentIndex
-
     cls
     set_pos 1, 1
     print text$("overviewTurnKey"); turnNumber; " $"; budget; "K 1/2"; text$("overviewActionsKey"); " 3"; text$("overviewPeopleKey"); " 4"; text$("overviewEndKey");
@@ -20,8 +18,7 @@ function showOverview(turnNumber)
     set_pos 2, 1
     print_centered text$("overviewGovernment")
 
-    presidentIndex = findRole(president)
-    printOverviewCharacterBox(presidentIndex, 4, overviewPresidentColumn())
+    printOverviewCharacterBox(presidentCharacter, 4, overviewPresidentColumn())
 
     drawOverviewCharacterPage(-1)
 
@@ -65,7 +62,7 @@ function drawOverviewCharacterPage(previousPage)
     printOverviewPageControls()
     for boxIndex = 0 to boxesOnPage - 1
         characterPosition = pageStart + boxIndex
-        characterIndex = findRole(overviewCharacterRoleAt(characterPosition))
+        characterIndex = overviewCharacterAt(characterPosition)
         characterColumn = overviewBoxColumn(boxIndex, boxesOnPage)
         printOverviewCharacterBox(characterIndex, overviewFirstCharacterRow, characterColumn)
     next boxIndex
@@ -108,17 +105,23 @@ function overviewBoxColumn(boxIndex, boxesOnPage)
     return firstColumn + boxIndex * (boxWidth + gapWidth)
 end function
 
-function overviewCharacterRoleAt(characterPosition)
+function overviewCharacterAt(characterPosition)
     if characterPosition = 0 then
-        return general
+        return generalCharacter
     end if
     if characterPosition = 1 then
-        return daughter
+        return daughterCharacter
     end if
     if characterPosition = 2 then
-        return advisor
+        return advisorCharacter
     end if
-    return characterPosition + 2
+    if characterPosition = 3 then
+        return priestCharacter
+    end if
+    if characterPosition = 4 then
+        return innkeeperCharacter
+    end if
+    return landownerCharacter
 end function
 
 function printOverviewCharacterBox(characterIndex, firstRow, firstColumn)
@@ -147,29 +150,7 @@ function printOverviewName(characterIndex, row, column)
 end function
 
 function printOverviewRole(characterIndex, row, column)
-    local roleValue
-    roleValue = characters(characterIndex).role%
-    if roleValue = president then
-        print_at row, column, text$("overviewRolePresident"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRolePresident")));
-    end if
-    if roleValue = daughter then
-        print_at row, column, text$("overviewRoleDaughter"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleDaughter")));
-    end if
-    if roleValue = advisor then
-        print_at row, column, text$("overviewRoleAdvisor"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleAdvisor")));
-    end if
-    if roleValue = general then
-        print_at row, column, text$("overviewRoleGeneral"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleGeneral")));
-    end if
-    if roleValue = priest then
-        print_at row, column, text$("overviewRolePriest"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRolePriest")));
-    end if
-    if roleValue = innkeeper then
-        print_at row, column, text$("overviewRoleInnkeeper"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleInnkeeper")));
-    end if
-    if roleValue = landowner then
-        print_at row, column, text$("overviewRoleLandowner"); left$("            ", overviewFixedBoxWidth - len(text$("overviewRoleLandowner")));
-    end if
+    printOverviewField(characters(characterIndex).role$, row, column)
 end function
 
 function printOverviewAgenda(characterIndex, row, column)

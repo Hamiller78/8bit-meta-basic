@@ -1622,7 +1622,7 @@ function foldFunctionCall(
   }
 
   if (name === builtinFunctions.text) {
-    throw new DiagnosticError(expression.location, "TEXT$ can only be used in PRINT, PRINT_WRAP, or PRINT_CENTERED output.");
+    throw new DiagnosticError(expression.location, "TEXT$ can only be used in CONST, PRINT, PRINT_WRAP, or PRINT_CENTERED output.");
   }
 
   if (name === builtinFunctions.val) {

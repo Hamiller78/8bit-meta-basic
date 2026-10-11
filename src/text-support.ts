@@ -56,7 +56,13 @@ function mapStatements(program: Program, transform: (statement: PrintStatement) 
 
 /** Resource I/O belongs to the build shell; the compiler only consumes text values. */
 export function resolveTextResources(program: Program, options: TextOptions): Program {
-  return mapStatements(program, (statement) => {
+  const resolvedConstants: Program = {
+    ...program,
+    statements: program.statements.map((statement) => statement.kind === "const"
+      ? { ...statement, expression: resolveTextExpression(statement.expression, options) }
+      : statement)
+  };
+  return mapStatements(resolvedConstants, (statement) => {
     const textBindings = statement.textBindings?.map((binding) => ({
       ...binding,
       expression: resolveTextExpression(binding.expression, options),

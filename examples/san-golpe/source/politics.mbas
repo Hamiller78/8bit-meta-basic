@@ -2,7 +2,6 @@ uses "characters.mbas"
 
 const politicalMinimum = 0
 const politicalMaximum = 100
-const presidentSocialismInitial = 50
 
 enum PoliticalAlignment
     stronglyAuthoritarian = 0
@@ -13,26 +12,16 @@ enum PoliticalAlignment
 end enum
 
 function initializePolitics()
-    local presidentIndex
-    presidentIndex = findRole(president)
-    if presidentIndex >= 0 then
-        characters(presidentIndex).socialism% = presidentSocialismInitial
-        characters(presidentIndex).influence% = 0
-    end if
+    characters(presidentCharacter).influence% = 0
 end function
 
 function adjustPresidentSocialism(change)
-    local presidentIndex
-    presidentIndex = findRole(president)
-    if presidentIndex < 0 then
-        return
+    characters(presidentCharacter).socialism% = characters(presidentCharacter).socialism% + change
+    if characters(presidentCharacter).socialism% < politicalMinimum then
+        characters(presidentCharacter).socialism% = politicalMinimum
     end if
-    characters(presidentIndex).socialism% = characters(presidentIndex).socialism% + change
-    if characters(presidentIndex).socialism% < politicalMinimum then
-        characters(presidentIndex).socialism% = politicalMinimum
-    end if
-    if characters(presidentIndex).socialism% > politicalMaximum then
-        characters(presidentIndex).socialism% = politicalMaximum
+    if characters(presidentCharacter).socialism% > politicalMaximum then
+        characters(presidentCharacter).socialism% = politicalMaximum
     end if
 end function
 
@@ -46,7 +35,6 @@ function politicalAlignmentBand(value)
 end function
 
 function canCharacterKnowAbout(sourceIndex, targetIndex)
-    local sourceRole, targetRole
     if sourceIndex < 0 or sourceIndex >= numberOfCharacters or targetIndex < 0 or targetIndex >= numberOfCharacters then
         return 0
     end if
@@ -56,20 +44,18 @@ function canCharacterKnowAbout(sourceIndex, targetIndex)
     if characters(sourceIndex).isAlive% = 0 or characters(targetIndex).isAlive% = 0 then
         return 0
     end if
-    sourceRole = characters(sourceIndex).role%
-    targetRole = characters(targetIndex).role%
-    if targetRole = president then
-        if sourceRole = general or sourceRole = advisor or sourceRole = daughter then
+    if targetIndex = presidentCharacter then
+        if sourceIndex = generalCharacter or sourceIndex = advisorCharacter or sourceIndex = daughterCharacter then
             return 1
         end if
         return 0
     end if
-    if sourceRole = priest then
+    if sourceIndex = priestCharacter then
         if characters(targetIndex).integrity% > 5 then
             return 1
         end if
     end if
-    if sourceRole = innkeeper then
+    if sourceIndex = innkeeperCharacter then
         if characters(targetIndex).integrity% < 6 then
             return 1
         end if
@@ -80,12 +66,11 @@ end function
 'A reliable contact reports the true qualitative band. An unreliable contact
 'misses by one neighboring band; directionRoll keeps the distortion unbiased.
 function reportedPresidentAlignmentBand(sourceIndex, reliabilityRoll, directionRoll)
-    local reportedBand, presidentIndex
-    presidentIndex = findRole(president)
-    if canCharacterKnowAbout(sourceIndex, presidentIndex) = 0 then
+    local reportedBand
+    if canCharacterKnowAbout(sourceIndex, presidentCharacter) = 0 then
         return -1
     end if
-    reportedBand = politicalAlignmentBand(characters(presidentIndex).socialism%)
+    reportedBand = politicalAlignmentBand(characters(presidentCharacter).socialism%)
     if reliabilityRoll < characters(sourceIndex).integrity% then
         return reportedBand
     end if

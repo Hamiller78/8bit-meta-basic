@@ -5,19 +5,19 @@ uses "../source/presidentevents.mbas"
 function setupPresidentEvents()
     local characterIndex
     for characterIndex = 0 to numberOfCharacters - 1
-        characters(characterIndex).role% = none
+        characters(characterIndex).role$ = noRole$
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).integrity% = 5
         characters(characterIndex).influence% = 1
         characters(characterIndex).socialism% = 50
     next characterIndex
-    characters(0).role% = president
-    characters(1).role% = daughter
-    characters(2).role% = advisor
-    characters(3).role% = general
-    characters(4).role% = priest
-    characters(5).role% = innkeeper
-    characters(6).role% = landowner
+    characters(0).role$ = presidentRole$
+    characters(1).role$ = daughterRole$
+    characters(2).role$ = advisorRole$
+    characters(3).role$ = generalRole$
+    characters(4).role$ = priestRole$
+    characters(5).role$ = innkeeperRole$
+    characters(6).role$ = landownerRole$
     characters(2).first$ = "Carlos"
     characters(2).last$ = "Vega"
     initializePolitics()

@@ -8,17 +8,17 @@ function setupMainScreenCast()
     for characterIndex = 0 to numberOfCharacters - 1
         characters(characterIndex).first$ = "Test"
         characters(characterIndex).last$ = "Person"
-        characters(characterIndex).role% = none
+        characters(characterIndex).role$ = noRole$
         characters(characterIndex).isAlive% = 1
         characters(characterIndex).agenda% = -1
     next characterIndex
-    characters(0).role% = president
-    characters(1).role% = daughter
-    characters(2).role% = advisor
-    characters(3).role% = general
-    characters(4).role% = priest
-    characters(5).role% = innkeeper
-    characters(6).role% = landowner
+    characters(0).role$ = presidentRole$
+    characters(1).role$ = daughterRole$
+    characters(2).role$ = advisorRole$
+    characters(3).role$ = generalRole$
+    characters(4).role$ = priestRole$
+    characters(5).role$ = innkeeperRole$
+    characters(6).role$ = landownerRole$
 end function
 
 test UsaStartsWithTwoIdleActionSlots()
@@ -28,8 +28,8 @@ test UsaStartsWithTwoIdleActionSlots()
 
     assert_eq 1000, budget
     assert_eq 0, contactCount%
-    assert_eq 0, hasContact(findRole(innkeeper))
-    assert_eq 0, hasContact(findRole(priest))
+    assert_eq 0, hasContact(innkeeperCharacter)
+    assert_eq 0, hasContact(priestCharacter)
     assert_eq 2, numberOfUsaActions
     assert_eq 2, numberOfUssrActions
     assert_eq missionIdle, usaActions%(0)
@@ -52,10 +52,10 @@ test OverviewPagesCharactersForTheScreenWidth()
     assert_eq int((TEXT_COLUMNS - overviewBoxWidth()) / 2) + 1, overviewPresidentColumn()
     assert_eq int((TEXT_COLUMNS + 1) / (overviewBoxWidth() + 1)), overviewBoxesPerPage()
     assert_eq int((overviewCharacterCount + overviewBoxesPerPage() - 1) / overviewBoxesPerPage()), overviewPageCount()
-    assert_eq general, overviewCharacterRoleAt(0)
-    assert_eq advisor, overviewCharacterRoleAt(2)
-    assert_eq priest, overviewCharacterRoleAt(3)
-    assert_eq landowner, overviewCharacterRoleAt(5)
+    assert_eq generalCharacter, overviewCharacterAt(0)
+    assert_eq advisorCharacter, overviewCharacterAt(2)
+    assert_eq priestCharacter, overviewCharacterAt(3)
+    assert_eq landownerCharacter, overviewCharacterAt(5)
 
     assert_true overviewBoxColumn(0, overviewBoxesPerPage()) >= 1
     assert_true overviewBoxColumn(overviewBoxesPerPage() - 1, overviewBoxesPerPage()) + overviewBoxWidth() - 1 <= TEXT_COLUMNS - 1
@@ -140,14 +140,14 @@ test UsaActionSlotsRemainIndependent()
     initializeUsaActions()
 
     assert_eq 1, setUsaObserve(0, pubLocation)
-    revealCharacter(findRole(advisor), intelObserved)
-    assert_eq 1, addContact(findRole(advisor))
-    revealCharacter(findRole(president), intelObserved)
-    assert_eq 1, setUsaInvestigation(1, findRole(president))
+    revealCharacter(advisorCharacter, intelObserved)
+    assert_eq 1, addContact(advisorCharacter)
+    revealCharacter(presidentCharacter, intelObserved)
+    assert_eq 1, setUsaInvestigation(1, presidentCharacter)
     assert_eq missionObserve, usaActions%(0)
     assert_eq pubLocation, usaActionValues%(0)
     assert_eq missionInvestigate, usaActions%(1)
-    assert_eq findRole(president), usaTargets%(1)
+    assert_eq presidentCharacter, usaTargets%(1)
 
     setUsaIdle(0)
     assert_eq missionIdle, usaActions%(0)
@@ -159,8 +159,8 @@ test InitialKnowledgeContainsNoForeignAgentCharacters()
     setupMainScreenCast()
     initializeIntelligence()
 
-    assert_eq intelNone, playerIntel%(findRole(president))
-    assert_eq intelNone, playerIntel%(findRole(priest))
+    assert_eq intelNone, playerIntel%(presidentCharacter)
+    assert_eq intelNone, playerIntel%(priestCharacter)
 end test
 
 test RevealsOnlyIncreaseKnowledge()
