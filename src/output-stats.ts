@@ -377,6 +377,7 @@ const ignoredIdentifiers = new Set([
   "BORDER",
   "CHR",
   "CLS",
+  "COLOUR",
   "DATA",
   "DIM",
   "END",
@@ -385,12 +386,16 @@ const ignoredIdentifiers = new Set([
   "GOSUB",
   "GOTO",
   "IF",
+  "HIMEM",
   "IN",
+  "INKEY",
   "LET",
   "NEXT",
   "NOT",
   "CLOSE",
+  "MODE",
   "OPEN",
+  "OPENOUT",
   "OR",
   "PAPER",
   "PEEK",
@@ -409,7 +414,11 @@ const ignoredIdentifiers = new Set([
   "SUB",
   "SYS",
   "THEN",
+  "TIME",
   "TO",
+  "TOP",
+  "VDU",
+  "VPOS",
 ]);
 
 const ignoredCallNames = new Set([
@@ -422,6 +431,8 @@ const ignoredCallNames = new Set([
   "EXP",
   "FRE",
   "INT",
+  "GET",
+  "INKEY",
   "LEFT",
   "LEN",
   "MID",
@@ -434,11 +445,12 @@ const ignoredCallNames = new Set([
   "STR",
   "STICK",
   "STRIG",
+  "TAB",
   "USR",
   "VAL",
 ]);
 
-const variableNamePattern = /\b[A-Z][A-Z0-9]*(?:[%$])?(?![A-Z0-9])/gi;
+const variableNamePattern = /\b[A-Z][A-Z0-9_]*(?:[%$])?(?![A-Z0-9_])/gi;
 
 const testRuntimeVariables = new Set([
   ...testJoystickNames,

@@ -16,6 +16,18 @@ describe("BASIC output statistics", () => {
     expect(stats.numericArrays).toEqual(["V"]);
   });
 
+  it("recognizes readable Agon names without counting BBC BASIC commands as variables", () => {
+    const stats = analyzeBasicOutput([
+      "10 MODE 3",
+      "20 DIM CHARACTERS_FIRST$(5)",
+      "30 COLOUR 7:PRINT TAB(3,VPOS);CHARACTERS_FIRST$(0)",
+      "40 AVAILABLE%=HIMEM-TOP:KEY%=INKEY(0)"
+    ], "agon");
+
+    expect(stats.stringArrays).toEqual(["CHARACTERS_FIRST$"]);
+    expect(stats.numericVariables).toEqual(["AVAILABLE%", "KEY%"]);
+  });
+
   it("estimates final rendered bytes per source module", () => {
     const lines = ['10 PRINT "MAIN"', '20 PRINT "UI"', '30 GOTO 10'];
     const main = "C:\\project\\main.mbas";

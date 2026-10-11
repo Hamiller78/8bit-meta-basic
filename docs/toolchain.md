@@ -8,6 +8,7 @@ Meta-BASIC itself always emits readable BASIC text. Optional external programs t
 npm run build:spectrum -- --profile debug
 npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
+npm run build:agon -- --profile release
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
@@ -27,9 +28,10 @@ npm run launch:c64 -- --source examples/narf.mbas
 npm run launch:c64 -- --source examples/input-demo.mbas --restart
 npm run launch:spectrum -- --source examples/narf.mbas
 npm run launch:spectrum -- --source examples/input-demo.mbas --restart
+npm run launch:agon -- --source examples/input-demo.mbas --restart
 ```
 
-The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, or `--target c64` to restrict it.
+The directory build is non-recursive. Use `--target spectrum`, `--target atari800xl`, `--target c64`, or `--target agon` to restrict it.
 
 The build and launch scripts accept exactly one program input mode:
 
@@ -222,8 +224,8 @@ Spectrum printer launch arguments may also use `{nullDevice}`, which expands to 
 
 The configuration has two distinct sections:
 
-- `targets` contains packaging tools shared by a compiler backend. These keys are the compiler targets `spectrum`, `atari800xl`, and `c64`.
-- `targetConfigurations` contains freely named runnable setups. Each entry declares `compilerTarget`, descriptive `computer` metadata, and an `emulator` block with a required `type`, executable `path`, arguments, and output transport. The supplied emulator types are `fuse`, `altirra`, `atari800`, and `vice`.
+- `targets` contains packaging tools shared by a compiler backend. These keys are the compiler targets `spectrum`, `atari800xl`, `c64`, and `agon`.
+- `targetConfigurations` contains freely named runnable setups. Each entry declares `compilerTarget`, descriptive `computer` metadata, and an `emulator` block with a required `type`, executable `path`, arguments, and output transport. The supplied emulator types are `fuse`, `altirra`, `atari800`, `vice`, and `fab-agon`.
 
 The generic launcher builds with the selected entry's `compilerTarget`, runs that target's conversion tools, then starts the configured emulator and exits without waiting for its window:
 
@@ -231,6 +233,7 @@ The generic launcher builds with the selected entry's `compilerTarget`, runs tha
 npm run launch -- spectrum48 --source examples/narf.mbas
 npm run launch -- spectrum128 --source examples/narf.mbas
 npm run launch -- atari1 --source examples/narf.mbas
+npm run launch -- agon --source examples/narf.mbas
 npm run launch -- atari2 --source examples/narf.mbas
 npm run launch -- c64 --source examples/narf.mbas
 ```
@@ -256,6 +259,7 @@ Use `scripts/tools.local.json` for values the scripts can pass to external tools
 | Spectrum/Fuse | `bas2tap` under `targets.spectrum`; separate `spectrum48`/`spectrum128` computer metadata, Fuse path, explicit machine args, test speed, and output settings under `targetConfigurations` | Install Fuse and `bas2tap`; keep or remove `-auto-play` depending on the Fuse setup |
 | Atari 800XL | `basicParser` and `dir2atr` under `targets.atari800xl`; separate Altirra and Atari800 computer/emulator entries under `targetConfigurations` | Install/configure the chosen emulator; set up the configured host drive; provide the ROM set described by that configuration |
 | C64/VICE | `petcat` under `targets.c64`; C64 model metadata, VICE path, autostart, and RS-232 capture under `targetConfigurations.c64` | Install VICE; verify userport RS-232 is enabled when inspecting the GUI; leave `IP232` unchecked for the local capture helper |
+| Agon/Fab Agon | no conversion tool; BBC BASIC remains plain CRLF text; emulator, `sdcardPath`, BASIC binary, and card filename under `targetConfigurations.agon` | Put `bbcbasic24.bin` on the virtual card; the launcher owns `metabasic.bas` and `autoexec.txt` |
 
 The committed `scripts/tools.example.json` documents the expected shape. The local copy is intentionally machine-specific and should not be committed.
 

@@ -3,7 +3,8 @@ import { compileSource } from "../src/compiler.js";
 import { compileSourceDetailed } from "../src/compiler.js";
 import type { TargetId } from "../src/targets/target.js";
 
-const targets: TargetId[] = ["spectrum", "atari800xl", "c64"];
+const targets: TargetId[] = ["spectrum", "atari800xl", "c64", "agon"];
+const hardwareDecodedTargets: TargetId[] = ["spectrum", "atari800xl", "c64"];
 const source = "x = get_joystick(JOY_X)\ny = get_joystick(JOY_Y)\nf = get_joystick(JOY_FIRE1)\n";
 
 describe("joystick input", () => {
@@ -18,7 +19,7 @@ describe("joystick input", () => {
     expect(() => compileSource("set_joystick(JOY_X, 0)", { filename: "input.mbas", target: "c64" })).toThrow(/test mode/);
     expect(() => compileSource("JOY_X = 1", { filename: "input.mbas", target: "c64" })).toThrow();
   });
-  it.each(targets)("decodes every switch combination on %s", target => {
+  it.each(hardwareDecodedTargets)("decodes every switch combination on %s", target => {
     const output = compileSource(source, { filename: "input.mbas", target, readability: 2 });
     const expressions = [...output.matchAll(/^\d+ (?:LET )?\w+=(.*)$/gm)]
       .map(match => match[1].split(":")[0])
@@ -44,6 +45,13 @@ describe("joystick input", () => {
       ]);
     }
     expect(output).not.toMatch(/MBTJ[XYF]/);
+  });
+
+  it("maps Agon joystick controls to Q/A/O/P/Space keyboard-state checks", () => {
+    const output = compileSource(source, { filename: "input.mbas", target: "agon", readability: 2 });
+    expect(output).toContain("-INKEY(-56)+INKEY(-55)");
+    expect(output).toContain("-INKEY(-66)+INKEY(-17)");
+    expect(output).toContain("-INKEY(-99)");
   });
 
   it.each(targets)("accepts aliases and expression use on %s", target => {

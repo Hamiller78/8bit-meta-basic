@@ -8,7 +8,7 @@ This is a practical field guide for loading generated programs into emulators an
 
 Record emulator/device version, host operating system, target video mode, and relevant menu settings whenever a procedure is verified.
 
-The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, or `c64`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target—for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
+The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, `c64`, or `agon`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target—for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
 
 ## Complete emulator test workflow
 
@@ -29,7 +29,7 @@ Use this workflow after changing executable Meta-BASIC application code or user-
    npm run launch -- atari1 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
    ```
 
-   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device" for all three targets; it does not mean that every target uses a printer. Test runners inherit the project's character groups. On C64, the runner switches to the configured font before printing and uses matching casing for runner messages, test names, program output, and assertions. Pass `--font` only to override the project deliberately. Keep the program's intended `--language` and profile.
+   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device"; it does not mean that every target uses a printer. Test runners inherit the project's character groups. On C64, the runner switches to the configured font before printing and uses matching casing for runner messages, test names, program output, and assertions. Pass `--font` only to override the project deliberately. Keep the program's intended `--language` and profile.
 
 4. Wait for the target runner to finish, then read the captured host file:
 
@@ -102,7 +102,7 @@ For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
 npm run test:language:spectrum -- --restart
 ```
 
-If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64.
+If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64. Agon file-device output is available to generated programs, but automated emulator test-log capture has not yet been verified.
 
 The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
 
@@ -273,6 +273,27 @@ Printer and serial hooks remain available for experiments:
 npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device printer --restart
 npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
 ```
+
+## Agon Light with Fab Agon Emulator
+
+Status: **launch and German San Golpe intro verified in Fab Agon Emulator; broader runtime behavior remains to be exercised**.
+
+The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basiccard` virtual SD-card directory. The card contains `bin/bbcbasic24.bin`. Launch a program with:
+
+```text
+npm run launch:agon -- --project examples/san-golpe --language de --restart
+```
+
+The launcher compiles target `agon`, converts the generated listing to the CRLF text format expected by BBC BASIC, writes it as `metabasic.bas`, and writes these boot commands to `autoexec.txt`:
+
+```text
+LOAD bin/bbcbasic24.bin
+RUN . /metabasic.bas
+```
+
+Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC selects mode 3, so `TEXT_COLUMNS` is 80 and `TEXT_ROWS` is 30. The launcher-owned `metabasic.bas` and `autoexec.txt` files are replaced on each launch; keep personal card files under other names.
+
+For a physical Agon, copy the generated `build/<profile>/agon/<name>.bas` to an SD card using CRLF line endings, then start the 24-bit interpreter with the same `LOAD`/`RUN` sequence.
 
 ## Commodore 64 emulator
 

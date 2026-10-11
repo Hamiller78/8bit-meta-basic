@@ -9,6 +9,7 @@ Meta-BASIC is a small, modern source language that transpiles into readable BASI
 - ZX Spectrum BASIC
 - Atari 800XL Atari BASIC
 - Commodore 64 BASIC V2
+- BBC BASIC V for Agon Light
 
 The project should preserve the character of each target machine. It is not intended to hide every hardware difference behind one universal API. Shared language features should cover program structure and genuinely portable operations; machine-specific capabilities may later be exposed through explicit target namespaces or libraries.
 
@@ -155,7 +156,7 @@ Important source-language rule:
 
 Keywords and symbol lookup are case-insensitive. Preserve the source spelling of identifiers where practical for readable output, but target renderers may adjust casing or names. Preserve string contents exactly. Identifiers may contain ASCII letters, digits, and underscores, may end with `$` for string variables, and must otherwise begin with a letter or underscore. String literals and string variables are supported for assignment and output. `STRING$` and `SPACE$` are compile-time-only string fill helpers. `MID$`, `LEFT$`, and `RIGHT$` are supported as portable runtime string-slicing helpers. `LEN` is supported as a portable runtime string-length helper. `CHR$`, `CODE`, and `ASC` are supported as portable runtime character-code helpers. `STR$` and `VAL` are supported as portable runtime string/number conversion helpers. `RND` is supported as a portable runtime random-number helper. `JIFFIES` is supported as a portable runtime timer helper. `FREE_MEMORY` is supported as a portable runtime free BASIC memory helper. `KEY_CODE` is supported as a portable non-blocking keyboard polling helper. `KEY_PRESSED` is supported as a portable non-blocking keyboard availability helper. `DEVICE_AVAILABLE` is supported as a portable best-effort device availability helper for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`.
 
-`DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the three targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
+`DATA`, `READ`, and bare `RESTORE` are supported as the portable intersection of the targets. `DATA` values must fold to compile-time numeric, string, or boolean literals. `READ` targets are scalar variables only. `RESTORE` currently takes no label or line argument because C64 BASIC V2 cannot reposition the data pointer natively.
 
 `STRUCT name ... END STRUCT` is a compile-time record-like type definition. Its body contains field declarations, not executable statements. Numeric fields are written as bare field names. Fixed-width string fields are written with one width argument, such as `text$(39)`. `DIM value AS StructName` declares a scalar struct value. `DIM values AS StructName(count)` declares a zero-based struct array. The compiler lowers struct storage to generated backing scalar variables or one backing array per field; no target backend receives a native record type. Field access is written as `value.field` or `values(index).field`. Whole-struct assignment copies every field from a scalar struct value of the same type; the right-hand side cannot be an arbitrary expression or struct array element.
 
@@ -246,12 +247,13 @@ Selected targets provide read-only, case-insensitive environment constants:
 | ZX Spectrum | 22 | 32 | 50 |
 | Atari 800XL | 24 | 40 | 50 |
 | Commodore 64 | 25 | 40 | 50 |
+| Agon Light | 30 | 80 | 100 |
 
 All targets also provide read-only compile-time numeric constants `PI` and `E`.
 
 Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Direction constants represent each machine's cursor/direction key codes; letter constants such as `KEY_Q`, `KEY_A`, `KEY_O`, and `KEY_P` remain available.
 
-Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum maps these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
+Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum and Agon map these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
 
 Implemented requirements:
 
@@ -420,22 +422,22 @@ program_mode
 
 `CELL_BACKGROUND_COLOR colour` changes the following printed cell background colour where the target supports per-cell background attributes. Spectrum supports it; C64 and Atari 800XL ignore it.
 
-`SUPPRESS_SCROLL_PROMPT` refreshes the ZX Spectrum scroll counter so long output can continue without the interactive scroll prompt. Atari 800XL and C64 ignore it.
+`SUPPRESS_SCROLL_PROMPT` refreshes the ZX Spectrum scroll counter so long output can continue without the interactive scroll prompt. Atari 800XL, C64, and Agon ignore it.
 
-`PROGRAM_MODE` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll prompt counter, Atari hides the text cursor, and C64 disables the simple RUN/STOP check.
+`PROGRAM_MODE` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll prompt counter, Atari and Agon hide the text cursor, and C64 disables the simple RUN/STOP check.
 
 Target lowering:
 
 - Spectrum: `CLS`, or `PAPER targetColour` followed by `CLS`.
 - Atari 800XL: `PRINT CHR$(125);`, or `SETCOLOR 2,targetHue,targetLuminance` followed by `PRINT CHR$(125);`.
 - C64: `PRINT CHR$(147);`, or `POKE 53281,targetColour` followed by `PRINT CHR$(147);`.
-- Border colour lowers to Spectrum `BORDER targetColour`, Atari `SETCOLOR 4,targetHue,targetLuminance`, and C64 `POKE 53280,targetColour`.
-- Global background colour lowers to Spectrum `PAPER targetColour`, Atari `SETCOLOR 2,targetHue,targetLuminance`, and C64 `POKE 53281,targetColour`.
-- Global text colour lowers to Spectrum `INK targetColour`, Atari `SETCOLOR 1,targetHue,targetLuminance`, and C64 `POKE 646,targetColour`.
+- Border colour lowers to Spectrum `BORDER targetColour`, Atari `SETCOLOR 4,targetHue,targetLuminance`, and C64 `POKE 53280,targetColour`; Agon ignores it because the selected text mode has no matching border operation.
+- Global background colour lowers to Spectrum `PAPER targetColour`, Atari `SETCOLOR 2,targetHue,targetLuminance`, C64 `POKE 53281,targetColour`, and Agon `COLOUR 128 + targetColour`.
+- Global text colour lowers to Spectrum `INK targetColour`, Atari `SETCOLOR 1,targetHue,targetLuminance`, C64 `POKE 646,targetColour`, and Agon `COLOUR targetColour`.
 - Cell text colour lowers to Spectrum `INK targetColour`, C64 `POKE 646,targetColour`, and no Atari 800XL output.
 - Cell background colour lowers to Spectrum `PAPER targetColour` and no C64 or Atari 800XL output.
-- Scroll-prompt suppression lowers to Spectrum `POKE 23692,255` and no output on Atari 800XL or C64.
-- Program mode lowers to Spectrum `POKE 23692,255`, Atari `POKE 752,1`, and C64 `POKE 808,239`.
+- Scroll-prompt suppression lowers to Spectrum `POKE 23692,255` and no output on Atari 800XL, C64, or Agon.
+- Program mode lowers to Spectrum `POKE 23692,255`, Atari `POKE 752,1`, C64 `POKE 808,239`, and an Agon VDU cursor-hide command.
 
 Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look different across PAL, NTSC, emulator, and display configurations.
 
@@ -443,19 +445,19 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 
 - Generate line numbers beginning at 10 and prefer increments of 10.
 - If increments of 10 would exceed the target's maximum line number, automatically fall back to increments of 1.
-- Reject generated programs that still exceed the target's maximum line number with increment 1: Spectrum 9999, Atari 800XL 32767, and C64 63999.
+- Reject generated programs that still exceed the target's maximum line number with increment 1: Spectrum 9999, Atari 800XL 32767, C64 63999, and Agon BBC BASIC 65279.
 - Render target keywords in uppercase.
 - Reject duplicate labels.
 - Reject references to undefined labels.
 - Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
 - Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
-- Lower `END` to Spectrum `STOP`, Atari `END`, and C64 `END`.
-- Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64 `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(-(TI+1))`, and no Atari output. Lower `RANDOMIZE seed` to Spectrum `RANDOMIZE seed`, C64 generated assignment using `RND(-seed)`, and no Atari output.
-- Lower `FREE_MEMORY()` to Spectrum `65536 - USR 7962`, Atari `FRE(0)`, and C64 `FRE(0) - (FRE(0) < 0) * 65536`.
+- Lower `END` to Spectrum `STOP` and native `END` on Atari, C64, and Agon.
+- Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64/Agon `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(-(TI+1))`, Agon `RANDOMIZE TIME`, and no Atari output. Lower `RANDOMIZE seed` to native `RANDOMIZE seed` on Spectrum and Agon, C64 generated assignment using `RND(-seed)`, and no Atari output.
+- Lower `FREE_MEMORY()` to Spectrum `65536 - USR 7962`, Atari `FRE(0)`, C64 `FRE(0) - (FRE(0) < 0) * 65536`, and Agon `HIMEM-TOP`.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.
 - Keep one BASIC statement per generated line.
-- Reject generated BASIC lines that exceed the target's practical editable line length: Spectrum 640 characters, Atari 800XL 120 characters, and C64 80 characters.
+- Reject generated BASIC lines that exceed the target's practical editable line length: Spectrum 640 characters, Atari 800XL 120 characters, C64 80 characters, and Agon BBC BASIC 251 characters.
 - Prefer deterministic output: identical input and options must produce byte-for-byte identical BASIC.
 - Render expressions from the AST.
 - Emit numeric constants using a deterministic culture-independent format with `.` as decimal separator.
@@ -660,7 +662,7 @@ Default output is standard output. Also support:
 -o path/to/program.bas
 ```
 
-Valid targets are only `spectrum`, `atari800xl`, and `c64`. Do not accept a target and silently substitute another. Keep target selection typed and centralized.
+Valid targets are only `spectrum`, `atari800xl`, `c64`, and `agon`. Do not accept a target and silently substitute another. Keep target selection typed and centralized.
 
 Invalid arguments, file errors, syntax errors, semantic errors, and generation errors must return a nonzero exit code and write diagnostics to standard error.
 

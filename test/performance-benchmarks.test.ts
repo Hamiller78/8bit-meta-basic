@@ -20,7 +20,7 @@ describe("performance benchmarks", () => {
   it("builds BYTE and numerical comparison cases for every target", async () => {
     const configPath = "performance-tests/byte-arrays/metabasic.json";
     const configuration = await loadBuildConfiguration(configPath);
-    for (const target of ["spectrum", "atari800xl", "c64"] as const) {
+    for (const target of ["spectrum", "atari800xl", "c64", "agon"] as const) {
       const output = await build(configuration, { configPath, target, readability: 0 });
       expect(output).toContain("BYTE ARRAY PERFORMANCE");
       expect(output).toContain("BYTE READ WRITE");

@@ -2,7 +2,7 @@
 
 This document describes the implemented source language. Start with the [programming guide](programming-guide.md) for project structure and copyable application patterns. Target-specific rendering is documented in [targets.md](targets.md).
 
-The forms documented here are the supported Meta-BASIC source syntax. Do not infer additional source syntax from generated Spectrum, Atari, or C64 BASIC. In particular, target output may contain `LET`, native functions, `POKE`, `SYS`, compact variable names, and zero-based coordinates that are not written that way in Meta-BASIC.
+The forms documented here are the supported Meta-BASIC source syntax. Do not infer additional source syntax from generated Spectrum, Atari, C64, or Agon BBC BASIC. In particular, target output may contain `LET`, native functions, `POKE`, `SYS`, compact variable names, and zero-based coordinates that are not written that way in Meta-BASIC.
 
 Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may contain ASCII letters, digits, and underscores, must begin with a letter or underscore, and may end in `$` to denote a string variable or `%` to denote an integer numeric variable.
 
@@ -116,11 +116,11 @@ Members without explicit values count upward from the previous value, starting a
 
 Every target supplies these environment constants:
 
-| Constant | Spectrum | Atari 800XL | C64 |
-| --- | ---: | ---: | ---: |
-| `TEXT_ROWS` | 22 | 24 | 25 |
-| `TEXT_COLUMNS` | 32 | 40 | 40 |
-| `JIFFIES_PER_SECOND` | 50 | 50 | 50 |
+| Constant | Spectrum | Atari 800XL | C64 | Agon Light |
+| --- | ---: | ---: | ---: | ---: |
+| `TEXT_ROWS` | 22 | 24 | 25 | 30 |
+| `TEXT_COLUMNS` | 32 | 40 | 40 | 80 |
+| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 100 |
 
 The compiler also supplies target key constants, portable game-control constants, and portable colour constants. Their target mappings are described in [targets.md](targets.md).
 
@@ -144,7 +144,7 @@ Integer variable assignment accepts any numeric expression and stores `INT(expre
 counter% = 3.7
 ```
 
-Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 lowers them to native `%` integer variables and still emits explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
+Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 and Agon lower them to native `%` integer variables and still emit explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
 
 `BYTE` is an experimental compact storage type for one-dimensional arrays and struct fields. It is not a separate arithmetic type: a read becomes a native numeric value before it participates in an expression, and a write applies `INT(...)` before storing the value. Compile-time numeric writes must be integers in `0..255`; runtime expressions are currently the program's responsibility to keep in that range.
 
@@ -167,7 +167,7 @@ print values(0); counters%(2)
 
 `dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments.
 
-`dim pixels as byte(256)` creates 256 compact byte slots; `dim currentColour as byte` creates one compact byte scalar. `BYTE` arrays have exactly one element-count dimension. Spectrum and Atari store bytes as characters in backing strings and translate reads with `CODE` or `ASC`; C64 uses native integer storage. The compiler initializes byte storage to zero before entry code.
+`dim pixels as byte(256)` creates 256 compact byte slots; `dim currentColour as byte` creates one compact byte scalar. `BYTE` arrays have exactly one element-count dimension. Spectrum and Atari store bytes as characters in backing strings and translate reads with `CODE` or `ASC`; C64 and Agon use native integer storage. The compiler initializes byte storage to zero before entry code.
 
 String arrays are fixed-width:
 
@@ -179,7 +179,7 @@ messages$(2) = "STANDBY"
 print messages$(0); messages$(2)
 ```
 
-The declared width is the element's storage capacity. It is not part of the string value: `"READY"` retains length 5, while `"READY "` retains length 6 and preserves its deliberate trailing space. Reads, `LEN`, slicing, comparisons, output, and concatenation use that logical value consistently on every target. Spectrum and Atari generated code stores hidden element lengths beside its fixed-width character storage; C64 uses the native length of each string-array element. String fields in struct arrays use the same rules.
+The declared width is the element's storage capacity. It is not part of the string value: `"READY"` retains length 5, while `"READY "` retains length 6 and preserves its deliberate trailing space. Reads, `LEN`, slicing, comparisons, output, and concatenation use that logical value consistently on every target. Spectrum and Atari generated code stores hidden element lengths beside its fixed-width character storage; C64 and Agon use the native length of each string-array element. String fields in struct arrays use the same rules.
 
 Use `STRUCT` blocks to define small record-like storage shapes:
 
@@ -280,15 +280,15 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `screen_code(row, column)` | Runtime | Read the character code currently visible at a 1-based text-screen position |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
-`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`.
+`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`; Agon BBC BASIC provides the corresponding native functions.
 
-`STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari and C64 lower them to `STR$(expression)` and `VAL(expression)`. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
+`STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari, C64, and Agon lower them to their parenthesized native forms. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
 Math functions lower to the target BASIC function of the same name when evaluated at runtime. The compiler folds `INT` with a constant argument, including inside cursor coordinates such as `set_pos int(TEXT_ROWS / 2), 1`, so generated BASIC uses literal positions. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
 
-`FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, and Spectrum uses the 48K ROM free-memory routine.
+`FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, Spectrum uses the 48K ROM free-memory routine, and Agon uses `HIMEM-TOP`.
 
-`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, and C64 reads the standard BASIC text screen at address 1024. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
+`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, and Agon uses its native `GET(column,row)` screen query. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
 
 The bottom-right cell is a native scrolling boundary on Atari and C64: printing a character there scrolls the screen immediately, even when the statement has a trailing semicolon. Spectrum `PRINT AT` leaves the bottom-right character in place. Portable layouts that must not scroll should therefore leave the bottom-right cell unused. Other cells on the bottom and right edges remain usable.
 
@@ -460,7 +460,7 @@ print
 
 Coordinates are numeric expressions and are 1-based, as with `PRINT_AT`. `SET_POS` uses row, column order and changes the cursor without emitting text; in particular, Atari lowering is a bare `POSITION` rather than an empty `PRINT`. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. Neither cursor command replaces the last captured output used by test-mode print assertions.
 
-`SET_COLUMN` lowers to the native cursor state on each target: Spectrum rebuilds its complete print position using the current row, while Atari and C64 each update their cursor-column variable with one `POKE`.
+`SET_COLUMN` lowers to the native cursor state on each target: Spectrum rebuilds its complete print position using the current row, Atari and C64 update their cursor-column variable, and Agon emits `PRINT TAB(column,VPOS);`.
 
 ### Compile-time text layout
 
@@ -482,7 +482,7 @@ print_centered text$("continue")
 print_centered text$("creatingCharactersProgress"); created = createdCount, 2; total = 11, 2
 ```
 
-These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, or C64 40 columns.
+These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, C64 40, or Agon 80 columns.
 
 Words stay together when possible; words longer than the width are split. Single line breaks inside paragraphs become spaces, and blank lines separate paragraphs. Layout begins at the current cursor position and does not track cursor state across statements or branches. Start full-width output at column 1. A narrower width limits line length but does not establish a persistent left indent: ordinary BASIC line endings return to the left margin. Atari programs using these statements initialize the screen margins to columns 0 and 39.
 
@@ -732,9 +732,9 @@ program_mode
 
 Cell colours may have no effect on targets without the corresponding per-cell feature. This is deliberate rather than an attempt to simulate the feature with a large runtime.
 
-`suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL or C64.
+`suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL, C64, or Agon.
 
-`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor, and C64 installs a three-byte no-STOP routine in free RAM at `$02ED–$02EF` before redirecting the RUN/STOP vector with one POKE. The C64 routine preserves `LIST`; leave those bytes unused by application code. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
+`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari and Agon hide the text cursor, and C64 installs a three-byte no-STOP routine in free RAM at `$02ED–$02EF` before redirecting the RUN/STOP vector with one POKE. The C64 routine preserves `LIST`; leave those bytes unused by application code. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
 
 ## Current omissions
 

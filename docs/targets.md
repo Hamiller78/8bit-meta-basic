@@ -4,17 +4,17 @@ All targets share one parsed syntax tree and target-independent control-flow low
 
 ## Overview
 
-| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 |
-| --- | --- | --- | --- |
-| Text area | 22 × 32 | 24 × 40 | 25 × 40 |
-| Maximum line number | 9999 | 32767 | 63999 |
-| Practical generated-line limit | 640 | 120 | 80 |
-| Assignment | `LET X=1` | `X=1` | `X=1` |
-| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
-| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` |
-| Jump | `GO TO` | `GOTO` | `GOTO` |
-| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` |
-| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE |
+| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | Agon Light |
+| --- | --- | --- | --- | --- |
+| Text area | 22 × 32 | 24 × 40 | 25 × 40 | 30 × 80 (mode 3) |
+| Maximum line number | 9999 | 32767 | 63999 | 65279 |
+| Practical generated-line limit | 640 | 120 | 80 | 251 |
+| Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` |
+| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
+| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` |
+| Jump | `GO TO` | `GOTO` | `GOTO` | `GOTO` |
+| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
+| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
 
 Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
 
@@ -63,8 +63,9 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Spectrum: rows `1..22`, columns `1..32`
 - Atari: rows `1..24`, columns `1..40`
 - C64: rows `1..25`, columns `1..40`
+- Agon: rows `1..30`, columns `1..80`
 
-`SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
+`SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211; Agon combines the lowered column with native `VPOS`. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
 
 ## ZX Spectrum
 
@@ -78,7 +79,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - When a struct array has multiple numeric fields, the compiler packs those fields into one two-dimensional Spectrum numeric array: the first dimension selects the element and the second selects the field. This saves single-letter array names; Meta-BASIC source still uses ordinary struct field access. String fields remain separate string arrays.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`, plus hidden numeric arrays holding each element's logical length. Reads slice to the stored length, so implementation padding is excluded while deliberate trailing spaces remain part of the value.
 - `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
-- Printing into the bottom-right cell does not scroll the Spectrum display. Atari and C64 differ, so portable layouts should leave that one cell unused.
+- Printing into the bottom-right cell does not scroll the Spectrum display. Atari and C64 differ, and Agon's edge behavior has not yet been emulator-tested, so portable layouts should leave that one cell unused.
 - `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `SHARED_DRIVE` is not supported on Spectrum.
 - `CLS colour` uses `PAPER` and then `CLS`.
@@ -144,6 +145,23 @@ Atari colour values are deterministic approximations and can look different betw
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 
 Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`. Readable mode also shortens names containing C64 BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer can reject names that look harmless in Meta-BASIC source.
+
+## Agon Light
+
+- The backend targets BBC BASIC V for Agon in 24-bit ADL mode.
+- Generated programs begin with `MODE 3`, establishing the compiler's fixed 80-column by 30-row text environment.
+- Assignments omit `LET`; `%` variables use BBC BASIC's native 32-bit integer storage.
+- Numeric, integer, byte, and string arrays retain Meta-BASIC's zero-based indexes. Declared element counts become BBC BASIC upper bounds, while a fixed string width remains a compile-time check and is not emitted as another array dimension.
+- `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
+- `SCREEN_CODE` uses Agon's native `GET(column,row)` screen-character query.
+- `JIFFIES()` uses BBC BASIC `TIME`, whose unit is one centisecond; `JIFFIES_PER_SECOND` is therefore 100.
+- `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`.
+- Portable foreground/background colours use BBC BASIC `COLOUR`; the Agon text display has no matching border-colour operation.
+- `PROGRAM_MODE` hides the text cursor with a VDU command. `SUPPRESS_SCROLL_PROMPT` has no effect.
+- `GET_JOYSTICK` currently provides the portable Q/A/O/P/Space keyboard controls, which also works on Agon Light models without Console8 joystick ports.
+- Device handles currently lower to files on the SD card. Emulator test-log capture through those files has not yet been verified.
+
+The Fab Agon launch configuration copies CRLF text BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts `bin/bbcbasic24.bin` with the staged program. The generated listing remains readable and can also be copied to a physical Agon SD card.
 
 ## Readability
 

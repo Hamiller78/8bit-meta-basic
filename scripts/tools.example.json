@@ -40,6 +40,9 @@
           "outputExtension": ".prg"
         }
       ]
+    },
+    "agon": {
+      "tools": []
     }
   },
   "targetConfigurations": {
@@ -144,6 +147,28 @@
           "lst": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"],
           "atr": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "{artifact}"]
         }
+      }
+    },
+    "agon": {
+      "compilerTarget": "agon",
+      "computer": {
+        "model": "Agon Light",
+        "ramKib": 512,
+        "videoStandard": "VGA",
+        "basic": "BBC BASIC for Agon (24-bit ADL)",
+        "screenMode": 3,
+        "screenColumns": 80,
+        "screenRows": 30
+      },
+      "emulator": {
+        "type": "fab-agon",
+        "name": "Fab Agon Emulator",
+        "path": "C:\\Emulator\\AgonLight\\fab-agon-emulator-v1.2.5-windows-x64\\fab-agon-emulator.exe",
+        "workingDirectory": "C:\\Emulator\\AgonLight\\fab-agon-emulator-v1.2.5-windows-x64",
+        "sdcardPath": "C:\\Emulator\\AgonLight\\fab-agon-emulator-v1.2.5-windows-x64\\basiccard",
+        "basicBinary": "bin/bbcbasic24.bin",
+        "cardProgramName": "metabasic.bas",
+        "args": ["--sdcard", "{sdcard}"]
       }
     },
     "c64": {

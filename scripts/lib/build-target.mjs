@@ -6,7 +6,7 @@ import { deviceKindUsage, parseDeviceKind } from "../device-options.mjs";
 import { toolOutputReportsFailure } from "../tool-output.mjs";
 import { compilerTargetConfiguration } from "../target-configurations.mjs";
 
-export const targets = ["spectrum", "atari800xl", "c64"];
+export const targets = ["spectrum", "atari800xl", "c64", "agon"];
 export const profiles = {
   debug: 2,
   balanced: 1,
@@ -19,7 +19,8 @@ const defaultToolConfig = "scripts/tools.local.json";
 const defaultTestOutputDevices = {
   spectrum: "text-printer",
   atari800xl: "shared-drive",
-  c64: "rs232"
+  c64: "rs232",
+  agon: "shared-drive"
 };
 
 export async function buildProject({ cwd = process.cwd() } = {}) {
@@ -574,7 +575,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|agon> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;

@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { build, loadBuildConfiguration, loadTexts } from "../src/build-configuration.js";
 import { wrapText } from "../src/text-support.js";
 
-const targets = ["spectrum", "atari800xl", "c64"] as const;
+const targets = ["spectrum", "atari800xl", "c64", "agon"] as const;
 describe("localized text and layout", () => {
   it("wraps paragraphs and long words deterministically", () => {
     expect(wrapText("one two three\n\nfour", 7)).toEqual(["one two", "three", "", "four"]);
@@ -20,14 +20,22 @@ describe("localized text and layout", () => {
       expect(result).not.toContain("PRINT_TEXT");
       expect(result).toContain(target === "c64" ? "GRUESSE!" : "Gruesse!");
       const text = [...result.matchAll(/PRINT "([^"]*)"/g)].map((match) => match[1]);
-      expect(text.every((line) => line.length <= (target === "spectrum" ? 32 : 40))).toBe(true);
+      const textColumns = target === "spectrum" ? 32 : target === "agon" ? 80 : 40;
+      expect(text.every((line) => line.length <= textColumns)).toBe(true);
       expect(result).toBe(compileSource('show()\nend\nfunction show()\nprint_text "intro"\nend function', {
         filename: "intro.mbas", target, texts: { intro: "One two three four five six seven eight nine ten eleven twelve.\n\nGrüße!" }
       }));
     });
     it(`positions without advancing the cursor for ${target}`, () => {
       const result = compileSource('set_pos 3, 4\nprint "Hello"', { filename: "position.mbas", target });
-      expect(result).toContain(target === "spectrum" ? "PRINT AT 2,3;" : target === "atari800xl" ? "POSITION 3,2" : "POKE 214,2");
+      const position = target === "spectrum"
+        ? "PRINT AT 2,3;"
+        : target === "atari800xl"
+          ? "POSITION 3,2"
+          : target === "agon"
+            ? "PRINT TAB(3,2);"
+            : "POKE 214,2";
+      expect(result).toContain(position);
       if (target === "atari800xl") expect(result).not.toContain('PRINT "";');
       expect(() => compileSource("set_pos 0, 1", { filename: "bad.mbas", target })).toThrow(/bad.mbas:1/);
     });
@@ -101,7 +109,7 @@ describe("localized text and layout", () => {
     const intro = "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen.";
     for (const target of targets) {
       const output = compileSource(source, { filename: "intro.mbas", target, testMode: true, texts: { intro } });
-      const limit = target === "spectrum" ? 204 : target === "atari800xl" ? 120 : 80;
+      const limit = target === "spectrum" ? 204 : target === "atari800xl" ? 120 : target === "agon" ? 251 : 80;
       expect(output.trimEnd().split("\n").every((line) => line.length <= limit)).toBe(true);
     }
   });

@@ -2,7 +2,7 @@
 
 Meta-BASIC is built as a small TypeScript compiler plus thin command-line and editor shells. The compiler core should stay independent from emulators, packaging tools, VS Code, and local filesystem conventions.
 
-The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `STRUCT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do Spectrum, Atari, and C64 lowering choose the awkward native spelling.
+The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `STRUCT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do Spectrum, Atari, C64, and Agon lowering choose the native spelling.
 
 ## Pipeline
 
@@ -36,7 +36,7 @@ The compiler library ends at BASIC text plus diagnostics and stats. Everything a
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
-- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, and C64.
+- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, and Agon Light.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.
 - `src/compiler.ts` coordinates final rendering and may retry with generated temporaries when complex generated code would exceed a target line-length limit.
@@ -129,4 +129,4 @@ For a new device constant, usually touch:
 src/devices.ts -> semantic/device validation -> target device lowering -> scripts if launch capture is needed -> tests -> docs
 ```
 
-Keep examples small and executable on all three targets when possible. The generated BASIC is meant to be read, so changes should be tested both as compiler behavior and as listings a human can inspect.
+Keep examples small and executable on all targets when possible. The generated BASIC is meant to be read, so changes should be tested both as compiler behavior and as listings a human can inspect.

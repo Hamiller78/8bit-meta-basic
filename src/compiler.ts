@@ -11,6 +11,7 @@ import { getTarget, type TargetId } from "./targets/index.js";
 import { setC64RenderProgram } from "./targets/c64.js";
 import { setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
+import { setAgonRenderProgram } from "./targets/agon.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions } from "./targets/instruction-expressions.js";
 import { rebuildLabels, renderCheckedLine, validateGeneratedLineLength, type TargetBackend } from "./targets/target.js";
@@ -339,8 +340,10 @@ function setRenderProgram(target: TargetId, instructions: readonly Instruction[]
     setSpectrumRenderProgram(instructions);
   } else if (target === "atari800xl") {
     setAtariRenderProgram(instructions);
-  } else {
+  } else if (target === "c64") {
     setC64RenderProgram(instructions);
+  } else {
+    setAgonRenderProgram(instructions);
   }
 }
 
@@ -667,5 +670,7 @@ function targetDisplayName(target: TargetId): string {
       return "Atari 800XL";
     case "c64":
       return "C64";
+    case "agon":
+      return "Agon Light";
   }
 }

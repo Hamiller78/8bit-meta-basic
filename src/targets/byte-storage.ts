@@ -5,11 +5,11 @@ import { rebuildLabels } from "./target.js";
 import { mapInstructionExpressions } from "./instruction-expressions.js";
 import { allocateGeneratedVariableName } from "./string-array-lengths.js";
 
-export type ByteStorageTarget = "spectrum" | "atari800xl" | "c64";
+export type ByteStorageTarget = "spectrum" | "atari800xl" | "c64" | "agon";
 
 /** Select compact target storage while keeping BYTE expressions numerically typed. */
 export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTarget): LoweredProgram {
-  const suffix = target === "c64" ? "%" : "$";
+  const suffix = target === "c64" || target === "agon" ? "%" : "$";
   const byteNames = collectByteStorageNames(program.instructions);
   if (byteNames.size === 0) return program;
 
@@ -40,7 +40,7 @@ export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTar
     }
   });
 
-  if (target === "c64") return rebuildLabels(program, rewritten);
+  if (target === "c64" || target === "agon") return rebuildLabels(program, rewritten);
 
   const initializationLoopName = allocateGeneratedVariableName(rewritten, "MBBYTEINIT");
   const initialized: Instruction[] = [];
@@ -90,7 +90,7 @@ function rewriteByteExpression(
     case "identifier": {
       const name = targetNames.get(expression.name.toLowerCase()) ?? expression.name;
       const raw = { ...expression, name, valueType: undefined };
-      return expression.valueType === "byte" && target !== "c64" ? byteRead(raw, target) : raw;
+      return expression.valueType === "byte" && target !== "c64" && target !== "agon" ? byteRead(raw, target) : raw;
     }
     case "array-access": {
       const raw = {
@@ -100,7 +100,7 @@ function rewriteByteExpression(
         ...(expression.fixedWidthStorageLength ? { fixedWidthStorageLength: rewrite(expression.fixedWidthStorageLength) } : {}),
         ...(expression.fixedWidthStorageStart ? { fixedWidthStorageStart: rewrite(expression.fixedWidthStorageStart) } : {})
       };
-      return expression.valueType === "byte" && target !== "c64" ? byteRead(raw, target) : raw;
+      return expression.valueType === "byte" && target !== "c64" && target !== "agon" ? byteRead(raw, target) : raw;
     }
     case "function-call":
       return { ...expression, args: expression.args.map(rewrite) };
@@ -120,7 +120,7 @@ function rewriteByteExpression(
   }
 }
 
-function byteRead(expression: Expression, target: Exclude<ByteStorageTarget, "c64">): Expression {
+function byteRead(expression: Expression, target: "spectrum" | "atari800xl"): Expression {
   return {
     kind: "function-call",
     name: target === "spectrum" ? builtinFunctions.code : builtinFunctions.asc,

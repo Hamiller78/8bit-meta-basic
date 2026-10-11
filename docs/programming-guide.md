@@ -145,7 +145,7 @@ nextColour = tileColours(0) + 1
 tileColours(1) = nextColour
 ```
 
-Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64 uses native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
+Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64 and Agon use native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
 
 The fixed width is the element's capacity, not its logical string length. Assigning `"READY"` to an element of width 12 reads back as the five-character string `"READY"`; assigning `"READY "` preserves the deliberate trailing space and reads back with length 6. Spectrum and Atari generated code maintains hidden logical-length arrays so storage padding never becomes part of the Meta-BASIC value. This also applies to string fields in struct arrays.
 

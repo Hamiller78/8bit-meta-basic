@@ -1,12 +1,14 @@
 import { atari800xlTarget } from "./atari800xl.js";
 import { c64Target } from "./c64.js";
 import { spectrumTarget } from "./spectrum.js";
+import { agonTarget } from "./agon.js";
 import type { TargetBackend, TargetId } from "./target.js";
 
 const targets: Record<TargetId, TargetBackend> = {
   spectrum: spectrumTarget,
   atari800xl: atari800xlTarget,
-  c64: c64Target
+  c64: c64Target,
+  agon: agonTarget
 };
 
 export type { TargetId };
@@ -16,5 +18,5 @@ export function getTarget(id: TargetId): TargetBackend {
 }
 
 export function isTargetId(value: string): value is TargetId {
-  return value === "spectrum" || value === "atari800xl" || value === "c64";
+  return value === "spectrum" || value === "atari800xl" || value === "c64" || value === "agon";
 }

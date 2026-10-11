@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compileSourceDetailed } from "../src/compiler.js";
 
 describe("compiler debug information", () => {
-  it.each(["spectrum", "atari800xl", "c64"] as const)("maps final %s BASIC lines, labels, and function storage", (target) => {
+  it.each(["spectrum", "atari800xl", "c64", "agon"] as const)("maps final %s BASIC lines, labels, and function storage", (target) => {
     const source = [
       "value = Twice(3)",
       "start:",
@@ -77,7 +77,7 @@ describe("compiler debug information", () => {
     ]));
   });
 
-  it.each(["spectrum", "atari800xl", "c64"] as const)("maps %s struct fields to native array storage", (target) => {
+  it.each(["spectrum", "atari800xl", "c64", "agon"] as const)("maps %s struct fields to native array storage", (target) => {
     const source = [
       "STRUCT Pair",
       "Left%",
@@ -98,7 +98,7 @@ describe("compiler debug information", () => {
     expect(name?.targetName).toBeTruthy();
     expect(result.output).toContain(`DIM ${left?.targetName}(`);
     expect(left?.targetElementIndexBase).toBe(target === "spectrum" ? 1 : 0);
-    if (target === "atari800xl") {
+    if (target === "atari800xl" || target === "agon") {
       expect(left?.targetFieldIndex).toBeUndefined();
       expect(right?.targetFieldIndex).toBeUndefined();
       expect(left?.targetName).not.toBe(right?.targetName);
