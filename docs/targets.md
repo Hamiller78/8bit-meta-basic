@@ -157,7 +157,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
 - `SCREEN_CODE` sends Agon's VDP character-read command, synchronizes through OSBYTE 19, and reads MOS system-variable byte 9 through OSBYTE.
 - Portable `CODE(text$)` renders as BBC BASIC `ASC(text$)`.
-- Generated plain-text BBC BASIC remains ASCII-safe. International string characters are emitted as `CHR$` concatenations using the Agon's Windows-1252 display codes because the BBC BASIC plain-text loader cannot safely consume raw high-bit characters.
+- Generated `.bas` listings are readable UTF-8 and preserve supported international characters directly. The built-in Agon packaging step encodes them as Windows-1252 bytes in the tokenized `.bbc` artifact. Use `.bbc` rather than the UTF-8 listing as the directly loadable program.
 - `JIFFIES()` uses BBC BASIC `TIME`, whose unit is one centisecond; `JIFFIES_PER_SECOND` is therefore 100.
 - `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`. BBC BASIC has no `RANDOMIZE` statement, so bare `RANDOMIZE` seeds through an assignment from `RND(-TIME)` and `RANDOMIZE seed` uses `RND(-seed)`.
 - Portable foreground/background colours use BBC BASIC `COLOUR`. Because the Agon text display has no separate border, a portable border-colour request changes the background instead; this keeps the test runner's red failure indication visible.
@@ -165,7 +165,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `GET_JOYSTICK` currently provides the portable Q/A/O/P/Space keyboard controls, which also works on Agon Light models without Console8 joystick ports.
 - Device handles lower to files on the SD card. `PRINT_DEVICE` uses BBC BASIC `BPUT#` string output so test logs and ordinary output remain readable text instead of `PRINT#`'s typed binary record format.
 
-The Fab Agon launch configuration copies CRLF text BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts `bin/bbcbasic24.bin` with the staged program. The generated listing remains readable and can also be copied to a physical Agon SD card.
+The Fab Agon launch configuration copies tokenized BBC BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts `bin/bbcbasic24.bin` with the staged `.bbc` program. Every build retains the readable `.bas` listing beside that tokenized artifact.
 
 ## Readability
 

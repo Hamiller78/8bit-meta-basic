@@ -18,6 +18,7 @@
     "build:c64:all-profiles": "node scripts/build-target.mjs c64 --all-profiles",
     "build:agon": "node scripts/build-target.mjs agon",
     "build:agon:all-profiles": "node scripts/build-target.mjs agon --all-profiles",
+    "tokenize:agon": "node scripts/tokenize-agon-basic.mjs",
     "launch": "node scripts/launch-target.mjs",
     "launch:atari": "node scripts/launch-target.mjs atari1",
     "launch:atari800": "node scripts/launch-target.mjs atari2",

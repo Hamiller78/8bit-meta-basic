@@ -82,7 +82,7 @@ describe("localized text and layout", () => {
     expect(spectrum).toContain('PRINT "Gruesse aus Oesterreich"');
     expect(c64).toContain('print "Gruesse aus Oesterreich"');
     expect(c64).toContain("print chr$(14);");
-    expect(agon).toContain('PRINT "Gr" + CHR$(252) + CHR$(223) + "e aus " + CHR$(214) + "sterreich"');
+    expect(agon).toContain('PRINT "Grüße aus Österreich"');
     expect(fallback).toContain('PRINT "GRUESSE AUS OESTERREICH"');
   });
   it("preserves all-uppercase words when transliterating uppercase umlauts", () => {
@@ -231,7 +231,7 @@ describe("localized text and layout", () => {
     const configuration = await loadBuildConfiguration(configPath);
     for (const target of targets) for (const language of ["en", "de"]) {
       const result = await build(configuration, { configPath, target, language });
-      const translatedMarker = target === "atari800xl" ? "veröffentlichte" : target === "agon" ? "chr$(246)" : "veroeffentlichte";
+      const translatedMarker = target === "atari800xl" || target === "agon" ? "veröffentlichte" : "veroeffentlichte";
       expect(result.toLowerCase()).toContain(language === "de" ? translatedMarker : "small");
       expect(result).not.toContain("PRINT_TEXT");
       const uppercaseResult = result.toUpperCase();

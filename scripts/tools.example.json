@@ -167,7 +167,7 @@
         "workingDirectory": "C:\\Emulator\\AgonLight\\fab-agon-emulator-v1.2.5-windows-x64",
         "sdcardPath": "C:\\Emulator\\AgonLight\\fab-agon-emulator-v1.2.5-windows-x64\\basiccard",
         "basicBinary": "bin/bbcbasic24.bin",
-        "cardProgramName": "metabasic.bas",
+        "cardProgramName": "metabasic.bbc",
         "args": ["--sdcard", "{sdcard}"]
       }
     },

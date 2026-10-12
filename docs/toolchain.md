@@ -1,6 +1,6 @@
 # Build and external-tool pipeline
 
-Meta-BASIC itself always emits readable BASIC text. Optional external programs turn that text into formats accepted more directly by emulators and retro devices.
+Meta-BASIC itself always emits readable BASIC text. The build scripts additionally tokenize Agon BBC BASIC internally; optional external programs turn the other target listings into formats accepted more directly by emulators and retro devices.
 
 ## Build scripts
 
@@ -9,6 +9,7 @@ npm run build:spectrum -- --profile debug
 npm run build:atari -- --profile balanced
 npm run build:c64 -- --profile release
 npm run build:agon -- --profile release
+npm run tokenize:agon -- input.bas output.bbc
 npm run build:all-targets -- --profile release
 npm run build:all-targets -- --source examples/narf.mbas --profile release
 npm run build:all-targets -- --build-config examples/multifile/metabasic.json --profile release
@@ -203,6 +204,25 @@ build/<profile>/atari800xl/<source-name>.atr-files/PROGRAM.BAS
 
 The tokenized `.BAS` is copied into the ATR staging directory before `dir2atr` runs, so the generated ATR can contain both the importable `.LST` and direct-load `.BAS` forms.
 
+## Agon BBC BASIC tokenizer
+
+Every Agon build writes two artifacts:
+
+```text
+build/<profile>/agon/<source-name>.bas
+build/<profile>/agon/<source-name>.bbc
+```
+
+The `.bas` file is the readable UTF-8 listing, including real international characters. It is a development artifact rather than a promise that BBC BASIC's plain-text loader can load its UTF-8 bytes. The `.bbc` file is the directly loadable, tokenized BBC BASIC program used by the launcher and suitable for copying to an Agon SD card. Tokenization is built into the repository and does not require another download. It follows the token table and line-record format of BBC BASIC for Agon ADL 1.03, including encoded line-number references and Windows-1252 string bytes.
+
+The tokenizer can also be used independently with an already numbered BBC BASIC listing:
+
+```text
+npm run tokenize:agon -- input.bas output.bbc
+```
+
+Input is read as UTF-8. Lines must begin with a BBC BASIC line number, and the output directory is created when necessary. Supported international characters are converted directly to their single-byte Windows-1252 representation in string literals, comments, and data. Agon target builds perform this tokenization automatically.
+
 ## Local tool configuration
 
 Copy:
@@ -219,7 +239,7 @@ scripts/tools.local.json
 
 and configure local executable paths. Keep `tools.local.json` out of version control because paths differ per machine.
 
-The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, `{target}`, and `{targetConfiguration}`. Here `{target}` is the compiler target, while `{targetConfiguration}` is the selected runnable configuration name. They always produce `.bas` text even when an optional conversion tool is absent.
+The scripts understand placeholders including `{input}`, `{output}`, `{sourceName}`, `{profile}`, `{target}`, and `{targetConfiguration}`. Here `{target}` is the compiler target, while `{targetConfiguration}` is the selected runnable configuration name. They always produce `.bas` text even when an optional conversion tool is absent. Agon builds also always produce `.bbc` through the built-in tokenizer.
 
 Device-output launch arguments may also use `{printerOutput}`, `{rs232Output}`, and `{rs232Endpoint}`. `{printerOutput}` and `{rs232Output}` expand to host output files. `{rs232Endpoint}` is a dynamically created `127.0.0.1:<port>` endpoint used by the C64/VICE RS-232 capture workflow.
 Spectrum printer launch arguments may also use `{nullDevice}`, which expands to `NUL` on Windows and `/dev/null` elsewhere. Atari shared-drive settings use `sharedDriveSpec`, `sharedDrivePath`, and `sharedDriveOutputPath`.
@@ -261,7 +281,7 @@ Use `scripts/tools.local.json` for values the scripts can pass to external tools
 | Spectrum/Fuse | `bas2tap` under `targets.spectrum`; separate `spectrum48`/`spectrum128` computer metadata, Fuse path, explicit machine args, test speed, and output settings under `targetConfigurations` | Install Fuse and `bas2tap`; keep or remove `-auto-play` depending on the Fuse setup |
 | Atari 800XL | `basicParser` and `dir2atr` under `targets.atari800xl`; separate Altirra and Atari800 computer/emulator entries under `targetConfigurations` | Install/configure the chosen emulator; set up the configured host drive; provide the ROM set described by that configuration |
 | C64/VICE | `petcat` under `targets.c64`; C64 model metadata, VICE path, autostart, and RS-232 capture under `targetConfigurations.c64` | Install VICE; verify userport RS-232 is enabled when inspecting the GUI; leave `IP232` unchecked for the local capture helper |
-| Agon/Fab Agon | no conversion tool; BBC BASIC remains plain CRLF text; emulator, `sdcardPath`, BASIC binary, and card filename under `targetConfigurations.agon` | Put `bbcbasic24.bin` on the virtual card; the launcher owns `metabasic.bas` and `autoexec.txt` |
+| Agon/Fab Agon | built-in BBC BASIC tokenization; emulator, `sdcardPath`, BASIC binary, and card filename under `targetConfigurations.agon` | Put `bbcbasic24.bin` on the virtual card; the launcher owns `metabasic.bbc` and `autoexec.txt` |
 
 The committed `scripts/tools.example.json` documents the expected shape. The local copy is intentionally machine-specific and should not be committed.
 

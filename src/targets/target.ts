@@ -54,6 +54,7 @@ export interface ExpressionRenderOptions {
 
 export type SpectrumColorCode = Readonly<Record<PortableColor, number>>;
 export type C64ColorCode = Readonly<Record<PortableColor, number>>;
+export type AgonColorCode = Readonly<Record<PortableColor, number>>;
 export interface AtariColorCode {
   readonly hue: number;
   readonly luminance: number;
@@ -79,6 +80,17 @@ export const c64ColorCodes: C64ColorCode = {
   CYAN: 3,
   YELLOW: 7,
   WHITE: 1
+};
+
+export const agonColorCodes: AgonColorCode = {
+  BLACK: 0,
+  BLUE: 4,
+  RED: 1,
+  MAGENTA: 5,
+  GREEN: 2,
+  CYAN: 6,
+  YELLOW: 3,
+  WHITE: 7
 };
 
 export const atariColorCodes: Readonly<Record<PortableColor, AtariColorCode>> = {

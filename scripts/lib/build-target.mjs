@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { deviceKindUsage, parseDeviceKind } from "../device-options.mjs";
 import { toolOutputReportsFailure } from "../tool-output.mjs";
 import { compilerTargetConfiguration } from "../target-configurations.mjs";
+import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64", "agon"];
 export const profiles = {
@@ -102,6 +103,14 @@ export async function buildTarget(options) {
     await writeAtariDiskDirectory({ listingPath, diskDirectoryPath, sourceName: program.name });
     artifacts.atariDiskDirectory = diskDirectoryPath;
     console.log(`created ${relativeToCwd(cwd, diskDirectoryPath)}`);
+  }
+
+  if (target === "agon") {
+    const tokenizedPath = outputPathFor(cwd, outDir, profile, target, program.name, ".bbc");
+    const sourceText = await readFile(basicPath, "utf8");
+    await writeFile(tokenizedPath, tokenizeAgonBasic(sourceText));
+    artifacts.agonTokenized = tokenizedPath;
+    console.log(`created ${relativeToCwd(cwd, tokenizedPath)}`);
   }
 
   if (runTools) {

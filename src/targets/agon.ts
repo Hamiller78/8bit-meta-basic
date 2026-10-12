@@ -11,6 +11,7 @@ import { createFunctionRenderer, type FunctionCallExpression } from "./function-
 import { instructionExpressions, mapInstructionExpressions } from "./instruction-expressions.js";
 import { allocateGeneratedVariableName, createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import {
+  agonColorCodes,
   expandPositionedPrints,
   expandSetColumns,
   expandSetPositions,
@@ -19,7 +20,6 @@ import {
   renderExpression,
   renderInlineInstructionBodies,
   renderPrintItems,
-  spectrumColorCodes,
   type ExpressionRenderOptions,
   type TargetBackend
 } from "./target.js";
@@ -44,7 +44,7 @@ export const agonTarget: TargetBackend = {
     const columns = expandSetColumns(positions, "Agon Light", 79, (instruction) => [instruction]);
     const prints = expandPositionedPrints(columns, "Agon Light", 29, 79, (instruction) => [instruction]);
     const safeLoops = lowerAgonForExits(prints);
-    const strings = lowerAgonInternationalStrings(safeLoops);
+    const strings = validateAgonInternationalStrings(safeLoops);
     const screenReads = lowerAgonScreenReads(strings);
     const randomSeedName = allocateGeneratedVariableName(screenReads.instructions, "MBRND");
     const deviceTextBufferName = allocateGeneratedVariableName(screenReads.instructions, "MBOUTPUT", "$");
@@ -102,11 +102,11 @@ export const agonTarget: TargetBackend = {
         throw new Error("Internal error: unexpected border-color instruction for Agon Light.");
       case "text-color":
       case "cell-text-color":
-        return `${lineNumber} COLOUR ${spectrumColorCodes[instruction.color.color]}`;
+        return `${lineNumber} COLOUR ${agonColorCodes[instruction.color.color]}`;
       case "screen-background-color":
       case "cell-background-color":
       case "paper":
-        return `${lineNumber} COLOUR ${128 + spectrumColorCodes[instruction.color.color]}`;
+        return `${lineNumber} COLOUR ${128 + agonColorCodes[instruction.color.color]}`;
       case "suppress-scroll-prompt":
         throw new Error("Internal error: unexpected suppress-scroll-prompt instruction for Agon Light.");
       case "program-mode":
@@ -318,75 +318,41 @@ function instructionContainsReturn(instruction: Instruction): boolean {
   return instruction.kind === "return" || (instruction.kind === "if-then" && instruction.body.some(instructionContainsReturn));
 }
 
-function lowerAgonInternationalStrings(program: LoweredProgram): LoweredProgram {
+function validateAgonInternationalStrings(program: LoweredProgram): LoweredProgram {
   return rebuildLabels(program, program.instructions.map((instruction) => {
-    // DATA must remain a list of native literals. International DATA values need
-    // a future storage lowering rather than CHR$ concatenation.
-    if (instruction.kind === "data") return instruction;
-    return mapInstructionExpressions(instruction, rewriteAgonInternationalStringExpression);
+    return mapInstructionExpressions(instruction, validateAgonInternationalStringExpression);
   }));
 }
 
-function rewriteAgonInternationalStringExpression(expression: Expression): Expression {
+function validateAgonInternationalStringExpression(expression: Expression): Expression {
   switch (expression.kind) {
-    case "string":
-      return agonAsciiStringExpression(expression);
+    case "string": {
+      for (const char of expression.value) {
+        if ((char.codePointAt(0) ?? 0) >= 128 && agonCharacterCode(char) === undefined) {
+          throw new DiagnosticError(expression.location, `Unsupported Agon text character "${char}". Use a Windows-1252 character or a portable transliteration.`);
+        }
+      }
+      break;
+    }
     case "function-call":
-      return { ...expression, args: expression.args.map(rewriteAgonInternationalStringExpression) };
+      expression.args.forEach(validateAgonInternationalStringExpression);
+      break;
     case "array-access":
     case "struct-field-access":
-      return { ...expression, indices: expression.indices.map(rewriteAgonInternationalStringExpression) };
+      expression.indices.forEach(validateAgonInternationalStringExpression);
+      break;
     case "parenthesized":
-      return { ...expression, expression: rewriteAgonInternationalStringExpression(expression.expression) };
+      validateAgonInternationalStringExpression(expression.expression);
+      break;
     case "unary":
-      return { ...expression, operand: rewriteAgonInternationalStringExpression(expression.operand) };
+      validateAgonInternationalStringExpression(expression.operand);
+      break;
     case "binary":
-      return {
-        ...expression,
-        left: rewriteAgonInternationalStringExpression(expression.left),
-        right: rewriteAgonInternationalStringExpression(expression.right)
-      };
-    default:
-      return expression;
+      validateAgonInternationalStringExpression(expression.left);
+      validateAgonInternationalStringExpression(expression.right);
+      break;
   }
-}
-
-function agonAsciiStringExpression(expression: Extract<Expression, { kind: "string" }>): Expression {
-  if (/^[\x00-\x7f]*$/u.test(expression.value)) return expression;
-  const parts: Expression[] = [];
-  let ascii = "";
-  const flushAscii = (): void => {
-    if (!ascii) return;
-    parts.push({ kind: "string", value: ascii, location: expression.location });
-    ascii = "";
-  };
-  for (const char of expression.value) {
-    if ((char.codePointAt(0) ?? 0) < 128) {
-      ascii += char;
-      continue;
-    }
-    const code = agonCharacterCode(char);
-    if (code === undefined) {
-      throw new DiagnosticError(expression.location, `Unsupported Agon text character "${char}". Use a Windows-1252 character or a portable transliteration.`);
-    }
-    flushAscii();
-    parts.push({
-      kind: "function-call",
-      name: builtinFunctions.chr,
-      args: [numberExpression(code, expression.location)],
-      valueType: "string",
-      location: expression.location
-    });
-  }
-  flushAscii();
-  if (parts.length === 0) return expression;
-  return parts.reduce((left, right): Expression => ({
-    kind: "binary",
-    operator: "+",
-    left,
-    right,
-    location: expression.location
-  }));
+  return expression;
 }
 
 function agonCharacterCode(char: string): number | undefined {

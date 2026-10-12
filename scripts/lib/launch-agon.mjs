@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { buildTarget, outputPathFor, programIdentity } from "./build-target.mjs";
 import { parseDeviceKind } from "../device-options.mjs";
 import { loadToolConfiguration, resolveTargetConfiguration } from "../target-configurations.mjs";
+import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
 
 const defaultSource = "examples/colors.mbas";
 const defaultOutDir = "build";
@@ -40,8 +41,9 @@ export async function launchAgon(options) {
   });
 
   const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
-  const artifact = outputPathFor(cwd, options.outDir, options.profile, "agon", program.name, ".bas");
-  if (!(await exists(artifact))) throw new Error(`Agon BASIC artifact not found: ${artifact}.`);
+  const basicArtifact = outputPathFor(cwd, options.outDir, options.profile, "agon", program.name, ".bas");
+  const artifact = outputPathFor(cwd, options.outDir, options.profile, "agon", program.name, ".bbc");
+  if (!(await exists(artifact))) throw new Error(`Agon tokenized BASIC artifact not found: ${artifact}.`);
   if (!emulator?.path) throw new Error(`No emulator path configured for target configuration "${options.targetConfiguration}" in ${options.configPath}.`);
   if (!emulator?.sdcardPath) throw new Error(`No emulator sdcardPath configured for target configuration "${options.targetConfiguration}" in ${options.configPath}.`);
 
@@ -51,7 +53,7 @@ export async function launchAgon(options) {
   if (!(await exists(sdcardPath))) throw new Error(`Agon virtual SD card directory not found at ${emulator.sdcardPath}.`);
 
   if (options.restart) await terminateExistingEmulator(emulatorPath);
-  await prepareSdCard(artifact, sdcardPath, emulator, options.testMode);
+  await prepareSdCard({ artifact, basicArtifact, sdcardPath, emulator, includeTestErrorTrap: options.testMode });
 
   const args = (emulator.args ?? ["--sdcard", "{sdcard}"]).map((argument) =>
     argument.replaceAll("{sdcard}", sdcardPath).replaceAll("{artifact}", artifact)
@@ -61,20 +63,32 @@ export async function launchAgon(options) {
   console.log(`launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "Agon Light"}) in ${emulator.name ?? "Fab Agon Emulator"} with ${relativeToCwd(cwd, artifact)}`);
 }
 
-async function prepareSdCard(artifact, sdcardPath, emulator, includeTestErrorTrap) {
+async function prepareSdCard({ artifact, basicArtifact, sdcardPath, emulator, includeTestErrorTrap }) {
   await mkdir(sdcardPath, { recursive: true });
   if (includeTestErrorTrap) {
     await rm(resolve(sdcardPath, "MCP.DAT"), { force: true });
     await rm(resolve(sdcardPath, "MCP.ERR"), { force: true });
   }
-  const cardProgramName = emulator.cardProgramName ?? "metabasic.bas";
-  const source = await readFile(artifact, "utf8");
-  let crlfSource = source.replaceAll("\r\n", "\n").replaceAll("\r", "\n").replaceAll("\n", "\r\n");
-  if (includeTestErrorTrap) crlfSource = addTestErrorTrap(crlfSource);
-  await writeFile(resolve(sdcardPath, cardProgramName), crlfSource, "utf8");
+  const cardProgramName = agonCardProgramName(emulator.cardProgramName);
+  if (includeTestErrorTrap) {
+    const source = await readFile(basicArtifact, "utf8");
+    await writeFile(
+      resolve(sdcardPath, cardProgramName),
+      tokenizeAgonBasic(addTestErrorTrap(source))
+    );
+  } else {
+    await writeFile(resolve(sdcardPath, cardProgramName), await readFile(artifact));
+  }
   const basicBinary = emulator.basicBinary ?? "bin/bbcbasic24.bin";
   const autoexec = `LOAD ${basicBinary}\r\nRUN . /${cardProgramName}\r\n`;
   await writeFile(resolve(sdcardPath, "autoexec.txt"), autoexec, "ascii");
+}
+
+function agonCardProgramName(configuredName) {
+  const name = configuredName ?? "metabasic.bbc";
+  if (/\.bbc$/iu.test(name)) return name;
+  if (/\.[^./\\]+$/u.test(name)) return name.replace(/\.[^./\\]+$/u, ".bbc");
+  return `${name}.bbc`;
 }
 
 function addTestErrorTrap(source) {

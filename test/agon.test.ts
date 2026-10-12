@@ -43,18 +43,29 @@ describe("Agon Light BBC BASIC lowering", () => {
     expect(output).toContain('V_VALUE=ASC("7")');
   });
 
-  it("keeps international characters out of plain-text BBC BASIC source", () => {
+  it("keeps international characters readable in UTF-8 BBC BASIC listings", () => {
     const output = compileSource('value$ = "PRÄSIDENT"\n', { filename: "international.mbas", target: "agon" });
-    expect(output).toContain('V_VALUE$="PR" + CHR$(196) + "SIDENT"');
-    expect(output).not.toContain("Ä");
+    expect(output).toContain('V_VALUE$="PRÄSIDENT"');
+    expect(output).not.toContain("CHR$(196)");
     expect(() => compileSource('value$ = "Ж"\n', { filename: "international.mbas", target: "agon" })).toThrow(/international\.mbas:1.*Unsupported Agon text character/u);
   });
 
   it("maps portable colours to BBC text colours", () => {
+    const foreground = compileSource(
+      ["BLACK", "BLUE", "RED", "MAGENTA", "GREEN", "CYAN", "YELLOW", "WHITE"]
+        .map((color) => `screen_text_color ${color}`)
+        .join("\n") + "\n",
+      { filename: "foreground-colours.mbas", target: "agon" }
+    );
+    expect(foreground.match(/COLOUR \d+/gu)).toEqual([
+      "COLOUR 0", "COLOUR 4", "COLOUR 1", "COLOUR 5",
+      "COLOUR 2", "COLOUR 6", "COLOUR 3", "COLOUR 7"
+    ]);
+
     const output = compileSource("screen_text_color YELLOW\nscreen_background_color BLUE\nscreen_border_color RED\ncls\n", { filename: "colours.mbas", target: "agon" });
-    expect(output).toContain("COLOUR 6");
+    expect(output).toContain("COLOUR 3");
+    expect(output).toContain("COLOUR 132");
     expect(output).toContain("COLOUR 129");
-    expect(output).toContain("COLOUR 130");
     expect(output).toContain("CLS");
   });
 

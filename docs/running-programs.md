@@ -276,7 +276,7 @@ npm run launch:atari -- --project language-tests/instruction-suite --run-tests -
 
 ## Agon Light with Fab Agon Emulator
 
-Status: **launch and German San Golpe intro verified in Fab Agon Emulator; broader runtime behavior remains to be exercised**.
+Status: **tokenized launch, German San Golpe intro, and the complete 50-test instruction suite verified in Fab Agon Emulator 1.2.5 with BBC BASIC ADL 1.03**.
 
 The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basiccard` virtual SD-card directory. The card contains `bin/bbcbasic24.bin`. Launch a program with:
 
@@ -284,18 +284,18 @@ The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basicc
 npm run launch:agon -- --project examples/san-golpe --language de --restart
 ```
 
-The launcher compiles target `agon`, converts the generated listing to the CRLF text format expected by BBC BASIC, writes it as `metabasic.bas`, and writes these boot commands to `autoexec.txt`:
+The launcher compiles target `agon`, creates readable `.bas` and tokenized `.bbc` artifacts, writes the tokenized program as `metabasic.bbc`, and writes these boot commands to `autoexec.txt`:
 
 ```text
 LOAD bin/bbcbasic24.bin
-RUN . /metabasic.bas
+RUN . /metabasic.bbc
 ```
 
-Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC selects mode 3, so `TEXT_COLUMNS` is 80 and `TEXT_ROWS` is 30. The launcher-owned `metabasic.bas` and `autoexec.txt` files are replaced on each launch; keep personal card files under other names.
+Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC selects mode 3, so `TEXT_COLUMNS` is 80 and `TEXT_ROWS` is 30. The launcher-owned `metabasic.bbc` and `autoexec.txt` files are replaced on each launch; keep personal card files under other names. Existing local configurations that still specify a `.bas` card filename are normalized to `.bbc`.
 
 For test runs, the launcher clears its previous `MCP.DAT` and `MCP.ERR` files and adds a target-side error trap. An unexpected BBC BASIC runtime error is written to `MCP.ERR` with its error number and generated line, while the ordinary readable test log is written to `MCP.DAT`.
 
-For a physical Agon, copy the generated `build/<profile>/agon/<name>.bas` to an SD card using CRLF line endings, then start the 24-bit interpreter with the same `LOAD`/`RUN` sequence.
+For a physical Agon, copy `build/<profile>/agon/<name>.bbc` to an SD card and start the 24-bit interpreter with the same `LOAD`/`RUN` sequence. Keep the adjacent `.bas` as the human-readable listing for inspection and debugging.
 
 ## Commodore 64 emulator
 

@@ -73,7 +73,7 @@ npm run build:all-targets -- --build-config examples/multifile/metabasic.json --
 npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
 ```
 
-The local `agon` configuration uses Fab Agon Emulator with its `basiccard` directory as the virtual SD card. `npm run launch:agon -- --project examples/san-golpe --language de --restart` builds BBC BASIC, stages `metabasic.bas` and `autoexec.txt` on that card, and boots the 24-bit `bbcbasic24.bin` interpreter.
+The local `agon` configuration uses Fab Agon Emulator with its `basiccard` directory as the virtual SD card. `npm run launch:agon -- --project examples/san-golpe --language de --restart` builds readable BBC BASIC plus a tokenized `.bbc` program, stages `metabasic.bbc` and `autoexec.txt` on that card, and boots the 24-bit `bbcbasic24.bin` interpreter.
 
 For a conventional project folder, use `--project`. A project folder contains sibling `source/` and `tests/` folders. Normal builds compile `source/*.mbas`; test-mode builds compile `source/*.mbas` plus `tests/*.mbas` and generate the automatic test runner:
 
@@ -198,7 +198,7 @@ See [vscode-extension/README.md](vscode-extension/README.md) for the current dev
 - User functions use statically allocated storage and do not support recursion.
 - There is no general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.
-- Plain `.bas` text is always generated. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools.
+- Plain `.bas` text is always generated. Agon builds additionally create a tokenized `.bbc` file with the built-in tokenizer. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools.
 - External tools and physical-device procedures are platform-dependent. Consult the running guide for verification status.
 
 This project does not attempt to erase the differences between its target computers. Portable operations share one source form; machine-specific behaviour remains visible in the generated BASIC.
@@ -248,6 +248,6 @@ npm run dev -- --config examples/san-golpe/metabasic.json --target spectrum --la
 
 Build and launch scripts accept `--language` and `--font`. The option declares independent character groups: `lowercase`, `international`, or both as `lowercase,international`. C64 reacts to `lowercase` by selecting its uppercase/lowercase character set and lowercasing BASIC syntax outside strings. Atari reacts to `international` by selecting its XL/XE international ROM set. Targets that already support a group need no switch.
 
-On international Atari builds, `ä`, `ö`, `ü` and their uppercase forms are stored as single-byte ATASCII in the packaged listing; the readable `.bas` keeps the Unicode spelling and the program pays no runtime `CHR$` cost. Unsupported targets fall back to `ae`/`oe`/`ue`; `ß` always falls back to `ss`. Common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
+On international Atari builds, `ä`, `ö`, `ü` and their uppercase forms are stored as single-byte ATASCII in the packaged listing; the readable `.bas` keeps the Unicode spelling and the program pays no runtime `CHR$` cost. Agon's readable `.bas` is UTF-8 and likewise keeps the actual international characters; its tokenized `.bbc` encodes them as Windows-1252 display bytes. Unsupported targets fall back to `ae`/`oe`/`ue`; `ß` always falls back to `ss`. Common typographic quotes/dashes become plain equivalents. Unsupported Unicode or unavailable font punctuation is rejected. Text pages do not paginate automatically; use `SET_POS` and split resources for pages that exceed the screen height.
 
 For JSON builds, optional `textsDir`, `language`, and `font` fields set defaults. `textsDir` is relative to the configuration file and defaults to `texts`; CLI options override language/font defaults. Conventional `--project` builds preserve these fields from the project's `metabasic.json`, or use the project's sibling `texts/` folder when `textsDir` is omitted. Single-source CLI builds look beside the source for `texts/`, or use `--texts-dir path`. Library callers pass a selected-language `texts` dictionary in `CompileOptions`; the compiler core performs no filesystem I/O.
