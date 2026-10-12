@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { basename, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -51,7 +51,7 @@ export async function launchAgon(options) {
   if (!(await exists(sdcardPath))) throw new Error(`Agon virtual SD card directory not found at ${emulator.sdcardPath}.`);
 
   if (options.restart) await terminateExistingEmulator(emulatorPath);
-  await prepareSdCard(artifact, sdcardPath, emulator);
+  await prepareSdCard(artifact, sdcardPath, emulator, options.testMode);
 
   const args = (emulator.args ?? ["--sdcard", "{sdcard}"]).map((argument) =>
     argument.replaceAll("{sdcard}", sdcardPath).replaceAll("{artifact}", artifact)
@@ -61,15 +61,31 @@ export async function launchAgon(options) {
   console.log(`launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "Agon Light"}) in ${emulator.name ?? "Fab Agon Emulator"} with ${relativeToCwd(cwd, artifact)}`);
 }
 
-async function prepareSdCard(artifact, sdcardPath, emulator) {
+async function prepareSdCard(artifact, sdcardPath, emulator, includeTestErrorTrap) {
   await mkdir(sdcardPath, { recursive: true });
+  if (includeTestErrorTrap) {
+    await rm(resolve(sdcardPath, "MCP.DAT"), { force: true });
+    await rm(resolve(sdcardPath, "MCP.ERR"), { force: true });
+  }
   const cardProgramName = emulator.cardProgramName ?? "metabasic.bas";
   const source = await readFile(artifact, "utf8");
-  const crlfSource = source.replaceAll("\r\n", "\n").replaceAll("\r", "\n").replaceAll("\n", "\r\n");
+  let crlfSource = source.replaceAll("\r\n", "\n").replaceAll("\r", "\n").replaceAll("\n", "\r\n");
+  if (includeTestErrorTrap) crlfSource = addTestErrorTrap(crlfSource);
   await writeFile(resolve(sdcardPath, cardProgramName), crlfSource, "utf8");
   const basicBinary = emulator.basicBinary ?? "bin/bbcbasic24.bin";
   const autoexec = `LOAD ${basicBinary}\r\nRUN . /${cardProgramName}\r\n`;
   await writeFile(resolve(sdcardPath, "autoexec.txt"), autoexec, "ascii");
+}
+
+function addTestErrorTrap(source) {
+  const usedLines = new Set([...source.matchAll(/^\s*(\d+)\b/gmu)].map((match) => Number(match[1])));
+  let handlerLine = 65279;
+  while (usedLines.has(handlerLine)) handlerLine -= 1;
+  const body = source.replace(/[\r\n]+$/u, "");
+  const handler = [
+    `${handlerLine} Z%=OPENOUT("MCP.ERR"):S$="ERROR "+STR$(ERR)+" AT "+STR$(ERL):FOR Y%=1 TO LEN(S$):BPUT#Z%,ASC(MID$(S$,Y%,1)):NEXT:BPUT#Z%,10:CLOSE#Z%:REPORT:PRINT " at line ";ERL:END`
+  ];
+  return `5 ON ERROR GOTO ${handlerLine}\r\n${body}\r\n${handler.join("\r\n")}\r\n`;
 }
 
 async function terminateExistingEmulator(emulatorPath) {

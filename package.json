@@ -35,6 +35,7 @@
     "test:language:spectrum": "node scripts/launch-target.mjs spectrum48 --project language-tests/instruction-suite --run-tests --profile release --printer-output",
     "test:language:atari": "node scripts/launch-target.mjs atari1 --project language-tests/instruction-suite --run-tests --profile release --printer-output",
     "test:language:c64": "node scripts/launch-target.mjs c64 --project language-tests/instruction-suite --run-tests --profile release --printer-output",
+    "test:language:agon": "node scripts/launch-target.mjs agon --project language-tests/instruction-suite --run-tests --profile release --printer-output",
     "benchmark:string-arrays:build": "node scripts/build-all.mjs --project performance-tests/string-arrays --profile release",
     "benchmark:string-arrays:spectrum": "node scripts/launch-target.mjs spectrum48 --project performance-tests/string-arrays --profile release --fast",
     "benchmark:string-arrays:atari": "node scripts/launch-target.mjs atari1 --build-config performance-tests/string-arrays/atari.metabasic.json --profile release",

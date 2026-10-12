@@ -375,6 +375,7 @@ const ignoredIdentifiers = new Set([
   "AND",
   "AT",
   "BORDER",
+  "BPUT",
   "CHR",
   "CLS",
   "COLOUR",

@@ -151,15 +151,19 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - The backend targets BBC BASIC V for Agon in 24-bit ADL mode.
 - Generated programs begin with `MODE 3`, establishing the compiler's fixed 80-column by 30-row text environment.
 - Assignments omit `LET`; `%` variables use BBC BASIC's native 32-bit integer storage.
+- Readable variable names are preserved unless they begin with a BBC BASIC keyword; unsafe names such as `TOTAL` and `VALUES` receive a `V_` prefix so the native tokenizer cannot reinterpret `TO` or `VAL` as syntax.
 - Numeric, integer, byte, and string arrays retain Meta-BASIC's zero-based indexes. Declared element counts become BBC BASIC upper bounds, while a fixed string width remains a compile-time check and is not emitted as another array dimension.
+- A `FOR` loop containing `EXIT FOR` or an early function `RETURN` lowers to an explicit counter loop. It therefore creates no BBC BASIC loop-control stack frame that could be bypassed by the jump or return; ordinary `FOR` loops retain native syntax.
 - `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
-- `SCREEN_CODE` uses Agon's native `GET(column,row)` screen-character query.
+- `SCREEN_CODE` sends Agon's VDP character-read command, synchronizes through OSBYTE 19, and reads MOS system-variable byte 9 through OSBYTE.
+- Portable `CODE(text$)` renders as BBC BASIC `ASC(text$)`.
+- Generated plain-text BBC BASIC remains ASCII-safe. International string characters are emitted as `CHR$` concatenations using the Agon's Windows-1252 display codes because the BBC BASIC plain-text loader cannot safely consume raw high-bit characters.
 - `JIFFIES()` uses BBC BASIC `TIME`, whose unit is one centisecond; `JIFFIES_PER_SECOND` is therefore 100.
-- `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`.
-- Portable foreground/background colours use BBC BASIC `COLOUR`; the Agon text display has no matching border-colour operation.
+- `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`. BBC BASIC has no `RANDOMIZE` statement, so bare `RANDOMIZE` seeds through an assignment from `RND(-TIME)` and `RANDOMIZE seed` uses `RND(-seed)`.
+- Portable foreground/background colours use BBC BASIC `COLOUR`. Because the Agon text display has no separate border, a portable border-colour request changes the background instead; this keeps the test runner's red failure indication visible.
 - `PROGRAM_MODE` hides the text cursor with a VDU command. `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `GET_JOYSTICK` currently provides the portable Q/A/O/P/Space keyboard controls, which also works on Agon Light models without Console8 joystick ports.
-- Device handles currently lower to files on the SD card. Emulator test-log capture through those files has not yet been verified.
+- Device handles lower to files on the SD card. `PRINT_DEVICE` uses BBC BASIC `BPUT#` string output so test logs and ordinary output remain readable text instead of `PRINT#`'s typed binary record format.
 
 The Fab Agon launch configuration copies CRLF text BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts `bin/bbcbasic24.bin` with the staged program. The generated listing remains readable and can also be copied to a physical Agon SD card.
 

@@ -144,6 +144,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
+      case "vdu":
+        throw new Error("Internal error: unexpected vdu instruction for C64.");
       case "trap":
         throw new Error("Internal error: unexpected trap instruction for C64.");
       case "wait-rs232-transmit":

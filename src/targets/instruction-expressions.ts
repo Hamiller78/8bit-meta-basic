@@ -33,6 +33,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [instruction.row, instruction.column];
     case "poke":
       return [instruction.value];
+    case "vdu":
+      return instruction.items.map((item) => item.expression);
     case "randomize":
       return instruction.seed ? [instruction.seed] : [];
     case "read-key":
@@ -107,6 +109,8 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
       return { ...instruction, value: map(instruction.value) };
     case "randomize":
       return instruction.seed ? { ...instruction, seed: map(instruction.seed) } : instruction;
+    case "vdu":
+      return { ...instruction, items: instruction.items.map((item) => ({ ...item, expression: map(item.expression) })) };
     default:
       return instruction;
   }

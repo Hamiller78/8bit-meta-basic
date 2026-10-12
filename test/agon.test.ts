@@ -13,7 +13,7 @@ describe("Agon Light BBC BASIC lowering", () => {
 
   it("keeps Meta-BASIC arrays zero based and discards fixed string widths", () => {
     const output = compileSource('dim values(3)\ndim messages$(3, 12)\nmessages$(0) = "READY"\n', { filename: "arrays.mbas", target: "agon" });
-    expect(output).toContain("DIM VALUES(2)");
+    expect(output).toContain("DIM V_VALUES(2)");
     expect(output).toContain("DIM MESSAGES$(2)");
     expect(output).toContain('MESSAGES$(0)="READY"');
   });
@@ -34,13 +34,71 @@ describe("Agon Light BBC BASIC lowering", () => {
     expect(output).toContain("INKEY(0)");
     expect(output).toContain("HIMEM-TOP");
     expect(output).toContain("=TIME");
-    expect(output).toContain("GET((3)-1,(2)-1)");
+    expect(output).toContain("VDU 23,0,131,MBSCREENCOLUMN% - 1;MBSCREENROW% - 1;");
+    expect(output).toContain("MBSCREENVALUE%=USR(65524)");
+  });
+
+  it("maps portable CODE to BBC BASIC ASC", () => {
+    const output = compileSource('value = code("7")\n', { filename: "code.mbas", target: "agon" });
+    expect(output).toContain('V_VALUE=ASC("7")');
+  });
+
+  it("keeps international characters out of plain-text BBC BASIC source", () => {
+    const output = compileSource('value$ = "PRÄSIDENT"\n', { filename: "international.mbas", target: "agon" });
+    expect(output).toContain('V_VALUE$="PR" + CHR$(196) + "SIDENT"');
+    expect(output).not.toContain("Ä");
+    expect(() => compileSource('value$ = "Ж"\n', { filename: "international.mbas", target: "agon" })).toThrow(/international\.mbas:1.*Unsupported Agon text character/u);
   });
 
   it("maps portable colours to BBC text colours", () => {
-    const output = compileSource("screen_text_color YELLOW\nscreen_background_color BLUE\ncls\n", { filename: "colours.mbas", target: "agon" });
+    const output = compileSource("screen_text_color YELLOW\nscreen_background_color BLUE\nscreen_border_color RED\ncls\n", { filename: "colours.mbas", target: "agon" });
     expect(output).toContain("COLOUR 6");
     expect(output).toContain("COLOUR 129");
+    expect(output).toContain("COLOUR 130");
     expect(output).toContain("CLS");
+  });
+
+  it("seeds BBC BASIC through RND because it has no RANDOMIZE statement", () => {
+    const output = compileSource("randomize\nrandomize 42\n", { filename: "random.mbas", target: "agon" });
+    expect(output).toContain("MBRND=RND(-TIME)");
+    expect(output).toContain("MBRND=RND(-42)");
+    expect(output).not.toContain("RANDOMIZE");
+  });
+
+  it("writes device output as readable text instead of BBC binary records", () => {
+    const source = [
+      "open_device Log, SHARED_DRIVE",
+      'print_device Log; "TESTS: "; 5',
+      'print_device Log; "DONE";',
+      "close_device Log"
+    ].join("\n") + "\n";
+    const output = compileSource(source, { filename: "log.mbas", target: "agon" });
+    expect(output).toMatch(/MBOUTPUT\$="TESTS: "\+STR\$\(5\):FOR MBOUTPUTINDEX%=1 TO LEN\(MBOUTPUT\$\):BPUT#MBDEVICE0%,ASC\(MID\$\(MBOUTPUT\$,MBOUTPUTINDEX%,1\)\):NEXT:BPUT#MBDEVICE0%,10/u);
+    expect(output).toMatch(/MBOUTPUT\$="DONE":FOR MBOUTPUTINDEX%=1 TO LEN\(MBOUTPUT\$\):BPUT#MBDEVICE0%,ASC\(MID\$\(MBOUTPUT\$,MBOUTPUTINDEX%,1\)\):NEXT/u);
+    expect(output).not.toContain("PRINT#");
+  });
+
+  it("protects readable identifiers whose prefixes are BBC BASIC keywords", () => {
+    const output = compileSource("total = 1\ncount = total\ndim values(2)\n", { filename: "names.mbas", target: "agon" });
+    expect(output).toContain("V_TOTAL=1");
+    expect(output).toContain("V_COUNT=V_TOTAL");
+    expect(output).toContain("DIM V_VALUES(1)");
+  });
+
+  it("uses stack-free loops when EXIT FOR bypasses BBC BASIC's NEXT", () => {
+    const source = "for index = 1 to 5\nif index = 3 then\nexit for\nend if\nnext index\n";
+    const output = compileSource(source, { filename: "flow.mbas", target: "agon" });
+    expect(output).toMatch(/MBFORLIMIT=5/u);
+    expect(output).toMatch(/MBFORSTEP=1/u);
+    expect(output).not.toContain("NEXT INDEX");
+    expect(output).toMatch(/GOTO \d+/u);
+    expect(output).not.toContain("EXIT FOR");
+  });
+
+  it("uses stack-free loops when a function can return from the loop body", () => {
+    const source = "function Find()\nfor index = 0 to 3\nif index = 2 then\nreturn index\nend if\nnext index\nreturn -1\nend function\nresult = Find()\n";
+    const output = compileSource(source, { filename: "return-loop.mbas", target: "agon" });
+    expect(output).toContain("MBFORLIMIT=3");
+    expect(output).not.toMatch(/FOR INDEX|NEXT INDEX/u);
   });
 });

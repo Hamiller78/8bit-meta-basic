@@ -199,6 +199,7 @@ export const spectrumTarget: TargetBackend = {
       case "setcolor":
       case "poke":
       case "print-chr":
+      case "vdu":
       case "dim-string":
       case "read-key":
       case "trap":
@@ -1023,6 +1024,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "setcolor":
     case "poke":
     case "print-chr":
+    case "vdu":
     case "sys":
       return [];
   }

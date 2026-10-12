@@ -304,6 +304,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} SETCOLOR ${instruction.register},${instruction.hue},${instruction.luminance}`;
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
+      case "vdu":
+        throw new Error("Internal error: unexpected vdu instruction for Atari 800XL.");
       case "poke":
         return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
       case "sys":
@@ -534,6 +536,7 @@ function materializeAtariStringArrayReads(
     case "next":
     case "setcolor":
     case "print-chr":
+    case "vdu":
     case "sys":
     case "trap":
     case "wait-rs232-transmit":
@@ -1505,6 +1508,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "setcolor":
     case "poke":
     case "print-chr":
+    case "vdu":
     case "sys":
       return [];
   }

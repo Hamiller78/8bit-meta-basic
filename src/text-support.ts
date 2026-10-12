@@ -384,18 +384,21 @@ export function wrapText(value: string, columns: number): string[] {
 }
 
 function portableText(value: string, statement: PrintStatement, target: TargetId, font: TextFont): string {
-  const internationalAtari = target === "atari800xl" && hasTextCharacterGroup(font, "international");
+  const nativeGermanLetters = (target === "atari800xl" || target === "agon") && hasTextCharacterGroup(font, "international");
+  const nativeSharpS = target === "agon" && hasTextCharacterGroup(font, "international");
   const replacements: Record<string, string> = {
-    ...(internationalAtari ? {} : { ä: "ae", ö: "oe", ü: "ue", Ä: "Ae", Ö: "Oe", Ü: "Ue" }),
-    ß: "ss", ẞ: "SS", '“': '"', '”': '"', '„': '"', '’': "'", '–': "-", '—': "-", '…': "..."
+    ...(nativeGermanLetters ? {} : { ä: "ae", ö: "oe", ü: "ue", Ä: "Ae", Ö: "Oe", Ü: "Ue" }),
+    ...(nativeSharpS ? {} : { ß: "ss", ẞ: "SS" }),
+    '“': '"', '”': '"', '„': '"', '’': "'", '–': "-", '—': "-", '…': "..."
   };
   const text = value.replace(/[äöüÄÖÜßẞ“”„’–—…]/g, (char, offset: number) => {
-    if (!internationalAtari && /[ÄÖÜ]/.test(char) && isInsideUppercaseWord(value, offset)) {
+    if (!nativeGermanLetters && /[ÄÖÜ]/.test(char) && isInsideUppercaseWord(value, offset)) {
       return ({ Ä: "AE", Ö: "OE", Ü: "UE" } as Record<string, string>)[char];
     }
     return replacements[char] ?? char;
   });
-  const unsupported = text.match(internationalAtari ? /[^\x20-\x7e\r\n\täöüÄÖÜ]/u : /[^\x20-\x7e\r\n\t]/u);
+  const supportedInternational = target === "agon" ? /[^\x20-\x7e\r\n\täöüÄÖÜß]/u : /[^\x20-\x7e\r\n\täöüÄÖÜ]/u;
+  const unsupported = text.match(nativeGermanLetters ? supportedInternational : /[^\x20-\x7e\r\n\t]/u);
   if (unsupported) throw new DiagnosticError(statement.location, `Unsupported text character "${unsupported[0]}". Use portable text or a supported German transliteration.`);
   return text;
 }

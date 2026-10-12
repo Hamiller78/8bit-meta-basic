@@ -452,7 +452,7 @@ Atari colour mappings are deterministic `GRAPHICS 0` approximations and may look
 - Lower multiline `IF/ELSE` into target-compatible conditional jumps, unconditional jumps, and generated internal labels. When an `ELSE` block is present, emit the `ELSE` block before the `THEN` block in target BASIC so the conditional jump can branch directly to the `THEN` label and avoid an extra generated `ELSE` label/jump.
 - Lower `WHILE/WEND` and `REPEAT/UNTIL` into target-compatible conditional jumps, unconditional jumps, and generated internal labels.
 - Lower `END` to Spectrum `STOP` and native `END` on Atari, C64, and Agon.
-- Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64/Agon `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(-(TI+1))`, Agon `RANDOMIZE TIME`, and no Atari output. Lower `RANDOMIZE seed` to native `RANDOMIZE seed` on Spectrum and Agon, C64 generated assignment using `RND(-seed)`, and no Atari output.
+- Lower `RND()` to Spectrum `RND`, Atari `RND(0)`, and C64/Agon `RND(1)`. Lower `RANDOMIZE` to Spectrum `RANDOMIZE`, C64 generated assignment using `RND(-(TI+1))`, Agon generated assignment using `RND(-TIME)`, and no Atari output. Lower `RANDOMIZE seed` to Spectrum `RANDOMIZE seed`, C64/Agon generated assignment using `RND(-seed)`, and no Atari output.
 - Lower `FREE_MEMORY()` to Spectrum `65536 - USR 7962`, Atari `FRE(0)`, C64 `FRE(0) - (FRE(0) < 0) * 65536`, and Agon `HIMEM-TOP`.
 - Generated internal labels must never collide with user labels.
 - Do not depend on a native target `ELSE` construct.

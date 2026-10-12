@@ -1,4 +1,5 @@
 import type { Expression } from "../ast.js";
+import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
 import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
@@ -7,7 +8,8 @@ import type { Instruction, LoweredProgram } from "../lowering.js";
 import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
-import { instructionExpressions } from "./instruction-expressions.js";
+import { instructionExpressions, mapInstructionExpressions } from "./instruction-expressions.js";
+import { allocateGeneratedVariableName, createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import {
   expandPositionedPrints,
   expandSetColumns,
@@ -41,20 +43,50 @@ export const agonTarget: TargetBackend = {
     ]);
     const columns = expandSetColumns(positions, "Agon Light", 79, (instruction) => [instruction]);
     const prints = expandPositionedPrints(columns, "Agon Light", 29, 79, (instruction) => [instruction]);
+    const safeLoops = lowerAgonForExits(prints);
+    const strings = lowerAgonInternationalStrings(safeLoops);
+    const screenReads = lowerAgonScreenReads(strings);
+    const randomSeedName = allocateGeneratedVariableName(screenReads.instructions, "MBRND");
+    const deviceTextBufferName = allocateGeneratedVariableName(screenReads.instructions, "MBOUTPUT", "$");
+    const deviceTextIndexName = allocateGeneratedVariableName(screenReads.instructions, "MBOUTPUTINDEX", "%");
     const instructions: Instruction[] = [];
-    for (const instruction of prints.instructions) {
-      if (instruction.kind === "border-color" || instruction.kind === "suppress-scroll-prompt") {
+    for (const instruction of screenReads.instructions) {
+      if (instruction.kind === "suppress-scroll-prompt") {
         continue;
+      } else if (instruction.kind === "border-color") {
+        instructions.push({ kind: "screen-background-color", color: instruction.color, location: instruction.location });
       } else if (instruction.kind === "cls" && instruction.color) {
         instructions.push({ kind: "screen-background-color", color: instruction.color, location: instruction.location });
         instructions.push({ ...instruction, color: undefined });
       } else if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
         instructions.push(...lowerSafeDispatch(instruction));
+      } else if (instruction.kind === "randomize") {
+        const seed: Expression = instruction.seed ?? {
+          kind: "function-call",
+          name: builtinFunctions.jiffies,
+          args: [],
+          valueType: "number",
+          location: instruction.location
+        };
+        instructions.push({
+          kind: "let",
+          name: randomSeedName,
+          expression: {
+            kind: "function-call",
+            name: builtinFunctions.rnd,
+            args: [{ kind: "unary", operator: "-", operand: seed, location: instruction.location }],
+            valueType: "number",
+            location: instruction.location
+          },
+          location: instruction.location
+        });
+      } else if (instruction.kind === "print-device") {
+        instructions.push({ ...instruction, textBufferName: deviceTextBufferName, textIndexName: deviceTextIndexName });
       } else {
         instructions.push(instruction);
       }
     }
-    return rebuildLabels(prints, instructions);
+    return rebuildLabels(screenReads, instructions);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildAgonVariableMap(currentProgramInstructions, readability);
@@ -92,7 +124,7 @@ export const agonTarget: TargetBackend = {
       case "open-device":
         return `${lineNumber} ${deviceHandleName(instruction.handle)}=OPENOUT("${deviceFileName(instruction.device)}")`;
       case "print-device":
-        return `${lineNumber} PRINT#${deviceHandleName(instruction.handle)},${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+        return `${lineNumber} ${renderAgonDeviceOutput(instruction, renderOptions)}`;
       case "close-device":
         return `${lineNumber} CLOSE#${deviceHandleName(instruction.handle)}`;
       case "check-device":
@@ -133,7 +165,11 @@ export const agonTarget: TargetBackend = {
       case "on-gosub":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Agon Light.`);
       case "randomize":
-        return `${lineNumber} RANDOMIZE ${instruction.seed ? renderExpression(instruction.seed, renderOptions) : "TIME"}`;
+        throw new Error("Internal error: unexpected randomize instruction for Agon Light.");
+      case "vdu":
+        return `${lineNumber} VDU ${instruction.items.map((item, index) =>
+          `${renderExpression(item.expression, renderOptions)}${item.word ? ";" : index < instruction.items.length - 1 ? "," : ""}`
+        ).join("")}`;
       case "position":
         return `${lineNumber} PRINT TAB(${renderExpression(instruction.column, renderOptions)},${renderExpression(instruction.row, renderOptions)});`;
       case "read-key":
@@ -159,12 +195,367 @@ export function setAgonRenderProgram(instructions: readonly Instruction[]): void
   currentProgramInstructions = instructions;
 }
 
+interface AgonUnsafeForContext {
+  readonly forIndex: number;
+  readonly nextIndex: number;
+  readonly loopLabel: string;
+  readonly variable: string;
+  readonly start: Expression;
+  readonly limit: Expression;
+  readonly step: Expression;
+  readonly limitName: string;
+  readonly stepName: string;
+}
+
+function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
+  const instructions = program.instructions;
+  const usedLabels = new Set(instructions.filter((instruction) => instruction.kind === "label").map((instruction) => instruction.name));
+  const allocateLimitName = createGeneratedVariableNameAllocator(instructions, "MBFORLIMIT");
+  const allocateStepName = createGeneratedVariableNameAllocator(instructions, "MBFORSTEP");
+  const stack: Array<{ readonly index: number; readonly instruction: Extract<Instruction, { kind: "for" }> }> = [];
+  const contexts: AgonUnsafeForContext[] = [];
+  let loopLabelSerial = 1;
+
+  for (let index = 0; index < instructions.length; index += 1) {
+    const instruction = instructions[index];
+    if (instruction.kind === "for") {
+      stack.push({ index, instruction });
+      continue;
+    }
+    if (instruction.kind !== "next") continue;
+    const opened = stack.pop();
+    if (!opened) continue;
+    const body = instructions.slice(opened.index + 1, index);
+    const following = instructions[index + 1];
+    const hasExit = following?.kind === "label" && body.some((candidate) =>
+      (candidate.kind === "goto" || candidate.kind === "if-goto") && candidate.label === following.name
+    );
+    const hasReturn = body.some(instructionContainsReturn);
+    if (!hasExit && !hasReturn) continue;
+
+    let loopLabel = "";
+    while (!loopLabel) {
+      const candidate = `__MB_AGON_FOR_${loopLabelSerial++}`;
+      if (!usedLabels.has(candidate)) {
+        usedLabels.add(candidate);
+        loopLabel = candidate;
+      }
+    }
+    contexts.push({
+      forIndex: opened.index,
+      nextIndex: index,
+      loopLabel,
+      variable: opened.instruction.variable,
+      start: opened.instruction.start,
+      limit: opened.instruction.limit,
+      step: opened.instruction.step ?? numberExpression(1, opened.instruction.location),
+      limitName: allocateLimitName(),
+      stepName: allocateStepName()
+    });
+  }
+
+  if (contexts.length === 0) return program;
+  const byForIndex = new Map(contexts.map((context) => [context.forIndex, context]));
+  const byNextIndex = new Map(contexts.map((context) => [context.nextIndex, context]));
+  const lowered: Instruction[] = [];
+
+  for (let index = 0; index < instructions.length; index += 1) {
+    const instruction = instructions[index];
+    const forContext = byForIndex.get(index);
+    if (instruction.kind === "for" && forContext) {
+      lowered.push({ kind: "let", name: forContext.limitName, expression: forContext.limit, location: instruction.location });
+      lowered.push({
+        kind: "let",
+        name: forContext.stepName,
+        expression: forContext.step,
+        location: instruction.location
+      });
+      lowered.push({ kind: "let", name: forContext.variable, expression: forContext.start, location: instruction.location });
+      lowered.push({ kind: "label", name: forContext.loopLabel, internal: true, location: instruction.location });
+      continue;
+    }
+
+    const nextContext = byNextIndex.get(index);
+    if (instruction.kind === "next" && nextContext) {
+      const variable = identifierExpression(nextContext.variable, instruction.location);
+      const step = identifierExpression(nextContext.stepName, instruction.location);
+      const limit = identifierExpression(nextContext.limitName, instruction.location);
+      lowered.push({
+        kind: "let",
+        name: nextContext.variable,
+        expression: binaryExpression("+", variable, step, instruction.location),
+        location: instruction.location
+      });
+      lowered.push({
+        kind: "if-goto",
+        condition: binaryExpression(
+          "OR",
+          binaryExpression(
+            "AND",
+            binaryExpression(">=", step, numberExpression(0, instruction.location), instruction.location),
+            binaryExpression("<=", variable, limit, instruction.location),
+            instruction.location
+          ),
+          binaryExpression(
+            "AND",
+            binaryExpression("<", step, numberExpression(0, instruction.location), instruction.location),
+            binaryExpression(">=", variable, limit, instruction.location),
+            instruction.location
+          ),
+          instruction.location
+        ),
+        label: nextContext.loopLabel,
+        location: instruction.location
+      });
+      continue;
+    }
+    lowered.push(instruction);
+  }
+  return rebuildLabels(program, lowered);
+}
+
+function instructionContainsReturn(instruction: Instruction): boolean {
+  return instruction.kind === "return" || (instruction.kind === "if-then" && instruction.body.some(instructionContainsReturn));
+}
+
+function lowerAgonInternationalStrings(program: LoweredProgram): LoweredProgram {
+  return rebuildLabels(program, program.instructions.map((instruction) => {
+    // DATA must remain a list of native literals. International DATA values need
+    // a future storage lowering rather than CHR$ concatenation.
+    if (instruction.kind === "data") return instruction;
+    return mapInstructionExpressions(instruction, rewriteAgonInternationalStringExpression);
+  }));
+}
+
+function rewriteAgonInternationalStringExpression(expression: Expression): Expression {
+  switch (expression.kind) {
+    case "string":
+      return agonAsciiStringExpression(expression);
+    case "function-call":
+      return { ...expression, args: expression.args.map(rewriteAgonInternationalStringExpression) };
+    case "array-access":
+    case "struct-field-access":
+      return { ...expression, indices: expression.indices.map(rewriteAgonInternationalStringExpression) };
+    case "parenthesized":
+      return { ...expression, expression: rewriteAgonInternationalStringExpression(expression.expression) };
+    case "unary":
+      return { ...expression, operand: rewriteAgonInternationalStringExpression(expression.operand) };
+    case "binary":
+      return {
+        ...expression,
+        left: rewriteAgonInternationalStringExpression(expression.left),
+        right: rewriteAgonInternationalStringExpression(expression.right)
+      };
+    default:
+      return expression;
+  }
+}
+
+function agonAsciiStringExpression(expression: Extract<Expression, { kind: "string" }>): Expression {
+  if (/^[\x00-\x7f]*$/u.test(expression.value)) return expression;
+  const parts: Expression[] = [];
+  let ascii = "";
+  const flushAscii = (): void => {
+    if (!ascii) return;
+    parts.push({ kind: "string", value: ascii, location: expression.location });
+    ascii = "";
+  };
+  for (const char of expression.value) {
+    if ((char.codePointAt(0) ?? 0) < 128) {
+      ascii += char;
+      continue;
+    }
+    const code = agonCharacterCode(char);
+    if (code === undefined) {
+      throw new DiagnosticError(expression.location, `Unsupported Agon text character "${char}". Use a Windows-1252 character or a portable transliteration.`);
+    }
+    flushAscii();
+    parts.push({
+      kind: "function-call",
+      name: builtinFunctions.chr,
+      args: [numberExpression(code, expression.location)],
+      valueType: "string",
+      location: expression.location
+    });
+  }
+  flushAscii();
+  if (parts.length === 0) return expression;
+  return parts.reduce((left, right): Expression => ({
+    kind: "binary",
+    operator: "+",
+    left,
+    right,
+    location: expression.location
+  }));
+}
+
+function agonCharacterCode(char: string): number | undefined {
+  const code = char.codePointAt(0);
+  if (code !== undefined && code >= 128 && code <= 255) return code;
+  return new Map<string, number>([
+    ["€", 128], ["‚", 130], ["ƒ", 131], ["„", 132], ["…", 133], ["†", 134], ["‡", 135],
+    ["ˆ", 136], ["‰", 137], ["Š", 138], ["‹", 139], ["Œ", 140], ["Ž", 142], ["‘", 145],
+    ["’", 146], ["“", 147], ["”", 148], ["•", 149], ["–", 150], ["—", 151], ["˜", 152],
+    ["™", 153], ["š", 154], ["›", 155], ["œ", 156], ["ž", 158], ["Ÿ", 159]
+  ]).get(char);
+}
+
+function lowerAgonScreenReads(program: LoweredProgram): LoweredProgram {
+  const allocateRowName = createGeneratedVariableNameAllocator(program.instructions, "MBSCREENROW", "%");
+  const allocateColumnName = createGeneratedVariableNameAllocator(program.instructions, "MBSCREENCOLUMN", "%");
+  const allocateValueName = createGeneratedVariableNameAllocator(program.instructions, "MBSCREENVALUE", "%");
+  const savedAName = allocateGeneratedVariableName(program.instructions, "MBSCREENA", "%");
+  const savedLName = allocateGeneratedVariableName(program.instructions, "MBSCREENL", "%");
+  const lowered: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    const result = materializeAgonScreenReads(
+      instruction,
+      allocateRowName,
+      allocateColumnName,
+      allocateValueName,
+      savedAName,
+      savedLName
+    );
+    lowered.push(...result.prefix, result.instruction);
+  }
+  return rebuildLabels(program, lowered);
+}
+
+function materializeAgonScreenReads(
+  instruction: Instruction,
+  allocateRowName: () => string,
+  allocateColumnName: () => string,
+  allocateValueName: () => string,
+  savedAName: string,
+  savedLName: string
+): { readonly prefix: readonly Instruction[]; readonly instruction: Instruction } {
+  const prefix: Instruction[] = [];
+  const rewrite = (expression: Expression): Expression => {
+    const rewriteChild = (child: Expression): Expression => rewrite(child);
+    switch (expression.kind) {
+      case "function-call": {
+        const args = expression.args.map(rewriteChild);
+        if (expression.name !== builtinFunctions.screenCode) return { ...expression, args };
+        const rowName = allocateRowName();
+        const columnName = allocateColumnName();
+        const valueName = allocateValueName();
+        const row = args[0];
+        const column = args[1];
+        if (!row || !column) throw new Error("Internal error: malformed SCREEN_CODE call during Agon lowering.");
+        prefix.push(
+          { kind: "let", name: rowName, expression: row, location: expression.location },
+          { kind: "let", name: columnName, expression: column, location: expression.location },
+          { kind: "let", name: savedAName, expression: identifierExpression("A%", expression.location), location: expression.location },
+          { kind: "let", name: savedLName, expression: identifierExpression("L%", expression.location), location: expression.location },
+          {
+            kind: "vdu",
+            items: [
+              { expression: numberExpression(23, expression.location), word: false },
+              { expression: numberExpression(0, expression.location), word: false },
+              { expression: numberExpression(131, expression.location), word: false },
+              { expression: subtractOne(identifierExpression(columnName, expression.location), expression.location), word: true },
+              { expression: subtractOne(identifierExpression(rowName, expression.location), expression.location), word: true }
+            ],
+            location: expression.location
+          },
+          { kind: "let", name: "A%", expression: numberExpression(19, expression.location), location: expression.location },
+          {
+            kind: "let",
+            name: valueName,
+            expression: {
+              kind: "function-call",
+              name: "USR",
+              args: [numberExpression(65524, expression.location)],
+              valueType: "number",
+              location: expression.location
+            },
+            location: expression.location
+          },
+          { kind: "let", name: "A%", expression: numberExpression(160, expression.location), location: expression.location },
+          { kind: "let", name: "L%", expression: numberExpression(9, expression.location), location: expression.location },
+          {
+            kind: "let",
+            name: valueName,
+            expression: {
+              kind: "function-call",
+              name: "USR",
+              args: [numberExpression(65524, expression.location)],
+              valueType: "number",
+              location: expression.location
+            },
+            location: expression.location
+          },
+          { kind: "let", name: "A%", expression: identifierExpression(savedAName, expression.location), location: expression.location },
+          { kind: "let", name: "L%", expression: identifierExpression(savedLName, expression.location), location: expression.location }
+        );
+        return identifierExpression(valueName, expression.location);
+      }
+      case "array-access":
+        return { ...expression, indices: expression.indices.map(rewriteChild) };
+      case "struct-field-access":
+        return { ...expression, indices: expression.indices.map(rewriteChild) };
+      case "parenthesized":
+        return { ...expression, expression: rewriteChild(expression.expression) };
+      case "unary":
+        return { ...expression, operand: rewriteChild(expression.operand) };
+      case "binary":
+        return { ...expression, left: rewriteChild(expression.left), right: rewriteChild(expression.right) };
+      case "identifier":
+      case "number":
+      case "string":
+      case "boolean":
+      case "color":
+        return expression;
+    }
+  };
+
+  if (instruction.kind === "if-then") {
+    const condition = rewrite(instruction.condition);
+    const body: Instruction[] = [];
+    for (const bodyInstruction of instruction.body) {
+      const nested = materializeAgonScreenReads(
+        bodyInstruction,
+        allocateRowName,
+        allocateColumnName,
+        allocateValueName,
+        savedAName,
+        savedLName
+      );
+      body.push(...nested.prefix, nested.instruction);
+    }
+    return { prefix, instruction: { ...instruction, condition, body } };
+  }
+  return { prefix, instruction: mapInstructionExpressions(instruction, rewrite) };
+}
+
+function numberExpression(value: number, location: Expression["location"]): Expression {
+  return { kind: "number", value, raw: String(value), location };
+}
+
+function identifierExpression(name: string, location: Expression["location"]): Expression {
+  return { kind: "identifier", name, valueType: "number", location };
+}
+
+function binaryExpression(
+  operator: Extract<Expression, { kind: "binary" }>["operator"],
+  left: Expression,
+  right: Expression,
+  location: Expression["location"]
+): Expression {
+  return { kind: "binary", operator, left, right, location };
+}
+
+function subtractOne(expression: Expression, location: Expression["location"]): Expression {
+  return { kind: "binary", operator: "-", left: expression, right: numberExpression(1, location), location };
+}
+
 const renderKnownAgonFunction = createFunctionRenderer(new Map([
   [builtinFunctions.abs, renderUnary],
   [builtinFunctions.asc, renderUnary],
   [builtinFunctions.atn, renderUnary],
   [builtinFunctions.chr, renderUnary],
-  [builtinFunctions.code, renderUnary],
+  [builtinFunctions.code, renderAgonAsc],
   [builtinFunctions.cos, renderUnary],
   [builtinFunctions.exp, renderUnary],
   [builtinFunctions.freeMemory, () => "(HIMEM-TOP)"],
@@ -176,9 +567,8 @@ const renderKnownAgonFunction = createFunctionRenderer(new Map([
   [builtinFunctions.left, renderArgs],
   [builtinFunctions.len, renderUnary],
   [builtinFunctions.mid, renderArgs],
-  [builtinFunctions.rnd, () => "RND(1)"],
+  [builtinFunctions.rnd, renderAgonRnd],
   [builtinFunctions.right, renderArgs],
-  [builtinFunctions.screenCode, renderAgonScreenCode],
   [builtinFunctions.sgn, renderUnary],
   [builtinFunctions.sin, renderUnary],
   [builtinFunctions.sqr, renderUnary],
@@ -187,6 +577,7 @@ const renderKnownAgonFunction = createFunctionRenderer(new Map([
 ]));
 
 function renderAgonFunction(expression: FunctionCallExpression, options: ExpressionRenderOptions): string | undefined {
+  if (expression.name === "USR") return renderArgs(expression, options);
   return renderKnownAgonFunction(expression, options);
 }
 
@@ -194,13 +585,59 @@ function renderUnary(expression: FunctionCallExpression, options: ExpressionRend
   return `${expression.name.toUpperCase()}(${renderExpression(expression.args[0], options)})`;
 }
 
+function renderAgonAsc(expression: FunctionCallExpression, options: ExpressionRenderOptions): string {
+  return `ASC(${renderExpression(expression.args[0], options)})`;
+}
+
 function renderArgs(expression: FunctionCallExpression, options: ExpressionRenderOptions): string {
   return `${expression.name.toUpperCase()}(${expression.args.map((argument) => renderExpression(argument, options)).join(",")})`;
 }
 
-function renderAgonScreenCode(expression: FunctionCallExpression, options: ExpressionRenderOptions): string {
-  const [row, column] = expression.args;
-  return `GET((${renderExpression(column, options)})-1,(${renderExpression(row, options)})-1)`;
+function renderAgonRnd(expression: FunctionCallExpression, options: ExpressionRenderOptions): string {
+  return expression.args.length === 0 ? "RND(1)" : `RND(${renderExpression(expression.args[0], options)})`;
+}
+
+function renderAgonDeviceOutput(
+  instruction: Extract<Instruction, { kind: "print-device" }>,
+  options: ExpressionRenderOptions
+): string {
+  const renderedHandle = deviceHandleName(instruction.handle);
+  if (!instruction.textBufferName || !instruction.textIndexName) {
+    throw new Error("Internal error: Agon device output has no text-buffer storage.");
+  }
+  const buffer = renderVariableName(instruction.textBufferName, options.variableMap ?? new Map());
+  const index = renderVariableName(instruction.textIndexName, options.variableMap ?? new Map());
+  const text = instruction.items.map((item) => {
+    const expression = renderExpression(item, options);
+    return agonExpressionValueType(item) === "string" ? expression : `STR$(${expression})`;
+  }).join("+") || '""';
+  const lineFeed = instruction.trailingSemicolon ? "" : `:BPUT#${renderedHandle},10`;
+  return `${buffer}=${text}:FOR ${index}=1 TO LEN(${buffer}):BPUT#${renderedHandle},ASC(MID$(${buffer},${index},1)):NEXT${lineFeed}`;
+}
+
+function agonExpressionValueType(expression: Expression): "number" | "string" {
+  switch (expression.kind) {
+    case "string":
+      return "string";
+    case "identifier":
+      return isStringVariableName(expression.name) ? "string" : "number";
+    case "array-access":
+    case "function-call":
+      return expression.valueType === "string" || isStringVariableName(expression.name) ? "string" : "number";
+    case "struct-field-access":
+      return expression.valueType === "string" || isStringVariableName(expression.field) ? "string" : "number";
+    case "parenthesized":
+      return agonExpressionValueType(expression.expression);
+    case "binary":
+      return expression.operator === "+" && (agonExpressionValueType(expression.left) === "string" || agonExpressionValueType(expression.right) === "string")
+        ? "string"
+        : "number";
+    case "number":
+    case "boolean":
+    case "color":
+    case "unary":
+      return "number";
+  }
 }
 
 function renderAgonJoystick(expression: FunctionCallExpression): string {
@@ -231,14 +668,31 @@ function buildAgonVariableMap(instructions: readonly Instruction[], _readability
   for (const name of names) {
     const suffix = isStringVariableName(name) ? "$" : isIntegerVariableName(name) ? "%" : "";
     const base = name.replace(/[$%]$/u, "").toUpperCase().replaceAll(/[^A-Z0-9_]/g, "_") || "V";
-    let candidate = `${base}${suffix}`;
+    const safeBase = startsWithAgonKeyword(base) ? `V_${base}` : base;
+    let candidate = `${safeBase}${suffix}`;
     let serial = 1;
-    while (used.has(candidate)) candidate = `${base}_${serial++}${suffix}`;
+    while (used.has(candidate)) candidate = `${safeBase}_${serial++}${suffix}`;
     result.set(name.toLowerCase(), candidate);
     used.add(candidate);
   }
   return result;
 }
+
+function startsWithAgonKeyword(name: string): boolean {
+  return agonKeywordPrefixes.some((keyword) => name.startsWith(keyword));
+}
+
+const agonKeywordPrefixes = [
+  "ABS", "ACS", "ADVAL", "AND", "ASC", "ASN", "ATN", "AUTO",
+  "BGET", "BPUT", "BY", "CALL", "CASE", "CHAIN", "CHR", "CIRCLE", "CLEAR", "CLG", "CLOSE", "CLS", "COLOUR", "COS", "COUNT",
+  "DATA", "DEF", "DEG", "DELETE", "DIM", "DIV", "DRAW", "ELSE", "END", "EOF", "EOR", "ERL", "ERR", "ERROR", "EVAL", "EXP", "EXT",
+  "FALSE", "FILL", "FN", "FOR", "GCOL", "GET", "GOSUB", "GOTO", "HIMEM", "IF", "INKEY", "INPUT", "INSTR", "INT",
+  "LEFT", "LEN", "LET", "LIST", "LN", "LOAD", "LOCAL", "LOMEM", "MID", "MOD", "MODE", "MOVE", "NEW", "NEXT", "NOT",
+  "OFF", "OLD", "ON", "OPENIN", "OPENOUT", "OPENUP", "OR", "ORIGIN", "OSCLI", "PAGE", "PI", "PLOT", "POINT", "POS", "PRINT", "PROC", "PTR",
+  "QUIT", "RAD", "READ", "RECTANGLE", "REM", "REPEAT", "REPORT", "RESTORE", "RETURN", "RIGHT", "RND", "RUN", "SAVE", "SGN", "SIN", "SOUND",
+  "SPC", "SQR", "STEP", "STOP", "STR", "STRING", "SUM", "SWAP", "TAB", "TAN", "THEN", "TIME", "TINT", "TO", "TOP", "TRACE", "TRUE",
+  "UNTIL", "USR", "VAL", "VDU", "VPOS", "WAIT", "WHEN", "WHILE", "WIDTH"
+] as const;
 
 function instructionNames(instruction: Instruction): readonly string[] {
   switch (instruction.kind) {
@@ -253,6 +707,8 @@ function instructionNames(instruction: Instruction): readonly string[] {
       return instruction.assignments.map((assignment) => assignment.name);
     case "read":
       return instruction.targets;
+    case "print-device":
+      return [instruction.textBufferName, instruction.textIndexName].filter((name): name is string => name !== undefined);
     case "for":
     case "next":
       return [instruction.variable];

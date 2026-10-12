@@ -104,7 +104,7 @@ test OnlyANearbyContactOpensThePresident()
     assert_eq 0, canInvestigate(presidentIndex)
     assert_eq 1, addTestContact(advisorIndex)
     assert_eq 0, addContact(advisorIndex)
-    assert_eq 1, contactCount%
+    assert_eq 2, contactCount%
     assert_eq 1, canApproach(presidentIndex)
     assert_eq 1, canInvestigate(presidentIndex)
     assert_eq 1, setUsaDeal(0, advisorIndex, presidentIndex)

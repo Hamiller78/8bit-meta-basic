@@ -48,6 +48,19 @@ test ExitAndContinueForLoop()
     assert_eq 4, Total
 end test
 
+function returnFromForLoop()
+    for Index = 0 to 3
+        if Index = 2 then
+            return Index
+        end if
+    next Index
+    return -1
+end function
+
+test ReturnFromForLoop()
+    assert_eq 2, returnFromForLoop()
+end test
+
 test WhileWendLoop()
     Count = 0
     Total = 0

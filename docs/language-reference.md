@@ -280,7 +280,7 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `screen_code(row, column)` | Runtime | Read the character code currently visible at a 1-based text-screen position |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
-`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari and C64 lower both to `ASC`; Agon BBC BASIC provides the corresponding native functions.
+`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari, C64, and Agon lower both to `ASC`.
 
 `STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari, C64, and Agon lower them to their parenthesized native forms. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
 
@@ -288,7 +288,9 @@ Math functions lower to the target BASIC function of the same name when evaluate
 
 `FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, Spectrum uses the 48K ROM free-memory routine, and Agon uses `HIMEM-TOP`.
 
-`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, and Agon uses its native `GET(column,row)` screen query. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
+`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, and Agon requests the character from the VDP, waits one vertical blank for the asynchronous response, and reads the returned MOS screen-character system variable. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
+
+Agon's VDP reconstructs a character by comparing the pixels at the requested cell with the active character set. Its firmware documents that this may fail, and boundary cells on the final row or column can return `0` even when the character is visibly present. Tests for scrolling therefore read a separate sentinel away from the boundary rather than relying on boundary-cell recognition.
 
 The bottom-right cell is a native scrolling boundary on Atari and C64: printing a character there scrolls the screen immediately, even when the statement has a trailing semicolon. Spectrum `PRINT AT` leaves the bottom-right character in place. Portable layouts that must not scroll should therefore leave the bottom-right cell unused. Other cells on the bottom and right edges remain usable.
 
@@ -299,7 +301,7 @@ randomize 1983
 value = rnd()
 ```
 
-`randomize` accepts an optional numeric seed. Atari BASIC ignores the seed because its native `RND` facility does not use the same explicit seed model.
+`randomize` accepts an optional numeric seed. Atari BASIC ignores the seed because its native `RND` facility does not use the same explicit seed model. Agon BBC BASIC seeds through a negative argument to `RND`, because that dialect has no `RANDOMIZE` statement.
 
 `STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_PRESSED()` returns true when a key is available. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
 
@@ -542,7 +544,9 @@ The CLI and build/launch scripts accept `--language` and `--font`. The font opti
 
 Groups may be combined as `--font lowercase,international`; JSON configurations use an array such as `"font": ["lowercase", "international"]`. With no requested groups, each target uses its normal font and applies fallbacks. Inserted placeholder values retain their runtime contents because they are not known at compile time.
 
-When `international` is requested for Atari, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain single display characters. The readable `.bas` retains Unicode spelling; Atari `.LST` packaging converts each one to its single-byte ATASCII international code before tokenization, so no runtime `CHR$` fragments are needed. `ß` and `ẞ` still become `ss` and `SS` because the Atari ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`; an uppercase umlaut becomes `AE`/`OE`/`UE` when its whole word is uppercase, so `PRÄSIDENT` becomes `PRAESIDENT` while `Präsident` becomes `Praesident`. A C64 build without `lowercase` capitalizes all static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
+When `international` is requested for Atari or Agon, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain display characters; Agon also preserves `ß`. Atari's readable `.bas` retains Unicode spelling; `.LST` packaging converts each supported letter to its single-byte ATASCII international code before tokenization, so no runtime `CHR$` fragments are needed. `ß` and `ẞ` still become `ss` and `SS` on Atari because its ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`; an uppercase umlaut becomes `AE`/`OE`/`UE` when its whole word is uppercase, so `PRÄSIDENT` becomes `PRAESIDENT` while `Präsident` becomes `Praesident`. A C64 build without `lowercase` capitalizes all static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
+
+Agon can display Windows-1252 international characters, but its BBC BASIC plain-text loader cannot safely execute source containing raw high-bit bytes. The Agon backend therefore keeps generated `.bas` files ASCII-safe and builds such string characters with `CHR$` concatenations.
 
 JSON build configurations accept optional `textsDir`, `language`, `font`, `minimumScreenColumns`, and `minimumScreenRows` fields. The screen requirements must be positive integers. They default to 32 columns and 22 rows, matching the ZX Spectrum text area, and compilation rejects targets whose `TEXT_COLUMNS` or `TEXT_ROWS` value is smaller. Projects that deliberately support a smaller display can lower the corresponding minimum.
 

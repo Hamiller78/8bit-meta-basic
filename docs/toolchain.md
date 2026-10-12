@@ -116,6 +116,7 @@ To mirror the generated test-runner log to an emulator device, add `--printer-ou
 npm run test:language:spectrum -- --restart
 npm run test:language:c64 -- --restart
 npm run test:language:atari -- --restart
+npm run test:language:agon -- --restart
 ```
 
 The captured host file path is controlled by the emulator block in `scripts/tools.local.json`:
@@ -160,6 +161,7 @@ npm run test:language:build
 npm run test:language:c64 -- --restart
 npm run test:language:spectrum -- --restart
 npm run test:language:atari -- --restart
+npm run test:language:agon -- --restart
 ```
 
 The suite's project configuration requests lowercase text, and its test runners inherit that setting. The suite currently covers expressions, functions, control flow, storage, string handling, colours, `DATA`/`READ`/`RESTORE`, random numbers, jiffies, and free-memory reads where the behavior is deterministic enough to assert portably.

@@ -102,7 +102,7 @@ For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
 npm run test:language:spectrum -- --restart
 ```
 
-If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64. Agon file-device output is available to generated programs, but automated emulator test-log capture has not yet been verified.
+If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64. Agon file-device output writes readable text through BBC BASIC `BPUT#`; the instruction-suite launcher writes `MCP.DAT` on the configured virtual SD card.
 
 The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
 
@@ -292,6 +292,8 @@ RUN . /metabasic.bas
 ```
 
 Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC selects mode 3, so `TEXT_COLUMNS` is 80 and `TEXT_ROWS` is 30. The launcher-owned `metabasic.bas` and `autoexec.txt` files are replaced on each launch; keep personal card files under other names.
+
+For test runs, the launcher clears its previous `MCP.DAT` and `MCP.ERR` files and adds a target-side error trap. An unexpected BBC BASIC runtime error is written to `MCP.ERR` with its error number and generated line, while the ordinary readable test log is written to `MCP.DAT`.
 
 For a physical Agon, copy the generated `build/<profile>/agon/<name>.bas` to an SD card using CRLF line endings, then start the 24-bit interpreter with the same `LOAD`/`RUN` sequence.
 

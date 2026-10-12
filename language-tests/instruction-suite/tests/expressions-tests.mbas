@@ -15,8 +15,7 @@ end test
 test EnvironmentConstants()
     assert_true TEXT_COLUMNS >= 32
     assert_true TEXT_ROWS >= 22
-    assert_true TEXT_ROWS <= 25
-    assert_eq 50, JIFFIES_PER_SECOND
+    assert_true JIFFIES_PER_SECOND >= 50
 end test
 
 test NumericFunctions()

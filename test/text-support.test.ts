@@ -73,6 +73,7 @@ describe("localized text and layout", () => {
     const atari = compileSource(source, { filename: "text.mbas", target: "atari800xl", texts, font: ["lowercase", "international"] });
     const spectrum = compileSource(source, { filename: "text.mbas", target: "spectrum", texts, font: ["lowercase", "international"] });
     const c64 = compileSource(source, { filename: "text.mbas", target: "c64", texts, font: ["lowercase", "international"] });
+    const agon = compileSource(source, { filename: "text.mbas", target: "agon", texts, font: ["lowercase", "international"] });
     const fallback = compileSource(source, { filename: "text.mbas", target: "c64", texts });
 
     expect(atari).toContain("POKE 756,204");
@@ -81,6 +82,7 @@ describe("localized text and layout", () => {
     expect(spectrum).toContain('PRINT "Gruesse aus Oesterreich"');
     expect(c64).toContain('print "Gruesse aus Oesterreich"');
     expect(c64).toContain("print chr$(14);");
+    expect(agon).toContain('PRINT "Gr" + CHR$(252) + CHR$(223) + "e aus " + CHR$(214) + "sterreich"');
     expect(fallback).toContain('PRINT "GRUESSE AUS OESTERREICH"');
   });
   it("preserves all-uppercase words when transliterating uppercase umlauts", () => {
@@ -229,7 +231,8 @@ describe("localized text and layout", () => {
     const configuration = await loadBuildConfiguration(configPath);
     for (const target of targets) for (const language of ["en", "de"]) {
       const result = await build(configuration, { configPath, target, language });
-      expect(result.toLowerCase()).toContain(language === "de" ? (target === "atari800xl" ? "veröffentlichte" : "veroeffentlichte") : "small");
+      const translatedMarker = target === "atari800xl" ? "veröffentlichte" : target === "agon" ? "chr$(246)" : "veroeffentlichte";
+      expect(result.toLowerCase()).toContain(language === "de" ? translatedMarker : "small");
       expect(result).not.toContain("PRINT_TEXT");
       const uppercaseResult = result.toUpperCase();
       const moduleNames = ["MAIN.MBAS", "CHARACTERS.MBAS", "CHARACTERNAMES.MBAS", "CHARACTERFACTORY.MBAS", "INTELLIGENCE.MBAS", "POLITICS.MBAS", "INTRO.MBAS", "MAINSCREEN.MBAS", "NPCLOGIC.MBAS", "DATA"];

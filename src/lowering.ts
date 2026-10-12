@@ -92,6 +92,7 @@ export type Instruction =
   | SetColorInstruction
   | PokeInstruction
   | PrintChrInstruction
+  | VduInstruction
   | DimStringInstruction
   | SysInstruction;
 
@@ -199,6 +200,10 @@ export interface PrintDeviceInstruction {
   readonly handle: string;
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
+  /** Target-lowering storage used when a device needs byte-wise text output. */
+  readonly textBufferName?: string;
+  /** Target-lowering loop storage used when a device needs byte-wise text output. */
+  readonly textIndexName?: string;
   readonly location: SourceLocation;
 }
 
@@ -412,6 +417,16 @@ export interface PrintChrInstruction {
   readonly kind: "print-chr";
   readonly code: number;
   readonly trailingSemicolon: boolean;
+  readonly location: SourceLocation;
+}
+
+/** Target-level VDU byte/word stream used by BBC-style backends. */
+export interface VduInstruction {
+  readonly kind: "vdu";
+  readonly items: readonly {
+    readonly expression: Expression;
+    readonly word: boolean;
+  }[];
   readonly location: SourceLocation;
 }
 
