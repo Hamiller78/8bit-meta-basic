@@ -2,8 +2,7 @@ uses "characters.mbas"
 
 enum IntelLevel
     intelNone = 0
-    intelName
-    intelObserved
+    intelAlignment
     intelIntegrity
     intelAgenda
 end enum
@@ -51,17 +50,9 @@ end function
 
 'Trailing semicolons let callers compose a line without copying names into strings.
 function printKnownName(characterIndex)
-    if playerIntel%(characterIndex) >= intelName then
-        print characters(characterIndex).first$; " "; characters(characterIndex).last$;
-    else
-        print text$("intelUnknown");
-    end if
+    print characters(characterIndex).first$; " "; characters(characterIndex).last$;
 end function
 
 function printKnownFirstName(characterIndex)
-    if playerIntel%(characterIndex) >= intelName then
-        print characters(characterIndex).first$;
-    else
-        print text$("intelUnknown");
-    end if
+    print characters(characterIndex).first$;
 end function

@@ -103,7 +103,7 @@ test OverviewShowsCompactKnowledgeState()
     else
         assert_printat 1, 1, "UNKNOWN   "
     end if
-    revealCharacter(0, intelObserved)
+    revealCharacter(0, intelAlignment)
     printOverviewStatus(0, 1, 1)
     if TEXT_COLUMNS >= 40 then
         assert_printat 1, 1, "OBSERVED    "
@@ -134,18 +134,23 @@ test OverviewIgnoresEnterWithoutDispatchError()
     assert_eq 0, handleOverviewChoice(KEY_ENTER)
 end test
 
+test OverviewShowsItsAvailableActions()
+    printOverviewActions()
+    assert_printat 21, 1, "4 End turn"
+end test
+
 test UsaActionSlotsRemainIndependent()
     setupMainScreenCast()
     initializeIntelligence()
     initializeUsaActions()
 
-    assert_eq 1, setUsaObserve(0, pubLocation)
-    revealCharacter(advisorCharacter, intelObserved)
+    assert_eq 1, setUsaObserve(0, priestCharacter)
+    revealCharacter(advisorCharacter, intelAlignment)
     assert_eq 1, addContact(advisorCharacter)
-    revealCharacter(presidentCharacter, intelObserved)
+    revealCharacter(presidentCharacter, intelAlignment)
     assert_eq 1, setUsaInvestigation(1, presidentCharacter)
     assert_eq missionObserve, usaActions%(0)
-    assert_eq pubLocation, usaActionValues%(0)
+    assert_eq priestCharacter, usaTargets%(0)
     assert_eq missionInvestigate, usaActions%(1)
     assert_eq presidentCharacter, usaTargets%(1)
 
@@ -155,7 +160,7 @@ test UsaActionSlotsRemainIndependent()
     assert_eq missionInvestigate, usaActions%(1)
 end test
 
-test InitialKnowledgeContainsNoForeignAgentCharacters()
+test InitialKnowledgeStartsEmpty()
     setupMainScreenCast()
     initializeIntelligence()
 
@@ -169,7 +174,7 @@ test RevealsOnlyIncreaseKnowledge()
 
     revealCharacter(2, intelIntegrity)
     assert_eq intelIntegrity, playerIntel%(2)
-    revealCharacter(2, intelName)
+    revealCharacter(2, intelAlignment)
     assert_eq intelIntegrity, playerIntel%(2)
     revealCharacter(2, 99)
     assert_eq intelAgenda, playerIntel%(2)

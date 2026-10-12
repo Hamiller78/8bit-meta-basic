@@ -27,7 +27,7 @@ function setupOperations()
 end function
 
 function addTestContact(characterIndex)
-    revealCharacter(characterIndex, intelObserved)
+    revealCharacter(characterIndex, intelAlignment)
     return addContact(characterIndex)
 end function
 
@@ -81,7 +81,7 @@ test PresidentInvestigationUsesAnInsiderReport()
     advisorIndex = advisorCharacter
 
     addTestContact(advisorIndex)
-    revealCharacter(presidentIndex, intelObserved)
+    revealCharacter(presidentIndex, intelAlignment)
     characters(advisorIndex).integrity% = 10
     assert_eq 1, setUsaInvestigation(0, presidentIndex)
     resolveInvestigationRoll(0, presidentIndex, 0)
@@ -97,7 +97,7 @@ test OnlyANearbyContactOpensThePresident()
     advisorIndex = advisorCharacter
     innkeeperIndex = innkeeperCharacter
 
-    revealCharacter(presidentIndex, intelObserved)
+    revealCharacter(presidentIndex, intelAlignment)
     assert_eq 1, canApproach(presidentIndex)
     assert_eq 0, canInvestigate(presidentIndex)
     assert_eq 1, addTestContact(innkeeperIndex)
@@ -115,14 +115,13 @@ test CharacterObservationUnlocksSharedContact()
     setupOperations()
     advisorIndex = advisorCharacter
 
-    revealCharacter(advisorIndex, intelName)
     assert_eq 0, addContact(advisorIndex)
-    assert_eq 1, setUsaObserveCharacter(0, advisorIndex)
-    resolveCharacterObservationMission(0)
-    assert_eq intelObserved, playerIntel%(advisorIndex)
+    assert_eq 1, setUsaObserve(0, advisorIndex)
+    resolveObservationMission(0)
+    assert_eq intelAlignment, playerIntel%(advisorIndex)
     assert_eq reportIntel, usaReports%(0)
     assert_eq missionIdle, usaActions%(0)
-    assert_eq 0, setUsaObserveCharacter(1, advisorIndex)
+    assert_eq 0, setUsaObserve(1, advisorIndex)
 
     assert_eq 1, setUsaContact(1, advisorIndex)
     resolveContactMission(1)
@@ -132,61 +131,20 @@ test CharacterObservationUnlocksSharedContact()
     assert_eq 0, setUsaContact(0, advisorIndex)
 end test
 
-test ObservationRulesUseThreeToOneWeights()
-    local presidentIndex, daughterIndex, advisorIndex, generalIndex, priestIndex, innkeeperIndex, landownerIndex
+test ObservationTargetsAnyNonPresidentCharacterOnlyOnce()
+    local presidentIndex, generalIndex
     setupOperations()
     presidentIndex = presidentCharacter
-    daughterIndex = daughterCharacter
-    advisorIndex = advisorCharacter
     generalIndex = generalCharacter
-    priestIndex = priestCharacter
-    innkeeperIndex = innkeeperCharacter
-    landownerIndex = landownerCharacter
 
-    assert_eq 0, observationWeight(presidentIndex, palaceLocation)
-    assert_eq 3, observationWeight(generalIndex, palaceLocation)
-    assert_eq 3, observationWeight(advisorIndex, palaceLocation)
-    assert_eq 1, observationWeight(daughterIndex, palaceLocation)
-    assert_eq 1, observationWeight(landownerIndex, palaceLocation)
-    assert_eq 3, observationWeight(priestIndex, churchLocation)
-    assert_eq 3, observationWeight(innkeeperIndex, pubLocation)
-    assert_eq 8, observationTotalWeight(palaceLocation)
-    assert_eq 8, observationTotalWeight(churchLocation)
-    assert_eq 8, observationTotalWeight(pubLocation)
-
-    characters(landownerIndex).integrity% = 3
-    assert_eq 0, observationWeight(landownerIndex, churchLocation)
-    characters(landownerIndex).integrity% = 4
-    assert_eq 1, observationWeight(landownerIndex, churchLocation)
-    characters(advisorIndex).integrity% = 8
-    assert_eq 1, observationWeight(advisorIndex, pubLocation)
-    characters(advisorIndex).integrity% = 9
-    assert_eq 0, observationWeight(advisorIndex, pubLocation)
-end test
-
-test ObservationDiscoversAnUnknownCharacterOnlyOnce()
-    local presidentIndex, daughterIndex, advisorIndex, generalIndex, landownerIndex
-    setupOperations()
-    presidentIndex = presidentCharacter
-    daughterIndex = daughterCharacter
-    advisorIndex = advisorCharacter
-    generalIndex = generalCharacter
-    landownerIndex = landownerCharacter
-
-    assert_eq daughterIndex, observationCandidateAt(palaceLocation, 0)
-    assert_eq advisorIndex, observationCandidateAt(palaceLocation, 1)
-    assert_eq advisorIndex, observationCandidateAt(palaceLocation, 2)
-    assert_eq advisorIndex, observationCandidateAt(palaceLocation, 3)
-    assert_eq generalIndex, observationCandidateAt(palaceLocation, 4)
-    assert_eq generalIndex, observationCandidateAt(palaceLocation, 6)
-    assert_eq landownerIndex, observationCandidateAt(palaceLocation, 7)
-
-    resolveObservationRoll(0, palaceLocation, 4)
-    assert_eq intelName, playerIntel%(generalIndex)
-    assert_eq reportDiscovery, usaReports%(0)
+    assert_eq 0, setUsaObserve(0, presidentIndex)
+    assert_eq 1, setUsaObserve(0, generalIndex)
+    assert_eq generalIndex, usaTargets%(0)
+    resolveObservationMission(0)
+    assert_eq intelAlignment, playerIntel%(generalIndex)
+    assert_eq reportIntel, usaReports%(0)
     assert_eq generalIndex, usaReportTargets%(0)
-    assert_eq 5, observationTotalWeight(palaceLocation)
-    assert_eq 0, observationWeight(generalIndex, palaceLocation)
+    assert_eq 0, setUsaObserve(0, generalIndex)
     assert_eq intelNone, playerIntel%(presidentIndex)
 end test
 
@@ -198,9 +156,9 @@ test ContactAllowsDeeperInvestigation()
 
     assert_eq 0, setUsaInvestigation(0, presidentIndex)
     addTestContact(advisorIndex)
-    revealCharacter(presidentIndex, intelObserved)
+    revealCharacter(presidentIndex, intelAlignment)
     assert_eq 1, setUsaInvestigation(0, presidentIndex)
-    assert_eq intelObserved, playerIntel%(presidentIndex)
+    assert_eq intelAlignment, playerIntel%(presidentIndex)
     resolveInvestigationRoll(0, presidentIndex, 0)
     assert_eq intelIntegrity, playerIntel%(presidentIndex)
     assert_eq missionInvestigate, usaActions%(0)
@@ -219,7 +177,7 @@ test DealsDependOnIntegrity()
     targetIndex = advisorCharacter
     characters(targetIndex).integrity% = 6
     addTestContact(priestIndex)
-    revealCharacter(targetIndex, intelObserved)
+    revealCharacter(targetIndex, intelAlignment)
 
     characters(priestIndex).integrity% = 10
     assert_eq dealHonored, dealOutcomeFor(10, 9)
@@ -234,20 +192,20 @@ test DealsDependOnIntegrity()
     initializeIntelligence()
     initializeUsaActions()
     addTestContact(priestIndex)
-    revealCharacter(targetIndex, intelObserved)
+    revealCharacter(targetIndex, intelAlignment)
     characters(priestIndex).integrity% = 0
     assert_eq dealPocketed, dealOutcomeFor(0, 0)
     assert_eq 1, setUsaDeal(0, priestIndex, targetIndex)
     resolveDealRoll(0, 0)
     assert_eq startingBudgetK - dealCostK, budget
-    assert_eq intelObserved, playerIntel%(targetIndex)
+    assert_eq intelAlignment, playerIntel%(targetIndex)
     assert_eq -1, characters(priestIndex).agenda%
     assert_eq reportDealFailed, usaReports%(0)
 
     initializeIntelligence()
     initializeUsaActions()
     addTestContact(priestIndex)
-    revealCharacter(targetIndex, intelObserved)
+    revealCharacter(targetIndex, intelAlignment)
     agendaIndex = characterAgendaCount%
     characterAgendaCount% = characterAgendaCount% + 1
     characters(priestIndex).agenda% = agendaIndex
@@ -259,7 +217,7 @@ test DealsDependOnIntegrity()
     assert_eq 1, setUsaDeal(0, priestIndex, targetIndex)
     resolveDealRoll(0, 9)
     assert_eq startingBudgetK - dealCostK, budget
-    assert_eq intelObserved, playerIntel%(targetIndex)
+    assert_eq intelAlignment, playerIntel%(targetIndex)
     assert_eq dealCostK, characterAgendas(agendaIndex).money
     assert_eq 1, characterAgendas(agendaIndex).weapons%
     assert_eq reportDealFailed, usaReports%(0)
@@ -274,8 +232,8 @@ test DealsNeedALivingContact()
 
     assert_eq 0, setUsaDeal(0, advisorIndex, presidentIndex)
     addTestContact(advisorIndex)
-    revealCharacter(presidentIndex, intelObserved)
-    revealCharacter(priestIndex, intelObserved)
+    revealCharacter(presidentIndex, intelAlignment)
+    revealCharacter(priestIndex, intelAlignment)
     assert_eq 0, setUsaDeal(0, advisorIndex, priestIndex)
     assert_eq 1, setUsaDeal(1, advisorIndex, presidentIndex)
     budget = 0

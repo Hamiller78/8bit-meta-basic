@@ -8,16 +8,9 @@ const startingBudgetK = 1000
 const dealCostK = 10
 const investigationChance = 50
 
-enum ObservationLocation
-    palaceLocation = 1
-    churchLocation
-    pubLocation
-end enum
-
 enum UsaActionKind
     missionIdle = 0
     missionObserve
-    missionObserveCharacter
     missionContact
     missionInvestigate
     missionDeal
@@ -26,7 +19,6 @@ end enum
 enum UsaActionReport
     reportNone = 0
     reportNoLead
-    reportDiscovery
     reportIntel
     reportContact
     reportDealHonored
@@ -105,7 +97,7 @@ function addContact(characterIndex)
     if characters(characterIndex).isAlive% = 0 then
         return 0
     end if
-    if playerIntel%(characterIndex) < intelObserved then
+    if playerIntel%(characterIndex) < intelAlignment then
         return 0
     end if
     if hasContact(characterIndex) = 1 then
@@ -131,7 +123,7 @@ function canInvestigate(characterIndex)
     if canApproach(characterIndex) = 0 then
         return 0
     end if
-    if playerIntel%(characterIndex) < intelObserved then
+    if playerIntel%(characterIndex) < intelAlignment then
         return 0
     end if
     if firstContactFor(characterIndex) >= 0 then
@@ -140,95 +132,23 @@ function canInvestigate(characterIndex)
     return 0
 end function
 
-'Common characters carry weight 3 and rare characters weight 1.
-function observationWeight(characterIndex, locationValue)
-    if characterIndex < 0 or characterIndex >= numberOfCharacters then
+function setUsaObserve(actionIndex, characterIndex)
+    if actionIndex < 0 or actionIndex >= numberOfUsaActions then
         return 0
     end if
-    if characters(characterIndex).isAlive% = 0 or playerIntel%(characterIndex) >= intelName then
+    if characterIndex < 0 or characterIndex >= numberOfCharacters then
         return 0
     end if
     if characterIndex = presidentCharacter then
         return 0
     end if
-    if locationValue = palaceLocation then
-        if characterIndex = generalCharacter or characterIndex = advisorCharacter then
-            return 3
-        end if
-        if characterIndex = daughterCharacter or characterIndex = landownerCharacter then
-            return 1
-        end if
-        return 0
-    end if
-    if locationValue = churchLocation then
-        if characterIndex = priestCharacter then
-            return 3
-        end if
-        if characters(characterIndex).integrity% > 3 then
-            return 1
-        end if
-        return 0
-    end if
-    if locationValue = pubLocation then
-        if characterIndex = innkeeperCharacter then
-            return 3
-        end if
-        if characters(characterIndex).integrity% < 9 then
-            return 1
-        end if
-    end if
-    return 0
-end function
-
-function observationTotalWeight(locationValue)
-    local characterIndex, totalWeight
-    totalWeight = 0
-    for characterIndex = 0 to numberOfCharacters - 1
-        totalWeight = totalWeight + observationWeight(characterIndex, locationValue)
-    next characterIndex
-    return totalWeight
-end function
-
-function observationCandidateAt(locationValue, selection)
-    local characterIndex, weight
-    for characterIndex = 0 to numberOfCharacters - 1
-        weight = observationWeight(characterIndex, locationValue)
-        if selection < weight then
-            return characterIndex
-        end if
-        selection = selection - weight
-    next characterIndex
-    return -1
-end function
-
-function setUsaObserve(actionIndex, locationValue)
-    if actionIndex < 0 or actionIndex >= numberOfUsaActions then
-        return 0
-    end if
-    if locationValue < palaceLocation or locationValue > pubLocation then
-        return 0
-    end if
-    usaActions%(actionIndex) = missionObserve
-    usaActionValues%(actionIndex) = locationValue
-    usaTargets%(actionIndex) = -1
-    usaDealContacts%(actionIndex) = -1
-    return 1
-end function
-
-function setUsaObserveCharacter(actionIndex, characterIndex)
-    if actionIndex < 0 or actionIndex >= numberOfUsaActions then
-        return 0
-    end if
-    if characterIndex < 0 or characterIndex >= numberOfCharacters then
-        return 0
-    end if
     if characters(characterIndex).isAlive% = 0 then
         return 0
     end if
-    if playerIntel%(characterIndex) <> intelName then
+    if playerIntel%(characterIndex) <> intelNone then
         return 0
     end if
-    usaActions%(actionIndex) = missionObserveCharacter
+    usaActions%(actionIndex) = missionObserve
     usaActionValues%(actionIndex) = 0
     usaTargets%(actionIndex) = characterIndex
     usaDealContacts%(actionIndex) = -1
@@ -245,7 +165,7 @@ function setUsaContact(actionIndex, characterIndex)
     if characters(characterIndex).isAlive% = 0 then
         return 0
     end if
-    if playerIntel%(characterIndex) < intelObserved or hasContact(characterIndex) = 1 then
+    if playerIntel%(characterIndex) < intelAlignment or hasContact(characterIndex) = 1 then
         return 0
     end if
     usaActions%(actionIndex) = missionContact
@@ -296,8 +216,7 @@ function setUsaIdle(actionIndex)
     usaDealContacts%(actionIndex) = -1
 end function
 
-'Location observation and investigation persist; character observation,
-'contact, and deals are one-time orders.
+'Investigation persists; observation, contact, and deals are one-time orders.
 function resolveUsaActions()
     local actionIndex
     for actionIndex = 0 to numberOfUsaActions - 1
@@ -305,9 +224,6 @@ function resolveUsaActions()
         usaReportTargets%(actionIndex) = -1
         if usaActions%(actionIndex) = missionObserve then
             resolveObservationMission(actionIndex)
-        end if
-        if usaActions%(actionIndex) = missionObserveCharacter then
-            resolveCharacterObservationMission(actionIndex)
         end if
         if usaActions%(actionIndex) = missionContact then
             resolveContactMission(actionIndex)
@@ -333,42 +249,19 @@ function resolveContactMission(actionIndex)
     setUsaIdle(actionIndex)
 end function
 
-function resolveCharacterObservationMission(actionIndex)
+function resolveObservationMission(actionIndex)
     local characterIndex
     characterIndex = usaTargets%(actionIndex)
     usaReports%(actionIndex) = reportNoLead
     usaReportTargets%(actionIndex) = -1
     if characterIndex >= 0 and characterIndex < numberOfCharacters then
-        if characters(characterIndex).isAlive% = 1 and playerIntel%(characterIndex) = intelName then
-            revealCharacter(characterIndex, intelObserved)
+        if characterIndex <> presidentCharacter and characters(characterIndex).isAlive% = 1 and playerIntel%(characterIndex) = intelNone then
+            revealCharacter(characterIndex, intelAlignment)
             usaReports%(actionIndex) = reportIntel
             usaReportTargets%(actionIndex) = characterIndex
         end if
     end if
     setUsaIdle(actionIndex)
-end function
-
-function resolveObservationMission(actionIndex)
-    local locationValue, totalWeight
-    locationValue = usaActionValues%(actionIndex)
-    totalWeight = observationTotalWeight(locationValue)
-    resolveObservationRoll(actionIndex, locationValue, int(rnd() * totalWeight))
-end function
-
-function resolveObservationRoll(actionIndex, locationValue, selection)
-    local characterIndex
-    usaReports%(actionIndex) = reportNoLead
-    usaReportTargets%(actionIndex) = -1
-    if selection < 0 then
-        return
-    end if
-    characterIndex = observationCandidateAt(locationValue, selection)
-    if characterIndex < 0 then
-        return
-    end if
-    revealCharacter(characterIndex, intelName)
-    usaReports%(actionIndex) = reportDiscovery
-    usaReportTargets%(actionIndex) = characterIndex
 end function
 
 function resolveInvestigationMission(actionIndex)

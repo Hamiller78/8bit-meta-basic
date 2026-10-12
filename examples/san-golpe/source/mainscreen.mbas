@@ -13,7 +13,7 @@ overviewPage% = 0
 function showOverview(turnNumber)
     cls
     set_pos 1, 1
-    print text$("overviewTurnKey"); turnNumber; " $"; budget; "K 1/2"; text$("overviewActionsKey"); " 3"; text$("overviewPeopleKey"); " 4"; text$("overviewEndKey");
+    print text$("overviewTurnKey"); turnNumber; " $"; budget; "K";
 
     set_pos 2, 1
     print_centered text$("overviewGovernment")
@@ -26,6 +26,13 @@ function showOverview(turnNumber)
     print "USA "; numberOfUsaActions; " USSR "; numberOfUssrActions;
     set_pos 18, TEXT_COLUMNS - 8
     print "RAM"; int(free_memory() / 1024); "K";
+    printOverviewActions()
+end function
+
+function printOverviewActions()
+    print_at 19, 1, "1 "; text$("overviewUsaActionHeading"); " 1  2 "; text$("overviewUsaActionHeading"); " 2";
+    print_at 20, 1, "3 "; text$("overviewPeopleOption");
+    print_at 21, 1, "4 "; text$("overviewEndTurnOption");
 end function
 
 function printOverviewPageControls()
@@ -192,10 +199,7 @@ function printOverviewStatus(characterIndex, row, column)
     if intelValue = intelNone then
         print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
     end if
-    if intelValue = intelName then
-        print_at row, column, text$("overviewStatusDiscovered"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusDiscovered")));
-    end if
-    if intelValue = intelObserved then
+    if intelValue = intelAlignment then
         print_at row, column, text$("overviewStatusObserved"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusObserved")));
     end if
     if intelValue = intelIntegrity then
@@ -219,9 +223,6 @@ function printUsaActionReports()
             print actionIndex + 1; " ";
             if reportValue = reportNoLead then
                 print text$("reportNoLead");
-            end if
-            if reportValue = reportDiscovery then
-                print text$("reportDiscovery");
             end if
             if reportValue = reportIntel then
                 print text$("reportIntel");
@@ -314,10 +315,6 @@ function showUsaActionMenu(actionIndex)
         print text$("overviewCurrentMission")
         printMissionName(usaActions%(actionIndex))
         print
-        if usaActions%(actionIndex) = missionObserve then
-            printLocationName(usaActionValues%(actionIndex))
-            print
-        end if
         if usaTargets%(actionIndex) >= 0 then
             printKnownName(usaTargets%(actionIndex))
             print
@@ -333,34 +330,27 @@ function showUsaActionMenu(actionIndex)
 end function
 
 function chooseMission(actionIndex)
-    local choice, selectedLocation, selectedContact, selectedPerson
+    local choice, selectedContact, selectedPerson
 
     cls
     print_centered text$("overviewMissionHeading")
     print "1 "; text$("missionObserve")
-    print "2 "; text$("missionObserveCharacter")
-    print "3 "; text$("missionContact")
-    print "4 "; text$("missionInvestigate")
-    print "5 "; text$("missionDeal")
-    print "6 "; text$("missionIdle")
+    print "2 "; text$("missionContact")
+    print "3 "; text$("missionInvestigate")
+    print "4 "; text$("missionDeal")
+    print "5 "; text$("missionIdle")
     print "0 "; text$("overviewBack")
     choice = getInput()
 
     if choice = KEY_1 then
-        selectedLocation = chooseLocation()
-        if selectedLocation > 0 then
-            setUsaObserve(actionIndex, selectedLocation)
-        end if
-    end if
-    if choice = KEY_2 then
         selectedPerson = choosePerson()
         if selectedPerson >= 0 then
-            if setUsaObserveCharacter(actionIndex, selectedPerson) = 0 then
+            if setUsaObserve(actionIndex, selectedPerson) = 0 then
                 showOrderMessage(3)
             end if
         end if
     end if
-    if choice = KEY_3 then
+    if choice = KEY_2 then
         selectedPerson = choosePerson()
         if selectedPerson >= 0 then
             if setUsaContact(actionIndex, selectedPerson) = 0 then
@@ -368,7 +358,7 @@ function chooseMission(actionIndex)
             end if
         end if
     end if
-    if choice = KEY_4 then
+    if choice = KEY_3 then
         selectedPerson = choosePerson()
         if selectedPerson >= 0 then
             if setUsaInvestigation(actionIndex, selectedPerson) = 0 then
@@ -376,7 +366,7 @@ function chooseMission(actionIndex)
             end if
         end if
     end if
-    if choice = KEY_5 then
+    if choice = KEY_4 then
         if budget < dealCostK then
             showOrderMessage(2)
         else
@@ -391,7 +381,7 @@ function chooseMission(actionIndex)
             end if
         end if
     end if
-    if choice = KEY_6 then
+    if choice = KEY_5 then
         setUsaIdle(actionIndex)
     end if
 end function
@@ -474,20 +464,15 @@ function choosePerson()
     print_centered text$("overviewPeopleHeading")
     listedCount = 0
     for characterIndex = 0 to numberOfCharacters - 1
-        if playerIntel%(characterIndex) >= intelName then
-            listedCount = listedCount + 1
-            if listedCount < 10 then
-                print listedCount; " ";
-            else
-                print "A ";
-            end if
-            printKnownName(characterIndex)
-            print
+        listedCount = listedCount + 1
+        if listedCount < 10 then
+            print listedCount; " ";
+        else
+            print "A ";
         end if
+        printKnownName(characterIndex)
+        print
     next characterIndex
-    if listedCount = 0 then
-        print text$("overviewNoPeople")
-    end if
     print
     print text$("overviewSelectPerson")
     print "0 "; text$("overviewBack")
@@ -501,35 +486,12 @@ function choosePerson()
     end if
     listedCount = 0
     for characterIndex = 0 to numberOfCharacters - 1
-        if playerIntel%(characterIndex) >= intelName then
-            listedCount = listedCount + 1
-            if listedCount = chosenNumber then
-                return characterIndex
-            end if
+        listedCount = listedCount + 1
+        if listedCount = chosenNumber then
+            return characterIndex
         end if
     next characterIndex
     return -1
-end function
-
-function chooseLocation()
-    local choice
-    cls
-    print_centered text$("locationHeading")
-    print "1 "; text$("locationPalace")
-    print "2 "; text$("locationChurch")
-    print "3 "; text$("locationPub")
-    print "0 "; text$("overviewBack")
-    choice = getInput()
-    if choice = KEY_1 then
-        return palaceLocation
-    end if
-    if choice = KEY_2 then
-        return churchLocation
-    end if
-    if choice = KEY_3 then
-        return pubLocation
-    end if
-    return 0
 end function
 
 function showCharacterCard(characterIndex)
@@ -538,7 +500,7 @@ function showCharacterCard(characterIndex)
     print_centered text$("overviewPersonHeading")
     printKnownName(characterIndex)
     print
-    print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/4"
+    print text$("intelLevelLabel"); ": "; playerIntel%(characterIndex); "/3"
     print text$("overviewContacts"); ": ";
     if hasContact(characterIndex) = 1 then
         print "1";
@@ -546,6 +508,11 @@ function showCharacterCard(characterIndex)
         print text$("overviewNone");
     end if
     print
+    if playerIntel%(characterIndex) >= intelAlignment then
+        print text$("intelAlignmentLabel"); ": ";
+        printPoliticalAlignment(politicalAlignmentBand(characters(characterIndex).socialism%))
+        print
+    end if
     if playerIntel%(characterIndex) >= intelIntegrity then
         print text$("intelIntegrityLabel"); ": ";
         printIntegrityBand(integrityBand(characters(characterIndex).integrity%))
@@ -564,18 +531,6 @@ function showCharacterCard(characterIndex)
     print
     print text$("continue")
     getInput()
-end function
-
-function printLocationName(locationValue)
-    if locationValue = palaceLocation then
-        print text$("locationPalace");
-    end if
-    if locationValue = churchLocation then
-        print text$("locationChurch");
-    end if
-    if locationValue = pubLocation then
-        print text$("locationPub");
-    end if
 end function
 
 function printIntegrityBand(band)
@@ -608,9 +563,6 @@ end function
 function printMissionName(missionValue)
     if missionValue = missionObserve then
         print text$("missionObserve");
-    end if
-    if missionValue = missionObserveCharacter then
-        print text$("missionObserveCharacter");
     end if
     if missionValue = missionContact then
         print text$("missionContact");

@@ -96,6 +96,16 @@ describe("localized text and layout", () => {
     expect(c64).toContain('print "PRAESIDENT Praesident OEL Oel UEBER Ueber"');
     expect(atari).toContain('PRINT "PRÄSIDENT Präsident ÖL Öl ÜBER Über"');
   });
+
+  it("applies target text fallbacks to localized strings stored before output", () => {
+    const source = 'const role$ = text$("role")\nvalue$ = role$\nprint value$\n';
+    const options = { filename: "stored-text.mbas", texts: { role: "PRÄSIDENT" }, font: ["lowercase", "international"] as const };
+
+    expect(compileSource(source, { ...options, target: "c64" })).toContain('="PRAESIDENT"');
+    expect(compileSource(source, { ...options, target: "spectrum" })).toContain('="PRAESIDENT"');
+    expect(compileSource(source, { ...options, target: "atari800xl" })).toContain('="PRÄSIDENT"');
+    expect(compileSource(source, { ...options, target: "agon" })).toContain('="PRÄSIDENT"');
+  });
   it("supports explicit constant widths and rejects invalid widths", () => {
     expect(compileSource('print_wrap "one two three", 7', { filename: "width.mbas", target: "spectrum" })).toBe('10 PRINT "one two"\n20 PRINT "three"\n');
     for (const width of ["0", "33", "1.5", "width"]) {

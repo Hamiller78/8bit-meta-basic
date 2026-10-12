@@ -51,70 +51,38 @@ Player knowledge is stored separately from the true character data:
 
 | Level | Meaning shown to the player |
 | ---: | --- |
-| 0 | Unknown; absent from the known-character directory |
-| 1 | Discovered; name known |
-| 2 | Observed; habits understood well enough to make contact |
-| 3 | Integrity band known: low `0–3`, medium `4–7`, or high `8–10` |
-| 4 | Agenda known |
+| 0 | Political alignment unknown |
+| 1 | Political-alignment band known; contact may be attempted |
+| 2 | Integrity band known: low `0–3`, medium `4–7`, or high `8–10` |
+| 3 | Agenda known |
 
-Knowledge can only increase. `revealCharacter(index, level)` never lowers it. All characters begin at level 0. Their public identities are visible in the government overview, but a person enters the actionable known-character directory only after discovery.
+Knowledge can only increase. `revealCharacter(index, level)` never lowers it. All characters begin at level 0, while their public identities and roles are known from the start.
 
 The main view is a fixed 22-row character overview. The President has a permanent character entry centered from the available screen width. The other six characters are shown in a paged row beneath him; the portable `GAME_LEFT` and `GAME_RIGHT` controls wrap through the pages, with a centered current-page/total-pages indicator between the navigation markers. On Spectrum these controls are O and P; Atari and C64 use their directional controls. Page changes redraw the character entries and page indicator, leaving the header, President, and footer untouched. A transition between two full pages does not clear the character rows first. The four rows are cleared only when either the old or new page is partially filled, because changing the centered layout can otherwise leave an unused box position visible. There is no separate "other figures" section. Blank rows separate the heading, President, page controls, character row, and bottom status.
 
-Each character entry has four rows: name, role, agenda, and player status. Page capacity and horizontal positions are calculated from `TEXT_COLUMNS`. The final screen column is reserved rather than used by a character entry, avoiding target end-of-line behavior when a fixed-width overwrite reaches the right margin. Narrow screens use ten-column entries, allowing two entries on a 22-column screen and three on a 32-column screen; targets with at least 40 columns use twelve-column entries and currently fit three. A partially filled final page is centered within the usable columns. The identities of the public figures are known at game start even though their habits have not yet been discovered, so their names are always shown on the overview. On 40-column targets a visible name is shown as first initial, a period, a space, and the family name. On narrower targets only the family name is shown. Unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including discovered, observed, assessed, known, contacted, or dead. Compact localized labels are limited to ten characters.
+Each character entry has four rows: name, role, agenda, and player status. Page capacity and horizontal positions are calculated from `TEXT_COLUMNS`. The final screen column is reserved rather than used by a character entry, avoiding target end-of-line behavior when a fixed-width overwrite reaches the right margin. Narrow screens use ten-column entries, allowing two entries on a 22-column screen and three on a 32-column screen; targets with at least 40 columns use twelve-column entries and currently fit three. A partially filled final page is centered within the usable columns. On 40-column targets a visible name is shown as first initial, a period, a space, and the family name. On narrower targets only the family name is shown. Unrevealed agendas are shown as unknown. The status summarizes the highest useful player relationship state, including unknown alignment, observed alignment, assessed integrity, known agenda, contacted, or dead. Compact localized labels are limited to ten characters.
 
-The top row retains compact keys for the two USA action slots, known-character directory, and ending the turn, together with turn and budget. Left and Right redraw the paged character area; the four displayed numeric choices leave the overview to perform their action. Other key presses are ignored without redrawing the screen. Row 18 shows the two actions available to each power and the target's currently free BASIC memory as a whole-KiB `RAM nK` value. The separate known-character directory lists every discovered character with their full name and all details permitted by the current knowledge level.
+The top row shows the turn and budget. Left and Right redraw the paged character area. Row 18 shows the two-action allowance for each power and the target's currently free BASIC memory as a whole-KiB `RAM nK` value. Rows 19 through 21 explicitly show the four available main-view commands: USA action slots 1 and 2, the character directory, and ending the turn. Other key presses are ignored without redrawing the screen. The character directory lists the entire public cast with their full names and all details permitted by the current knowledge level.
 
 This is implemented in `source/intelligence.mbas` and `source/mainscreen.mbas`. The same `drawOverviewCharacterPage()` routine handles the initial post-`CLS` drawing and later page changes; a negative previous-page value identifies the initial draw. Every box field is padded to its fixed width as it is written. Names and the already-localized stored role string use `printOverviewField()` directly; there is no role-to-label decision tree. Names remain unpadded in character storage so speeches and event reports can use them directly. There is no separate per-box clearing pass, and shorter new values cannot leave characters from the previous page. On Atari, the resulting `PRINT_AT` uses the direct `S:` screen channel instead of the logical-line editor. Main-view behavior is covered by `tests/mainscreen-tests.mbas`.
-
-## USA action: Observe Location
-
-### Confirmed rules
-
-**Observe Location** discovers one random, previously unknown living character from the selected location's encounter table. Discovery means that USA intelligence knows enough about the character's habits to rediscover them at will, so the character is added to the known-character directory.
-
-There are common and rare candidates. Each eligible common character has weight 3 and each eligible rare character has weight 1. Therefore, an individual common candidate is three times as likely to be selected as an individual rare candidate. Known or dead characters are excluded before the roll. If no eligible candidate remains, the action reports no lead.
-
-| Location | Common, weight 3 each | Rare, weight 1 each |
-| --- | --- | --- |
-| Republic's Palace | General, Advisor | President's daughter, Landowner |
-| Church | Priest | Any other San Golpe native with integrity above 3 |
-| Pub | Innkeeper | Any other San Golpe native with integrity below 9 |
-
-The President cannot be discovered with **Observe Location**. Operatives of either power are not candidates because they are not characters.
-
-The only locations are the Republic's Palace, Church, and Pub. The USSR Embassy, Military HQ, and Outside Town do not exist as observation locations. Characters have no assigned or permanent location; these locations are encounter tables used only by observation.
-
-An observation order persists each turn until the player changes that USA action slot.
-
-### Implementation
-
-`source/agentoperations.mbas` implements the rule without character-to-location state:
-
-- `ObservationLocation` contains exactly the three encounter tables.
-- Every character is a San Golpe native, so the Church and Pub conditions can test integrity directly without nationality data.
-- `observationWeight()` applies eligibility, exclusion, integrity, and 3:1 weighting rules.
-- `observationTotalWeight()` totals the current eligible weights.
-- `observationCandidateAt()` converts a random weighted selection into a character.
-- `resolveObservationMission()` rolls and `resolveObservationRoll()` reveals the selected character at name level.
-
-The weighted pools, exclusions, and exhausted-pool behavior are covered by `tests/agentoperations-tests.mbas`.
 
 ## USA action: Observe Character
 
 ### Confirmed rules
 
-A discovered living character can be observed more closely. This raises player knowledge from name-known to the distinct observed level. It does not reveal the character's integrity and cannot raise knowledge beyond the observed level. Observed knowledge means USA intelligence understands the person's habits well enough to attempt contact.
+An agent directly observes one selected living character. The President cannot be targeted. A successful observation reveals that character's qualitative political-alignment band and creates the knowledge needed to attempt contact. There are no locations, encounter tables, discovery weights, or character locations.
+
+Observation is a one-turn order. A character whose alignment is already known cannot be observed again.
 
 ### Implementation
 
-**Observe Character** is a deterministic one-turn action. `setUsaObserveCharacter()` accepts only a living character whose knowledge is exactly `intelName`. `resolveCharacterObservationMission()` raises that character to `intelObserved`, reports the new intel, and returns the action slot to idle. It is implemented in `source/agentoperations.mbas` and exposed in `source/mainscreen.mbas`.
+`setUsaObserve()` validates the target. `resolveObservationMission()` raises knowledge from `intelNone` to `intelAlignment`, reports the new intel, and returns the action slot to idle. The character card then displays the same five qualitative political bands used by Presidential reports. This is implemented in `source/agentoperations.mbas` and exposed in `source/mainscreen.mbas`; focused tests cover the President exclusion, direct targeting, one-time resolution, and contact eligibility.
 
 ## Foreign-power actions
 
 ### Confirmed rules
 
-USA and USSR each perform two actions per turn. These are action slots belonging to a country, not named agent characters. They have no names, character records, integrity, agendas, contacts, or entries in location encounter tables.
+USA and USSR each perform two actions per turn. These are action slots belonging to a country, not named agent characters. They have no names, character records, integrity, agendas, or contacts.
 
 ### Current implementation
 
@@ -126,7 +94,7 @@ The two USA action slots hold the orders previously assigned to player agents. P
 
 ### Confirmed rules
 
-The USA action slots share one contact directory. A person must have reached the observed intel level before a contact action can target them. Once a person becomes a cooperative contact, either USA action slot may use that contact.
+The USA action slots share one contact directory. A person's alignment must have been learned through observation before a contact action can target them. Once a person becomes a cooperative contact, either USA action slot may use that contact.
 
 Making contact may improve the player's intel about that person. The person may then demand a price for cooperating: money, weapons, or a favor. Integrity creates a deliberate tension: a high-integrity person is less willing to work for a foreign power, but information from a cooperative high-integrity contact is more reliable.
 
@@ -218,9 +186,9 @@ This does not yet implement possible intel improvement, refusal based on integri
 
 ### Investigation
 
-The shared directory begins empty. An investigation currently requires a living shared contact whose vicinity includes the observed living target, and succeeds on a flat 50% roll. On success it advances the target's knowledge by one level, from observed to rough integrity and then to agenda. The order persists until the target's agenda is known, at which point the action slot becomes idle.
+The shared directory begins empty. An investigation currently requires a living shared contact whose vicinity includes the living target with known alignment, and succeeds on a flat 50% roll. On success it advances the target's knowledge by one level, from alignment to rough integrity and then to agenda. The order persists until the target's agenda is known, at which point the action slot becomes idle.
 
-The President can be investigated only when the shared directory contains a living contact. Other living characters can currently be approached globally; there is no location check.
+The President can be investigated only when the shared directory contains a living contact. Other living characters can currently be approached globally.
 
 Implementation: `canApproach()`, `canInvestigate()`, `setUsaInvestigation()`, and `resolveInvestigationRoll()` in `source/agentoperations.mbas`.
 
@@ -244,7 +212,7 @@ Implementation: `source/politics.mbas`, with report integration in `resolveInves
 
 ### NPC actions
 
-Only one NPC agenda currently produces an event: a character pursuing `findLove`, with money and a living target, runs away with that target and spends all their money. If both characters are discovered, their names are reported; otherwise the event is reported without names. Other agendas do nothing yet.
+Only one NPC agenda currently produces an event: a character pursuing `findLove`, with money and a living target, runs away with that target and spends all their money. Because every public identity is known, the event names both characters. Other agendas do nothing yet.
 
 Implementation: `source/npclogic.mbas`.
 
@@ -254,7 +222,7 @@ Focused configurations keep generated emulator test programs small:
 
 - `characterfactory-test.metabasic.json` covers character and name generation.
 - `agentoperations-test.metabasic.json` covers observation and the placeholder USA action mechanics.
-- `mainscreen-test.metabasic.json` covers the fixed main-view layout, width-dependent names, compact knowledge state, two independent USA action slots, and the known-character directory.
+- `mainscreen-test.metabasic.json` covers the fixed main-view layout, width-dependent names, compact knowledge state, two independent USA action slots, and the character directory.
 - `presidentevents-test.metabasic.json` covers weighted influencer selection, response thresholds, effects, bounds, and announcement output.
 
 When a confirmed rule changes, update its implementation, its focused tests, and this document together.

@@ -1,4 +1,4 @@
-import type { Expression, PrintStatement, Program, Statement } from "./ast.js";
+import type { Expression, PrintStatement, Program, SourceLocation, Statement } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { builtinFunctions, canonicalFunctionName } from "./functions.js";
 import type { TargetId } from "./targets/index.js";
@@ -383,7 +383,7 @@ export function wrapText(value: string, columns: number): string[] {
   return lines;
 }
 
-function portableText(value: string, statement: PrintStatement, target: TargetId, font: TextFont): string {
+export function portableTextValue(value: string, location: SourceLocation, target: TargetId, font: TextFont): string {
   const nativeGermanLetters = (target === "atari800xl" || target === "agon") && hasTextCharacterGroup(font, "international");
   const nativeSharpS = target === "agon" && hasTextCharacterGroup(font, "international");
   const replacements: Record<string, string> = {
@@ -399,8 +399,12 @@ function portableText(value: string, statement: PrintStatement, target: TargetId
   });
   const supportedInternational = target === "agon" ? /[^\x20-\x7e\r\n\täöüÄÖÜß]/u : /[^\x20-\x7e\r\n\täöüÄÖÜ]/u;
   const unsupported = text.match(nativeGermanLetters ? supportedInternational : /[^\x20-\x7e\r\n\t]/u);
-  if (unsupported) throw new DiagnosticError(statement.location, `Unsupported text character "${unsupported[0]}". Use portable text or a supported German transliteration.`);
+  if (unsupported) throw new DiagnosticError(location, `Unsupported text character "${unsupported[0]}". Use portable text or a supported German transliteration.`);
   return text;
+}
+
+function portableText(value: string, statement: PrintStatement, target: TargetId, font: TextFont): string {
+  return portableTextValue(value, statement.location, target, font);
 }
 
 function isInsideUppercaseWord(value: string, offset: number): boolean {

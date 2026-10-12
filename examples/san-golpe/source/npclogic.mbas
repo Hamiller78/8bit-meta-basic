@@ -1,5 +1,4 @@
 uses "characters.mbas"
-uses "intelligence.mbas"
 
 dim npcEventActors%(numberOfCharacters)
 dim npcEventTargets%(numberOfCharacters)
@@ -20,13 +19,9 @@ function doNpcActions()
         for i = 0 to numberOfNpcEvents% - 1
             eventNpcIndex% = npcEventActors%(i)
             eventTargetIndex% = npcEventTargets%(i)
-            if playerIntel%(eventNpcIndex%) >= intelName and playerIntel%(eventTargetIndex%) >= intelName then
-                actorName$ = characters(eventNpcIndex%).first$ + " " + characters(eventNpcIndex%).last$
-                targetName$ = characters(eventTargetIndex%).first$ + " " + characters(eventTargetIndex%).last$
-                print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
-            else
-                print_text "npcUnknownEvent"
-            end if
+            actorName$ = characters(eventNpcIndex%).first$ + " " + characters(eventNpcIndex%).last$
+            targetName$ = characters(eventTargetIndex%).first$ + " " + characters(eventTargetIndex%).last$
+            print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
         next i
     else
         print_text "npcQuietMonth"

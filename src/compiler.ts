@@ -1,4 +1,4 @@
-import { hasTextCharacterGroup, layoutText, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
+import { hasTextCharacterGroup, layoutText, portableTextValue, resolveTextResources, usesTextLayout, requireLanguage, requireTextFont, type TextOptions } from "./text-support.js";
 import { basename } from "node:path";
 import { testJoystickNames } from "./joystick.js";
 import { assignLineNumbers, type ReadabilityLevel } from "./line-numbering.js";
@@ -13,7 +13,7 @@ import { setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari8
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
 import { targetEnvironments } from "./targets/environment.js";
-import { instructionExpressions } from "./targets/instruction-expressions.js";
+import { instructionExpressions, mapInstructionExpressions } from "./targets/instruction-expressions.js";
 import { rebuildLabels, renderCheckedLine, validateGeneratedLineLength, type TargetBackend } from "./targets/target.js";
 import { analyzeBasicOutput, type OutputStats } from "./output-stats.js";
 import { DiagnosticError } from "./diagnostics.js";
@@ -71,6 +71,12 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     testRunnerUppercaseNames: options.target === "c64" && !hasTextCharacterGroup(font, "lowercase"),
     reservedNames
   });
+  lowered = rebuildLabels(lowered, lowered.instructions.map((instruction) => mapInstructionExpressions(instruction, (expression) => {
+    if (expression.kind !== "string" || (options.target !== "c64" && options.target !== "spectrum")) return expression;
+    let value = portableTextValue(expression.value, expression.location, options.target, font);
+    if (options.target === "c64" && !hasTextCharacterGroup(font, "lowercase")) value = value.toUpperCase();
+    return value === expression.value ? expression : { ...expression, value };
+  })));
   if (options.target === "c64" && hasTextCharacterGroup(font, "lowercase")) {
     const location = entrySourceLocation(ast, options.filename);
     lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: 14, trailingSemicolon: true, location }, ...lowered.instructions]);
