@@ -462,7 +462,11 @@ function analyzeStatements(
           analyzeElementMoveStatement(statement, "remove", constants, inConstantExpression, arrays, structValues, functions, scope)
         );
         break;
-      case "print":
+      case "print": {
+        const items = statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT"));
+        if (statement.inverted && items.some((item) => item.kind !== "string")) {
+          throw new DiagnosticError(statement.location, "PRINT_INVERT and PRINT_INVERT_AT support string literals only.");
+        }
         analyzed.push({
           ...statement,
           ...(statement.wrapWidth ? { wrapWidth: foldExpression(statement.wrapWidth, constants, inConstantExpression, arrays, functions, scope, structValues) } : {}),
@@ -478,7 +482,7 @@ function analyzeStatements(
                 }))
               }
             : {}),
-          items: statement.items.map((item) => rejectColorExpression(foldExpression(item, constants, inConstantExpression, arrays, functions, scope, structValues), "PRINT")),
+          items,
           ...(statement.at
             ? {
                 at: {
@@ -490,6 +494,7 @@ function analyzeStatements(
             : {})
         });
         break;
+      }
       case "set-column":
         analyzed.push({
           ...statement,

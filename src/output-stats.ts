@@ -390,6 +390,7 @@ const ignoredIdentifiers = new Set([
   "HIMEM",
   "IN",
   "INKEY",
+  "INVERSE",
   "LET",
   "NEXT",
   "NOT",

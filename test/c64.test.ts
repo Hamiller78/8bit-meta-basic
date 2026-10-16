@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { compileSource } from "../src/compiler.js";
 
 describe("C64 compiler", () => {
+  it("groups adjacent inverted prints into one PETSCII reverse-mode run", () => {
+    const output = compileSource('print_invert "A"\nprint_invert_at 2, 3, "B"\nprint "C"\n', {
+      filename: "invert.mbas",
+      target: "c64",
+      readability: 2
+    });
+
+    expect(output.match(/\{rvon\}/g)).toHaveLength(1);
+    expect(output.match(/\{rvof\}/g)).toHaveLength(1);
+    expect(output).toContain('PRINT "{rvon}";"A"');
+    expect(output).toContain('PRINT "B";"{rvof}"');
+  });
+
   it("renders assignment without LET and expands PRINT_AT to POKE/SYS plus PRINT", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "c64.mbas", target: "c64" })).toBe(
       ["10 X=1", "20 POKE 214,9", "30 POKE 211,4", "40 SYS 58732", '50 PRINT "WARNING";X', ""].join("\n")

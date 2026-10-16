@@ -250,6 +250,7 @@ describe("localized text and layout", () => {
       expect(moduleOffsets.every((offset) => offset >= 0)).toBe(true);
       expect(moduleOffsets).toEqual([...moduleOffsets].sort((left, right) => left - right));
       expect(uppercaseResult.match(/MODULE MAIN\.MBAS/gu)).toHaveLength(1);
+      expect(result).not.toContain("MBINVERSEADDRESS");
     }
   }, 60000);
   it("keeps San-Golpe focused test configurations on the project font", async () => {

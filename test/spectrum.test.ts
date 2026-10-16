@@ -9,6 +9,18 @@ import { compileSource } from "../src/compiler.js";
 const execFileAsync = promisify(execFile);
 
 describe("Spectrum compiler", () => {
+  it("groups adjacent inverted prints into one native INVERSE run", () => {
+    const output = compileSource('print_invert "A"\nprint_invert_at 2, 3, "B"\nprint "C"\n', {
+      filename: "invert.mbas",
+      target: "spectrum",
+      readability: 2
+    });
+
+    expect(output.match(/INVERSE 1/g)).toHaveLength(1);
+    expect(output.match(/INVERSE 0/g)).toHaveLength(1);
+    expect(output).toContain('PRINT AT 1,2;"B"');
+  });
+
   it("renders deterministic exact output for labels, PRINT, IF/ELSE, and backward GOTO", () => {
     const source = [
       "start:",

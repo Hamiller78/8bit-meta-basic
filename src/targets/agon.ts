@@ -15,6 +15,7 @@ import {
   expandPositionedPrints,
   expandSetColumns,
   expandSetPositions,
+  groupInvertedPrints,
   rebuildLabels,
   renderDataValues,
   renderExpression,
@@ -24,7 +25,7 @@ import {
   type TargetBackend
 } from "./target.js";
 
-/** BBC BASIC V running in the Agon's 24-bit ADL mode. */
+/** BBC BASIC ADL 1.03: the BBC BASIC 3/4-compatible Z80 interpreter converted to 24-bit ADL mode. */
 export const agonTarget: TargetBackend = {
   id: "agon",
   gotoSpelling: "GOTO",
@@ -33,9 +34,10 @@ export const agonTarget: TargetBackend = {
   variableMap: buildAgonVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const firstLocation = program.instructions[0]?.location ?? { filename: "<generated>", line: 1 };
-    const withMode = rebuildLabels(program, [
+    const groupedInverse = groupInvertedPrints(program);
+    const withMode = rebuildLabels(groupedInverse, [
       { kind: "graphics-mode", mode: 3, location: firstLocation },
-      ...program.instructions
+      ...groupedInverse.instructions
     ]);
     const bytes = lowerByteStorage(withMode, "agon");
     const positions = expandSetPositions(bytes, "Agon Light", 29, 79, (instruction) => [
@@ -46,11 +48,12 @@ export const agonTarget: TargetBackend = {
     const safeLoops = lowerAgonForExits(prints);
     const strings = validateAgonInternationalStrings(safeLoops);
     const screenReads = lowerAgonScreenReads(strings);
-    const randomSeedName = allocateGeneratedVariableName(screenReads.instructions, "MBRND");
-    const deviceTextBufferName = allocateGeneratedVariableName(screenReads.instructions, "MBOUTPUT", "$");
-    const deviceTextIndexName = allocateGeneratedVariableName(screenReads.instructions, "MBOUTPUTINDEX", "%");
+    const inverseText = lowerAgonInverseText(screenReads);
+    const randomSeedName = allocateGeneratedVariableName(inverseText.instructions, "MBRND");
+    const deviceTextBufferName = allocateGeneratedVariableName(inverseText.instructions, "MBOUTPUT", "$");
+    const deviceTextIndexName = allocateGeneratedVariableName(inverseText.instructions, "MBOUTPUTINDEX", "%");
     const instructions: Instruction[] = [];
-    for (const instruction of screenReads.instructions) {
+    for (const instruction of inverseText.instructions) {
       if (instruction.kind === "suppress-scroll-prompt") {
         continue;
       } else if (instruction.kind === "border-color") {
@@ -86,7 +89,7 @@ export const agonTarget: TargetBackend = {
         instructions.push(instruction);
       }
     }
-    return rebuildLabels(screenReads, instructions);
+    return rebuildLabels(inverseText, instructions);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildAgonVariableMap(currentProgramInstructions, readability);
@@ -117,6 +120,8 @@ export const agonTarget: TargetBackend = {
           : "";
         return `${lineNumber} PRINT ${at}${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       }
+      case "inverse-text":
+        throw new Error("Internal error: unexpected inverse-text instruction for Agon Light.");
       case "set-column":
         return `${lineNumber} PRINT TAB(${renderExpression(instruction.column, renderOptions)},VPOS);`;
       case "set-position":
@@ -493,6 +498,89 @@ function materializeAgonScreenReads(
     return { prefix, instruction: { ...instruction, condition, body } };
   }
   return { prefix, instruction: mapInstructionExpressions(instruction, rewrite) };
+}
+
+/**
+ * Agon has no text-inverse mode. Read the current logical foreground and
+ * background colours once at the start of each adjacent inverse-print run,
+ * swap them, then restore them at the end of the run.
+ */
+function lowerAgonInverseText(program: LoweredProgram): LoweredProgram {
+  if (!program.instructions.some((instruction) => instruction.kind === "inverse-text")) return program;
+
+  const foregroundName = allocateGeneratedVariableName(program.instructions, "MBINVERSEFOREGROUND", "%");
+  const backgroundName = allocateGeneratedVariableName(program.instructions, "MBINVERSEBACKGROUND", "%");
+  const savedAName = allocateGeneratedVariableName(program.instructions, "MBINVERSEA", "%");
+  const savedLName = allocateGeneratedVariableName(program.instructions, "MBINVERSEL", "%");
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind !== "inverse-text") {
+      instructions.push(instruction);
+      continue;
+    }
+
+    const location = instruction.location;
+    if (instruction.enabled) {
+      instructions.push(
+        { kind: "let", name: savedAName, expression: identifierExpression("A%", location), location },
+        { kind: "let", name: savedLName, expression: identifierExpression("L%", location), location },
+        ...agonReadCurrentTextColor(128, foregroundName, location),
+        ...agonReadCurrentTextColor(129, backgroundName, location),
+        { kind: "let", name: "A%", expression: identifierExpression(savedAName, location), location },
+        { kind: "let", name: "L%", expression: identifierExpression(savedLName, location), location },
+        agonTextColor(identifierExpression(backgroundName, location), location),
+        agonTextColor(binaryExpression("+", numberExpression(128, location), identifierExpression(foregroundName, location), location), location)
+      );
+    } else {
+      instructions.push(
+        agonTextColor(identifierExpression(foregroundName, location), location),
+        agonTextColor(binaryExpression("+", numberExpression(128, location), identifierExpression(backgroundName, location), location), location)
+      );
+    }
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function agonReadCurrentTextColor(
+  selector: 128 | 129,
+  resultName: string,
+  location: Expression["location"]
+): readonly Instruction[] {
+  return [
+    {
+      kind: "vdu",
+      items: [23, 0, 148, selector].map((value) => ({ expression: numberExpression(value, location), word: false })),
+      location
+    },
+    { kind: "let", name: "A%", expression: numberExpression(19, location), location },
+    { kind: "let", name: resultName, expression: agonUsrExpression(location), location },
+    { kind: "let", name: "A%", expression: numberExpression(160, location), location },
+    { kind: "let", name: "L%", expression: numberExpression(22, location), location },
+    { kind: "let", name: resultName, expression: agonUsrExpression(location), location }
+  ];
+}
+
+function agonTextColor(color: Expression, location: Expression["location"]): Instruction {
+  return {
+    kind: "vdu",
+    items: [
+      { expression: numberExpression(17, location), word: false },
+      { expression: color, word: false }
+    ],
+    location
+  };
+}
+
+function agonUsrExpression(location: Expression["location"]): Expression {
+  return {
+    kind: "function-call",
+    name: "USR",
+    args: [numberExpression(65524, location)],
+    valueType: "number",
+    location
+  };
 }
 
 function numberExpression(value: number, location: Expression["location"]): Expression {

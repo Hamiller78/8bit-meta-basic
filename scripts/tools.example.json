@@ -155,7 +155,7 @@
         "model": "Agon Light",
         "ramKib": 512,
         "videoStandard": "VGA",
-        "basic": "BBC BASIC for Agon (24-bit ADL)",
+        "basic": "BBC BASIC ADL 1.03 (BBC BASIC 3/4 compatible)",
         "screenMode": 3,
         "screenColumns": 80,
         "screenRows": 30

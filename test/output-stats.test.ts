@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { analyzeBasicOutput, formatOutputStats } from "../src/output-stats.js";
 
 describe("BASIC output statistics", () => {
+  it("does not count Spectrum INVERSE as a variable", () => {
+    const stats = analyzeBasicOutput(['10 INVERSE 1', '20 PRINT "SELECTED"', '30 INVERSE 0'], "spectrum");
+
+    expect(stats.numericVariables).toEqual([]);
+  });
+
   it("recognizes every DIM in a packed BASIC line", () => {
     const stats = analyzeBasicOutput(["10 DIM Q(2):DIM Q$(2):DIM M(2)"], "c64");
 

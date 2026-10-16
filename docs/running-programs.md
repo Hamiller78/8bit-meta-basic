@@ -278,7 +278,7 @@ npm run launch:atari -- --project language-tests/instruction-suite --run-tests -
 
 Status: **tokenized launch, German San Golpe intro, and the complete 50-test instruction suite verified in Fab Agon Emulator 1.2.5 with BBC BASIC ADL 1.03**.
 
-The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basiccard` virtual SD-card directory. The card contains `bin/bbcbasic24.bin`. Launch a program with:
+The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basiccard` virtual SD-card directory. The card contains `bin/bbcbasic24.bin`: the older, broadly BBC BASIC 4-compatible interpreter converted to the eZ80's 24-bit ADL mode. It can use the Agon's much larger memory, but it is not the newer BBC BASIC V interpreter. Launch a program with:
 
 ```text
 npm run launch:agon -- --project examples/san-golpe --language de --restart
@@ -295,7 +295,7 @@ Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC sele
 
 For test runs, the launcher clears its previous `MCP.DAT` and `MCP.ERR` files and adds a target-side error trap. An unexpected BBC BASIC runtime error is written to `MCP.ERR` with its error number and generated line, while the ordinary readable test log is written to `MCP.DAT`.
 
-For a physical Agon, copy `build/<profile>/agon/<name>.bbc` to an SD card and start the 24-bit interpreter with the same `LOAD`/`RUN` sequence. Keep the adjacent `.bas` as the human-readable listing for inspection and debugging.
+For a physical Agon, copy `build/<profile>/agon/<name>.bbc` to an SD card and start `bbcbasic24.bin` with the same `LOAD`/`RUN` sequence. Keep the adjacent `.bas` as the human-readable listing for inspection and debugging. Meta-BASIC currently relies only on the older interpreter's supported feature set and supplies lowerings instead of assuming BBC BASIC V operations.
 
 ## Commodore 64 emulator
 

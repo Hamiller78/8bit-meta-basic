@@ -237,7 +237,11 @@ export const atari800xlTarget: TargetBackend = {
       case "paper":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "print":
-        return `${lineNumber} PRINT${instruction.screenOutput ? " #6;" : " "}${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+        return `${lineNumber} PRINT${instruction.screenOutput ? " #6;" : " "}${instruction.inverted
+          ? renderAtariInvertedPrintItems(instruction, renderOptions)
+          : renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "inverse-text":
+        throw new Error("Internal error: unexpected inverse-text instruction for Atari 800XL.");
       case "set-column":
         throw new Error("Internal error: unexpected set-column instruction for Atari 800XL.");
       case "set-position":
@@ -307,7 +311,7 @@ export const atari800xlTarget: TargetBackend = {
       case "vdu":
         throw new Error("Internal error: unexpected vdu instruction for Atari 800XL.");
       case "poke":
-        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
+        return `${lineNumber} POKE ${typeof instruction.address === "number" ? instruction.address : renderExpression(instruction.address, renderOptions)},${renderExpression(instruction.value, renderOptions)}`;
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "trap":
@@ -506,7 +510,14 @@ function materializeAtariStringArrayReads(
     case "position":
       return { prefix, instruction: { ...instruction, row: rewrite(instruction.row), column: rewrite(instruction.column) } };
     case "poke":
-      return { prefix, instruction: { ...instruction, value: rewrite(instruction.value) } };
+      return {
+        prefix,
+        instruction: {
+          ...instruction,
+          address: typeof instruction.address === "number" ? instruction.address : rewrite(instruction.address),
+          value: rewrite(instruction.value)
+        }
+      };
     case "randomize":
       return { prefix, instruction: instruction.seed ? { ...instruction, seed: rewrite(instruction.seed) } : instruction };
     case "label":
@@ -519,6 +530,7 @@ function materializeAtariStringArrayReads(
     case "cell-background-color":
     case "suppress-scroll-prompt":
     case "program-mode":
+    case "inverse-text":
     case "paper":
     case "graphics-mode":
     case "open-device":
@@ -789,6 +801,22 @@ function renderAtariDataValues(values: readonly Expression[], options: { readonl
       return value.value;
     })
     .join(",");
+}
+
+function renderAtariInvertedPrintItems(
+  instruction: Extract<Instruction, { kind: "print" }>,
+  _options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderAtariFunction }
+): string {
+  const rendered = instruction.items.map((item) => {
+    if (item.kind !== "string") {
+      throw new DiagnosticError(
+        item.location,
+        "Atari 800XL PRINT_INVERT currently requires string literals so inverse ATASCII can be encoded at build time."
+      );
+    }
+    return `["~${item.value}~"]`;
+  }).join(";");
+  return instruction.trailingSemicolon ? `${rendered};` : rendered;
 }
 
 function renderAtariArrayAccess(
@@ -1482,6 +1510,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "cell-background-color":
     case "suppress-scroll-prompt":
     case "program-mode":
+    case "inverse-text":
     case "paper":
     case "print":
     case "set-position":

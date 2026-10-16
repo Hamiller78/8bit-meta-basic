@@ -7,6 +7,16 @@ const overviewCharacterCount = numberOfCharacters - 1
 const overviewFirstCharacterRow = 11
 const overviewLastCharacterRow = 14
 const overviewFixedBoxWidth = 12 - 2 * int(39 / TEXT_COLUMNS)
+const overviewUnknownShort$ = text$("overviewUnknownShort")
+const overviewAgendaDuty$ = text$("overviewAgendaDuty")
+const overviewAgendaPower$ = text$("overviewAgendaPower")
+const overviewAgendaLove$ = text$("overviewAgendaLove")
+const overviewAgendaSpy$ = text$("overviewAgendaSpy")
+const overviewStatusDead$ = text$("overviewStatusDead")
+const overviewStatusContacted$ = text$("overviewStatusContacted")
+const overviewStatusObserved$ = text$("overviewStatusObserved")
+const overviewStatusAssessed$ = text$("overviewStatusAssessed")
+const overviewStatusKnown$ = text$("overviewStatusKnown")
 
 overviewPage% = 0
 
@@ -145,7 +155,7 @@ end function
 function printOverviewName(characterIndex, row, column)
     local displayName$
     if characterIndex < 0 then
-        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
+        printOverviewField(overviewUnknownShort$, row, column)
         return
     end if
     if TEXT_COLUMNS >= 40 then
@@ -163,7 +173,7 @@ end function
 function printOverviewAgenda(characterIndex, row, column)
     local agendaIndex, agendaValue
     if playerIntel%(characterIndex) < intelAgenda then
-        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
+        printOverviewField(overviewUnknownShort$, row, column)
         return
     end if
     agendaIndex = characters(characterIndex).agenda%
@@ -172,41 +182,41 @@ function printOverviewAgenda(characterIndex, row, column)
         agendaValue = characterAgendas(agendaIndex).kind%
     end if
     if agendaValue = doDuty then
-        print_at row, column, text$("overviewAgendaDuty"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaDuty")));
+        printOverviewField(overviewAgendaDuty$, row, column)
     end if
     if agendaValue = usurpRole then
-        print_at row, column, text$("overviewAgendaPower"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaPower")));
+        printOverviewField(overviewAgendaPower$, row, column)
     end if
     if agendaValue = findLove then
-        print_at row, column, text$("overviewAgendaLove"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaLove")));
+        printOverviewField(overviewAgendaLove$, row, column)
     end if
     if agendaValue = secretSpy then
-        print_at row, column, text$("overviewAgendaSpy"); left$("            ", overviewFixedBoxWidth - len(text$("overviewAgendaSpy")));
+        printOverviewField(overviewAgendaSpy$, row, column)
     end if
 end function
 
 function printOverviewStatus(characterIndex, row, column)
     local intelValue
     if characters(characterIndex).isAlive% = 0 then
-        print_at row, column, text$("overviewStatusDead"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusDead")));
+        printOverviewField(overviewStatusDead$, row, column)
         return
     end if
     if hasContact(characterIndex) = 1 then
-        print_at row, column, text$("overviewStatusContacted"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusContacted")));
+        printOverviewField(overviewStatusContacted$, row, column)
         return
     end if
     intelValue = playerIntel%(characterIndex)
     if intelValue = intelNone then
-        print_at row, column, text$("overviewUnknownShort"); left$("            ", overviewFixedBoxWidth - len(text$("overviewUnknownShort")));
+        printOverviewField(overviewUnknownShort$, row, column)
     end if
     if intelValue = intelAlignment then
-        print_at row, column, text$("overviewStatusObserved"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusObserved")));
+        printOverviewField(overviewStatusObserved$, row, column)
     end if
     if intelValue = intelIntegrity then
-        print_at row, column, text$("overviewStatusAssessed"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusAssessed")));
+        printOverviewField(overviewStatusAssessed$, row, column)
     end if
     if intelValue = intelAgenda then
-        print_at row, column, text$("overviewStatusKnown"); left$("            ", overviewFixedBoxWidth - len(text$("overviewStatusKnown")));
+        printOverviewField(overviewStatusKnown$, row, column)
     end if
 end function
 

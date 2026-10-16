@@ -59,6 +59,7 @@ export type Instruction =
   | ProgramModeInstruction
   | PaperInstruction
   | PrintInstruction
+  | InverseTextInstruction
   | SetPositionInstruction
   | SetColumnInstruction
   | OpenDeviceInstruction
@@ -164,6 +165,10 @@ export interface PaperInstruction {
 
 export interface PrintInstruction {
   readonly kind: "print";
+  readonly inverted?: boolean;
+  /** Target-lowering markers for stream-oriented inverse control bytes. */
+  readonly inverseStart?: boolean;
+  readonly inverseEnd?: boolean;
   readonly items: readonly Expression[];
   readonly trailingSemicolon: boolean;
   /** Target lowering may mark positioned text for direct screen-device output. */
@@ -172,6 +177,12 @@ export interface PrintInstruction {
     readonly row: Expression;
     readonly column: Expression;
   };
+  readonly location: SourceLocation;
+}
+
+export interface InverseTextInstruction {
+  readonly kind: "inverse-text";
+  readonly enabled: boolean;
   readonly location: SourceLocation;
 }
 
@@ -408,7 +419,7 @@ export interface SetColorInstruction {
 
 export interface PokeInstruction {
   readonly kind: "poke";
-  readonly address: number;
+  readonly address: number | Expression;
   readonly value: Expression;
   readonly location: SourceLocation;
 }
@@ -982,6 +993,7 @@ function lowerStatements(
           const groups = statement.layoutOutput ? splitTextItems(items) : [items];
           groups.forEach((group, index) => instructions.push({
             kind: "print",
+            ...(statement.inverted ? { inverted: true } : {}),
             items: group,
             trailingSemicolon: index < groups.length - 1 || statement.trailingSemicolon,
             ...(at ? { at } : {}),

@@ -2,6 +2,18 @@ import { describe, expect, it } from "vitest";
 import { compileSource } from "../src/compiler.js";
 
 describe("Atari 800XL compiler", () => {
+  it("emits inverted string literals in the tokenizer's direct ATASCII notation", () => {
+    const output = compileSource('print_invert "A"\nprint_invert_at 2, 3, "B"\n', {
+      filename: "invert.mbas",
+      target: "atari800xl",
+      readability: 2
+    });
+
+    expect(output).toContain('PRINT ["~A~"]');
+    expect(output).toContain('PRINT #6;["~B~"]');
+    expect(output).not.toContain("CHR$(");
+  });
+
   it("renders assignment without LET and expands PRINT_AT to POSITION plus direct screen output", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "atari.mbas", target: "atari800xl" })).toBe(
       ["10 GRAPHICS 0", "20 X=1", "30 POSITION 4,9", '40 PRINT #6;"WARNING";X', ""].join("\n")

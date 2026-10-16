@@ -12,7 +12,7 @@ import { createFunctionRenderer, type FunctionCallExpression } from "./function-
 import { instructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
-import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, markInvertedPrintRuns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -21,7 +21,7 @@ export const c64Target: TargetBackend = {
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(program, "c64");
+    const byteLowered = lowerByteStorage(markInvertedPrintRuns(program), "c64");
     const positions = expandSetPositions(byteLowered, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.column, location: instruction.location },
@@ -69,7 +69,9 @@ export const c64Target: TargetBackend = {
       case "setcolor":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "print":
-        return `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+        return `${lineNumber} PRINT ${renderC64PrintItems(instruction, renderOptions)}`;
+      case "inverse-text":
+        throw new Error("Internal error: unexpected inverse-text instruction for C64.");
       case "set-column":
         throw new Error("Internal error: unexpected set-column instruction for C64.");
       case "set-position":
@@ -141,7 +143,7 @@ export const c64Target: TargetBackend = {
       case "graphics-mode":
         throw new Error("Internal error: unexpected graphics-mode instruction for C64.");
       case "poke":
-        return `${lineNumber} POKE ${instruction.address},${renderExpression(instruction.value, renderOptions)}`;
+        return `${lineNumber} POKE ${typeof instruction.address === "number" ? instruction.address : renderExpression(instruction.address, renderOptions)},${renderExpression(instruction.value, renderOptions)}`;
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "vdu":
@@ -301,6 +303,19 @@ function renderC64Function(expression: FunctionCallExpression, options: { readon
   }
 
   return renderKnownC64Function(expression, options);
+}
+
+function renderC64PrintItems(
+  instruction: Extract<Instruction, { kind: "print" }>,
+  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer: typeof renderC64Function; readonly arrayRenderer: typeof renderC64ArrayAccess }
+): string {
+  const items = [
+    ...(instruction.inverseStart ? ['"{rvon}"'] : []),
+    ...instruction.items.map((item) => renderExpression(item, options)),
+    ...(instruction.inverseEnd ? ['"{rvof}"'] : [])
+  ];
+  const rendered = items.join(";");
+  return instruction.trailingSemicolon ? `${rendered};` : rendered;
 }
 
 function renderC64Chr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {

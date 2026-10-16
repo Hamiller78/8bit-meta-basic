@@ -99,6 +99,7 @@ export interface DimStatement {
 }
 
 export interface PrintStatement {
+  readonly inverted?: boolean;
   readonly layout?: "wrap" | "center";
   readonly textResource?: boolean;
   readonly textBindings?: readonly TextBinding[];

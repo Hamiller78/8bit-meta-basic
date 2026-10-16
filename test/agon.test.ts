@@ -3,6 +3,22 @@ import { compileSource } from "../src/compiler.js";
 import { targetEnvironments } from "../src/targets/environment.js";
 
 describe("Agon Light BBC BASIC lowering", () => {
+  it("reads and swaps the current text colours once for adjacent inverted prints", () => {
+    const output = compileSource('print_invert "A"\nprint_invert_at 2, 3, "B"\n', {
+      filename: "invert.mbas",
+      target: "agon"
+    });
+
+    expect(output.match(/VDU 23,0,148,128/gu)).toHaveLength(1);
+    expect(output.match(/VDU 23,0,148,129/gu)).toHaveLength(1);
+    expect(output).toContain("VDU 17,MBINVERSEBACKGROUND%");
+    expect(output).toContain("VDU 17,128 + MBINVERSEFOREGROUND%");
+    expect(output).toContain("VDU 17,MBINVERSEFOREGROUND%");
+    expect(output).toContain("VDU 17,128 + MBINVERSEBACKGROUND%");
+    expect(output).toContain('PRINT "A"');
+    expect(output).toContain('PRINT TAB(2,1);"B"');
+  });
+
   it("uses the configured 80 by 30 text mode and BBC BASIC positioned output", () => {
     const output = compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "agon.mbas", target: "agon" });
     expect(output).toContain("MODE 3");

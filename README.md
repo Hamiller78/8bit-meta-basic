@@ -7,7 +7,7 @@ The currently implemented targets are:
 - ZX Spectrum BASIC
 - Atari BASIC on the Atari 800XL
 - Commodore BASIC V2 on the Commodore 64
-- BBC BASIC V on the Agon Light
+- BBC BASIC ADL 1.03 (`bbcbasic24.bin`, broadly BBC BASIC 4 compatible) on the Agon Light
 
 Generated BASIC is a development artifact: numbered, readable, and suitable for inspection, debugging, conversion, and loading into an emulator or compatible retro device.
 
@@ -73,7 +73,7 @@ npm run build:all-targets -- --build-config examples/multifile/metabasic.json --
 npm run launch:all -- --build-config examples/multifile/metabasic.json --restart
 ```
 
-The local `agon` configuration uses Fab Agon Emulator with its `basiccard` directory as the virtual SD card. `npm run launch:agon -- --project examples/san-golpe --language de --restart` builds readable BBC BASIC plus a tokenized `.bbc` program, stages `metabasic.bbc` and `autoexec.txt` on that card, and boots the 24-bit `bbcbasic24.bin` interpreter.
+The local `agon` configuration uses Fab Agon Emulator with its `basiccard` directory as the virtual SD card. `npm run launch:agon -- --project examples/san-golpe --language de --restart` builds readable BBC BASIC plus a tokenized `.bbc` program, stages `metabasic.bbc` and `autoexec.txt` on that card, and boots BBC BASIC ADL 1.03 from `bbcbasic24.bin`. This is the older BBC BASIC 3/4-compatible interpreter with 24-bit memory access, not the newer BBC BASIC V port.
 
 For a conventional project folder, use `--project`. A project folder contains sibling `source/` and `tests/` folders. Normal builds compile `source/*.mbas`; test-mode builds compile `source/*.mbas` plus `tests/*.mbas` and generate the automatic test runner:
 
@@ -238,6 +238,8 @@ print
 `PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40, Agon 80). Placeholder maxima are positive compile-time integers no larger than that width. Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
 
 `SET_POS row, column` sets both cursor coordinates without printing visible text or advancing to the next line. `SET_COLUMN column` changes only the column while retaining the current row. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
+
+`PRINT_INVERT items` and `PRINT_INVERT_AT row, column, items` draw string literals in inverse video. Runtime strings and numeric expressions are deliberately unsupported. Consecutive inverted prints share one inverse/reverse-mode run on Spectrum and C64, and one colour swap on Agon. Atari literals are encoded directly as inverse ATASCII during tokenization.
 
 ```sh
 npm run build:all-targets -- --project examples/san-golpe --language de --no-tools

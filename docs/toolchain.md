@@ -213,7 +213,7 @@ build/<profile>/agon/<source-name>.bas
 build/<profile>/agon/<source-name>.bbc
 ```
 
-The `.bas` file is the readable UTF-8 listing, including real international characters. It is a development artifact rather than a promise that BBC BASIC's plain-text loader can load its UTF-8 bytes. The `.bbc` file is the directly loadable, tokenized BBC BASIC program used by the launcher and suitable for copying to an Agon SD card. Tokenization is built into the repository and does not require another download. It follows the token table and line-record format of BBC BASIC for Agon ADL 1.03, including encoded line-number references and Windows-1252 string bytes.
+The `.bas` file is the readable UTF-8 listing, including real international characters. It is a development artifact rather than a promise that BBC BASIC's plain-text loader can load its UTF-8 bytes. The `.bbc` file is the directly loadable, tokenized BBC BASIC program used by the launcher and suitable for copying to an Agon SD card. Tokenization is built into the repository and does not require another download. It follows the token table and line-record format of BBC BASIC for Agon ADL 1.03 (`bbcbasic24.bin`), including encoded line-number references and Windows-1252 string bytes. That interpreter is the 24-bit BBC BASIC 3/4-compatible port, not the newer BBC BASIC V port.
 
 The tokenizer can also be used independently with an already numbered BBC BASIC listing:
 

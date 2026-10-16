@@ -21,7 +21,7 @@ import {
 } from "./string-array-lengths.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
-import { expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { expandPositionedPrints, expandSetColumns, expandSetPositions, groupInvertedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -30,7 +30,7 @@ export const spectrumTarget: TargetBackend = {
   maxLineNumber: 9999,
   variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(program, "spectrum");
+    const byteLowered = lowerByteStorage(groupInvertedPrints(program), "spectrum");
     const positions = expandSetPositions(byteLowered, "Spectrum", 21, 31, (instruction) => [
       { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
     ]);
@@ -130,6 +130,8 @@ export const spectrumTarget: TargetBackend = {
         return instruction.at
           ? `${lineNumber} PRINT AT ${renderExpression(instruction.at.row, renderOptions)},${renderExpression(instruction.at.column, renderOptions)};${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`
           : `${lineNumber} PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
+      case "inverse-text":
+        return `${lineNumber} INVERSE ${instruction.enabled ? 1 : 0}`;
       case "set-column":
         return `${lineNumber} PRINT AT 24-PEEK 23689,${renderExpression(instruction.column, renderOptions)};`;
       case "set-position":
@@ -995,6 +997,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "cell-background-color":
     case "suppress-scroll-prompt":
     case "program-mode":
+    case "inverse-text":
     case "paper":
     case "print":
     case "set-position":

@@ -44,6 +44,8 @@ export const keywords = new Set([
   "PROGRAM_MODE",
   "PRINT",
   "PRINT_AT",
+  "PRINT_INVERT",
+  "PRINT_INVERT_AT",
   "PRINT_WRAP",
   "PRINT_TEXT",
   "PRINT_CENTERED",

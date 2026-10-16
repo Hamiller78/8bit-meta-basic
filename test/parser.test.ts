@@ -1,7 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { parseSource } from "../src/parser.js";
+import { compileSource } from "../src/compiler.js";
 
 describe("parser", () => {
+  it("parses inverted screen output with and without coordinates", () => {
+    const program = parseSource('print_invert "SELECTED"\nprint_invert_at 2, 3, "ACTION";\n', "invert.mbas");
+
+    expect(program.statements).toMatchObject([
+      { kind: "print", inverted: true, items: [{ kind: "string", value: "SELECTED" }], trailingSemicolon: false },
+      {
+        kind: "print",
+        inverted: true,
+        at: { row: { kind: "number", value: 2 }, column: { kind: "number", value: 3 } },
+        items: [{ kind: "string", value: "ACTION" }],
+        trailingSemicolon: true
+      }
+    ]);
+  });
+
+  it("rejects non-literal inverted output", () => {
+    expect(() => compileSource('label$ = "SELECTED"\nprint_invert label$\n', { filename: "invert.mbas", target: "c64" }))
+      .toThrow("PRINT_INVERT and PRINT_INVERT_AT support string literals only.");
+    expect(() => compileSource('print_invert_at 2, 3, 42\n', { filename: "invert.mbas", target: "spectrum" }))
+      .toThrow("PRINT_INVERT and PRINT_INVERT_AT support string literals only.");
+  });
+
   it("parses labels, PRINT, and backward GOTO", () => {
     expect(parseSource('start:\nprint "HI"\ngoto start\n', "test.mbas")).toMatchObject({
       statements: [

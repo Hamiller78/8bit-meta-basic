@@ -9,7 +9,7 @@ Meta-BASIC is a small, modern source language that transpiles into readable BASI
 - ZX Spectrum BASIC
 - Atari 800XL Atari BASIC
 - Commodore 64 BASIC V2
-- BBC BASIC V for Agon Light
+- BBC BASIC ADL 1.03 (`bbcbasic24.bin`, broadly BBC BASIC 4 compatible) for Agon Light
 
 The project should preserve the character of each target machine. It is not intended to hide every hardware difference behind one universal API. Shared language features should cover program structure and genuinely portable operations; machine-specific capabilities may later be exposed through explicit target namespaces or libraries.
 

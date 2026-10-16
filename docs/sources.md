@@ -31,6 +31,12 @@ This page records external material used to understand target dialects, file for
 - VICE `petcat`: add a direct link to the documentation for the exact VICE release used locally.
 - Commodore BASIC V2 and KERNAL references: add the primary manual or programmer's reference used to validate generated commands and ROM entry points.
 
+## Agon Light
+
+- Dean Belfield, [`agon-bbc-basic-adl`](https://github.com/breakintoprogram/agon-bbc-basic-adl). This is the source project for the currently selected `bbcbasic24.bin`: BBC BASIC for Z80 converted to the eZ80's 24-bit ADL mode, with access to the Agon's available user RAM.
+- R.T. Russell, [BBC BASIC (Z80) manual](https://www.bbcbasic.co.uk/bbcbasic/mancpm/). Documents the BBC BASIC 3/4-compatible language inherited by the ADL port, including 255-character strings, 32-bit integers, five-byte real numbers, variable naming, arrays, and memory management.
+- Agon Platform community, [BBC BASIC for Agon](https://agonplatform.github.io/agon-docs/BBC-BASIC-for-Agon/). Records the available Agon interpreter families and Agon-specific MOS/VDP integration. The page mixes generations of the interpreter, so version-specific claims are checked against the selected ADL 1.03 source and runtime.
+
 ## Source-recording policy
 
 When adding a source:

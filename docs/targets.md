@@ -79,6 +79,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - When a struct array has multiple numeric fields, the compiler packs those fields into one two-dimensional Spectrum numeric array: the first dimension selects the element and the second selects the field. This saves single-letter array names; Meta-BASIC source still uses ordinary struct field access. String fields remain separate string arrays.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`, plus hidden numeric arrays holding each element's logical length. Reads slice to the stored length, so implementation padding is excluded while deliberate trailing spaces remain part of the value.
 - `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
+- `PRINT_INVERT` and `PRINT_INVERT_AT` use native `INVERSE 1`/`INVERSE 0`. Consecutive inverted prints share one pair; the current INK and PAPER values do not need to be read or rewritten.
 - Printing into the bottom-right cell does not scroll the Spectrum display. Atari and C64 differ, and Agon's edge behavior has not yet been emulator-tested, so portable layouts should leave that one cell unused.
 - `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
 - `SHARED_DRIVE` is not supported on Spectrum.
@@ -99,6 +100,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
 - `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`, then writes through the graphics-zero `S:` screen device with `PRINT #6`. This bypasses channel 0's logical-line editor, which can move existing physical rows when several independently positioned fields share a row. When a program uses this direct screen output, its generated startup executes `GRAPHICS 0` once to ensure channel 6 is open before the first positioned write; launchers and loaders are not required to preserve the interpreter's initial channel setup.
+- `PRINT_INVERT` and `PRINT_INVERT_AT` accept string literals only and use `basicParser`'s inverse-string notation. The tokenized program contains inverse ATASCII bytes directly; no runtime `CHR$` construction or screen-memory inversion pass is generated.
 - Writing the bottom-right cell through `PRINT #6` scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
@@ -125,6 +127,7 @@ Atari colour values are deterministic approximations and can look different betw
 - The backend targets built-in Commodore BASIC V2 without an extension cartridge or injected runtime.
 - Assignments omit `LET`.
 - `PRINT_AT` lowers 1-based source coordinates to writes to zero-based row and column editor variables followed by `SYS 58732`.
+- `PRINT_INVERT` and `PRINT_INVERT_AT` use PETSCII reverse-on and reverse-off control bytes. `petcat` places those bytes directly in string literals, and consecutive inverted prints share one control pair.
 - Printing into the bottom-right cell scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
@@ -148,13 +151,16 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 
 ## Agon Light
 
-- The backend targets BBC BASIC V for Agon in 24-bit ADL mode.
+- The backend currently targets Dean Belfield's BBC BASIC ADL 1.03 in `bbcbasic24.bin`. It is a 24-bit conversion of BBC BASIC for Z80 3.00, broadly compatible with BBC BASIC 4; it is not the separate, newer BBC BASIC V port.
+- ADL mode gives programs and data access to the Agon's available user RAM rather than a 64 KiB Z80 segment. The interpreter nevertheless retains important older language limits: ordinary strings contain at most 255 characters, integers are signed 32-bit values, and five-byte real numbers provide about nine significant decimal digits. Variable count, variable-name length, and practical array size are limited by available memory rather than a small fixed table. Generated tokenized lines remain limited to 251 characters and numbered lines to the BBC BASIC range.
+- Target lowering therefore uses only features supported by `bbcbasic24.bin`; the compiler must not assume that a facility from BBC BASIC V is available merely because a newer Agon interpreter implements it.
 - Generated programs begin with `MODE 3`, establishing the compiler's fixed 80-column by 30-row text environment.
 - Assignments omit `LET`; `%` variables use BBC BASIC's native 32-bit integer storage.
 - Readable variable names are preserved unless they begin with a BBC BASIC keyword; unsafe names such as `TOTAL` and `VALUES` receive a `V_` prefix so the native tokenizer cannot reinterpret `TO` or `VAL` as syntax.
 - Numeric, integer, byte, and string arrays retain Meta-BASIC's zero-based indexes. Declared element counts become BBC BASIC upper bounds, while a fixed string width remains a compile-time check and is not emitted as another array dimension.
 - A `FOR` loop containing `EXIT FOR` or an early function `RETURN` lowers to an explicit counter loop. It therefore creates no BBC BASIC loop-control stack frame that could be bypassed by the jump or return; ordinary `FOR` loops retain native syntax.
 - `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
+- `PRINT_INVERT` and `PRINT_INVERT_AT` query the current logical text foreground and background colours, swap them for an adjacent run of inverted prints, and then restore them. The query uses `VDU 23,0,&94` and MOS's returned palette-index byte, requiring Console8 VDP 2.7.0 or newer. Consecutive inverted prints share one query and swap.
 - `SCREEN_CODE` sends Agon's VDP character-read command, synchronizes through OSBYTE 19, and reads MOS system-variable byte 9 through OSBYTE.
 - Portable `CODE(text$)` renders as BBC BASIC `ASC(text$)`.
 - Generated `.bas` listings are readable UTF-8 and preserve supported international characters directly. The built-in Agon packaging step encodes them as Windows-1252 bytes in the tokenized `.bbc` artifact. Use `.bbc` rather than the UTF-8 listing as the directly loadable program.
@@ -165,7 +171,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `GET_JOYSTICK` currently provides the portable Q/A/O/P/Space keyboard controls, which also works on Agon Light models without Console8 joystick ports.
 - Device handles lower to files on the SD card. `PRINT_DEVICE` uses BBC BASIC `BPUT#` string output so test logs and ordinary output remain readable text instead of `PRINT#`'s typed binary record format.
 
-The Fab Agon launch configuration copies tokenized BBC BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts `bin/bbcbasic24.bin` with the staged `.bbc` program. Every build retains the readable `.bas` listing beside that tokenized artifact.
+The Fab Agon launch configuration copies tokenized BBC BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts BBC BASIC ADL 1.03 from `bin/bbcbasic24.bin` with the staged `.bbc` program. Every build retains the readable `.bas` listing beside that tokenized artifact.
 
 ## Readability
 

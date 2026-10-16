@@ -44,7 +44,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 | Loop control | `exit for`, `continue for` |
 | Label and jumps | `name:`, `goto name`, `gosub name`, `return` |
 | Program termination | `end` |
-| Output | `print`, `print items`, `print_at row, column, items` |
+| Output | `print`, `print items`, `print_at row, column, items`, `print_invert items`, `print_invert_at row, column, items` |
 | Cursor | `set_pos row, column`, `set_column column` |
 | Compile-time layout | `print_wrap text`, `print_centered text`, `print_text "key"` |
 | Data stream | `data values`, `read variables`, `restore` |
@@ -447,6 +447,17 @@ print_at warningRow, 1, "SECONDS: "; countdown
 ```
 
 The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet. Target renderers lower these human-facing coordinates to each machine's native zero-based positioning.
+
+`PRINT_INVERT` and `PRINT_INVERT_AT` draw string literals with foreground and background reversed. They retain the ordinary trailing-semicolon and `PRINT_AT` coordinate syntax, but do not accept runtime strings or numeric expressions:
+
+```basic
+print_invert "SELECTED"
+print_invert_at menuRow, menuColumn, "CURRENT ACTION"
+```
+
+Adjacent inverted prints form one inverse-output run on targets with a persistent output mode. Spectrum therefore emits one `INVERSE 1`/`INVERSE 0` pair, while C64 emits one PETSCII reverse-on/reverse-off pair. Agon reads the current logical foreground and background colours once at the beginning of such a run, swaps them, and restores them at the end. Any intervening non-inverted instruction ends the run; this keeps labels and control-flow entry points safe. Spectrum and C64 do not need to read or exchange the current colours.
+
+Atari has no equivalent persistent print mode. Its tokenizer stores every inverted literal directly as inverse ATASCII, with no runtime `CHR$` expressions, screen-memory pass, or extra control bytes.
 
 ### Cursor positioning and blank lines
 

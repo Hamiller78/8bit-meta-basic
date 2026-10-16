@@ -139,6 +139,52 @@ export function expandPositionedPrints(
   return rebuildLabels(program, instructions);
 }
 
+/**
+ * Turns adjacent inverted screen prints into one target display-mode run.
+ * Keeping any intervening instruction as a boundary makes the generated state
+ * safe when labels or control-flow transfers are present.
+ */
+export function groupInvertedPrints(program: LoweredProgram): LoweredProgram {
+  const instructions: Instruction[] = [];
+  let inverseEnabled = false;
+
+  for (const instruction of program.instructions) {
+    const invertedPrint = instruction.kind === "print" && instruction.inverted === true;
+    if (invertedPrint && !inverseEnabled) {
+      instructions.push({ kind: "inverse-text", enabled: true, location: instruction.location });
+      inverseEnabled = true;
+    } else if (!invertedPrint && inverseEnabled) {
+      instructions.push({ kind: "inverse-text", enabled: false, location: instruction.location });
+      inverseEnabled = false;
+    }
+
+    instructions.push(invertedPrint ? { ...instruction, inverted: undefined } : instruction);
+  }
+
+  if (inverseEnabled) {
+    const location = program.instructions.at(-1)?.location ?? { filename: "<generated>", line: 1 };
+    instructions.push({ kind: "inverse-text", enabled: false, location });
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+/** Marks the boundary prints of adjacent inverse runs without adding instructions. */
+export function markInvertedPrintRuns(program: LoweredProgram): LoweredProgram {
+  const instructions = program.instructions.map((instruction, index) => {
+    if (instruction.kind !== "print" || instruction.inverted !== true) return instruction;
+    const previous = program.instructions[index - 1];
+    const next = program.instructions[index + 1];
+    return {
+      ...instruction,
+      inverted: undefined,
+      ...(!(previous?.kind === "print" && previous.inverted === true) ? { inverseStart: true } : {}),
+      ...(!(next?.kind === "print" && next.inverted === true) ? { inverseEnd: true } : {})
+    };
+  });
+  return rebuildLabels(program, instructions);
+}
+
 export function expandSetColumns(
   program: LoweredProgram,
   targetName: string,

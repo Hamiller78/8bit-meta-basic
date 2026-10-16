@@ -24,12 +24,14 @@ const statementParsers = new Map<string, StatementParser>([
   ["CLOSE_DEVICE", (parser, location) => parser.parseCloseDevice(location)],
   ["OPEN_DEVICE", (parser, location) => parser.parseOpenDevice(location)],
   ["PRINT", (parser, location) => parser.parsePrint(location)],
+  ["PRINT_INVERT", (parser, location) => parser.parsePrintInvert(location)],
   ["PRINT_WRAP", (parser, location) => parser.parseTextPrint(location, "wrap")],
   ["PRINT_TEXT", (parser, location) => parser.parseTextPrint(location, "wrap", true)],
   ["PRINT_CENTERED", (parser, location) => parser.parseTextPrint(location, "center")],
   ["SET_POS", (parser, location) => parser.parseSetPos(location)],
   ["SET_COLUMN", (parser, location) => parser.parseSetColumn(location)],
   ["PRINT_AT", (parser, location) => parser.parsePrintAtStatement(location)],
+  ["PRINT_INVERT_AT", (parser, location) => parser.parsePrintInvertAtStatement(location)],
   ["PRINT_DEVICE", (parser, location) => parser.parsePrintDevice(location)],
   ["PROGRAM_MODE", (parser, location) => parser.parseProgramMode(location)],
   ["READ", (parser, location) => parser.parseRead(location)],
@@ -175,6 +177,16 @@ class Parser {
     return { kind: "print", items, trailingSemicolon, location };
   }
 
+  parsePrintInvert(location: SourceLocation): PrintStatement {
+    if (this.isLineEnd()) {
+      this.expectLineEnd();
+      return { kind: "print", inverted: true, items: [{ kind: "string", value: "", location }], trailingSemicolon: false, location };
+    }
+    const { items, trailingSemicolon } = this.parsePrintItems("PRINT_INVERT");
+    this.expectLineEnd();
+    return { kind: "print", inverted: true, items, trailingSemicolon, location };
+  }
+
   parseTextPrint(location: SourceLocation, layout: "wrap" | "center", textResource = false): PrintStatement {
     const expression = this.parseExpression(() => this.matchPunctuation(",") || this.matchPunctuation(";") || this.isLineEnd());
     let wrapWidth: Expression | undefined;
@@ -249,7 +261,7 @@ class Parser {
     return { kind: "close-device", handle, location };
   }
 
-  private parsePrintItems(commandName: "PRINT" | "PRINT_AT" | "PRINT_DEVICE"): Pick<PrintStatement, "items" | "trailingSemicolon"> {
+  private parsePrintItems(commandName: "PRINT" | "PRINT_AT" | "PRINT_INVERT" | "PRINT_INVERT_AT" | "PRINT_DEVICE"): Pick<PrintStatement, "items" | "trailingSemicolon"> {
     const items: Expression[] = [];
     let trailingSemicolon = false;
 
@@ -348,6 +360,13 @@ class Parser {
     return { kind: "print", items, trailingSemicolon, at, location };
   }
 
+  parsePrintInvertAtStatement(location: SourceLocation): Statement {
+    const at = this.parsePrintAt("PRINT_INVERT_AT");
+    const { items, trailingSemicolon } = this.parsePrintItems("PRINT_INVERT_AT");
+    this.expectLineEnd();
+    return { kind: "print", inverted: true, items, trailingSemicolon, at, location };
+  }
+
   parseAssignment(location: SourceLocation, name: string): Statement {
     this.expectPunctuation("=", "Expected = after variable name.");
     const expression = this.parseExpressionUntilLine();
@@ -405,7 +424,7 @@ class Parser {
     return { kind: "remove-element", target: args[0], index: args[1], location };
   }
 
-  private parsePrintAt(commandName: "PRINT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
+  private parsePrintAt(commandName: "PRINT_AT" | "PRINT_INVERT_AT"): NonNullable<Extract<Statement, { kind: "print" }>["at"]> {
     const location = this.current().location;
     if (this.matchPunctuation(",")) {
       throw new DiagnosticError(this.current().location, `${commandName} requires a row expression before the comma.`);

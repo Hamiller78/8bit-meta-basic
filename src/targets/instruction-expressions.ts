@@ -32,7 +32,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "position":
       return [instruction.row, instruction.column];
     case "poke":
-      return [instruction.value];
+      return [...(typeof instruction.address === "number" ? [] : [instruction.address]), instruction.value];
     case "vdu":
       return instruction.items.map((item) => item.expression);
     case "randomize":
@@ -54,6 +54,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "cell-background-color":
     case "suppress-scroll-prompt":
     case "program-mode":
+    case "inverse-text":
     case "paper":
     case "graphics-mode":
     case "setcolor":
@@ -106,7 +107,7 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
     case "position":
       return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "poke":
-      return { ...instruction, value: map(instruction.value) };
+      return { ...instruction, address: typeof instruction.address === "number" ? instruction.address : map(instruction.address), value: map(instruction.value) };
     case "randomize":
       return instruction.seed ? { ...instruction, seed: map(instruction.seed) } : instruction;
     case "vdu":
