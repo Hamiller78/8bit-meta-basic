@@ -109,7 +109,7 @@ describe("build scripts", () => {
   it("configures the C64 emulator launch command", async () => {
     const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
 
-    expect(config.targets.c64.tools[0]).not.toHaveProperty("inputTransform");
+    expect(config.targets.c64.tools[0].inputTransform).toBe("c64-petcat");
     expect(config.targetConfigurations.c64.emulator).toMatchObject({
       type: "vice",
       name: "x64sc",
@@ -117,6 +117,18 @@ describe("build scripts", () => {
       args: ["-autostart", "{artifact}", "-autostart-warp"],
       testArgs: ["-warp"]
     });
+  });
+
+  it("prepares petcat input for both C64 character sets", async () => {
+    const { transformToolInput } = await import("../scripts/lib/build-target.mjs");
+
+    const source = '10 PRINT "READY Mixed AE {rvon}";NAME$\n20 REM Keep syntax tokenizable\n';
+    expect(transformToolInput(source, "c64-petcat", { font: [] })).toBe(
+      '10 print "ready mixed ae {rvon}";name$\n20 rem keep syntax tokenizable\n'
+    );
+    expect(transformToolInput(source, "c64-petcat", { font: ["lowercase"] })).toBe(
+      '10 print "READY Mixed AE {rvon}";name$\n20 rem keep syntax tokenizable\n'
+    );
   });
 
   it("adds VICE warp arguments for C64 test launches only", async () => {

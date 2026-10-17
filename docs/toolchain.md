@@ -340,7 +340,7 @@ VICE's `petcat` converts text into tokenized Commodore BASIC V2:
 Meta-BASIC .mbas -> C64 .bas text -> petcat -w2 -> .prg
 ```
 
-The compiler emits the casing required by the selected C64 character groups. The packaging step passes that listing to `petcat` without a second whole-file casing transformation.
+The compiler emits string contents and the character-set switch required by the selected C64 character groups. Before invoking `petcat`, the `c64-petcat` input transform writes a separate `.petcat.input.bas` file. BASIC syntax is always lowercased for `petcat`. With the default uppercase/graphics character set, quoted letters are lowercased too so `petcat` produces the unshifted PETSCII codes that display as uppercase letters rather than graphics. With the uppercase/lowercase character set, quoted text keeps its source case and the generated program selects that character set with `CHR$(14)`.
 
 Status: packaging hook implemented; exact emulator and Mini procedures need to be kept in the running guide.
 

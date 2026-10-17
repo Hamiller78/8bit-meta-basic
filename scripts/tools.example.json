@@ -36,6 +36,7 @@
         {
           "name": "petcat",
           "path": "",
+          "inputTransform": "c64-petcat",
           "args": ["-w2", "-o", "{output}", "--", "{input}"],
           "outputExtension": ".prg"
         }

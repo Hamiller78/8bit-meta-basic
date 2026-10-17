@@ -303,7 +303,7 @@ Status: **artifact generation available; exact repeatable procedure still to doc
 
 Configuration split:
 
-- JSON: set `petcat`, VICE executable path, autostart arguments, optional test-only `testArgs`, and printer/RS-232 capture arguments in `scripts/tools.local.json`.
+- JSON: set `petcat`, VICE executable path, autostart arguments, optional test-only `testArgs`, and printer/RS-232 capture arguments in `scripts/tools.local.json`. Keep the petcat tool's `inputTransform` set to `c64-petcat`; it encodes quoted letters according to the project's selected C64 character set while making BASIC syntax tokenizable.
 - Manual: install VICE; use `--restart` when changing programs if you want the launcher to replace an existing VICE window.
 
 1. Build and launch with:

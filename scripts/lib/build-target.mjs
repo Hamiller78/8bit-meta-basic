@@ -63,6 +63,7 @@ export async function buildTarget(options) {
   }
 
   const program = programIdentity(cwd, source, buildConfigPath, projectPath);
+  const font = await resolveSelectedFont(options.font, buildConfigPath ? program.inputPath : undefined);
   const basicPath = outputPathFor(cwd, outDir, profile, target, program.name, ".bas");
   const artifacts = {
     basic: basicPath
@@ -114,7 +115,7 @@ export async function buildTarget(options) {
   }
 
   if (runTools) {
-    await runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir });
+    await runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir, font });
   }
 
   return basicPath;
@@ -173,7 +174,7 @@ export function toAtariListingBytes(text) {
   return Buffer.from(bytes);
 }
 
-async function runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir }) {
+async function runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir, font }) {
   const config = await loadToolConfig(resolve(cwd, configPath));
   const tools = normalizeTools(compilerTargetConfiguration(config, target));
 
@@ -192,7 +193,7 @@ async function runConfiguredTools({ cwd, configPath, target, profile, program, a
     await mkdir(dirname(outputPath), { recursive: true });
 
     const inputPath = selectToolInput({ tool, artifacts });
-    const toolInputPath = await prepareToolInput({ tool, inputPath, outputPath });
+    const toolInputPath = await prepareToolInput({ tool, inputPath, outputPath, font });
     const replacements = {
       input: toolInputPath,
       output: outputPath,
@@ -238,30 +239,50 @@ function selectToolInput({ tool, artifacts }) {
   return inputPath;
 }
 
-async function prepareToolInput({ tool, inputPath, outputPath }) {
+async function prepareToolInput({ tool, inputPath, outputPath, font }) {
   if (!tool.inputTransform) {
     return inputPath;
   }
 
   const text = await readFile(inputPath, "utf8");
-  const transformed = transformInput(text, tool.inputTransform);
+  const transformed = transformToolInput(text, tool.inputTransform, { font });
   const transformedPath = outputPath.replace(/\.[^.\\/]+$/, `.${tool.name}.input.bas`);
   await writeFile(transformedPath, transformed, "utf8");
   return transformedPath;
 }
 
-function transformInput(text, transform) {
+export function transformToolInput(text, transform, options = {}) {
+  if (transform === "c64-petcat") {
+    return options.font?.includes("lowercase") ? lowercaseSyntaxPreservingStrings(text) : text.toLowerCase();
+  }
   if (transform === "lowercase" || transform === "lowercase-syntax") {
-    let result = "";
-    let inString = false;
-    for (const char of text) {
-      if (char === '"') inString = !inString;
-      result += inString || char === '"' ? char : char.toLowerCase();
-    }
-    return result;
+    return lowercaseSyntaxPreservingStrings(text);
   }
 
   throw new Error(`Unknown tool input transform "${transform}".`);
+}
+
+function lowercaseSyntaxPreservingStrings(text) {
+  let result = "";
+  let inString = false;
+  for (const char of text) {
+    if (char === '"') inString = !inString;
+    result += inString || char === '"' ? char : char.toLowerCase();
+  }
+  return result;
+}
+
+async function resolveSelectedFont(commandLineFont, buildConfigPath) {
+  if (commandLineFont !== undefined) return normalizeFontGroups(commandLineFont);
+  if (!buildConfigPath) return [];
+  const configuration = JSON.parse(await readFile(buildConfigPath, "utf8"));
+  return normalizeFontGroups(configuration.font);
+}
+
+function normalizeFontGroups(font) {
+  if (Array.isArray(font)) return font;
+  if (typeof font === "string") return font.split(",").map((group) => group.trim()).filter(Boolean);
+  return [];
 }
 
 async function loadToolConfig(configPath) {
