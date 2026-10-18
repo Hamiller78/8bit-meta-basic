@@ -34,6 +34,7 @@ export type Statement =
   | SetColumnStatement
   | DataStatement
   | ReadStatement
+  | InputStatement
   | RestoreStatement
   | LetStatement
   | ArrayLetStatement
@@ -214,6 +215,27 @@ export interface DataStatement {
 export interface ReadStatement {
   readonly kind: "read";
   readonly targets: readonly string[];
+  readonly location: SourceLocation;
+}
+
+export type InputTarget =
+  | {
+      readonly kind: "scalar";
+      readonly name: string;
+      readonly valueType?: "number" | "string" | "byte";
+      readonly storageType?: "byte";
+      readonly location: SourceLocation;
+    }
+  | {
+      readonly kind: "struct-field";
+      readonly base: string;
+      readonly field: string;
+      readonly location: SourceLocation;
+    };
+
+export interface InputStatement {
+  readonly kind: "input";
+  readonly targets: readonly InputTarget[];
   readonly location: SourceLocation;
 }
 

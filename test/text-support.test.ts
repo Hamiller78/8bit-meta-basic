@@ -143,7 +143,7 @@ describe("localized text and layout", () => {
     expect(spectrum).toContain('PRINT "        Created: ";');
     expect(c64).toContain('print "            Created: ";');
     expect(spectrum).toContain('" / ";11');
-    expect(c64).toContain('" / ";11');
+    expect(c64).toContain('" / ";"11"'.toLowerCase());
     expect(() => compileSource('print_wrap "{name}"; name = value$, 4', { filename: "invalid.mbas", target: "spectrum" })).toThrow(/PRINT_TEXT and PRINT_CENTERED/);
   });
   it("inserts named values and lets translations reorder them", () => {

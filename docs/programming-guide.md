@@ -361,6 +361,25 @@ Resource keys are case-sensitive. Every selected language needs its own value; t
 
 ## Input, time, and random numbers
 
+Use `INPUT` when the program should stop and let the user enter a complete numeric or string value:
+
+```basic
+print "NAME";
+input name$
+print "AGE";
+input age%
+```
+
+Several scalar destinations may be listed with commas. Scalar struct fields are accepted too, so an interactive record can be filled directly before it is copied into a struct array:
+
+```basic
+dim person as Person
+input person.name$, person.age%
+people(0) = person
+```
+
+The generated program uses each target BASIC's native blocking `INPUT`. For continuously responsive controls, use the polling functions below instead.
+
 Keyboard polling is non-blocking:
 
 ```basic

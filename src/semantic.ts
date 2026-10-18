@@ -304,6 +304,50 @@ function analyzeStatements(
       case "program-mode":
         analyzed.push(statement);
         break;
+      case "input": {
+        const targets = statement.targets.map((target) => {
+          if (target.kind === "struct-field") {
+            const resolved = resolveStructFieldTarget(target.base, [], target.field, target.location, structValues, constants, inConstantExpression, arrays, functions, scope);
+            if (resolved.kind !== "scalar") {
+              throw new DiagnosticError(target.location, `INPUT requires an index for struct array "${target.base}"; input into a scalar struct value first.`);
+            }
+            return {
+              kind: "scalar" as const,
+              name: resolved.name,
+              valueType: resolved.valueType,
+              ...(resolved.valueType === "byte" ? { storageType: "byte" as const } : {}),
+              location: target.location
+            };
+          }
+
+          const name = resolveScopedName(target.name, scope);
+          const scoped = scope?.variables.has(normalizeName(target.name)) ?? false;
+          if (!scoped) {
+            const constant = constants.get(normalizeName(target.name));
+            if (constant?.environment) throw new DiagnosticError(target.location, `Cannot INPUT into environment constant "${target.name}".`);
+            if (constant) throw new DiagnosticError(target.location, `Cannot INPUT into constant "${target.name}".`);
+            const structValue = structValues.get(normalizeName(target.name));
+            if (structValue) throw new DiagnosticError(target.location, `Cannot INPUT into whole struct value "${target.name}"; name a scalar field.`);
+            const storage = arrays.get(normalizeName(target.name));
+            if (storage && !(storage.valueType === "byte" && storage.dimensions.length === 0)) {
+              throw new DiagnosticError(target.location, `Cannot INPUT a scalar value into array "${target.name}".`);
+            }
+            scalarNames.add(normalizeName(target.name));
+          }
+          const byteStorage = !scoped
+            ? arrays.get(normalizeName(target.name))?.valueType === "byte" && arrays.get(normalizeName(target.name))?.dimensions.length === 0
+            : false;
+          return {
+            kind: "scalar" as const,
+            name,
+            valueType: byteStorage ? "byte" as const : isStringVariableName(name) ? "string" as const : "number" as const,
+            ...(byteStorage ? { storageType: "byte" as const } : {}),
+            location: target.location
+          };
+        });
+        analyzed.push({ ...statement, targets });
+        break;
+      }
       case "let": {
         const structTarget = structValues.get(normalizeName(resolveScopedName(statement.name, scope))) ?? structValues.get(normalizeName(statement.name));
         if (structTarget) {

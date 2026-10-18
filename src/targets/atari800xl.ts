@@ -174,7 +174,7 @@ export const atari800xlTarget: TargetBackend = {
         const tempName = allocateTempStringName();
         pushStringAssignment({ kind: "let", name: tempName, expression: instruction.expression, location: instruction.location });
         instructions.push({ ...instruction, expression: { kind: "identifier", name: tempName, location: instruction.location } });
-      } else if (instruction.kind === "read") {
+      } else if (instruction.kind === "read" || instruction.kind === "input") {
         for (const target of instruction.targets) {
           if (isStringVariableName(target)) {
             ensureStringDim(target, instruction.location);
@@ -258,6 +258,8 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} DATA ${renderAtariDataValues(instruction.values, renderOptions)}`;
       case "read":
         return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
+      case "input":
+        return `${lineNumber} INPUT ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -537,6 +539,7 @@ function materializeAtariStringArrayReads(
     case "close-device":
     case "check-device":
     case "read":
+    case "input":
     case "restore":
     case "dim-array":
     case "dim-string":
@@ -1189,7 +1192,7 @@ function createTempStringNameAllocator(instructions: readonly Instruction[]): ()
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
-    } else if (instruction.kind === "read") {
+      } else if (instruction.kind === "read" || instruction.kind === "input") {
       for (const target of instruction.targets) {
         used.add(target.toLowerCase());
       }
@@ -1417,10 +1420,11 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       instruction.kind === "read-key" ||
       instruction.kind === "check-device" ||
       instruction.kind === "read" ||
+      instruction.kind === "input" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      if (instruction.kind === "read") {
+      if (instruction.kind === "read" || instruction.kind === "input") {
         for (const target of instruction.targets) {
           map.set(target.toLowerCase(), renderAtariVariableName(target));
         }
@@ -1494,6 +1498,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "check-device":
       return [instruction.name];
     case "read":
+    case "input":
       return instruction.targets;
     case "multi-let":
       return instruction.assignments.map((assignment) => assignment.name);

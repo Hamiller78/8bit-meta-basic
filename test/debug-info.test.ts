@@ -8,9 +8,9 @@ describe("compiler debug information", () => {
       "start:",
       "print value",
       "goto start",
-      "FUNCTION Twice(Input)",
+      "FUNCTION Twice(Argument)",
       "LOCAL Work",
-      "Work = Input * 2",
+      "Work = Argument * 2",
       "RETURN Work",
       "END FUNCTION"
     ].join("\n");
@@ -31,7 +31,7 @@ describe("compiler debug information", () => {
     const fn = debugInfo.functions.find((item) => item.name === "Twice");
     expect(fn?.entryLine).toBeTypeOf("number");
     expect(result.output).toMatch(new RegExp(`(?:GO SUB|GOSUB) ${fn?.entryLine}`));
-    expect(fn?.parameters[0]).toMatchObject({ sourceName: "Input", targetName: expect.any(String) });
+    expect(fn?.parameters[0]).toMatchObject({ sourceName: "Argument", targetName: expect.any(String) });
     expect(fn?.locals[0]).toMatchObject({ sourceName: "Work", targetName: expect.any(String) });
     expect(debugInfo.variables.find((variable) => variable.storageName === fn?.locals[0].storageName.toLowerCase())).toMatchObject({
       targetName: fn?.locals[0].targetName,

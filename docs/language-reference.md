@@ -14,6 +14,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 - [Variables and assignment](#variables-and-assignment)
 - [Arrays and structs](#arrays)
 - [Expressions and built-in functions](#expressions)
+- [Keyboard input](#keyboard-input)
 - [Joystick input](#joystick-input)
 - [Data streams](#data-streams)
 - [User-defined functions](#user-defined-functions)
@@ -44,6 +45,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 | Loop control | `exit for`, `continue for` |
 | Label and jumps | `name:`, `goto name`, `gosub name`, `return` |
 | Program termination | `end` |
+| Keyboard input | `input variable [, variable ...]` |
 | Output | `print`, `print items`, `print_at row, column, items`, `print_invert items`, `print_invert_at row, column, items` |
 | Cursor | `set_pos row, column`, `set_column column` |
 | Compile-time layout | `print_wrap text`, `print_centered text`, `print_text "key"` |
@@ -327,6 +329,25 @@ end test
 ```
 
 `SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+
+## Keyboard input
+
+`INPUT` waits for ordinary keyboard input and assigns one or more scalar variables:
+
+```basic
+print "NAME";
+input name$
+input age, score%
+```
+
+Fields of a scalar struct are valid destinations, which is convenient when building a record interactively:
+
+```basic
+dim person as Person
+input person.name$, person.age%
+```
+
+Integer and `BYTE` destinations retain their Meta-BASIC integer coercion. Whole arrays, indexed array elements, whole structs, and fields of struct arrays are not direct `INPUT` destinations yet; input into a scalar or scalar struct first and then assign that value to the array element. Target BASIC controls the editing prompt and validation shown while input is in progress.
 
 ## Joystick input
 
@@ -645,7 +666,7 @@ Assertions count successes and failures, continue after failure, and failed test
 When launched through the helper scripts, `--printer-output` mirrors the test runner's own progress and summary output to a configured device in addition to the screen. Select the device with `--test-output-device printer`, `--test-output-device text-printer`, `--test-output-device shared-drive`, or `--test-output-device rs232`. If no device is passed to a launch script, each target chooses its configured default. Normal program `PRINT` output remains captured or suppressed according to test-mode assertion behavior; the mirrored output is the runner log, not arbitrary output from the code under test.
 
 `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
-For portable output assertions, prefer string output; numeric formatting still follows the target BASIC conversion rules.
+For portable output assertions, prefer string output. Numeric spellings can still vary with each target BASIC's conversion rules. In mixed C64 output, a numeric item following a string item has the native leading positive-sign space removed so labels do not gain an extra gap.
 
 `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory; use `testScreenOutput` together with `SCREEN_CODE` when the actual rendered screen is what matters.
 

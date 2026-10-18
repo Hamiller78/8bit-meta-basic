@@ -12,6 +12,7 @@ import {
   type InlineFunctionImplementation
 } from "./function-call-lowering.js";
 import { normalizeName } from "./symbols.js";
+import { isIntegerVariableName } from "./variables.js";
 import { builtinFunctions } from "./functions.js";
 import { canonicalTestRuntimeSetterName, replaceTestRuntimeFunctionCalls, setterStorageName } from "./test-runtime.js";
 import {
@@ -70,6 +71,7 @@ export type Instruction =
   | WaitRs232TransmitInstruction
   | DataInstruction
   | ReadInstruction
+  | InputInstruction
   | RestoreInstruction
   | DimArrayInstruction
   | LetInstruction
@@ -251,6 +253,12 @@ export interface DataInstruction {
 
 export interface ReadInstruction {
   readonly kind: "read";
+  readonly targets: readonly string[];
+  readonly location: SourceLocation;
+}
+
+export interface InputInstruction {
+  readonly kind: "input";
   readonly targets: readonly string[];
   readonly location: SourceLocation;
 }
@@ -1082,6 +1090,36 @@ function lowerStatements(
       case "read":
         instructions.push({ kind: "read", targets: statement.targets, location: statement.location });
         break;
+      case "input": {
+        const targets: string[] = [];
+        const assignments: Instruction[] = [];
+        for (const target of statement.targets) {
+          if (target.kind !== "scalar" || !target.valueType) {
+            throw new DiagnosticError(target.location, "Internal error: INPUT targets must be resolved before lowering.");
+          }
+          if (target.storageType === "byte" || isIntegerVariableName(target.name)) {
+            const temporary = nextTempName(context, "");
+            targets.push(temporary);
+            assignments.push({
+              kind: "let",
+              name: target.name,
+              expression: {
+                kind: "function-call",
+                name: builtinFunctions.int,
+                args: [{ kind: "identifier", name: temporary, valueType: "number", location: target.location }],
+                valueType: "number",
+                location: target.location
+              },
+              ...(target.storageType ? { storageType: target.storageType } : {}),
+              location: target.location
+            });
+          } else {
+            targets.push(target.name);
+          }
+        }
+        instructions.push({ kind: "input", targets, location: statement.location }, ...assignments);
+        break;
+      }
       case "restore":
         instructions.push({ kind: "restore", location: statement.location });
         break;
@@ -1652,6 +1690,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       };
     case "print-device":
       return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
+    case "input":
+      return statement;
     case "let":
       return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };
       case "array-let":

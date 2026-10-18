@@ -254,6 +254,7 @@ function isInlineConditionalBodyInstruction(instruction: Instruction): boolean {
     case "open-device":
     case "close-device":
     case "read":
+    case "input":
     case "restore":
     case "read-key":
     case "randomize":

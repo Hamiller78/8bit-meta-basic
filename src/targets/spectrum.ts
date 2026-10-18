@@ -93,6 +93,13 @@ export const spectrumTarget: TargetBackend = {
       } else if (instruction.kind === "cls" && instruction.color) {
         instructions.push({ kind: "paper", color: instruction.color, location: instruction.location });
         instructions.push({ ...instruction, color: undefined });
+      } else if (instruction.kind === "input") {
+        instructions.push(instruction, {
+          kind: "print",
+          items: [{ kind: "string", value: "", location: instruction.location }],
+          trailingSemicolon: false,
+          location: instruction.location
+        });
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandSpectrumKeyCodeAssignment(assignment, keyStringTempName, allocateInternalLabel));
@@ -159,6 +166,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
         return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? target.toUpperCase()).join(",")}`;
+      case "input":
+        return `${lineNumber} INPUT ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? target.toUpperCase()).join(",")}`;
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -502,7 +511,7 @@ function buildUppercaseVariableMap(instructions: readonly Instruction[]): Readon
       } else {
         collectNumericName(instruction.name, map);
       }
-    } else if (instruction.kind === "read") {
+    } else if (instruction.kind === "read" || instruction.kind === "input") {
       for (const target of instruction.targets) {
         if (isStringVariableName(target)) {
           collectStringName(target, stringNames, seenStrings);
@@ -548,7 +557,7 @@ function collectReservedSingleLetterNumericNames(instructions: readonly Instruct
   for (const instruction of instructions) {
     if (instruction.kind === "let" && /^[A-Z]$/i.test(instruction.name)) {
       names.add(instruction.name.toUpperCase());
-    } else if (instruction.kind === "read") {
+    } else if (instruction.kind === "read" || instruction.kind === "input") {
       for (const target of instruction.targets) {
         if (!isStringVariableName(target) && /^[A-Z]$/i.test(target)) {
           names.add(target.toUpperCase());
@@ -983,6 +992,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "multi-let":
       return instruction.assignments.map((assignment) => assignment.name);
     case "read":
+    case "input":
       return instruction.targets;
     case "for":
     case "next":
@@ -1207,7 +1217,7 @@ function allocateKeyStringTempName(instructions: readonly Instruction[]): string
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
-    } else if (instruction.kind === "read") {
+    } else if (instruction.kind === "read" || instruction.kind === "input") {
       for (const target of instruction.targets) {
         used.add(target.toLowerCase());
       }

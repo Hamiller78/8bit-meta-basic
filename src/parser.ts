@@ -1,4 +1,4 @@
-import type { BinaryOperator, EnumMember, Expression, ParameterType, PrintStatement, Program, SourceLocation, Statement, StructField, TextBinding, UnaryOperator } from "./ast.js";
+import type { BinaryOperator, EnumMember, Expression, InputTarget, ParameterType, PrintStatement, Program, SourceLocation, Statement, StructField, TextBinding, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { deviceSourceList, parseSourceDeviceName } from "./devices.js";
 import { tokenize, type Token } from "./lexer.js";
@@ -63,6 +63,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["REPEAT", (parser, location) => parser.parseRepeatUntil(location)],
   ["IF", (parser, location) => parser.parseIf(location)],
   ["INLINE", (parser, location) => parser.parseInline(location)],
+  ["INPUT", (parser, location) => parser.parseInput(location)],
   ["INSERT_ELEMENT", (parser, location) => parser.parseInsertElement(location)],
   ["REMOVE_ELEMENT", (parser, location) => parser.parseRemoveElement(location)]
 ]);
@@ -157,6 +158,28 @@ class Parser {
     const targets = this.parseIdentifierSequence("Expected variable name after READ.");
     this.expectLineEnd();
     return { kind: "read", targets, location };
+  }
+
+  parseInput(location: SourceLocation): Statement {
+    const targets: InputTarget[] = [];
+    while (true) {
+      const token = this.current();
+      const base = this.expectIdentifier(targets.length === 0 ? "Expected variable or scalar struct field after INPUT." : "Expected variable or scalar struct field after comma.").text;
+      if (this.matchPunctuation("(")) {
+        throw new DiagnosticError(token.location, "INPUT into array elements is not supported yet; input into a scalar value and assign it to the array element.");
+      }
+      if (this.matchPunctuation(".")) {
+        this.advance();
+        const field = this.expectIdentifier("Expected struct field name after . in INPUT target.").text;
+        targets.push({ kind: "struct-field", base, field, location: token.location });
+      } else {
+        targets.push({ kind: "scalar", name: base, location: token.location });
+      }
+      if (!this.matchPunctuation(",")) break;
+      this.advance();
+    }
+    this.expectLineEnd();
+    return { kind: "input", targets, location };
   }
 
   parseRestore(location: SourceLocation): Statement {

@@ -102,6 +102,7 @@ Supported constructs:
 - Compile-time struct type definitions written as `struct Name ... end struct`
 - `data` statements containing compile-time numeric, string, or boolean values
 - `read` statements targeting scalar variables
+- Blocking keyboard `input` targeting scalar variables or fields of scalar structs, with comma-separated targets
 - Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Compile-time selected-language text lookup with `text$("key")` in output expressions

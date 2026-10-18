@@ -1,0 +1,13 @@
+struct Person
+    name$(20)
+    age%
+end struct
+
+dim person as Person
+
+print "NAME";
+input person.name$
+print "AGE";
+input person.age%
+
+print person.name$; " IS "; person.age%

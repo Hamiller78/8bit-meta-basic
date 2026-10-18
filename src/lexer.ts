@@ -36,6 +36,7 @@ export const keywords = new Set([
   "GOTO",
   "IF",
   "INLINE",
+  "INPUT",
   "INSERT_ELEMENT",
   "LOCAL",
   "MOD",

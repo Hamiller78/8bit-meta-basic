@@ -12,6 +12,7 @@ import { createFunctionRenderer, type FunctionCallExpression } from "./function-
 import { instructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
+import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, markInvertedPrintRuns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 
 export const c64Target: TargetBackend = {
@@ -41,12 +42,13 @@ export const c64Target: TargetBackend = {
     const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
     const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
-    const safeDispatchInstructions = withKeyboardInput.instructions.flatMap((instruction) =>
+    const withCompactNumericOutput = preserveCompoundC64PrintItems(withKeyboardInput);
+    const safeDispatchInstructions = withCompactNumericOutput.instructions.flatMap((instruction) =>
       instruction.kind === "on-goto" || instruction.kind === "on-gosub"
         ? lowerSafeC64Dispatch(instruction)
         : [instruction]
     );
-    return rebuildLabels(withKeyboardInput, packNumericStructFields(safeDispatchInstructions, true));
+    return rebuildLabels(withCompactNumericOutput, packNumericStructFields(safeDispatchInstructions, true));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
@@ -98,6 +100,8 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
         return `${lineNumber} READ ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
+      case "input":
+        return `${lineNumber} INPUT ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -298,6 +302,10 @@ const renderKnownC64Function = createFunctionRenderer(
 );
 
 function renderC64Function(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
+  if (expression.name === c64CompactNumberFunction) {
+    const rendered = renderExpression(expression.args[0], options);
+    return `MID$(STR$(${rendered}),1-(${rendered}>=0))`;
+  }
   if (expression.name.toUpperCase() === "ASC") {
     return `ASC(${renderExpression(expression.args[0], options)})`;
   }
@@ -316,6 +324,112 @@ function renderC64PrintItems(
   ];
   const rendered = items.join(";");
   return instruction.trailingSemicolon ? `${rendered};` : rendered;
+}
+
+const c64CompactNumberFunction = "__C64_COMPACT_NUMBER$";
+
+function c64ExpressionValueType(expression: Expression): "number" | "string" {
+  switch (expression.kind) {
+    case "string":
+      return "string";
+    case "identifier":
+      return isStringVariableName(expression.name) ? "string" : "number";
+    case "array-access":
+    case "function-call":
+      return expression.valueType === "string" || isStringVariableName(expression.name) ? "string" : "number";
+    case "struct-field-access":
+      return expression.valueType === "string" || isStringVariableName(expression.field) ? "string" : "number";
+    case "parenthesized":
+      return c64ExpressionValueType(expression.expression);
+    case "binary":
+      return expression.operator === "+" && (c64ExpressionValueType(expression.left) === "string" || c64ExpressionValueType(expression.right) === "string")
+        ? "string"
+        : "number";
+    case "number":
+    case "boolean":
+    case "color":
+    case "unary":
+      return "number";
+  }
+}
+
+function preserveCompoundC64PrintItems(program: LoweredProgram): LoweredProgram {
+  const allocateNumericTempName = createGeneratedVariableNameAllocator(program.instructions, "MBPRINT");
+  let numericTempName: string | undefined;
+  const getNumericTempName = (): string => numericTempName ??= allocateNumericTempName();
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    if (instruction.kind !== "print" && instruction.kind !== "print-device") {
+      instructions.push(instruction);
+      continue;
+    }
+
+    const shouldCompact = (item: Expression, index: number): boolean =>
+      index > 0 && c64ExpressionValueType(item) === "number" && c64ExpressionValueType(instruction.items[index - 1]) === "string";
+    if (!instruction.items.some(shouldCompact)) {
+      instructions.push(instruction);
+      continue;
+    }
+
+    let group: Expression[] = [];
+    let firstGroup = true;
+    const flush = (trailingSemicolon: boolean): void => {
+      if (group.length === 0) return;
+      instructions.push({
+        ...instruction,
+        items: group,
+        trailingSemicolon,
+        ...(instruction.kind === "print"
+          ? {
+              inverseStart: firstGroup ? instruction.inverseStart : undefined,
+              inverseEnd: trailingSemicolon ? undefined : instruction.inverseEnd
+            }
+          : {})
+      });
+      group = [];
+      firstGroup = false;
+    };
+
+    instruction.items.forEach((item, index) => {
+      const compactNumeric = shouldCompact(item, index);
+      let outputItem = item;
+      if (compactNumeric && !isSimpleC64PrintExpression(item)) {
+        flush(true);
+        const name = getNumericTempName();
+        instructions.push({ kind: "let", name, expression: item, location: item.location });
+        outputItem = { kind: "identifier", name, valueType: "number", location: item.location };
+      }
+      group.push(compactNumeric ? compactC64NumericExpression(outputItem) : outputItem);
+
+      if (compactNumeric) {
+        flush(index === instruction.items.length - 1 ? instruction.trailingSemicolon : true);
+      }
+    });
+    flush(instruction.trailingSemicolon);
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function compactC64NumericExpression(expression: Expression): Expression {
+  if (expression.kind === "number") {
+    return { kind: "string", value: expression.value.toString(), location: expression.location };
+  }
+  if (expression.kind === "boolean") {
+    return { kind: "string", value: expression.value ? "-1" : "0", location: expression.location };
+  }
+  return {
+    kind: "function-call",
+    name: c64CompactNumberFunction,
+    args: [expression],
+    valueType: "string",
+    location: expression.location
+  };
+}
+
+function isSimpleC64PrintExpression(expression: Expression): boolean {
+  return expression.kind === "number" || expression.kind === "boolean" || expression.kind === "identifier" || expression.kind === "array-access";
 }
 
 function renderC64Chr(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
@@ -404,11 +518,12 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       instruction.kind === "read-key" ||
       instruction.kind === "check-device" ||
       instruction.kind === "read" ||
+      instruction.kind === "input" ||
       instruction.kind === "randomize" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      const instructionNames = instruction.kind === "read" ? instruction.targets : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
+      const instructionNames = instruction.kind === "read" || instruction.kind === "input" ? instruction.targets : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
       for (const name of instructionNames) {
         addName(name, instruction.kind === "let" || instruction.kind === "check-device" ? instruction.sourceName : undefined);
       }
@@ -802,7 +917,7 @@ function allocateKeyStringTempName(instructions: readonly Instruction[]): string
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "read-key" || instruction.kind === "dim-string") {
       used.add(instruction.name.toLowerCase());
-    } else if (instruction.kind === "read") {
+    } else if (instruction.kind === "read" || instruction.kind === "input") {
       for (const target of instruction.targets) {
         used.add(target.toLowerCase());
       }

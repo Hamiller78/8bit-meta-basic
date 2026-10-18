@@ -113,6 +113,7 @@ export function validateModuleAccess(program: Program, environment: TargetEnviro
         if (s.kind === "let") implicitOwner(entry, s.name);
         if (s.kind === "for") implicitOwner(entry, s.variable);
         if (s.kind === "read") for (const name of s.targets) implicitOwner(entry, name);
+        if (s.kind === "input") for (const target of s.targets) if (target.kind === "scalar") implicitOwner(entry, target.name);
       }
       for (const [key, file] of candidates) owners.set(key, file);
     }
@@ -202,6 +203,7 @@ function referencesFor(s: Statement, owners: ReadonlyMap<string, string>): Refer
   if (s.kind === "struct-field-let") add("value", s.base);
   if (s.kind === "for") add("value", s.variable);
   if (s.kind === "read") for (const name of s.targets) add("value", name);
+  if (s.kind === "input") for (const target of s.targets) add("value", target.kind === "scalar" ? target.name : target.base);
   if (s.kind === "dim") {
     add("value", s.name);
     if (s.asType && s.asType.toUpperCase() !== "BYTE") add("type", s.asType);

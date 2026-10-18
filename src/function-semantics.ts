@@ -478,6 +478,12 @@ function validateInlineStatements(
     if ((statement.kind === "let" || statement.kind === "array-let") && parameters.has(normalizeName(statement.name))) {
       throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot assign to parameter "${statement.name}".`);
     }
+    if (statement.kind === "input") {
+      const parameterTarget = statement.targets.find((target) => target.kind === "scalar" && parameters.has(normalizeName(target.name)));
+      if (parameterTarget?.kind === "scalar") {
+        throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot INPUT into parameter "${parameterTarget.name}".`);
+      }
+    }
     if (statement.kind === "for" && parameters.has(normalizeName(statement.variable))) {
       throw new DiagnosticError(statement.location, `INLINE FUNCTION ${owner.name} cannot assign to parameter "${statement.variable}".`);
     }
@@ -649,6 +655,7 @@ export function statementExpressions(statement: Statement): readonly Expression[
     case "exit-for":
     case "continue-for":
     case "read":
+    case "input":
     case "open-device":
     case "close-device":
     case "suppress-scroll-prompt":

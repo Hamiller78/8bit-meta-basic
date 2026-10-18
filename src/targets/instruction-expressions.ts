@@ -44,6 +44,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "open-device":
     case "close-device":
     case "read":
+    case "input":
     case "restore":
     case "end":
     case "cls":

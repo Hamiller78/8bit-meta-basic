@@ -138,6 +138,8 @@ export const agonTarget: TargetBackend = {
         return `${lineNumber} DATA ${renderDataValues(instruction.values, renderOptions)}`;
       case "read":
         return `${lineNumber} READ ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
+      case "input":
+        return `${lineNumber} INPUT ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -760,6 +762,7 @@ function instructionNames(instruction: Instruction): readonly string[] {
     case "multi-let":
       return instruction.assignments.map((assignment) => assignment.name);
     case "read":
+    case "input":
       return instruction.targets;
     case "print-device":
       return [instruction.textBufferName, instruction.textIndexName].filter((name): name is string => name !== undefined);

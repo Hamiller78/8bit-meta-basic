@@ -13,7 +13,7 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 ## Status
 
-This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
+This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
 
 ## Quick start
 
@@ -33,6 +33,8 @@ npm run dev -- examples/colors.mbas --target atari800xl
 npm run dev -- examples/colors.mbas --target c64
 npm run dev -- examples/colors.mbas --target agon
 ```
+
+`examples/record-input.mbas` demonstrates native keyboard input into numeric, integer, string, and scalar-struct fields.
 
 Compile an ordered multi-file program through a small JSON build configuration:
 

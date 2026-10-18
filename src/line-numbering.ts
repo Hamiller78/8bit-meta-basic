@@ -213,6 +213,7 @@ function isPackableInstruction(instruction: Instruction): boolean {
     case "close-device":
     case "check-device":
     case "read":
+    case "input":
     case "restore":
     case "dim-array":
     case "dim-string":

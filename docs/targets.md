@@ -65,6 +65,10 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - C64: rows `1..25`, columns `1..40`
 - Agon: rows `1..30`, columns `1..80`
 
+Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atari ensures string destinations are dimensioned before input; Spectrum maps string names to its required single-letter variables and emits a following empty `PRINT` because native Spectrum `INPUT` does not advance the program's output cursor; C64 applies its deterministic two-character-safe names; and Agon retains safe BBC BASIC names. Meta-BASIC integer and `BYTE` destinations are read through numeric temporary storage and then coerced with `INT`.
+
+When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the same Meta-BASIC statement, it is converted through `STR$` and has the reserved positive-sign space removed. This prevents an unwanted extra gap in mixed output such as `PRINT "TURN "; turn`. Other numeric items retain C64's native formatting. Compound numeric expressions are evaluated once into reusable temporary storage before conversion.
+
 `SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211; Agon combines the lowered column with native `VPOS`. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
 
 ## ZX Spectrum

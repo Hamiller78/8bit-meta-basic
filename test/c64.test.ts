@@ -17,8 +17,22 @@ describe("C64 compiler", () => {
 
   it("renders assignment without LET and expands PRINT_AT to POKE/SYS plus PRINT", () => {
     expect(compileSource('x = 1\nprint_at 10, 5, "WARNING"; x\n', { filename: "c64.mbas", target: "c64" })).toBe(
-      ["10 X=1", "20 POKE 214,9", "30 POKE 211,4", "40 SYS 58732", '50 PRINT "WARNING";X', ""].join("\n")
+      ["10 X=1", "20 POKE 214,9", "30 POKE 211,4", "40 SYS 58732", '50 PRINT "WARNING";MID$(STR$(X),1-(X>=0))', ""].join("\n")
     );
+  });
+
+  it("removes C64 sign padding from numbers following strings without reevaluating compound expressions", () => {
+    const output = compileSource('value = -7\nprint "VALUE "; value\nprint "ROLL "; rnd()\n', {
+      filename: "compact-number.mbas",
+      target: "c64",
+      readability: 0
+    });
+
+    expect(output).toContain('PRINT "VALUE ";MID$(STR$(VA),1-(VA>=0))');
+    expect(output).toContain('PRINT "ROLL ";');
+    expect(output).toMatch(/MB=RND\(1\)/u);
+    expect(output.match(/RND\(1\)/gu)).toHaveLength(1);
+    expect(output).toContain("PRINT MID$(STR$(MB),1-(MB>=0))");
   });
 
   it("ignores SUPPRESS_SCROLL_PROMPT because the C64 has no Spectrum scroll prompt", () => {
@@ -95,7 +109,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(['10 OPEN 1,4', '20 PRINT#1,"RESULT: ";SC;', "30 CLOSE 1", ""].join("\n"));
+    ).toBe(['10 OPEN 1,4', '20 PRINT#1,"RESULT: ";MID$(STR$(SC),1-(SC>=0));', "30 CLOSE 1", ""].join("\n"));
   });
 
   it("renders RS232 device output through C64 device 2", () => {
@@ -105,7 +119,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 2
       })
-    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";SC', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
+    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";MID$(STR$(SC),1-(SC>=0))', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
   });
 
   it("lowers C64 printer availability checks through ST", () => {
@@ -358,7 +372,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(['10 DI$=CHR$(48 + VA)', '20 PRINT DI$;ASC("A");ASC("B")', ""].join("\n"));
+    ).toBe(['10 DI$=CHR$(48 + VA)', "20 PRINT DI$;", '30 MB=ASC("A")', '40 PRINT MID$(STR$(MB),1-(MB>=0));:PRINT ASC("B")', ""].join("\n"));
   });
 
   it("reads a visible screen character code with portable coordinates", () => {
@@ -384,7 +398,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(["10 VA$=STR$(SC + 10)", "20 SC=VAL(VA$)", "30 PRINT VA$;SC", ""].join("\n"));
+    ).toBe(["10 VA$=STR$(SC + 10)", "20 SC=VAL(VA$)", "30 PRINT VA$;MID$(STR$(SC),1-(SC>=0))", ""].join("\n"));
   });
 
   it("renders numeric math functions with C64 spelling", () => {
@@ -463,7 +477,7 @@ describe("C64 compiler", () => {
         "100 QU(MB)=V0:QU$(MB)=MB$",
         "110 MB=0",
         "120 IF MB < 2 THEN QU(MB)=QU(MB + 1):QU$(MB)=QU$(MB + 1):MB=MB + 1:GOTO 120",
-        "130 PRINT QU(0);QU$(0);QU(1)",
+        "130 PRINT QU(0);QU$(0);MID$(STR$(QU(1)),1-(QU(1)>=0))",
         ""
       ].join("\n")
     );
@@ -500,7 +514,7 @@ describe("C64 compiler", () => {
         '30 SO$="NINE  "',
         "40 QU(1)=SO:QU$(1)=SO$",
         "50 CO=SO:CO$=SO$",
-        "60 PRINT QU(1);QU$(1);CO;CO$",
+        "60 PRINT QU(1);QU$(1);MID$(STR$(CO),1-(CO>=0));:PRINT CO$",
         ""
       ].join("\n")
     );
@@ -513,7 +527,7 @@ describe("C64 compiler", () => {
         target: "c64",
         readability: 0
       })
-    ).toBe(["10 READ SC,V0$,CO", "20 PRINT SC;V0$;CO", "30 RESTORE", "40 READ SC", '50 DATA 10,"READY",1', ""].join("\n"));
+    ).toBe(["10 READ SC,V0$,CO", "20 PRINT SC;V0$;MID$(STR$(CO),1-(CO>=0))", "30 RESTORE", "40 READ SC", '50 DATA 10,"READY",1', ""].join("\n"));
   });
 
   it("renders END for C64 BASIC V2", () => {
