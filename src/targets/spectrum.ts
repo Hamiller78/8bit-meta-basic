@@ -22,6 +22,7 @@ import {
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { expandPositionedPrints, expandSetColumns, expandSetPositions, groupInvertedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, spectrumColorCodes, type TargetBackend } from "./target.js";
+import { lowerSpectrumFileIo } from "./file-io.js";
 
 export const spectrumTarget: TargetBackend = {
   id: "spectrum",
@@ -30,7 +31,7 @@ export const spectrumTarget: TargetBackend = {
   maxLineNumber: 9999,
   variableMap: buildSpectrumVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(groupInvertedPrints(program), "spectrum");
+    const byteLowered = lowerByteStorage(groupInvertedPrints(lowerSpectrumFileIo(program)), "spectrum");
     const positions = expandSetPositions(byteLowered, "Spectrum", 21, 31, (instruction) => [
       { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
     ]);
@@ -77,6 +78,14 @@ export const spectrumTarget: TargetBackend = {
         const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
         if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
         instructions.push(...attachStringArrayLengthDimension(instruction, definition));
+      } else if ((instruction.kind === "save-native-array" || instruction.kind === "load-native-array") && instruction.array.valueType === "string") {
+        const definition = stringArrayStorageFor(instruction.array.name, stringArrayStorage);
+        if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.array.name}.`);
+        instructions.push(instruction, {
+          ...instruction,
+          filename: `${instruction.filename}L`,
+          array: { name: definition.lengthArrayName, valueType: "number", dimensions: [definition.count], sourceName: `${instruction.array.sourceName}.length` }
+        });
       } else if (instruction.kind === "array-let" && isStringVariableName(instruction.name) && instruction.storageType !== "byte") {
         const definition = stringArrayStorageFor(instruction.name, stringArrayStorage);
         if (!definition) throw new Error(`Internal error: missing Spectrum string array storage for ${instruction.name}.`);
@@ -168,6 +177,11 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? target.toUpperCase()).join(",")}`;
       case "input":
         return `${lineNumber} INPUT ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? target.toUpperCase()).join(",")}`;
+      case "save-native-array":
+      case "load-native-array":
+        return `${lineNumber} ${instruction.kind === "save-native-array" ? "SAVE" : "LOAD"} "${instruction.filename}" DATA ${renderSpectrumArrayName(instruction.array.name, variableMap)}()`;
+      case "save-file": case "load-file": case "open-data-file": case "write-data-file": case "read-data-file": case "close-data-file":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -994,6 +1008,9 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "read":
     case "input":
       return instruction.targets;
+    case "write-data-file":
+    case "read-data-file":
+      return [];
     case "for":
     case "next":
       return [instruction.variable];
@@ -1013,6 +1030,12 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "set-position":
     case "set-column":
     case "open-device":
+    case "open-data-file":
+    case "close-data-file":
+    case "save-file":
+    case "load-file":
+    case "save-native-array":
+    case "load-native-array":
     case "print-device":
     case "close-device":
     case "trap":

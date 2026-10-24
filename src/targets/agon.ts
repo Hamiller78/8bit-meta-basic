@@ -24,6 +24,7 @@ import {
   type ExpressionRenderOptions,
   type TargetBackend
 } from "./target.js";
+import { lowerSequentialFileIo } from "./file-io.js";
 
 /** BBC BASIC ADL 1.03: the BBC BASIC 3/4-compatible Z80 interpreter converted to 24-bit ADL mode. */
 export const agonTarget: TargetBackend = {
@@ -34,7 +35,7 @@ export const agonTarget: TargetBackend = {
   variableMap: buildAgonVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const firstLocation = program.instructions[0]?.location ?? { filename: "<generated>", line: 1 };
-    const groupedInverse = groupInvertedPrints(program);
+    const groupedInverse = groupInvertedPrints(lowerSequentialFileIo(program));
     const withMode = rebuildLabels(groupedInverse, [
       { kind: "graphics-mode", mode: 3, location: firstLocation },
       ...groupedInverse.instructions
@@ -140,6 +141,16 @@ export const agonTarget: TargetBackend = {
         return `${lineNumber} READ ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
       case "input":
         return `${lineNumber} INPUT ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
+      case "open-data-file":
+        return `${lineNumber} MBFILE%=${instruction.mode === "read" ? "OPENIN" : "OPENOUT"}("${instruction.filename}.DAT")`;
+      case "write-data-file":
+        return `${lineNumber} PRINT#MBFILE%,${renderExpression(instruction.expression, renderOptions)}`;
+      case "read-data-file":
+        return `${lineNumber} INPUT#MBFILE%,${renderExpression(instruction.target, renderOptions)}`;
+      case "close-data-file":
+        return `${lineNumber} CLOSE#MBFILE%`;
+      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Agon Light.`);
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":

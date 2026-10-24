@@ -406,6 +406,35 @@ read itemCode, message$
 
 `DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. The compiler preserves their source order but emits all `DATA` statements together at the end of generated BASIC. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
 
+## Data files
+
+`SAVE_FILE` and `LOAD_FILE` write or read one complete numeric, integer, `BYTE`, fixed-width string, or struct array:
+
+```basic
+dim names$(20, 24)
+save_file "STORY1", names$
+load_file "STORY1", names$
+
+dim people AS Person(12)
+save_file "PEOPLE", people
+load_file "PEOPLE", people
+```
+
+The filename is a portable logical name: 1 to 8 letters or digits, beginning with a letter. The array must already be declared. Sequential-file targets serialize a struct array field by field using its existing backing arrays, so the compiler does not allocate a duplicate record array there. Strings are stored as a length followed by character codes; commas, quotes, and empty strings therefore round-trip without depending on a dialect's `INPUT#` string parsing. Spectrum instead uses the packed scratch-buffer scheme described below.
+
+The project option `"fileStorage": "disk"` or `"tape"` selects the medium. Defaults are disk for C64 and Atari, tape for Spectrum, and the Agon SD card. C64 and Atari support either setting; Spectrum currently supports tape only and Agon disk/SD only. The same choice is available as `--file-storage disk|tape`. `FILE_STORAGE_TAPE` and `FILE_STORAGE_DISK` are read-only compile-time constants (one is 1, the other 0), allowing localized instructions before an operation:
+
+```basic
+if FILE_STORAGE_TAPE then
+    print text$("rewindAndCueTape")
+end if
+load_file "SAVE1", gameState
+```
+
+Tape is sequential. C64 and Spectrum can search forward for a named block, but cannot search backward; Atari cassette files have no filename and `LOAD_FILE` reads the next file at the current tape position. Applications should therefore ask the user to rewind or cue the tape before loading. Native BASIC/ROM prompts still handle PLAY or RECORD+PLAY where the machine provides them. File-not-found and media errors currently remain native BASIC errors.
+
+On Spectrum, one `SAVE_FILE` operation produces one tape block even when a struct array has several backing arrays. The compiler packs the logical values into a reusable character-array buffer before `SAVE DATA` and unpacks it after `LOAD DATA`. This consumes additional RAM: fixed-width strings reserve their declared width plus one length byte per element, while numeric elements reserve 17 bytes each for a length-prefixed `STR$` representation. The buffer is shared by all file operations and is sized for the largest one.
+
 ## User-defined functions
 
 Functions may have parameters, local variables, side effects, and return values:

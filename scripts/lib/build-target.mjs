@@ -46,6 +46,8 @@ export async function buildTarget(options) {
   const runBuild = options.runBuild ?? true;
   const runTools = options.runTools ?? true;
   const atariSharedDriveSpec = options.atariSharedDriveSpec;
+  const atariDataDriveSpec = options.atariDataDriveSpec;
+  const fileStorage = options.fileStorage;
 
   if (!targets.includes(target)) {
     throw new Error(`Unknown target "${target}". Expected one of: ${targets.join(", ")}.`);
@@ -87,7 +89,9 @@ export async function buildTarget(options) {
       ...(testMode ? ["--run-tests"] : []),
       ...(testScreenOutput ? ["--test-screen-output"] : []),
       ...(testPrinterOutput ? ["--printer-output", "--test-output-device", testOutputDevice] : []),
-      ...(atariSharedDriveSpec ? ["--atari-shared-drive-spec", atariSharedDriveSpec] : [])
+      ...(atariSharedDriveSpec ? ["--atari-shared-drive-spec", atariSharedDriveSpec] : []),
+      ...(atariDataDriveSpec ? ["--atari-data-drive-spec", atariDataDriveSpec] : []),
+      ...(fileStorage ? ["--file-storage", fileStorage] : [])
     ],
     { cwd }
   );
@@ -513,7 +517,9 @@ function parseArgs(argv) {
     configPath: defaultToolConfig,
     runBuild: true,
     runTools: true,
-    atariSharedDriveSpec: undefined
+    atariSharedDriveSpec: undefined,
+    atariDataDriveSpec: undefined,
+    fileStorage: undefined
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -583,6 +589,17 @@ function parseArgs(argv) {
     }
     if (arg === "--atari-shared-drive-spec") {
       options.atariSharedDriveSpec = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--atari-data-drive-spec") {
+      options.atariDataDriveSpec = readValue(argv, index, arg);
+      index += 1;
+      continue;
+    }
+    if (arg === "--file-storage") {
+      options.fileStorage = readValue(argv, index, arg);
+      if (options.fileStorage !== "disk" && options.fileStorage !== "tape") throw new Error('Expected "disk" or "tape" for --file-storage.');
       index += 1;
       continue;
     }

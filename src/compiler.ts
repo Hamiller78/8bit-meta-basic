@@ -9,7 +9,7 @@ import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
 import { getTarget, type TargetId } from "./targets/index.js";
 import { setC64RenderProgram } from "./targets/c64.js";
-import { setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
+import { setAtariDataDriveSpec, setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
 import { targetEnvironments } from "./targets/environment.js";
@@ -20,6 +20,8 @@ import { DiagnosticError } from "./diagnostics.js";
 import type { DeviceKind, Expression } from "./ast.js";
 import { isStringVariableName } from "./variables.js";
 import { reuseTemporaryStorage } from "./temporary-reuse.js";
+import { defaultFileStorage, validateFileStorage, type FileStorage } from "./file-storage.js";
+import { setFileStorage } from "./targets/file-io.js";
 
 export type Target = TargetId;
 
@@ -33,7 +35,9 @@ export interface CompileOptions extends TextOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
+  readonly atariDataDriveSpec?: string;
   readonly sourceComments?: boolean;
+  readonly fileStorage?: FileStorage;
 }
 
 export interface CompileResult {
@@ -57,11 +61,19 @@ export function compileProgram(ast: ReturnType<typeof parseSource>, options: Com
 
 export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, options: CompileOptions): CompileResult {
   const target = getTarget(options.target);
+  const fileStorage = options.fileStorage ?? defaultFileStorage(options.target);
+  validateFileStorage(options.target, fileStorage);
+  setFileStorage(fileStorage);
   const readability = options.readability ?? options.comments ?? 2;
   if (options.language) requireLanguage(options.language);
   const font = requireTextFont(options.font ?? []);
   const textOptions = { ...options, font };
-  const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), targetEnvironments[options.target], { testMode: options.testMode });
+  const baseEnvironment = targetEnvironments[options.target];
+  const environment = {
+    ...baseEnvironment,
+    constants: new Map([...baseEnvironment.constants, ["file_storage_tape", fileStorage === "tape" ? 1 : 0], ["file_storage_disk", fileStorage === "disk" ? 1 : 0]])
+  };
+  const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), environment, { testMode: options.testMode });
   const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
   let lowered = lowerProgram(layoutText(analyzed, options.target, textOptions), {
     testMode: options.testMode,
@@ -97,6 +109,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     ]);
   }
   setAtariSharedDriveSpec(options.atariSharedDriveSpec);
+  setAtariDataDriveSpec(options.atariDataDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true, reservedNames);
 
   const outputLines = options.target === "c64" && hasTextCharacterGroup(font, "lowercase")

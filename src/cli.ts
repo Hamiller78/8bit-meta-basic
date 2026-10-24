@@ -9,6 +9,7 @@ import { deviceCliUsage, requireDeviceKind, type DeviceKind } from "./devices.js
 import type { ReadabilityLevel } from "./line-numbering.js";
 import { formatOutputStats } from "./output-stats.js";
 import { isTargetId } from "./targets/index.js";
+import { requireFileStorage, type FileStorage } from "./file-storage.js";
 
 interface CliOptions {
   readonly language?: string;
@@ -25,7 +26,9 @@ interface CliOptions {
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
   readonly atariSharedDriveSpec?: string;
+  readonly atariDataDriveSpec?: string;
   readonly sourceComments?: boolean;
+  readonly fileStorage?: FileStorage;
 }
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -44,7 +47,9 @@ async function main(argv: readonly string[]): Promise<number> {
           testPrinterOutput: options.testPrinterOutput,
           testOutputDevice: options.testOutputDevice,
           atariSharedDriveSpec: options.atariSharedDriveSpec,
-          sourceComments: options.sourceComments
+          atariDataDriveSpec: options.atariDataDriveSpec,
+          sourceComments: options.sourceComments,
+          fileStorage: options.fileStorage
         })
       : compileSourceDetailed(await readFile(requiredInputPath(options), "utf8"), {
           filename: requiredInputPath(options),
@@ -58,7 +63,9 @@ async function main(argv: readonly string[]): Promise<number> {
           testPrinterOutput: options.testPrinterOutput,
           testOutputDevice: options.testOutputDevice,
           atariSharedDriveSpec: options.atariSharedDriveSpec,
-          sourceComments: options.sourceComments
+          atariDataDriveSpec: options.atariDataDriveSpec,
+          sourceComments: options.sourceComments,
+          fileStorage: options.fileStorage
         });
 
     if (options.outputPath) {
@@ -101,7 +108,9 @@ function parseArgs(argv: readonly string[]): CliOptions {
   let testPrinterOutput = false;
   let testOutputDevice: DeviceKind = "printer";
   let atariSharedDriveSpec: string | undefined;
+  let atariDataDriveSpec: string | undefined;
   let sourceComments = false;
+  let fileStorage: FileStorage | undefined;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -199,9 +208,22 @@ function parseArgs(argv: readonly string[]): CliOptions {
       index += 1;
       continue;
     }
+    if (arg === "--atari-data-drive-spec") {
+      const value = argv[++index];
+      if (!value) throw new Error("Missing value for --atari-data-drive-spec.");
+      if (!/^[A-Za-z][1-8]?:$/.test(value)) throw new Error('Invalid --atari-data-drive-spec; expected a device prefix such as "H6:".');
+      atariDataDriveSpec = value.toUpperCase();
+      continue;
+    }
 
     if (arg === "--source-comments") {
       sourceComments = true;
+      continue;
+    }
+    if (arg === "--file-storage") {
+      const value = argv[++index];
+      if (!value) throw new Error("Missing value for --file-storage.");
+      fileStorage = requireFileStorage(value);
       continue;
     }
 
@@ -216,7 +238,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64|agon [--language en|de] [--font lowercase,international] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--source-comments]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64|agon [--file-storage disk|tape] [--language en|de] [--font lowercase,international] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--atari-data-drive-spec H1:] [--source-comments]`);
   }
 
   if (inputPath && configPath) {
@@ -231,9 +253,9 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   const parsed: CliOptions = configPath
-    ? { configPath, target, readability, testMode, testScreenOutput, testPrinterOutput, atariSharedDriveSpec, sourceComments }
-    : { inputPath: inputPath ?? "", target, readability, testMode, testScreenOutput, testPrinterOutput, atariSharedDriveSpec, sourceComments };
-  const parsedWithDevice = { ...parsed, testOutputDevice, language, font, textsDir, debugInfoPath };
+    ? { configPath, target, readability, testMode, testScreenOutput, testPrinterOutput, atariSharedDriveSpec, atariDataDriveSpec, sourceComments }
+    : { inputPath: inputPath ?? "", target, readability, testMode, testScreenOutput, testPrinterOutput, atariSharedDriveSpec, atariDataDriveSpec, sourceComments };
+  const parsedWithDevice = { ...parsed, testOutputDevice, language, font, textsDir, debugInfoPath, fileStorage };
   return outputPath ? { ...parsedWithDevice, outputPath } : parsedWithDevice;
 }
 

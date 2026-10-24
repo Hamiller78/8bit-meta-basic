@@ -87,6 +87,22 @@ export function packNumericStructFields(instructions: readonly Instruction[], pr
         continue;
       }
     }
+    if (instruction.kind === "save-native-array" || instruction.kind === "load-native-array") {
+      const field = packedFields.get(instruction.array.name.toLowerCase());
+      if (field) {
+        if (field.column === 0) {
+          result.push({
+            ...instruction,
+            array: {
+              ...instruction.array,
+              name: field.name,
+              dimensions: [instruction.array.dimensions[0], field.count]
+            }
+          });
+        }
+        continue;
+      }
+    }
     const rewritten = mapInstructionExpressions(instruction, rewrite);
     if (rewritten.kind === "array-let") {
       const field = packedFields.get(rewritten.name.toLowerCase());

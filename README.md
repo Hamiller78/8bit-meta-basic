@@ -13,7 +13,7 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 ## Status
 
-This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
+This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, portable array/struct-array file I/O, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
 
 ## Quick start
 
@@ -35,6 +35,8 @@ npm run dev -- examples/colors.mbas --target agon
 ```
 
 `examples/record-input.mbas` demonstrates native keyboard input into numeric, integer, string, and scalar-struct fields.
+
+`examples/computer-records` is an interactive ten-slot struct-array example that edits, saves, and reloads records about computers running BASIC. Four sample records are populated and six begin empty. It can be built for disk/SD storage or for cassette operation.
 
 Compile an ordered multi-file program through a small JSON build configuration:
 

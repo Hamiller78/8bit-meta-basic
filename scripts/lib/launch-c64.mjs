@@ -31,6 +31,7 @@ async function launchC64(options) {
     projectPath: options.projectPath,
     language: options.language,
     font: options.font,
+    fileStorage: options.fileStorage,
     testMode: options.testMode,
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testMode ? options.testPrinterOutput : false,
@@ -123,7 +124,8 @@ function parseArgs(argv) {
     targetConfiguration: "c64",
     runBuild: true,
     restart: false,
-    fast: false
+    fast: false,
+    fileStorage: undefined
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -131,6 +133,12 @@ function parseArgs(argv) {
     if (arg === "--language" || arg === "--font") {
       const value = readValue(argv, index, arg);
       options[arg === "--language" ? "language" : "font"] = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--file-storage") {
+      options.fileStorage = readValue(argv, index, arg);
+      if (options.fileStorage !== "disk" && options.fileStorage !== "tape") throw new Error('Expected "disk" or "tape" for --file-storage.');
       index += 1;
       continue;
     }

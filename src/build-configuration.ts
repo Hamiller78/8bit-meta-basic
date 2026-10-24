@@ -6,6 +6,7 @@ import { compileProgramDetailed, type CompileOptions, type CompileResult } from 
 import { deviceCliList, isDeviceKind, type DeviceKind } from "./devices.js";
 import { parseSource } from "./parser.js";
 import { targetEnvironments } from "./targets/environment.js";
+import { requireFileStorage, type FileStorage } from "./file-storage.js";
 
 export const defaultMinimumScreenColumns = 32;
 export const defaultMinimumScreenRows = 22;
@@ -21,6 +22,7 @@ export interface BuildConfiguration {
   readonly testScreenOutput?: boolean;
   readonly testPrinterOutput?: boolean;
   readonly testOutputDevice?: DeviceKind;
+  readonly fileStorage?: FileStorage;
 }
 
 export interface BuildOptions extends Omit<CompileOptions, "filename"> {
@@ -72,7 +74,9 @@ export async function buildDetailed(configuration: BuildConfiguration, options: 
     testPrinterOutput: options.testPrinterOutput ?? configuration.testPrinterOutput,
     testOutputDevice: options.testOutputDevice ?? configuration.testOutputDevice,
     atariSharedDriveSpec: options.atariSharedDriveSpec,
-    sourceComments: options.sourceComments
+    atariDataDriveSpec: options.atariDataDriveSpec,
+    sourceComments: options.sourceComments,
+    fileStorage: options.fileStorage ?? configuration.fileStorage
   });
 }
 
@@ -109,6 +113,8 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
   if (testOutputDevice !== undefined && !isDeviceKind(testOutputDevice)) {
     throw new Error(`Invalid build configuration "${configPath}": "testOutputDevice" must be ${deviceCliList} when present.`);
   }
+  const fileStorageValue = (value as { fileStorage?: unknown }).fileStorage;
+  const fileStorage = fileStorageValue === undefined ? undefined : requireFileStorage(fileStorageValue);
 
   const { textsDir, language, font, minimumScreenColumns, minimumScreenRows } = value as {
     textsDir?: unknown;
@@ -135,7 +141,8 @@ function validateBuildConfiguration(value: unknown, configPath: string): BuildCo
     ...(testMode !== undefined ? { testMode } : {}),
     ...(testScreenOutput !== undefined ? { testScreenOutput } : {}),
     ...(testPrinterOutput !== undefined ? { testPrinterOutput } : {}),
-    ...(testOutputDevice !== undefined ? { testOutputDevice } : {})
+    ...(testOutputDevice !== undefined ? { testOutputDevice } : {}),
+    ...(fileStorage !== undefined ? { fileStorage } : {})
   };
 }
 

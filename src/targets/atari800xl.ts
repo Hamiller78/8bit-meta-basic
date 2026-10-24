@@ -21,6 +21,7 @@ import {
 } from "./string-array-lengths.js";
 import { atariColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerByteStorage } from "./byte-storage.js";
+import { lowerSequentialFileIo } from "./file-io.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -29,7 +30,8 @@ export const atari800xlTarget: TargetBackend = {
   maxLineNumber: 32767,
   variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(program, "atari800xl");
+    const fileIo = lowerAtariFileArrayReads(lowerSequentialFileIo(program));
+    const byteLowered = lowerByteStorage(fileIo, "atari800xl");
     const positions = expandSetPositions(byteLowered, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
     ]);
@@ -260,6 +262,16 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} READ ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
       case "input":
         return `${lineNumber} INPUT ${instruction.targets.map((target) => variableMap.get(target.toLowerCase()) ?? renderAtariVariableName(target)).join(",")}`;
+      case "open-data-file":
+        return `${lineNumber} OPEN #1,${instruction.mode === "read" ? 4 : 8},0,"${instruction.storage === "tape" ? "C:" : `${currentDataDriveSpec ?? "D:"}${instruction.filename}.DAT`}"`;
+      case "write-data-file":
+        return `${lineNumber} PRINT #1;${renderExpression(instruction.expression, renderOptions)}`;
+      case "read-data-file":
+        return `${lineNumber} INPUT #1;${renderExpression(instruction.target, renderOptions)}`;
+      case "close-data-file":
+        return `${lineNumber} CLOSE #1`;
+      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":
@@ -323,6 +335,33 @@ export const atari800xlTarget: TargetBackend = {
     }
   }
 };
+
+/** Atari BASIC's INPUT # destination grammar accepts scalar variables, not array elements. */
+function lowerAtariFileArrayReads(program: LoweredProgram): LoweredProgram {
+  const tempName = allocateGeneratedVariableName(program.instructions, "MBFILEINPUT");
+  const instructions: Instruction[] = [];
+  for (const instruction of program.instructions) {
+    if (instruction.kind !== "read-data-file" || instruction.target.kind !== "array-access") {
+      instructions.push(instruction);
+      continue;
+    }
+    instructions.push(
+      {
+        kind: "read-data-file",
+        target: { kind: "identifier", name: tempName, location: instruction.location },
+        location: instruction.location
+      },
+      {
+        kind: "array-let",
+        name: instruction.target.name,
+        indices: instruction.target.indices,
+        expression: { kind: "identifier", name: tempName, location: instruction.location },
+        location: instruction.location
+      }
+    );
+  }
+  return rebuildLabels(program, instructions);
+}
 
 function expandAtariLogicalStringArrays(
   program: LoweredProgram,
@@ -522,6 +561,10 @@ function materializeAtariStringArrayReads(
       };
     case "randomize":
       return { prefix, instruction: instruction.seed ? { ...instruction, seed: rewrite(instruction.seed) } : instruction };
+    case "write-data-file":
+      return { prefix, instruction: { ...instruction, expression: rewrite(instruction.expression) } };
+    case "read-data-file":
+      return { prefix, instruction: { ...instruction, target: rewrite(instruction.target) } };
     case "label":
     case "rem":
     case "cls":
@@ -536,6 +579,12 @@ function materializeAtariStringArrayReads(
     case "paper":
     case "graphics-mode":
     case "open-device":
+    case "open-data-file":
+    case "close-data-file":
+    case "save-file":
+    case "load-file":
+    case "save-native-array":
+    case "load-native-array":
     case "close-device":
     case "check-device":
     case "read":
@@ -698,6 +747,7 @@ function hoistAtariStringDimensions(instructions: readonly Instruction[]): reado
 
 let currentProgramInstructions: readonly Instruction[] = [];
 let currentSharedDriveSpec = "H6:MCP.TXT";
+let currentDataDriveSpec: string | undefined;
 
 export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
@@ -705,6 +755,10 @@ export function setAtariRenderProgram(instructions: readonly Instruction[]): voi
 
 export function setAtariSharedDriveSpec(spec: string | undefined): void {
   currentSharedDriveSpec = spec ?? "H6:MCP.TXT";
+}
+
+export function setAtariDataDriveSpec(spec: string | undefined): void {
+  currentDataDriveSpec = spec;
 }
 
 function atariIocbNumber(handle: string, location: Expression["location"]): number {
@@ -1500,6 +1554,9 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "read":
     case "input":
       return instruction.targets;
+    case "write-data-file":
+    case "read-data-file":
+      return [];
     case "multi-let":
       return instruction.assignments.map((assignment) => assignment.name);
     case "for":
@@ -1521,6 +1578,12 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "set-position":
     case "set-column":
     case "open-device":
+    case "open-data-file":
+    case "close-data-file":
+    case "save-file":
+    case "load-file":
+    case "save-native-array":
+    case "load-native-array":
     case "print-device":
     case "close-device":
     case "trap":

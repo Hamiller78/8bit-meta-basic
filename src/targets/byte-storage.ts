@@ -25,6 +25,15 @@ export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTar
       case "read-key":
       case "check-device":
         return { ...instruction, name: targetNames.get(instruction.name.toLowerCase()) ?? instruction.name };
+      case "save-native-array":
+      case "load-native-array":
+        return {
+          ...instruction,
+          array: {
+            ...instruction.array,
+            name: targetNames.get(instruction.array.name.toLowerCase()) ?? instruction.array.name
+          }
+        };
       case "multi-let":
         return {
           ...instruction,
@@ -46,7 +55,7 @@ export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTar
   const initialized: Instruction[] = [];
   for (const instruction of rewritten) {
     initialized.push(instruction);
-    if (instruction.kind !== "dim-array" || instruction.storageType !== "byte") continue;
+    if (instruction.kind !== "dim-array" || instruction.storageType !== "byte" || instruction.skipByteInitialization) continue;
     const count = instruction.dimensions[0];
     initialized.push(
       {

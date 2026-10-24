@@ -28,6 +28,16 @@ describe("example programs", () => {
     await expect(build(configuration, { configPath, target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
   });
 
+  it("compiles the computer-record file I/O example for all targets", async () => {
+    const configPath = "examples/computer-records/metabasic.json";
+    const configuration = await loadBuildConfiguration(configPath);
+
+    await expect(build(configuration, { configPath, target: "spectrum", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { configPath, target: "c64", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { configPath, target: "atari800xl", readability: 0 })).resolves.not.toHaveLength(0);
+    await expect(build(configuration, { configPath, target: "agon", readability: 0 })).resolves.not.toHaveLength(0);
+  });
+
   it("compiles the narf2 project tests for all targets", async () => {
     const configuration = {
       testMode: true,

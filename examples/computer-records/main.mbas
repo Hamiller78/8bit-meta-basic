@@ -1,0 +1,139 @@
+' Whole-record file I/O example.
+const computerCount = 10
+
+struct Computer
+    name$(20)
+    year%
+    ramKb%
+    basic$(16)
+end struct
+
+dim computers AS Computer(computerCount)
+dim edited AS Computer
+
+computers(0).name$ = "ZX SPECTRUM 48K"
+computers(0).year% = 1982
+computers(0).ramKb% = 48
+computers(0).basic$ = "SINCLAIR BASIC"
+
+computers(1).name$ = "COMMODORE 64"
+computers(1).year% = 1982
+computers(1).ramKb% = 64
+computers(1).basic$ = "BASIC V2"
+
+computers(2).name$ = "ATARI 800XL"
+computers(2).year% = 1983
+computers(2).ramKb% = 64
+computers(2).basic$ = "ATARI BASIC"
+
+computers(3).name$ = "AGON LIGHT"
+computers(3).year% = 2022
+computers(3).ramKb% = 512
+computers(3).basic$ = "BBC BASIC"
+
+program_mode
+
+menu:
+cls
+print "METABASIC COMPUTER FILE"
+print "1 LIST RECORDS"
+print "2 EDIT RECORD"
+print "3 SAVE RECORDS"
+print "4 LOAD RECORDS"
+print "0 END"
+print "CHOICE";
+repeat
+    choice = key_code()
+until choice = KEY_0 or choice = KEY_1 or choice = KEY_2 or choice = KEY_3 or choice = KEY_4
+
+if choice = KEY_1 then
+    gosub listRecords
+else
+    if choice = KEY_2 then
+        gosub editRecord
+    else
+        if choice = KEY_3 then
+            gosub saveRecords
+        else
+            if choice = KEY_4 then
+                gosub loadRecords
+            else
+                if choice = KEY_0 then
+                    end
+                end if
+            end if
+        end if
+    end if
+end if
+goto menu
+
+listRecords:
+cls
+for index = 0 to computerCount - 1
+    if len(computers(index).name$) = 0 then
+        print index + 1; " [EMPTY]"
+    else
+        print index + 1; " "; computers(index).name$
+        print "  "; computers(index).year%; " "; computers(index).ramKb%; "K"
+        print "  "; computers(index).basic$
+    end if
+next index
+gosub waitForEnter
+return
+
+editRecord:
+cls
+print "RECORD 1-"; computerCount;
+input slot%
+slot% = slot% - 1
+if slot% < 0 or slot% >= computerCount then
+    print "INVALID RECORD"
+    gosub waitForEnter
+    return
+end if
+print "NAME";
+input edited.name$
+print "YEAR";
+input edited.year%
+print "RAM IN K";
+input edited.ramKb%
+print "BASIC";
+input edited.basic$
+computers(slot%) = edited
+print "RECORD CHANGED"
+gosub waitForEnter
+return
+
+saveRecords:
+cls
+if FILE_STORAGE_TAPE then
+    print "CUE TAPE FOR RECORDING"
+    print "START RECORDING"
+    print "ANSWER EVERY ROM PROMPT"
+end if
+save_file "COMPUTER", computers
+print "RECORDS SAVED"
+if FILE_STORAGE_TAPE then
+    print "STOP RECORDING NOW"
+end if
+gosub waitForEnter
+return
+
+loadRecords:
+cls
+if FILE_STORAGE_TAPE then
+    print "REWIND OR CUE TAPE"
+    print "START PLAYBACK"
+    print "ANSWER EVERY ROM PROMPT"
+end if
+load_file "COMPUTER", computers
+print "RECORDS LOADED"
+gosub waitForEnter
+return
+
+waitForEnter:
+print "PRESS ENTER";
+repeat
+    pressedKey = key_code()
+until pressedKey = KEY_ENTER
+return

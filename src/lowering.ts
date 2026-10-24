@@ -1,5 +1,6 @@
 import { splitTextItems } from "./text-support.js";
-import type { DeviceKind, Expression, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
+import type { DeviceKind, Expression, FileArray, FunctionImplementation, Program, SourceLocation, Statement } from "./ast.js";
+import type { FileStorage } from "./file-storage.js";
 import { DiagnosticError } from "./diagnostics.js";
 import {
   collectFunctionImplementations,
@@ -72,6 +73,12 @@ export type Instruction =
   | DataInstruction
   | ReadInstruction
   | InputInstruction
+  | FileInstruction
+  | OpenDataFileInstruction
+  | WriteDataFileInstruction
+  | ReadDataFileInstruction
+  | CloseDataFileInstruction
+  | NativeArrayFileInstruction
   | RestoreInstruction
   | DimArrayInstruction
   | LetInstruction
@@ -263,6 +270,45 @@ export interface InputInstruction {
   readonly location: SourceLocation;
 }
 
+export interface FileInstruction {
+  readonly kind: "save-file" | "load-file";
+  readonly filename: string;
+  readonly arrays: readonly FileArray[];
+  readonly location: SourceLocation;
+}
+
+export interface OpenDataFileInstruction {
+  readonly kind: "open-data-file";
+  readonly mode: "read" | "write";
+  readonly filename: string;
+  readonly storage: FileStorage;
+  readonly location: SourceLocation;
+}
+
+export interface WriteDataFileInstruction {
+  readonly kind: "write-data-file";
+  readonly expression: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface ReadDataFileInstruction {
+  readonly kind: "read-data-file";
+  readonly target: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface CloseDataFileInstruction {
+  readonly kind: "close-data-file";
+  readonly location: SourceLocation;
+}
+
+export interface NativeArrayFileInstruction {
+  readonly kind: "save-native-array" | "load-native-array";
+  readonly filename: string;
+  readonly array: FileArray;
+  readonly location: SourceLocation;
+}
+
 export interface RestoreInstruction {
   readonly kind: "restore";
   readonly location: SourceLocation;
@@ -292,6 +338,8 @@ export interface DimArrayInstruction {
   readonly name: string;
   readonly dimensions: readonly number[];
   readonly storageType?: "byte";
+  /** Target-generated scratch storage may be left at its native initial value. */
+  readonly skipByteInitialization?: boolean;
   /** Parent struct array for compiler-generated field storage. */
   readonly structArrayName?: string;
   /** Source field for compiler-generated struct-array storage. */
@@ -868,6 +916,10 @@ function lowerStatements(
         break;
       case "struct":
         break;
+      case "save-file":
+      case "load-file":
+        if (!statement.arrays) throw new DiagnosticError(statement.location, "Internal error: unresolved file target.");
+        instructions.push({ kind: statement.kind, filename: statement.filename, arrays: statement.arrays, location: statement.location });
         break;
       case "dim":
         instructions.push({
@@ -1691,6 +1743,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "print-device":
       return { ...statement, items: statement.items.map((item) => substituteInlineExpression(item, parameters)) };
     case "input":
+    case "save-file":
+    case "load-file":
       return statement;
     case "let":
       return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };

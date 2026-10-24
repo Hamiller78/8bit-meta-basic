@@ -11,6 +11,10 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [instruction.row, instruction.column];
     case "print-device":
       return instruction.items;
+    case "write-data-file":
+      return [instruction.expression];
+    case "read-data-file":
+      return [instruction.target];
     case "data":
       return instruction.values;
     case "let":
@@ -42,6 +46,12 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "trap":
     case "wait-rs232-transmit":
     case "open-device":
+    case "open-data-file":
+    case "close-data-file":
+    case "save-file":
+    case "load-file":
+    case "save-native-array":
+    case "load-native-array":
     case "close-device":
     case "read":
     case "input":
@@ -87,6 +97,10 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
       return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "print-device":
       return { ...instruction, items: instruction.items.map(map) };
+    case "write-data-file":
+      return { ...instruction, expression: map(instruction.expression) };
+    case "read-data-file":
+      return { ...instruction, target: map(instruction.target) };
     case "data":
       return { ...instruction, values: instruction.values.map(map) };
     case "let":

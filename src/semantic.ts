@@ -230,6 +230,34 @@ function analyzeStatements(
       case "restore":
         analyzed.push(statement);
         break;
+      case "save-file":
+      case "load-file": {
+        if (!/^[A-Za-z][A-Za-z0-9]{0,7}$/.test(statement.filename)) {
+          throw new DiagnosticError(statement.location, "Portable data filenames must contain 1 to 8 letters or digits and begin with a letter.");
+        }
+        const structValue = structValues.get(normalizeName(statement.target));
+        if (structValue) {
+          if (structValue.dimensions.length !== 1) {
+            throw new DiagnosticError(statement.location, `File I/O requires an array; "${statement.target}" is a scalar struct.`);
+          }
+          analyzed.push({
+            ...statement,
+            arrays: structValue.fields.map((field) => ({
+              name: structFieldStorageName(structValue.name, field),
+              valueType: field.valueType,
+              dimensions: field.valueType === "string" ? [structValue.dimensions[0], field.dimensions[0]] : structValue.dimensions,
+              sourceName: `${structValue.name}.${field.name}`
+            }))
+          });
+          break;
+        }
+        const array = arrays.get(normalizeName(statement.target));
+        if (!array) {
+          throw new DiagnosticError(statement.location, `File I/O requires a declared array or struct array; "${statement.target}" was not found.`);
+        }
+        analyzed.push({ ...statement, arrays: [{ ...array, sourceName: array.name }] });
+        break;
+      }
       case "dim": {
         if (isByteType(statement.asType)) {
           const key = normalizeName(statement.name);

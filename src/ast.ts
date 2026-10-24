@@ -35,6 +35,7 @@ export type Statement =
   | DataStatement
   | ReadStatement
   | InputStatement
+  | FileStatement
   | RestoreStatement
   | LetStatement
   | ArrayLetStatement
@@ -236,6 +237,22 @@ export type InputTarget =
 export interface InputStatement {
   readonly kind: "input";
   readonly targets: readonly InputTarget[];
+  readonly location: SourceLocation;
+}
+
+export interface FileArray {
+  readonly name: string;
+  readonly valueType: "number" | "string" | "byte";
+  readonly dimensions: readonly number[];
+  readonly sourceName: string;
+}
+
+export interface FileStatement {
+  readonly kind: "save-file" | "load-file";
+  readonly filename: string;
+  readonly target: string;
+  /** Filled by semantic analysis; struct arrays expand to their existing field arrays. */
+  readonly arrays?: readonly FileArray[];
   readonly location: SourceLocation;
 }
 

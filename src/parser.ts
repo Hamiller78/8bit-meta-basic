@@ -64,6 +64,8 @@ const statementParsers = new Map<string, StatementParser>([
   ["IF", (parser, location) => parser.parseIf(location)],
   ["INLINE", (parser, location) => parser.parseInline(location)],
   ["INPUT", (parser, location) => parser.parseInput(location)],
+  ["LOAD_FILE", (parser, location) => parser.parseFile("load-file", location)],
+  ["SAVE_FILE", (parser, location) => parser.parseFile("save-file", location)],
   ["INSERT_ELEMENT", (parser, location) => parser.parseInsertElement(location)],
   ["REMOVE_ELEMENT", (parser, location) => parser.parseRemoveElement(location)]
 ]);
@@ -152,6 +154,18 @@ class Parser {
 
     this.expectLineEnd();
     return { kind: "data", values, location };
+  }
+
+  parseFile(kind: "save-file" | "load-file", location: SourceLocation): Statement {
+    const filename = this.current();
+    if (filename.kind !== "string" || !filename.value) {
+      throw new DiagnosticError(filename.location, `Expected a nonempty quoted filename after ${kind === "save-file" ? "SAVE_FILE" : "LOAD_FILE"}.`);
+    }
+    this.advance();
+    this.expectPunctuation(",", "Expected comma after filename.");
+    const target = this.expectIdentifier("Expected an array or struct-array name after filename.").text;
+    this.expectLineEnd();
+    return { kind, filename: filename.value, target, location };
   }
 
   parseRead(location: SourceLocation): Statement {

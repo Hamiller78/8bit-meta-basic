@@ -14,6 +14,7 @@ const defaultProfile = "release";
 const defaultToolConfig = "scripts/tools.local.json";
 const defaultTestOutputDevice = "shared-drive";
 const defaultSharedDriveSpec = "H1:MCP.TXT";
+const defaultDataDriveSpec = "H1:";
 const artifactExtensions = {
   basic: ".bas",
   atr: ".atr",
@@ -41,6 +42,7 @@ async function launchAtari800(options) {
     projectPath: options.projectPath,
     language: options.language,
     font: options.font,
+    fileStorage: options.fileStorage,
     testMode: options.testMode,
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,
@@ -50,7 +52,8 @@ async function launchAtari800(options) {
     configPath: options.configPath,
     runBuild: options.runBuild,
     runTools: true,
-    atariSharedDriveSpec
+    atariSharedDriveSpec,
+    atariDataDriveSpec: dataDriveSpec(atariSharedDriveSpec, defaultDataDriveSpec)
   });
 
   const artifacts = buildArtifacts(cwd, options);
@@ -110,6 +113,11 @@ async function launchAtari800(options) {
   );
 }
 
+function dataDriveSpec(sharedDriveSpec, fallback) {
+  const match = /^([A-Za-z][1-8]?:)/.exec(sharedDriveSpec ?? "");
+  return match?.[1]?.toUpperCase() ?? fallback;
+}
+
 function parseArgs(argv) {
   const options = {
     source: defaultSource,
@@ -126,7 +134,8 @@ function parseArgs(argv) {
     targetConfiguration: "atari2",
     artifact: "tokenized-bas",
     runBuild: true,
-    restart: false
+    restart: false,
+    fileStorage: undefined
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -134,6 +143,12 @@ function parseArgs(argv) {
     if (arg === "--language" || arg === "--font") {
       const value = readValue(argv, index, arg);
       options[arg === "--language" ? "language" : "font"] = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--file-storage") {
+      options.fileStorage = readValue(argv, index, arg);
+      if (options.fileStorage !== "disk" && options.fileStorage !== "tape") throw new Error('Expected "disk" or "tape" for --file-storage.');
       index += 1;
       continue;
     }

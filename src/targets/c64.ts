@@ -14,6 +14,7 @@ import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, markInvertedPrintRuns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
+import { lowerSequentialFileIo } from "./file-io.js";
 
 export const c64Target: TargetBackend = {
   id: "c64",
@@ -22,7 +23,7 @@ export const c64Target: TargetBackend = {
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(markInvertedPrintRuns(program), "c64");
+    const byteLowered = lowerByteStorage(markInvertedPrintRuns(lowerSequentialFileIo(program)), "c64");
     const positions = expandSetPositions(byteLowered, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.column, location: instruction.location },
@@ -102,6 +103,16 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} READ ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
       case "input":
         return `${lineNumber} INPUT ${instruction.targets.map((target) => renderVariableName(target, variableMap)).join(",")}`;
+      case "open-data-file":
+        return `${lineNumber} OPEN 1,${instruction.storage === "tape" ? 1 : 8},${instruction.mode === "read" ? 0 : 1},"${instruction.storage === "disk" && instruction.mode === "write" ? "@0:" : ""}${instruction.filename}${instruction.storage === "disk" ? `,S,${instruction.mode === "read" ? "R" : "W"}` : ""}"`;
+      case "write-data-file":
+        return `${lineNumber} PRINT#1,${renderExpression(instruction.expression, renderOptions)}`;
+      case "read-data-file":
+        return `${lineNumber} INPUT#1,${renderExpression(instruction.target, renderOptions)}`;
+      case "close-data-file":
+        return `${lineNumber} CLOSE 1`;
+      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "restore":
         return `${lineNumber} RESTORE`;
       case "let":

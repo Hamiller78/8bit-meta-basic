@@ -204,6 +204,7 @@ function referencesFor(s: Statement, owners: ReadonlyMap<string, string>): Refer
   if (s.kind === "for") add("value", s.variable);
   if (s.kind === "read") for (const name of s.targets) add("value", name);
   if (s.kind === "input") for (const target of s.targets) add("value", target.kind === "scalar" ? target.name : target.base);
+  if (s.kind === "save-file" || s.kind === "load-file") add("value", s.target);
   if (s.kind === "dim") {
     add("value", s.name);
     if (s.asType && s.asType.toUpperCase() !== "BYTE") add("type", s.asType);
