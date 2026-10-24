@@ -23,7 +23,8 @@ export const c64Target: TargetBackend = {
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
-    const byteLowered = lowerByteStorage(markInvertedPrintRuns(lowerSequentialFileIo(program)), "c64");
+    const fileIo = expandC64FileExistenceChecks(lowerSequentialFileIo(program));
+    const byteLowered = lowerByteStorage(markInvertedPrintRuns(fileIo), "c64");
     const positions = expandSetPositions(byteLowered, "C64", 24, 39, (instruction) => [
       { kind: "poke", address: 214, value: instruction.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.column, location: instruction.location },
@@ -113,6 +114,10 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} CLOSE 1`;
       case "delete-data-file":
         return `${lineNumber} OPEN 15,8,15,"S0:${instruction.filename}":CLOSE 15`;
+      case "read-data-file-status":
+        return `${lineNumber} OPEN 15,8,15:INPUT#15,${renderVariableName(instruction.errorCodeName, variableMap)},${renderVariableName(instruction.errorMessageName, variableMap)},${renderVariableName(instruction.trackName, variableMap)},${renderVariableName(instruction.sectorName, variableMap)}:CLOSE 15`;
+      case "check-data-file":
+        throw new Error("Internal error: unexpected check-data-file instruction for C64.");
       case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "restore":
@@ -530,13 +535,18 @@ function buildVariableMap(instructions: readonly Instruction[], readability: Rea
       instruction.kind === "dim-array" ||
       instruction.kind === "read-key" ||
       instruction.kind === "check-device" ||
+      instruction.kind === "read-data-file-status" ||
       instruction.kind === "read" ||
       instruction.kind === "input" ||
       instruction.kind === "randomize" ||
       instruction.kind === "for" ||
       instruction.kind === "next"
     ) {
-      const instructionNames = instruction.kind === "read" || instruction.kind === "input" ? instruction.targets : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
+      const instructionNames = instruction.kind === "read" || instruction.kind === "input"
+        ? instruction.targets
+        : instruction.kind === "read-data-file-status"
+          ? [instruction.errorCodeName, instruction.errorMessageName, instruction.trackName, instruction.sectorName]
+          : [instruction.kind === "for" || instruction.kind === "next" ? instruction.variable : instruction.kind === "randomize" ? "MBRND" : instruction.name];
       for (const name of instructionNames) {
         addName(name, instruction.kind === "let" || instruction.kind === "check-device" ? instruction.sourceName : undefined);
       }
@@ -846,6 +856,49 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
     }
   }
 
+  return rebuildLabels(program, instructions);
+}
+
+function expandC64FileExistenceChecks(program: LoweredProgram): LoweredProgram {
+  const instructions: Instruction[] = [];
+  for (const instruction of program.instructions) {
+    if (instruction.kind !== "check-data-file") {
+      instructions.push(instruction);
+      continue;
+    }
+    const location = instruction.location;
+    instructions.push(
+      { kind: "open-data-file", mode: "read", filename: instruction.filename, storage: "disk", location },
+      {
+        kind: "read-data-file-status",
+        errorCodeName: instruction.errorCodeName,
+        errorMessageName: instruction.errorMessageName,
+        trackName: instruction.trackName,
+        sectorName: instruction.sectorName,
+        location
+      },
+      { kind: "close-data-file", location },
+      {
+        kind: "let",
+        name: instruction.name,
+        sourceName: instruction.sourceName,
+        expression: {
+          kind: "function-call",
+          name: builtinFunctions.abs,
+          args: [{
+            kind: "binary",
+            operator: "=",
+            left: { kind: "identifier", name: instruction.errorCodeName, location },
+            right: { kind: "number", value: 0, raw: "0", location },
+            location
+          }],
+          valueType: "number",
+          location
+        },
+        location
+      }
+    );
+  }
   return rebuildLabels(program, instructions);
 }
 

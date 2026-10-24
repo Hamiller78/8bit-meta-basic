@@ -1,0 +1,39 @@
+' FILE_EXISTS, SAVE_FILE, and DELETE_FILE example for rewritable storage.
+dim marker$(1, 16)
+
+marker$(0) = "DELETE ME"
+program_mode
+cls
+
+if FILE_STORAGE_DISK then
+    fileExists = file_exists("DELTEST")
+    if fileExists then
+        delete_file "DELTEST"
+    end if
+
+    fileExists = file_exists("DELTEST")
+    print "BEFORE SAVE: "; fileExists
+
+    print "SAVING DELTEST"
+    save_file "DELTEST", marker$
+    fileExists = file_exists("DELTEST")
+    print "AFTER SAVE:  "; fileExists
+
+    delete_file "DELTEST"
+    fileExists = file_exists("DELTEST")
+    print "AFTER DELETE:"; fileExists
+    print "EXPECTED: 0, 1, 0"
+    gosub waitForEnter
+else
+    print "FILE TEST NEEDS DISK OR SD"
+    gosub waitForEnter
+end if
+end
+
+waitForEnter:
+print "PRESS ENTER";
+repeat
+    pressedKey = key_code()
+until pressedKey = KEY_ENTER
+print ""
+return

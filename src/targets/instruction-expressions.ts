@@ -49,6 +49,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "open-data-file":
     case "close-data-file":
     case "delete-data-file":
+    case "check-data-file":
+    case "read-data-file-status":
     case "save-file":
     case "load-file":
     case "delete-file":

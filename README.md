@@ -38,6 +38,8 @@ npm run dev -- examples/colors.mbas --target agon
 
 `examples/computer-records` is an interactive ten-slot struct-array example that edits, saves, and reloads records about computers running BASIC. Four sample records are populated and six begin empty. It can be built for disk/SD storage or for cassette operation.
 
+`examples/file-delete.mbas` verifies the complete disk/SD lifecycle by checking that a marker file is absent, saving it, checking that it is present, deleting it, and checking that it is absent again. Its `FILE_EXISTS` and `DELETE_FILE` operations are guarded with `FILE_STORAGE_DISK`, so the same source also compiles for tape targets and explains that the test needs rewritable storage.
+
 Compile an ordered multi-file program through a small JSON build configuration:
 
 ```json

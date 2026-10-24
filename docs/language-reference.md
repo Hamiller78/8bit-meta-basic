@@ -420,15 +420,20 @@ save_file "PEOPLE", people
 load_file "PEOPLE", people
 
 delete_file "PEOPLE"
+
+peopleFileExists = file_exists("PEOPLE")
 ```
 
 The filename is a portable logical name: 1 to 8 letters or digits, beginning with a letter. The array must already be declared. Sequential-file targets serialize a struct array field by field using its existing backing arrays, so the compiler does not allocate a duplicate record array there. Strings are stored as a length followed by character codes; commas, quotes, and empty strings therefore round-trip without depending on a dialect's `INPUT#` string parsing. Spectrum instead uses the packed scratch-buffer scheme described below.
 
-`DELETE_FILE "NAME"` deletes the corresponding data file. It is supported for C64 disk, Atari disk or emulator host-drive storage, and Agon SD-card storage. An unguarded use is rejected for tape builds because cassette storage has no file directory to modify. Shared source can guard the operation with `IF FILE_STORAGE_DISK THEN`; compile-time constant branch elimination removes it completely from tape builds:
+`FILE_EXISTS("NAME")` returns `1` when the corresponding data file exists and `0` otherwise. It must currently be the complete right-hand side of a numeric assignment. `DELETE_FILE "NAME"` deletes the corresponding data file. Both operations are supported for C64 disk, Atari disk or emulator host-drive storage, and Agon SD-card storage. An unguarded use is rejected for tape builds because cassette storage has no file directory to query or modify. Shared source can guard the operations with `IF FILE_STORAGE_DISK THEN`; compile-time constant branch elimination removes them completely from tape builds:
 
 ```basic
 if FILE_STORAGE_DISK then
-    delete_file "AUTOSAVE"
+    autosaveExists = file_exists("AUTOSAVE")
+    if autosaveExists then
+        delete_file "AUTOSAVE"
+    end if
 end if
 ```
 

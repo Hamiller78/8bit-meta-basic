@@ -161,6 +161,8 @@ export const atari800xlTarget: TargetBackend = {
         continue;
       } else if (instruction.kind === "check-device") {
         instructions.push(...expandAtariDeviceAvailabilityCheck(instruction, allocateInternalLabel));
+      } else if (instruction.kind === "check-data-file") {
+        instructions.push(...expandAtariFileExistenceCheck(instruction, allocateInternalLabel));
       } else if (isKeyCodeAssignment(instruction)) {
         const assignment = instruction as Extract<Instruction, { kind: "let" }>;
         instructions.push(...expandAtariKeyCodeAssignment(assignment, allocateInternalLabel));
@@ -272,6 +274,9 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} CLOSE #1`;
       case "delete-data-file":
         return `${lineNumber} XIO 33,#1,0,0,"${currentDataDriveSpec ?? "D:"}${instruction.filename}.DAT"`;
+      case "check-data-file":
+      case "read-data-file-status":
+        throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "restore":
@@ -584,6 +589,8 @@ function materializeAtariStringArrayReads(
     case "open-data-file":
     case "close-data-file":
     case "delete-data-file":
+    case "check-data-file":
+    case "read-data-file-status":
     case "save-file":
     case "load-file":
     case "delete-file":
@@ -808,6 +815,27 @@ function expandAtariDeviceAvailabilityCheck(
     { kind: "label", name: failedLabel, internal: true, location: instruction.location },
     { kind: "let", name: instruction.name, expression: { kind: "number", value: 0, raw: "0", location: instruction.location }, location: instruction.location },
     { kind: "trap", location: instruction.location },
+    { kind: "label", name: endLabel, internal: true, location: instruction.location }
+  ];
+}
+
+function expandAtariFileExistenceCheck(
+  instruction: Extract<Instruction, { kind: "check-data-file" }>,
+  allocateInternalLabel: () => string
+): readonly Instruction[] {
+  const failedLabel = allocateInternalLabel();
+  const endLabel = allocateInternalLabel();
+  return [
+    { kind: "trap", label: failedLabel, location: instruction.location },
+    { kind: "open-data-file", mode: "read", filename: instruction.filename, storage: "disk", location: instruction.location },
+    { kind: "close-data-file", location: instruction.location },
+    { kind: "let", name: instruction.name, sourceName: instruction.sourceName, expression: { kind: "number", value: 1, raw: "1", location: instruction.location }, location: instruction.location },
+    { kind: "trap", location: instruction.location },
+    { kind: "goto", label: endLabel, location: instruction.location },
+    { kind: "label", name: failedLabel, internal: true, location: instruction.location },
+    { kind: "trap", location: instruction.location },
+    { kind: "close-data-file", location: instruction.location },
+    { kind: "let", name: instruction.name, sourceName: instruction.sourceName, expression: { kind: "number", value: 0, raw: "0", location: instruction.location }, location: instruction.location },
     { kind: "label", name: endLabel, internal: true, location: instruction.location }
   ];
 }
@@ -1560,6 +1588,8 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
       return instruction.targets;
     case "write-data-file":
     case "read-data-file":
+    case "check-data-file":
+    case "read-data-file-status":
       return [];
     case "multi-let":
       return instruction.assignments.map((assignment) => assignment.name);

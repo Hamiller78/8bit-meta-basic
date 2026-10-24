@@ -180,7 +180,7 @@ export const spectrumTarget: TargetBackend = {
       case "save-native-array":
       case "load-native-array":
         return `${lineNumber} ${instruction.kind === "save-native-array" ? "SAVE" : "LOAD"} "${instruction.filename}" DATA ${renderSpectrumArrayName(instruction.array.name, variableMap)}()`;
-      case "save-file": case "load-file": case "delete-file": case "open-data-file": case "write-data-file": case "read-data-file": case "close-data-file": case "delete-data-file":
+      case "save-file": case "load-file": case "delete-file": case "open-data-file": case "write-data-file": case "read-data-file": case "close-data-file": case "delete-data-file": case "check-data-file": case "read-data-file-status":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
       case "restore":
         return `${lineNumber} RESTORE`;
@@ -1010,6 +1010,8 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
       return instruction.targets;
     case "write-data-file":
     case "read-data-file":
+    case "check-data-file":
+    case "read-data-file-status":
       return [];
     case "for":
     case "next":

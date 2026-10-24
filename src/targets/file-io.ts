@@ -2,15 +2,40 @@ import type { Expression, FileArray, SourceLocation } from "../ast.js";
 import { DiagnosticError } from "../diagnostics.js";
 import type { FileStorage } from "../file-storage.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
+import { builtinFunctions } from "../functions.js";
+import { allocateGeneratedVariableName } from "./string-array-lengths.js";
+import { instructionExpressions } from "./instruction-expressions.js";
 import { rebuildLabels } from "./target.js";
 
 let selectedFileStorage: FileStorage = "disk";
 export function setFileStorage(storage: FileStorage): void { selectedFileStorage = storage; }
 
 export function lowerSequentialFileIo(program: LoweredProgram, storage: FileStorage = selectedFileStorage): LoweredProgram {
+  requireDirectFileExistsAssignments(program);
   const output: Instruction[] = [];
+  const errorCodeName = allocateGeneratedVariableName(program.instructions, "MBFILEERROR");
+  const errorMessageName = allocateGeneratedVariableName(program.instructions, "MBFILEERROR", "$");
+  const trackName = allocateGeneratedVariableName(program.instructions, "MBFILETRACK");
+  const sectorName = allocateGeneratedVariableName(program.instructions, "MBFILESECTOR");
   let serial = 0;
   for (const instruction of program.instructions) {
+    if (isFileExistsAssignment(instruction)) {
+      if (storage === "tape") {
+        throw new DiagnosticError(instruction.location, "FILE_EXISTS is not available for tape storage because tape has no file directory.");
+      }
+      output.push({
+        kind: "check-data-file",
+        name: instruction.name,
+        filename: instruction.expression.args[0].value,
+        errorCodeName,
+        errorMessageName,
+        trackName,
+        sectorName,
+        sourceName: instruction.sourceName,
+        location: instruction.location
+      });
+      continue;
+    }
     if (instruction.kind === "delete-file") {
       if (storage === "tape") {
         throw new DiagnosticError(instruction.location, "DELETE_FILE is not available for tape storage because tape has no file directory.");
@@ -34,6 +59,11 @@ export function lowerSequentialFileIo(program: LoweredProgram, storage: FileStor
 }
 
 export function lowerSpectrumFileIo(program: LoweredProgram): LoweredProgram {
+  requireDirectFileExistsAssignments(program);
+  const fileExistsInstruction = program.instructions.find(isFileExistsAssignment);
+  if (fileExistsInstruction) {
+    throw new DiagnosticError(fileExistsInstruction.location, "FILE_EXISTS is not available for Spectrum tape storage because tape has no file directory.");
+  }
   const deleteInstruction = program.instructions.find(
     (instruction): instruction is Extract<Instruction, { kind: "delete-file" }> => instruction.kind === "delete-file"
   );
@@ -91,6 +121,48 @@ export function lowerSpectrumFileIo(program: LoweredProgram): LoweredProgram {
     }
   }
   return rebuildLabels(program, output);
+}
+
+function isFileExistsAssignment(instruction: Instruction): instruction is Extract<Instruction, { kind: "let" }> & {
+  readonly expression: Extract<Expression, { kind: "function-call" }> & { readonly args: readonly [Extract<Expression, { kind: "string" }>] };
+} {
+  return instruction.kind === "let" &&
+    instruction.expression.kind === "function-call" &&
+    instruction.expression.name === builtinFunctions.fileExists &&
+    instruction.expression.args.length === 1 &&
+    instruction.expression.args[0].kind === "string";
+}
+
+function requireDirectFileExistsAssignments(program: LoweredProgram): void {
+  for (const instruction of program.instructions) {
+    for (const expression of instructionExpressions(instruction)) {
+      if (containsFileExists(expression) && !(instruction.kind === "let" && expression === instruction.expression && isFileExistsAssignment(instruction))) {
+        throw new DiagnosticError(expression.location, "FILE_EXISTS must be the complete right-hand side of a numeric assignment.");
+      }
+    }
+  }
+}
+
+function containsFileExists(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "function-call":
+      return expression.name === builtinFunctions.fileExists || expression.args.some(containsFileExists);
+    case "array-access":
+    case "struct-field-access":
+      return expression.indices.some(containsFileExists);
+    case "parenthesized":
+      return containsFileExists(expression.expression);
+    case "unary":
+      return containsFileExists(expression.operand);
+    case "binary":
+      return containsFileExists(expression.left) || containsFileExists(expression.right);
+    case "number":
+    case "string":
+    case "boolean":
+    case "identifier":
+    case "color":
+      return false;
+  }
 }
 
 const spectrumNumberTextWidth = 16;

@@ -60,6 +60,41 @@ describe("array file I/O", () => {
     expect(c64).toContain('OPEN 15,8,15,"S0:SAVE1":CLOSE 15');
   });
 
+  it("checks whether a named data file exists on rewritable storage", () => {
+    const program = 'exists = file_exists("SAVE1")\n';
+    const c64 = compileSource(program, { filename: "file-io.mbas", target: "c64", readability: 2 });
+    const atari = compileSource(program, { filename: "file-io.mbas", target: "atari800xl", readability: 2 });
+    const agon = compileSource(program, { filename: "file-io.mbas", target: "agon", readability: 2 });
+
+    expect(c64).toContain('OPEN 1,8,0,"SAVE1,S,R"');
+    expect(c64).toContain("INPUT#15");
+    expect(c64).toMatch(/ABS\([^\r\n]*= 0\).*REM EXISTS/);
+    expect(atari).toContain('OPEN #1,4,0,"D:SAVE1.DAT"');
+    expect(atari).toContain("TRAP 40000");
+    expect(atari).toContain("EXISTS=1");
+    expect(atari).toContain("EXISTS=0");
+    expect(atari).toMatch(/REM __MB_KEY_[0-9]+:\r?\n[0-9]+ TRAP 40000\r?\n[0-9]+ CLOSE #1\r?\n[0-9]+ EXISTS=0/);
+    expect(agon).toContain('MBFILE%=OPENIN("SAVE1.DAT")');
+    expect(agon).toContain("EXISTS=-(MBFILE%<>0)");
+    expect(agon).toContain("CLOSE#MBFILE%");
+  });
+
+  it("rejects FILE_EXISTS on tape unless a disk guard removes it", () => {
+    const unguarded = 'exists = file_exists("SAVE1")\n';
+    const guarded = 'if FILE_STORAGE_DISK then\nexists = file_exists("SAVE1")\nend if\nprint "READY"\n';
+    expect(() => compileSource(unguarded, { filename: "file-io.mbas", target: "spectrum" })).toThrow(/tape has no file directory/);
+    expect(() => compileSource(unguarded, { filename: "file-io.mbas", target: "c64", fileStorage: "tape" })).toThrow(/tape has no file directory/);
+    const spectrum = compileSource(guarded, { filename: "file-io.mbas", target: "spectrum", readability: 2 });
+    expect(spectrum).not.toContain("OPENIN");
+    expect(spectrum).toContain('PRINT "READY"');
+  });
+
+  it("validates FILE_EXISTS filenames and its deliberately narrow expression form", () => {
+    expect(() => compileSource('exists = file_exists(name$)\n', { filename: "x.mbas", target: "c64" })).toThrow(/string-literal filename/);
+    expect(() => compileSource('exists = file_exists("TOO-LONG!")\n', { filename: "x.mbas", target: "c64" })).toThrow(/Portable data filenames/);
+    expect(() => compileSource('print file_exists("SAVE1")\n', { filename: "x.mbas", target: "c64" })).toThrow(/complete right-hand side/);
+  });
+
   it("uses unnamed C: files for Atari tape", () => {
     const output = compileSource(source, { filename: "file-io.mbas", target: "atari800xl", readability: 2, fileStorage: "tape" });
     expect(output).toContain('OPEN #1,8,0,"C:"');

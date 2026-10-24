@@ -76,6 +76,8 @@ export type Instruction =
   | FileInstruction
   | DeleteFileInstruction
   | DeleteDataFileInstruction
+  | CheckDataFileInstruction
+  | ReadDataFileStatusInstruction
   | OpenDataFileInstruction
   | WriteDataFileInstruction
   | ReadDataFileInstruction
@@ -288,6 +290,28 @@ export interface DeleteFileInstruction {
 export interface DeleteDataFileInstruction {
   readonly kind: "delete-data-file";
   readonly filename: string;
+  readonly location: SourceLocation;
+}
+
+export interface CheckDataFileInstruction {
+  readonly kind: "check-data-file";
+  readonly name: string;
+  readonly filename: string;
+  readonly errorCodeName: string;
+  readonly errorMessageName: string;
+  readonly trackName: string;
+  readonly sectorName: string;
+  readonly sourceName?: string;
+  readonly location: SourceLocation;
+}
+
+/** C64 target detail used while probing the drive command channel. */
+export interface ReadDataFileStatusInstruction {
+  readonly kind: "read-data-file-status";
+  readonly errorCodeName: string;
+  readonly errorMessageName: string;
+  readonly trackName: string;
+  readonly sectorName: string;
   readonly location: SourceLocation;
 }
 

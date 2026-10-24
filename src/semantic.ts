@@ -1601,6 +1601,18 @@ function foldFunctionCall(
     return { ...expression, name, args: [] };
   }
 
+  if (name === builtinFunctions.fileExists) {
+    if (expression.args.length !== 1) {
+      throw new DiagnosticError(expression.location, "FILE_EXISTS expects exactly one string-literal filename.");
+    }
+    const [filename] = expression.args;
+    if (filename.kind !== "string") {
+      throw new DiagnosticError(filename.location, "FILE_EXISTS expects a string-literal filename.");
+    }
+    requirePortableDataFilename(filename.value, filename.location);
+    return { ...expression, name, args: [filename], valueType: "number" };
+  }
+
   if (name === builtinFunctions.keyCode) {
     if (expression.args.length !== 0) {
       throw new DiagnosticError(expression.location, "KEY_CODE expects no arguments.");

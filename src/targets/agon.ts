@@ -151,6 +151,10 @@ export const agonTarget: TargetBackend = {
         return `${lineNumber} CLOSE#MBFILE%`;
       case "delete-data-file":
         return `${lineNumber} *DELETE ${instruction.filename}.DAT`;
+      case "check-data-file":
+        return `${lineNumber} MBFILE%=OPENIN("${instruction.filename}.DAT"):${renderVariableName(instruction.name, variableMap)}=-(MBFILE%<>0):IF MBFILE%<>0 THEN CLOSE#MBFILE%`;
+      case "read-data-file-status":
+        throw new Error("Internal error: unexpected read-data-file-status instruction for Agon Light.");
       case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Agon Light.`);
       case "restore":
@@ -767,6 +771,7 @@ function instructionNames(instruction: Instruction): readonly string[] {
   switch (instruction.kind) {
     case "let":
     case "check-device":
+    case "check-data-file":
     case "read-key":
     case "dim-array":
     case "array-let":

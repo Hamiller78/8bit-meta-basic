@@ -7,6 +7,7 @@ export const builtinFunctions = {
   cos: "COS",
   deviceAvailable: "DEVICE_AVAILABLE",
   exp: "EXP",
+  fileExists: "FILE_EXISTS",
   freeMemory: "FREE_MEMORY",
   int: "INT",
   jiffies: "JIFFIES",

@@ -382,7 +382,7 @@ The generated program uses each target BASIC's native blocking `INPUT`. For cont
 
 ### Saving and loading arrays
 
-Use `SAVE_FILE "NAME", array` and `LOAD_FILE "NAME", array` for whole numeric, string, or struct arrays. On disk or SD storage, saving replaces an existing file of the same name. `DELETE_FILE "NAME"` removes that data file; wrap it in `IF FILE_STORAGE_DISK THEN` when the same source must also compile for a tape target. Compile-time branch elimination removes the unsupported operation from that build. Put `"fileStorage": "tape"` in `metabasic.json` for cassette builds; otherwise C64 and Atari default to disk, Spectrum to tape, and Agon to its SD-card filesystem. Use the compile-time `FILE_STORAGE_TAPE` constant to show a localized rewind/cue message. Tape operations always continue from the current physical position, so loading an earlier save requires rewinding or cueing first. Spectrum packs every logical array or struct array into one character-array tape block; this avoids repeated ROM prompts but requires a compiler-generated scratch buffer sized for the largest file operation.
+Use `SAVE_FILE "NAME", array` and `LOAD_FILE "NAME", array` for whole numeric, string, or struct arrays. On disk or SD storage, saving replaces an existing file of the same name. `FILE_EXISTS("NAME")` checks for that data file and `DELETE_FILE "NAME"` removes it. `FILE_EXISTS` must currently be the complete right-hand side of a numeric assignment. Wrap either operation in `IF FILE_STORAGE_DISK THEN` when the same source must also compile for a tape target. Compile-time branch elimination removes the unsupported operation from that build. Put `"fileStorage": "tape"` in `metabasic.json` for cassette builds; otherwise C64 and Atari default to disk, Spectrum to tape, and Agon to its SD-card filesystem. Use the compile-time `FILE_STORAGE_TAPE` constant to show a localized rewind/cue message. Tape operations always continue from the current physical position, so loading an earlier save requires rewinding or cueing first. Spectrum packs every logical array or struct array into one character-array tape block; this avoids repeated ROM prompts but requires a compiler-generated scratch buffer sized for the largest file operation.
 
 Keyboard polling is non-blocking:
 
@@ -496,6 +496,7 @@ Keep runtime strings within the portable 255-character limit. `PRINT` uses semic
 | Loops | [`examples/loop-demo.mbas`](../examples/loop-demo.mbas) |
 | Keyboard input | [`examples/input-demo.mbas`](../examples/input-demo.mbas) |
 | Struct-array file I/O | [`examples/computer-records`](../examples/computer-records) |
+| File deletion | [`examples/file-delete.mbas`](../examples/file-delete.mbas) |
 | Joystick input | [`examples/joystick.mbas`](../examples/joystick.mbas) |
 | Data streams | [`examples/data-demo.mbas`](../examples/data-demo.mbas) |
 | Multi-file program | [`examples/multifile`](../examples/multifile) |
