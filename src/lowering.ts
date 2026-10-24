@@ -74,6 +74,8 @@ export type Instruction =
   | ReadInstruction
   | InputInstruction
   | FileInstruction
+  | DeleteFileInstruction
+  | DeleteDataFileInstruction
   | OpenDataFileInstruction
   | WriteDataFileInstruction
   | ReadDataFileInstruction
@@ -274,6 +276,18 @@ export interface FileInstruction {
   readonly kind: "save-file" | "load-file";
   readonly filename: string;
   readonly arrays: readonly FileArray[];
+  readonly location: SourceLocation;
+}
+
+export interface DeleteFileInstruction {
+  readonly kind: "delete-file";
+  readonly filename: string;
+  readonly location: SourceLocation;
+}
+
+export interface DeleteDataFileInstruction {
+  readonly kind: "delete-data-file";
+  readonly filename: string;
   readonly location: SourceLocation;
 }
 
@@ -921,6 +935,9 @@ function lowerStatements(
         if (!statement.arrays) throw new DiagnosticError(statement.location, "Internal error: unresolved file target.");
         instructions.push({ kind: statement.kind, filename: statement.filename, arrays: statement.arrays, location: statement.location });
         break;
+      case "delete-file":
+        instructions.push(statement);
+        break;
       case "dim":
         instructions.push({
           kind: "dim-array",
@@ -1333,6 +1350,18 @@ function lowerStatements(
         break;
       }
       case "if": {
+        const constantCondition = constantConditionValue(statement.condition);
+        if (constantCondition !== undefined) {
+          lowerStatements(
+            constantCondition ? statement.thenBranch : statement.elseBranch,
+            instructions,
+            nextInternalLabel,
+            context,
+            currentFunction,
+            options
+          );
+          break;
+        }
         if (statement.elseBranch.length > 0) {
           const thenTransfers = statementsAlwaysTransfer(statement.thenBranch);
           const elseTransfers = statementsAlwaysTransfer(statement.elseBranch);
@@ -1377,6 +1406,13 @@ function lowerStatements(
       }
     }
   }
+}
+
+function constantConditionValue(expression: Expression): boolean | undefined {
+  if (expression.kind === "boolean") return expression.value;
+  if (expression.kind === "number") return expression.value !== 0;
+  if (expression.kind === "parenthesized") return constantConditionValue(expression.expression);
+  return undefined;
 }
 
 function lowerExpression(expression: Expression, instructions: Instruction[], context: FunctionCallLoweringContext, options: LowerOptions): Expression {
@@ -1745,6 +1781,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "input":
     case "save-file":
     case "load-file":
+    case "delete-file":
       return statement;
     case "let":
       return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };

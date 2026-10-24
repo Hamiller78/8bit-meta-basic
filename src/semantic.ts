@@ -1,4 +1,4 @@
-import type { BinaryOperator, Expression, Program, Statement, UnaryOperator } from "./ast.js";
+import type { BinaryOperator, Expression, Program, SourceLocation, Statement, UnaryOperator } from "./ast.js";
 import { DiagnosticError } from "./diagnostics.js";
 import { deviceSourceList, isSourceDeviceName } from "./devices.js";
 import {
@@ -230,11 +230,13 @@ function analyzeStatements(
       case "restore":
         analyzed.push(statement);
         break;
+      case "delete-file":
+        requirePortableDataFilename(statement.filename, statement.location);
+        analyzed.push(statement);
+        break;
       case "save-file":
       case "load-file": {
-        if (!/^[A-Za-z][A-Za-z0-9]{0,7}$/.test(statement.filename)) {
-          throw new DiagnosticError(statement.location, "Portable data filenames must contain 1 to 8 letters or digits and begin with a letter.");
-        }
+        requirePortableDataFilename(statement.filename, statement.location);
         const structValue = structValues.get(normalizeName(statement.target));
         if (structValue) {
           if (structValue.dimensions.length !== 1) {
@@ -793,6 +795,12 @@ function analyzeStatements(
   }
 
   return analyzed;
+}
+
+function requirePortableDataFilename(filename: string, location: SourceLocation): void {
+  if (!/^[A-Za-z][A-Za-z0-9]{0,7}$/.test(filename)) {
+    throw new DiagnosticError(location, "Portable data filenames must contain 1 to 8 letters or digits and begin with a letter.");
+  }
 }
 
 function analyzeTestRuntimeSetterStatement(

@@ -104,6 +104,7 @@ Supported constructs:
 - `read` statements targeting scalar variables
 - Blocking keyboard `input` targeting scalar variables or fields of scalar structs, with comma-separated targets
 - Whole-array `save_file "NAME", array` and `load_file "NAME", array` for numeric, integer, `BYTE`, fixed-width string, and struct arrays
+- Disk/SD data-file deletion with `delete_file "NAME"`; tape builds reject reachable uses because tapes have no file directory, while `if FILE_STORAGE_DISK then` removes guarded uses at compile time
 - Bare `restore` to rewind the data stream
 - Compile-time string fill helpers `string$(char$, count)` and `space$(count)`
 - Compile-time selected-language text lookup with `text$("key")` in output expressions

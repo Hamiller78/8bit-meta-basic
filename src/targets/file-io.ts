@@ -1,4 +1,5 @@
 import type { Expression, FileArray, SourceLocation } from "../ast.js";
+import { DiagnosticError } from "../diagnostics.js";
 import type { FileStorage } from "../file-storage.js";
 import type { Instruction, LoweredProgram } from "../lowering.js";
 import { rebuildLabels } from "./target.js";
@@ -10,6 +11,13 @@ export function lowerSequentialFileIo(program: LoweredProgram, storage: FileStor
   const output: Instruction[] = [];
   let serial = 0;
   for (const instruction of program.instructions) {
+    if (instruction.kind === "delete-file") {
+      if (storage === "tape") {
+        throw new DiagnosticError(instruction.location, "DELETE_FILE is not available for tape storage because tape has no file directory.");
+      }
+      output.push({ kind: "delete-data-file", filename: instruction.filename, location: instruction.location });
+      continue;
+    }
     if (instruction.kind !== "save-file" && instruction.kind !== "load-file") {
       output.push(instruction);
       continue;
@@ -26,6 +34,12 @@ export function lowerSequentialFileIo(program: LoweredProgram, storage: FileStor
 }
 
 export function lowerSpectrumFileIo(program: LoweredProgram): LoweredProgram {
+  const deleteInstruction = program.instructions.find(
+    (instruction): instruction is Extract<Instruction, { kind: "delete-file" }> => instruction.kind === "delete-file"
+  );
+  if (deleteInstruction) {
+    throw new DiagnosticError(deleteInstruction.location, "DELETE_FILE is not available for Spectrum tape storage because tape has no file directory.");
+  }
   const fileInstructions = program.instructions.filter(
     (instruction): instruction is Extract<Instruction, { kind: "save-file" | "load-file" }> =>
       instruction.kind === "save-file" || instruction.kind === "load-file"

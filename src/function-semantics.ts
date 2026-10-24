@@ -602,6 +602,7 @@ export function statementExpressions(statement: Statement): readonly Expression[
       return statement.dimensions;
     case "save-file":
     case "load-file":
+    case "delete-file":
       return [];
     case "cls":
       return statement.color ? [statement.color] : [];

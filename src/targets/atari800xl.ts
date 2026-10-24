@@ -270,7 +270,9 @@ export const atari800xlTarget: TargetBackend = {
         return `${lineNumber} INPUT #1;${renderExpression(instruction.target, renderOptions)}`;
       case "close-data-file":
         return `${lineNumber} CLOSE #1`;
-      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+      case "delete-data-file":
+        return `${lineNumber} XIO 33,#1,0,0,"${currentDataDriveSpec ?? "D:"}${instruction.filename}.DAT"`;
+      case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "restore":
         return `${lineNumber} RESTORE`;
@@ -581,8 +583,10 @@ function materializeAtariStringArrayReads(
     case "open-device":
     case "open-data-file":
     case "close-data-file":
+    case "delete-data-file":
     case "save-file":
     case "load-file":
+    case "delete-file":
     case "save-native-array":
     case "load-native-array":
     case "close-device":
@@ -1580,8 +1584,10 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "open-device":
     case "open-data-file":
     case "close-data-file":
+    case "delete-data-file":
     case "save-file":
     case "load-file":
+    case "delete-file":
     case "save-native-array":
     case "load-native-array":
     case "print-device":

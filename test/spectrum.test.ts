@@ -243,9 +243,6 @@ describe("Spectrum compiler", () => {
       [
         '10 PRINT "SECONDS: ";60',
         '20 PRINT "ROW: ";23',
-        "30 IF 0 = 0 THEN GO TO 50",
-        '40 PRINT "NEVER"',
-        "50 REM __MB_1:",
         ""
       ].join("\n")
     );

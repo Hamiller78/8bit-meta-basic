@@ -149,7 +149,9 @@ export const agonTarget: TargetBackend = {
         return `${lineNumber} INPUT#MBFILE%,${renderExpression(instruction.target, renderOptions)}`;
       case "close-data-file":
         return `${lineNumber} CLOSE#MBFILE%`;
-      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+      case "delete-data-file":
+        return `${lineNumber} *DELETE ${instruction.filename}.DAT`;
+      case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Agon Light.`);
       case "restore":
         return `${lineNumber} RESTORE`;

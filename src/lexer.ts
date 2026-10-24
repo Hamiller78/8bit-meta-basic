@@ -22,6 +22,7 @@ export const keywords = new Set([
   "CLS",
   "CONST",
   "DATA",
+  "DELETE_FILE",
   "DIM",
   "ELSE",
   "END",

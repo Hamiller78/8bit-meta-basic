@@ -16,6 +16,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["CONST", (parser, location) => parser.parseConst(location)],
   ["CONTINUE", (parser, location) => parser.parseContinue(location)],
   ["DATA", (parser, location) => parser.parseData(location)],
+  ["DELETE_FILE", (parser, location) => parser.parseDeleteFile(location)],
   ["DIM", (parser, location) => parser.parseDim(location)],
   ["END", (parser, location) => parser.parseEnd(location)],
   ["ENUM", (parser, location) => parser.parseEnum(location)],
@@ -166,6 +167,16 @@ class Parser {
     const target = this.expectIdentifier("Expected an array or struct-array name after filename.").text;
     this.expectLineEnd();
     return { kind, filename: filename.value, target, location };
+  }
+
+  parseDeleteFile(location: SourceLocation): Statement {
+    const filename = this.current();
+    if (filename.kind !== "string" || !filename.value) {
+      throw new DiagnosticError(filename.location, "Expected a nonempty quoted filename after DELETE_FILE.");
+    }
+    this.advance();
+    this.expectLineEnd();
+    return { kind: "delete-file", filename: filename.value, location };
   }
 
   parseRead(location: SourceLocation): Statement {

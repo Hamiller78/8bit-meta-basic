@@ -36,6 +36,7 @@ export type Statement =
   | ReadStatement
   | InputStatement
   | FileStatement
+  | DeleteFileStatement
   | RestoreStatement
   | LetStatement
   | ArrayLetStatement
@@ -253,6 +254,12 @@ export interface FileStatement {
   readonly target: string;
   /** Filled by semantic analysis; struct arrays expand to their existing field arrays. */
   readonly arrays?: readonly FileArray[];
+  readonly location: SourceLocation;
+}
+
+export interface DeleteFileStatement {
+  readonly kind: "delete-file";
+  readonly filename: string;
   readonly location: SourceLocation;
 }
 

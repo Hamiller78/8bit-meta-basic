@@ -13,7 +13,7 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 ## Status
 
-This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, portable array/struct-array file I/O, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
+This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, portable array/struct-array save/load and disk-file deletion, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
 
 ## Quick start
 

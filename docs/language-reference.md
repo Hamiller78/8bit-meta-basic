@@ -418,9 +418,21 @@ load_file "STORY1", names$
 dim people AS Person(12)
 save_file "PEOPLE", people
 load_file "PEOPLE", people
+
+delete_file "PEOPLE"
 ```
 
 The filename is a portable logical name: 1 to 8 letters or digits, beginning with a letter. The array must already be declared. Sequential-file targets serialize a struct array field by field using its existing backing arrays, so the compiler does not allocate a duplicate record array there. Strings are stored as a length followed by character codes; commas, quotes, and empty strings therefore round-trip without depending on a dialect's `INPUT#` string parsing. Spectrum instead uses the packed scratch-buffer scheme described below.
+
+`DELETE_FILE "NAME"` deletes the corresponding data file. It is supported for C64 disk, Atari disk or emulator host-drive storage, and Agon SD-card storage. An unguarded use is rejected for tape builds because cassette storage has no file directory to modify. Shared source can guard the operation with `IF FILE_STORAGE_DISK THEN`; compile-time constant branch elimination removes it completely from tape builds:
+
+```basic
+if FILE_STORAGE_DISK then
+    delete_file "AUTOSAVE"
+end if
+```
+
+Deleting a nonexistent or protected file retains the target system's native behavior.
 
 The project option `"fileStorage": "disk"` or `"tape"` selects the medium. Defaults are disk for C64 and Atari, tape for Spectrum, and the Agon SD card. C64 and Atari support either setting; Spectrum currently supports tape only and Agon disk/SD only. The same choice is available as `--file-storage disk|tape`. `FILE_STORAGE_TAPE` and `FILE_STORAGE_DISK` are read-only compile-time constants (one is 1, the other 0), allowing localized instructions before an operation:
 
@@ -432,6 +444,8 @@ load_file "SAVE1", gameState
 ```
 
 Tape is sequential. C64 and Spectrum can search forward for a named block, but cannot search backward; Atari cassette files have no filename and `LOAD_FILE` reads the next file at the current tape position. Applications should therefore ask the user to rewind or cue the tape before loading. Native BASIC/ROM prompts still handle PLAY or RECORD+PLAY where the machine provides them. File-not-found and media errors currently remain native BASIC errors.
+
+On rewritable storage, `SAVE_FILE` already replaces an existing file with the same logical name: C64 uses the 1541 replace filename form, Atari opens the `.DAT` file for output, and Agon uses `OPENOUT`. This is native replacement behavior, not a portable transactional or crash-recovery protocol.
 
 On Spectrum, one `SAVE_FILE` operation produces one tape block even when a struct array has several backing arrays. The compiler packs the logical values into a reusable character-array buffer before `SAVE DATA` and unpacks it after `LOAD DATA`. This consumes additional RAM: fixed-width strings reserve their declared width plus one length byte per element, while numeric elements reserve 17 bytes each for a length-prefixed `STR$` representation. The buffer is shared by all file operations and is sized for the largest one.
 

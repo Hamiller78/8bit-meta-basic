@@ -23,6 +23,43 @@ describe("array file I/O", () => {
     expect(tape).toContain('OPEN 1,1,1,"SAVE1"');
   });
 
+  it("uses each rewritable target's replacing output mode for SAVE_FILE", () => {
+    const c64 = compileSource(source, { filename: "file-io.mbas", target: "c64", readability: 2 });
+    const atari = compileSource(source, { filename: "file-io.mbas", target: "atari800xl", readability: 2 });
+    const agon = compileSource(source, { filename: "file-io.mbas", target: "agon", readability: 2 });
+    expect(c64).toContain('OPEN 1,8,1,"@0:SAVE1,S,W"');
+    expect(atari).toContain('OPEN #1,8,0,"D:SAVE1.DAT"');
+    expect(agon).toContain('OPENOUT("SAVE1.DAT")');
+  });
+
+  it("deletes named data files on rewritable storage", () => {
+    const program = 'delete_file "SAVE1"\n';
+    expect(compileSource(program, { filename: "file-io.mbas", target: "c64", readability: 2 }))
+      .toContain('OPEN 15,8,15,"S0:SAVE1":CLOSE 15');
+    expect(compileSource(program, { filename: "file-io.mbas", target: "atari800xl", readability: 2 }))
+      .toContain('XIO 33,#1,0,0,"D:SAVE1.DAT"');
+    expect(compileSource(program, { filename: "file-io.mbas", target: "atari800xl", readability: 2, atariDataDriveSpec: "H6:" }))
+      .toContain('XIO 33,#1,0,0,"H6:SAVE1.DAT"');
+    expect(compileSource(program, { filename: "file-io.mbas", target: "agon", readability: 2 }))
+      .toContain('*DELETE SAVE1.DAT');
+  });
+
+  it("rejects DELETE_FILE for tape storage", () => {
+    const program = 'delete_file "SAVE1"\n';
+    expect(() => compileSource(program, { filename: "file-io.mbas", target: "spectrum" })).toThrow(/tape has no file directory/);
+    expect(() => compileSource(program, { filename: "file-io.mbas", target: "c64", fileStorage: "tape" })).toThrow(/tape has no file directory/);
+    expect(() => compileSource(program, { filename: "file-io.mbas", target: "atari800xl", fileStorage: "tape" })).toThrow(/tape has no file directory/);
+  });
+
+  it("allows shared source to guard DELETE_FILE with FILE_STORAGE_DISK", () => {
+    const program = 'if FILE_STORAGE_DISK then\ndelete_file "SAVE1"\nend if\nprint "READY"\n';
+    const spectrum = compileSource(program, { filename: "file-io.mbas", target: "spectrum", readability: 2 });
+    const c64 = compileSource(program, { filename: "file-io.mbas", target: "c64", readability: 2 });
+    expect(spectrum).not.toContain("DELETE");
+    expect(spectrum).toContain('PRINT "READY"');
+    expect(c64).toContain('OPEN 15,8,15,"S0:SAVE1":CLOSE 15');
+  });
+
   it("uses unnamed C: files for Atari tape", () => {
     const output = compileSource(source, { filename: "file-io.mbas", target: "atari800xl", readability: 2, fileStorage: "tape" });
     expect(output).toContain('OPEN #1,8,0,"C:"');
@@ -43,8 +80,10 @@ describe("array file I/O", () => {
 
   it("exposes the selected medium as compile-time constants", () => {
     const program = 'if FILE_STORAGE_TAPE then\nprint "TAPE"\nelse\nprint "DISK"\nend if\n';
-    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "disk" })).toMatch(/IF 0 THEN/);
-    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "tape" })).toMatch(/IF 1 THEN/);
+    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "disk" })).toContain('PRINT "DISK"');
+    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "disk" })).not.toContain('PRINT "TAPE"');
+    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "tape" })).toContain('PRINT "TAPE"');
+    expect(compileSource(program, { filename: "x.mbas", target: "c64", fileStorage: "tape" })).not.toContain('PRINT "DISK"');
   });
 
   it("packs a Spectrum struct array into one character-array tape block", () => {
@@ -69,5 +108,6 @@ describe("array file I/O", () => {
   it("rejects nonportable filenames and unsupported media", () => {
     expect(() => compileSource('dim a(2)\nsave_file "TOO-LONG!", a\n', { filename: "x.mbas", target: "c64" })).toThrow(/Portable data filenames/);
     expect(() => compileSource('dim a(2)\nsave_file "SAVE", a\n', { filename: "x.mbas", target: "agon", fileStorage: "tape" })).toThrow(/SD-card/);
+    expect(() => compileSource('delete_file "TOO-LONG!"\n', { filename: "x.mbas", target: "agon" })).toThrow(/Portable data filenames/);
   });
 });

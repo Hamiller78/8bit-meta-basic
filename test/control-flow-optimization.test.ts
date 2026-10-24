@@ -33,6 +33,16 @@ const enumDispatchSource = [
 ].join("\n");
 
 describe("control-flow optimization", () => {
+  it("removes branches whose conditions fold to compile-time constants", () => {
+    const output = compileSource('if TRUE then\nprint "YES"\nelse\nprint "NO"\nend if\nif FALSE then\nprint "NEVER"\nend if\n', {
+      filename: "constant-branch.mbas", target: "c64", readability: 2
+    });
+    expect(output).toContain('PRINT "YES"');
+    expect(output).not.toContain('PRINT "NO"');
+    expect(output).not.toContain('PRINT "NEVER"');
+    expect(output).not.toContain(" IF ");
+  });
+
   it("uses native one-based ON GOTO dispatch after folding zero-based enum members", () => {
     const atari = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target: "atari800xl", readability: 0 });
     expect(atari).toMatch(/ON 1 \+ ABS\(.+ = 1\) \+ 2 \* ABS\(.+ = 2\) \+ 3 \* ABS\(.+ = 3\) GOTO/u);

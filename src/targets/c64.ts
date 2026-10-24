@@ -111,7 +111,9 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} INPUT#1,${renderExpression(instruction.target, renderOptions)}`;
       case "close-data-file":
         return `${lineNumber} CLOSE 1`;
-      case "save-file": case "load-file": case "save-native-array": case "load-native-array":
+      case "delete-data-file":
+        return `${lineNumber} OPEN 15,8,15,"S0:${instruction.filename}":CLOSE 15`;
+      case "save-file": case "load-file": case "delete-file": case "save-native-array": case "load-native-array":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for C64.`);
       case "restore":
         return `${lineNumber} RESTORE`;
