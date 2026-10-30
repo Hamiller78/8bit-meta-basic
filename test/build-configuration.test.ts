@@ -296,6 +296,9 @@ describe("build configuration", () => {
       await expect(build(configuration, { baseDir: dir, target: "spectrum", readability: 0 })).resolves.toContain('PRINT "OK"');
       await expect(build(configuration, { baseDir: dir, target: "atari800xl", readability: 0 })).resolves.toContain('PRINT "OK"');
       await expect(build(configuration, { baseDir: dir, target: "c64", readability: 0 })).resolves.toContain('PRINT "OK"');
+      await expect(build(configuration, { baseDir: dir, target: "vic20", readability: 0 })).rejects.toThrow(
+        'Target "vic20" provides a 22x23 text screen, but this project requires at least 32 columns by 22 rows'
+      );
     });
   });
 

@@ -7,6 +7,7 @@ The currently implemented targets are:
 - ZX Spectrum BASIC
 - Atari BASIC on the Atari 800XL
 - Commodore BASIC V2 on the Commodore 64
+- Commodore BASIC V2 on the expanded VIC-20
 - BBC BASIC ADL 1.03 (`bbcbasic24.bin`, broadly BBC BASIC 4 compatible) on the Agon Light
 
 Generated BASIC is a development artifact: numbered, readable, and suitable for inspection, debugging, conversion, and loading into an emulator or compatible retro device.
@@ -31,8 +32,11 @@ Compile the example directly during development:
 npm run dev -- examples/colors.mbas --target spectrum
 npm run dev -- examples/colors.mbas --target atari800xl
 npm run dev -- examples/colors.mbas --target c64
+npm run dev -- examples/colors.mbas --target vic20
 npm run dev -- examples/colors.mbas --target agon
 ```
+
+[Eight Bits Below](examples/eight-bits-below/README.md) is a new dungeon-crawler example: a playable first slice with procedural rooms, movement, dice combat, potions and gold. Its README tracks the remaining campaign and persistence work.
 
 `examples/record-input.mbas` demonstrates native keyboard input into numeric, integer, string, and scalar-struct fields.
 
@@ -102,6 +106,7 @@ The language conformance and regression suite lives in `language-tests/instructi
 npm run test:language:build
 npm run test:language:spectrum -- --module strings --restart
 npm run test:language:c64 -- --module strings --restart
+npm run test:language:vic20
 ```
 
 The target launch scripts mirror the generated test-runner output to the configured emulator device. Run the full suite before finishing a language change:
@@ -110,9 +115,10 @@ The target launch scripts mirror the generated test-runner output to the configu
 npm run test:language:spectrum -- --restart
 npm run test:language:c64 -- --restart
 npm run test:language:atari -- --restart
+npm run test:language:vic20
 ```
 
-Compiler targets and runnable computers are configured separately. The compiler targets are `spectrum`, `atari800xl`, `c64`, and `agon`; they select a BASIC dialect and shared packaging tools. Named entries under `targetConfigurations` select a concrete computer and emulator. The supplied names are `spectrum48`, `spectrum128`, `atari1`, `atari2`, `c64`, and `agon`.
+Compiler targets and runnable computers are configured separately. The compiler targets are `spectrum`, `atari800xl`, `c64`, `vic20`, and `agon`; they select a BASIC dialect and shared packaging tools. Named entries under `targetConfigurations` select a concrete computer and emulator. The supplied names are `spectrum48`, `spectrum128`, `atari1`, `atari2`, `c64`, `vic20`, and `agon`.
 
 Launch any named configuration directly:
 
@@ -121,9 +127,12 @@ npm run launch -- spectrum48 --source examples/narf.mbas --restart
 npm run launch -- spectrum128 --source examples/narf.mbas --restart
 npm run launch -- atari1 --source examples/narf.mbas --restart
 npm run launch -- atari2 --source examples/narf.mbas --restart
+npm run launch -- vic20 --source examples/narf.mbas --restart
 ```
 
-The familiar `launch:spectrum`, `launch:atari`, `launch:atari800`, and `launch:c64` commands remain convenient aliases for those names. Test-output transports belong to the selected target configuration: the supplied Spectrum configurations use Fuse ZX Printer text output, `atari1` and `atari2` use their respective shared-drive arrangements, and `c64` uses VICE RS-232 capture.
+The familiar `launch:spectrum`, `launch:atari`, `launch:atari800`, `launch:c64`, and `launch:vic20` commands remain convenient aliases for those names. Test-output transports belong to the selected target configuration: the supplied Spectrum configurations use Fuse ZX Printer text output, `atari1` and `atari2` use their respective shared-drive arrangements, and the Commodore configurations use VICE RS-232 capture.
+
+The supplied VIC-20 profile runs `xvic` with all conventional memory expansions enabled and tokenizes BASIC V2 programs for the expanded `$1201` BASIC start. Its 22-column by 23-row display is intentionally below the default project minimum, so a compatible project must set `"minimumScreenColumns": 22`. The instruction suite runs module by module with `npm run test:language:vic20`, because one monolithic runner would consume essentially the entire expanded BASIC area.
 
 Build artifacts for all targets:
 
@@ -204,7 +213,7 @@ See [vscode-extension/README.md](vscode-extension/README.md) for the current dev
 - User functions use statically allocated storage and do not support recursion.
 - There is no general type system yet.
 - Character-set conversion and validation for Spectrum text, ATASCII, and PETSCII remain incomplete.
-- Plain `.bas` text is always generated. Agon builds additionally create a tokenized `.bbc` file with the built-in tokenizer. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools.
+- Plain `.bas` text is always generated. Agon builds additionally create a tokenized `.bbc` file with the built-in tokenizer. TAP, ATR, PRG, and tokenized Atari BASIC files require locally installed external tools. A deployed VIC-20 PRG also receives a same-named `.cjm` sidecar for THEVIC20 with the configured PAL/NTSC and memory-bank settings.
 - External tools and physical-device procedures are platform-dependent. Consult the running guide for verification status.
 
 This project does not attempt to erase the differences between its target computers. Portable operations share one source form; machine-specific behaviour remains visible in the generated BASIC.
@@ -241,7 +250,7 @@ print_centered "SAN-GOLPE"
 print
 ```
 
-`PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (Spectrum 32, Atari 40, C64 40, Agon 80). Placeholder maxima are positive compile-time integers no larger than that width. Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
+`PRINT_WRAP` and `PRINT_CENTERED` accept compile-time string expressions. `PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` accept an optional width after a comma, from 1 through `TEXT_COLUMNS`; the default is the full screen width (VIC-20 22, Spectrum 32, Atari 40, C64 40, Agon 80). Placeholder maxima are positive compile-time integers no larger than that width. Centering applies to each wrapped line. Runtime string wrapping is not supported. Start layout output at column 1; after ordinary line endings, BASIC returns to the left margin. Width limits layout; it does not create a persistent left indent or track cursor positions across branches. Atari programs using text layout initialize the screen margins to columns 0 and 39 so all 40 columns are available.
 
 `SET_POS row, column` sets both cursor coordinates without printing visible text or advancing to the next line. `SET_COLUMN column` changes only the column while retaining the current row. Coordinates are 1-based, just like `PRINT_AT`; constant coordinates are checked against target bounds. Bare `PRINT` emits a blank line.
 

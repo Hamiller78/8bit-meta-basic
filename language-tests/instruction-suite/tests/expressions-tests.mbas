@@ -13,7 +13,7 @@ test ComparisonsAndLogic()
 end test
 
 test EnvironmentConstants()
-    assert_true TEXT_COLUMNS >= 32
+    assert_true TEXT_COLUMNS >= 22
     assert_true TEXT_ROWS >= 22
     assert_true JIFFIES_PER_SECOND >= 50
 end test

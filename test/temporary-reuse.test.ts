@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compileSourceDetailed, type Target } from "../src/compiler.js";
 
-const targets: readonly Target[] = ["spectrum", "atari800xl", "c64", "agon"];
+const targets: readonly Target[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 
 describe("compiler temporary storage", () => {
   it.each(targets)("shares a result slot across separate calls on %s", (target) => {

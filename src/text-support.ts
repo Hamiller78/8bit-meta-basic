@@ -126,7 +126,7 @@ export function layoutText(program: Program, target: TargetId, options: TextOpti
         items: statement.items.flatMap((item) => {
           if (item.kind !== "string") return [item];
           let value = portableText(item.value, statement, target, font);
-          if (target === "c64" && !lowercase) value = value.toUpperCase();
+          if (isCommodoreBasicV2(target) && !lowercase) value = value.toUpperCase();
           return encodeText(value, target, font, statement, false);
         })
       }];
@@ -134,7 +134,7 @@ export function layoutText(program: Program, target: TargetId, options: TextOpti
     const item = statement.items[0];
     if (item?.kind !== "string") throw new DiagnosticError(statement.location, "Text layout requires a compile-time string; runtime text cannot be wrapped at compile time.");
     let value = portableText(item.value, statement, target, font);
-    if (!statement.textBindings && target === "c64" && !lowercase) value = value.toUpperCase();
+    if (!statement.textBindings && isCommodoreBasicV2(target) && !lowercase) value = value.toUpperCase();
     const width = statement.wrapWidth;
     if (width && (width.kind !== "number" || !Number.isInteger(width.value) || width.value < 1 || width.value > columns)) {
       throw new DiagnosticError(statement.location, `Text width must be a compile-time integer in 1..${columns}.`);
@@ -201,7 +201,7 @@ function layoutTextTemplate(
   }
 
   const transformed = template.map((part): TemplatePart => part.kind === "literal"
-    ? { ...part, value: target === "c64" && !hasTextCharacterGroup(font, "lowercase") ? part.value.toUpperCase() : part.value }
+    ? { ...part, value: isCommodoreBasicV2(target) && !hasTextCharacterGroup(font, "lowercase") ? part.value.toUpperCase() : part.value }
     : part);
   const lines = wrapTemplate(transformed, available, statement);
   return lines.map((line) => {
@@ -424,13 +424,13 @@ function encodeText(text: string, target: TargetId, font: TextFont, statement: P
   for (const char of text) {
     let code: number | undefined;
     if (char === '"') code = 34;
-    else if (validateAvailability && ((target === "c64" && /[\\^_`{|}~]/.test(char)) || (target === "spectrum" && /[\\^`]/.test(char)) || (target === "atari800xl" && /[`{|}~]/.test(char)))) {
+    else if (validateAvailability && ((isCommodoreBasicV2(target) && /[\\^_`{|}~]/.test(char)) || (target === "spectrum" && /[\\^`]/.test(char)) || (target === "atari800xl" && /[`{|}~]/.test(char)))) {
       throw new DiagnosticError(location, `Character "${char}" is not available in the selected ${target} text font.`);
     }
     if (code !== undefined) {
       flush();
       items.push({ kind: "function-call", name: builtinFunctions.chr, args: [{ kind: "number", value: code, raw: String(code), location }], valueType: "string", location });
-    } else literal += target === "c64" && !hasTextCharacterGroup(font, "lowercase") ? char.toUpperCase() : char;
+    } else literal += isCommodoreBasicV2(target) && !hasTextCharacterGroup(font, "lowercase") ? char.toUpperCase() : char;
   }
   flush();
   return items.length ? items : [{ kind: "string", value: "", location }];
@@ -443,6 +443,10 @@ export function usesTextLayout(program: Program): boolean {
     return "body" in statement && visit(statement.body);
   });
   return visit(program.statements);
+}
+
+function isCommodoreBasicV2(target: TargetId): boolean {
+  return target === "c64" || target === "vic20";
 }
 
 /** Split encoded text only after logical PRINT capture has been handled. */

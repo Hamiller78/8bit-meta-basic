@@ -42,7 +42,7 @@ describe("compile-time cursor coordinates", () => {
   });
 
   it("folds constant INT toward negative infinity but keeps variable INT at runtime", () => {
-    for (const target of ["spectrum", "atari800xl", "c64", "agon"] as const) {
+    for (const target of ["spectrum", "atari800xl", "c64", "vic20", "agon"] as const) {
       const output = compileSource("print int(-1.2); int(value)\n", { filename: "int.mbas", target, readability: 0 });
       expect(output).toContain("PRINT -2;INT");
     }

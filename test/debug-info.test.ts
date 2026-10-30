@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { compileSourceDetailed } from "../src/compiler.js";
 
 describe("compiler debug information", () => {
-  it.each(["spectrum", "atari800xl", "c64", "agon"] as const)("maps final %s BASIC lines, labels, and function storage", (target) => {
+  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("maps final %s BASIC lines, labels, and function storage", (target) => {
     const source = [
       "value = Twice(3)",
       "start:",
@@ -77,7 +77,7 @@ describe("compiler debug information", () => {
     ]));
   });
 
-  it.each(["spectrum", "atari800xl", "c64", "agon"] as const)("maps %s struct fields to native array storage", (target) => {
+  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("maps %s struct fields to native array storage", (target) => {
     const source = [
       "STRUCT Pair",
       "Left%",

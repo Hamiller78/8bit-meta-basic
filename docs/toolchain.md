@@ -342,6 +342,8 @@ Meta-BASIC .mbas -> C64 .bas text -> petcat -w2 -> .prg
 
 The compiler emits string contents and the character-set switch required by the selected C64 character groups. Before invoking `petcat`, the `c64-petcat` input transform writes a separate `.petcat.input.bas` file. BASIC syntax is always lowercased for `petcat`. With the default uppercase/graphics character set, quoted letters are lowercased too so `petcat` produces the unshifted PETSCII codes that display as uppercase letters rather than graphics. With the uppercase/lowercase character set, quoted text keeps its source case and the generated program selects that character set with `CHR$(14)`.
 
+The VIC-20 target uses the same BASIC V2 tokenizer with load address `$1201`. After `petcat` creates `<name>.prg`, the build script creates `<name>.cjm` beside it for deployment to THEVIC20. The sidecar selects the VIC model, PAL or NTSC timing, the configured expansion-memory alias, and primary joystick port 1. Configure these values under `targets.vic20.theVic20`; the supplied profile uses `pal` and `35k` to match VICE `-memory all`.
+
 Status: packaging hook implemented; exact emulator and Mini procedures need to be kept in the running guide.
 
 ## Commodore 64: emulator launch

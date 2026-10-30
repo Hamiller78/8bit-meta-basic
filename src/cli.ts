@@ -129,7 +129,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
         throw new Error("Missing value for --target.");
       }
       if (!isTargetId(value)) {
-        throw new Error(`Unsupported target "${value}". Supported targets are "spectrum", "atari800xl", "c64", and "agon".`);
+        throw new Error(`Unsupported target "${value}". Supported targets are "spectrum", "atari800xl", "c64", "vic20", and "agon".`);
       }
       target = value;
       index += 1;
@@ -238,7 +238,7 @@ function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!inputPath && !configPath) {
-    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64|agon [--file-storage disk|tape] [--language en|de] [--font lowercase,international] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--atari-data-drive-spec H1:] [--source-comments]`);
+    throw new Error(`Usage: meta-basic <source.mbas>|--config metabasic.json --target spectrum|atari800xl|c64|vic20|agon [--file-storage disk|tape] [--language en|de] [--font lowercase,international] [--texts-dir folder] [--readability 0|1|2] [--output program.bas] [--debug-info program.debug.json] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceCliUsage}] [--atari-shared-drive-spec H1:MCP.TXT] [--atari-data-drive-spec H1:] [--source-comments]`);
   }
 
   if (inputPath && configPath) {

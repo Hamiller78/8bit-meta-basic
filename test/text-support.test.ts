@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { build, loadBuildConfiguration, loadTexts } from "../src/build-configuration.js";
 import { wrapText } from "../src/text-support.js";
 
-const targets = ["spectrum", "atari800xl", "c64", "agon"] as const;
+const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon"] as const;
 describe("localized text and layout", () => {
   it("wraps paragraphs and long words deterministically", () => {
     expect(wrapText("one two three\n\nfour", 7)).toEqual(["one two", "three", "", "four"]);
@@ -18,7 +18,7 @@ describe("localized text and layout", () => {
         filename: "intro.mbas", target, texts: { intro: "One two three four five six seven eight nine ten eleven twelve.\n\nGrüße!" }
       });
       expect(result).not.toContain("PRINT_TEXT");
-      expect(result).toContain(target === "c64" ? "GRUESSE!" : "Gruesse!");
+      expect(result).toContain(target === "c64" || target === "vic20" ? "GRUESSE!" : "Gruesse!");
       const text = [...result.matchAll(/PRINT "([^"]*)"/g)].map((match) => match[1]);
       const textColumns = target === "spectrum" ? 32 : target === "agon" ? 80 : 40;
       expect(text.every((line) => line.length <= textColumns)).toBe(true);
@@ -41,7 +41,7 @@ describe("localized text and layout", () => {
     });
     it(`folds constants before wrapping on ${target}`, () => {
       const result = compileSource('const title$ = "Hello " + "world"\nprint_wrap title$\nprint_centered "Title"\nprint', { filename: "test.mbas", target });
-      expect(result).toContain(target === "c64" ? "HELLO WORLD" : "Hello world");
+      expect(result).toContain(target === "c64" || target === "vic20" ? "HELLO WORLD" : "Hello world");
       expect(result).toContain('PRINT ""');
     });
   }
@@ -239,7 +239,7 @@ describe("localized text and layout", () => {
   it("loads the San-Golpe translations from optional project texts", async () => {
     const configPath = "examples/san-golpe/metabasic.json";
     const configuration = await loadBuildConfiguration(configPath);
-    for (const target of targets) for (const language of ["en", "de"]) {
+    for (const target of targets.filter((candidate) => candidate !== "vic20")) for (const language of ["en", "de"]) {
       const result = await build(configuration, { configPath, target, language });
       const translatedMarker = target === "atari800xl" || target === "agon" ? "veröffentlichte" : "veroeffentlichte";
       expect(result.toLowerCase()).toContain(language === "de" ? translatedMarker : "small");

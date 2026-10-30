@@ -385,6 +385,28 @@ Record:
 - Required keyboard, joystick, and USB-hub arrangement
 - Whether two USB ports are sufficient for the tested setup
 
+## THEVIC20
+
+Status: **deployment artifacts implemented; physical-device verification pending**.
+
+The VIC-20 target is compiled for expanded BASIC memory starting at `$1201`. Running the configured packaging tools therefore creates two files with the same base name:
+
+```text
+build/release/vic20/game.prg
+build/release/vic20/game.cjm
+```
+
+Copy both files into the same directory on the FAT32 USB stick. THEVIC20 associates the configuration only when the `.cjm` has exactly the same base name as the virtual program file. The generated configuration defaults to:
+
+```text
+X:vic,pal,35k
+J:1*:JU,JD,JL,JR,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF
+```
+
+The first line selects a PAL VIC-20 with all expansion banks, matching the supplied VICE `-memory all` profile. The second line makes the VIC-20's only joystick port the primary port and maps every controller button to native fire. This line is necessary because, when a CJM is present, THEVIC20 requires an explicit joystick definition; without it, no joystick port is made available to the program.
+
+Change `targets.vic20.theVic20.videoStandard` to `ntsc` or its `memory` value to an officially supported alias (`3k`, `4k`, `8k`, `16k`, `24k`, `32k`, or `35k`) in the local tool configuration when deliberately producing another hardware layout. Ordinary Meta-BASIC VIC-20 builds expect at least the expanded `$1201` BASIC layout; the supplied configuration remains `35k`.
+
 ## The A400 Mini
 
 Status: **physical device available; needs direct tokenized-BASIC and listing-import experiments**.

@@ -4,17 +4,17 @@ All targets share one parsed syntax tree and target-independent control-flow low
 
 ## Overview
 
-| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | Agon Light |
-| --- | --- | --- | --- | --- |
-| Text area | 22 × 32 | 24 × 40 | 25 × 40 | 30 × 80 (mode 3) |
-| Maximum line number | 9999 | 32767 | 63999 | 65279 |
-| Practical generated-line limit | 640 | 120 | 80 | 251 |
-| Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` |
-| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
-| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` |
-| Jump | `GO TO` | `GOTO` | `GOTO` | `GOTO` |
-| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
-| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
+| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | VIC-20 | Agon Light |
+| --- | --- | --- | --- | --- | --- |
+| Text area | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) |
+| Maximum line number | 9999 | 32767 | 63999 | 63999 | 65279 |
+| Practical generated-line limit | 640 | 120 | 80 | 80 | 251 |
+| Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` | `X=1` |
+| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
+| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` |
+| Jump | `GO TO` | `GOTO` | `GOTO` | `GOTO` | `GOTO` |
+| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
+| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
 
 Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
 
@@ -63,6 +63,7 @@ Constant Meta-BASIC source coordinates must fit these 1-based ranges:
 - Spectrum: rows `1..22`, columns `1..32`
 - Atari: rows `1..24`, columns `1..40`
 - C64: rows `1..25`, columns `1..40`
+- VIC-20: rows `1..23`, columns `1..22`
 - Agon: rows `1..30`, columns `1..80`
 
 Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atari ensures string destinations are dimensioned before input; Spectrum maps string names to its required single-letter variables and emits a following empty `PRINT` because native Spectrum `INPUT` does not advance the program's output cursor; C64 applies its deterministic two-character-safe names; and Agon retains safe BBC BASIC names. Meta-BASIC integer and `BYTE` destinations are read through numeric temporary storage and then coerced with `INT`.
@@ -156,6 +157,17 @@ Atari colour values are deterministic approximations and can look different betw
 - Fixed-width string arrays render as native C64 string arrays; the fixed width is used by Meta-BASIC diagnostics, not emitted as a C64 dimension.
 
 Commodore BASIC V2 distinguishes variable names using only their first two significant characters. The backend therefore maps Meta-BASIC variables deterministically and prevents two source variables from silently becoming the same C64 variable. Compact modes avoid keywords and system names such as `TI` and `TI$`. Readable mode also shortens names containing C64 BASIC token substrings such as `IF`, `TO`, `GO`, `OR`, or `LET`, because the native tokenizer can reject names that look harmless in Meta-BASIC source.
+
+## VIC-20
+
+- The backend shares Commodore BASIC V2 syntax, tokenizer handling, compact variable mapping, files, strings, arrays, inverse text, keyboard input, and numeric formatting with the C64 backend.
+- Generated PRGs use the expanded BASIC start at `$1201`; the supplied `xvic` profile enables all conventional memory expansions. Unexpanded VIC-20 memory layouts are not currently a supported build profile.
+- The text display has 22 columns and 23 rows. `PRINT_AT` writes the shared editor row/column variables and calls the VIC-20 ROM cursor-update routine at `SYS 58759`.
+- Border and background share VIC register 36879. Generated POKEs preserve the register's unrelated bits; text colour remains at address 646.
+- `SCREEN_CODE` obtains the active screen page from KERNAL location 648, so it remains correct with the expanded screen-memory layout.
+- `PROGRAM_MODE` hides the cursor with `POKE 204,1`; it does not install the C64-specific STOP-vector routine.
+- `GET_JOYSTICK` reads the VIA registers. Reading right requires temporarily changing VIA direction register 37154, so lowering saves each joystick result before restoring that register.
+- The supplied VICE profile captures test output through VIC user-port RS-232. Because the complete instruction suite nearly fills expanded BASIC memory, `npm run test:language:vic20` runs and summarizes its test modules separately.
 
 ## Agon Light
 

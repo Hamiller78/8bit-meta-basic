@@ -9,38 +9,58 @@ import type { Instruction, LoweredProgram } from "../lowering.js";
 import { normalizeLabel } from "../lowering.js";
 import { isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
-import { instructionExpressions } from "./instruction-expressions.js";
+import { instructionExpressions, mapInstructionExpressions } from "./instruction-expressions.js";
 import { packNumericStructFields } from "./struct-array-packing.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, markInvertedPrintRuns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerSequentialFileIo } from "./file-io.js";
 
-export const c64Target: TargetBackend = {
-  id: "c64",
+export type CommodoreBasicV2Machine = "c64" | "vic20";
+
+interface CommodoreBasicV2Configuration {
+  readonly id: CommodoreBasicV2Machine;
+  readonly displayName: string;
+  readonly textRows: number;
+  readonly textColumns: number;
+  readonly cursorUpdateAddress: number;
+}
+
+const commodoreConfigurations: Readonly<Record<CommodoreBasicV2Machine, CommodoreBasicV2Configuration>> = {
+  c64: { id: "c64", displayName: "C64", textRows: 25, textColumns: 40, cursorUpdateAddress: 58732 },
+  vic20: { id: "vic20", displayName: "VIC-20", textRows: 23, textColumns: 22, cursorUpdateAddress: 58759 }
+};
+
+export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): TargetBackend {
+  const configuration = commodoreConfigurations[machine];
+  const functionRenderer = createCommodoreFunctionRenderer(configuration);
+  const target: TargetBackend = {
+  id: configuration.id,
   gotoSpelling: "GOTO",
   maxLineLength: 80,
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
     const fileIo = expandC64FileExistenceChecks(lowerSequentialFileIo(program));
-    const byteLowered = lowerByteStorage(markInvertedPrintRuns(fileIo), "c64");
-    const positions = expandSetPositions(byteLowered, "C64", 24, 39, (instruction) => [
+    const vicScreenSafe = configuration.id === "vic20" ? expandVic20ScreenReads(fileIo) : fileIo;
+    const joystickSafe = configuration.id === "vic20" ? expandVic20JoystickReads(vicScreenSafe) : vicScreenSafe;
+    const byteLowered = lowerByteStorage(markInvertedPrintRuns(joystickSafe), "c64");
+    const positions = expandSetPositions(byteLowered, configuration.displayName, configuration.textRows - 1, configuration.textColumns - 1, (instruction) => [
       { kind: "poke", address: 214, value: instruction.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.column, location: instruction.location },
-      { kind: "sys", address: 58732, location: instruction.location }
+      { kind: "sys", address: configuration.cursorUpdateAddress, location: instruction.location }
     ]);
-    const columns = expandSetColumns(positions, "C64", 39, (instruction) => [
+    const columns = expandSetColumns(positions, configuration.displayName, configuration.textColumns - 1, (instruction) => [
       { kind: "poke", address: 211, value: instruction.column, location: instruction.location }
     ]);
-    const expanded = expandPositionedPrints(columns, "C64", 24, 39, (instruction) => [
+    const expanded = expandPositionedPrints(columns, configuration.displayName, configuration.textRows - 1, configuration.textColumns - 1, (instruction) => [
       { kind: "poke", address: 214, value: instruction.at!.row, location: instruction.location },
       { kind: "poke", address: 211, value: instruction.at!.column, location: instruction.location },
-      { kind: "sys", address: 58732, location: instruction.location },
+      { kind: "sys", address: configuration.cursorUpdateAddress, location: instruction.location },
       { ...instruction, at: undefined }
     ]);
-    const withScreenControls = expandScreenControls(expanded);
-    const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls);
+    const withScreenControls = expandScreenControls(expanded, configuration);
+    const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls, configuration);
     const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
     const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
     const withKeyboardInput = expandKeyboardInput(withRs232Flush);
@@ -54,7 +74,7 @@ export const c64Target: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
-    const renderOptions = { variableMap, functionRenderer: renderC64Function, arrayRenderer: renderC64ArrayAccess };
+    const renderOptions = { variableMap, functionRenderer, arrayRenderer: renderC64ArrayAccess };
 
     switch (instruction.kind) {
       case "label":
@@ -95,7 +115,7 @@ export const c64Target: TargetBackend = {
         return `${lineNumber} CLOSE ${c64LogicalFileNumber(instruction.handle)}`;
       case "check-device":
         rejectC64SharedDrive(instruction.device, instruction.location);
-        return instruction.device === "rs232"
+        return instruction.device === "rs232" || (configuration.id === "vic20" && (instruction.device === "printer" || instruction.device === "text-printer"))
           ? appendInlineVariableComment(`${lineNumber} ${renderVariableName(instruction.name, variableMap)}=1`, instruction, variableMap, readability)
           : appendInlineVariableComment(`${lineNumber} ${renderVariableName(instruction.name, variableMap)}=-(ST=0)`, instruction, variableMap, readability);
       case "data":
@@ -153,7 +173,7 @@ export const c64Target: TargetBackend = {
       case "if-then":
         return instruction.body.length === 1 && instruction.body[0].kind === "goto"
           ? `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${resolveLabel(labelLines, instruction.body[0].label)}`
-          : `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${renderInlineInstructionBodies(c64Target, lineNumber, instruction.body, labelLines, readability)}`;
+          : `${lineNumber} IF ${renderExpression(instruction.condition, renderOptions)} THEN ${renderInlineInstructionBodies(target, lineNumber, instruction.body, labelLines, readability)}`;
       case "on-goto":
         return `${lineNumber} ON ${renderExpression(instruction.expression, renderOptions)} GOTO ${instruction.labels.map((label) => resolveLabel(labelLines, label)).join(",")}`;
       case "on-gosub":
@@ -173,12 +193,103 @@ export const c64Target: TargetBackend = {
       case "trap":
         throw new Error("Internal error: unexpected trap instruction for C64.");
       case "wait-rs232-transmit":
-        return `${lineNumber} IF (PEEK(673) AND 1) THEN GOTO ${lineNumber}`;
+        return configuration.id === "vic20"
+          ? `${lineNumber} IF PEEK(670)<>PEEK(669) THEN GOTO ${lineNumber}`
+          : `${lineNumber} IF (PEEK(673) AND 1) THEN GOTO ${lineNumber}`;
       case "sys":
         return `${lineNumber} SYS ${instruction.address}`;
     }
   }
-};
+  };
+  return target;
+}
+
+export const c64Target: TargetBackend = createCommodoreBasicV2Target("c64");
+
+function expandVic20ScreenReads(program: LoweredProgram): LoweredProgram {
+  const allocateName = createGeneratedVariableNameAllocator(program.instructions, "MBVS");
+  const instructions: Instruction[] = [];
+  for (const instruction of program.instructions) {
+    const prefix: Instruction[] = [];
+    const replace = (expression: Expression): Expression => {
+      const mapped = mapNestedExpression(expression, replace);
+      if (mapped.kind !== "function-call" || mapped.name !== builtinFunctions.screenCode) return mapped;
+      const name = allocateName();
+      prefix.push({
+        kind: "let",
+        name,
+        expression: { ...mapped, name: "__VIC_SCREEN_RAW" },
+        location: mapped.location
+      });
+      const value: Expression = { kind: "identifier", name, location: mapped.location };
+      return {
+        kind: "binary",
+        operator: "-",
+        left: value,
+        right: {
+          kind: "binary",
+          operator: "*",
+          left: { kind: "number", value: 64, raw: "64", location: mapped.location },
+          right: { kind: "binary", operator: "<", left: value, right: { kind: "number", value: 32, raw: "32", location: mapped.location }, location: mapped.location },
+          location: mapped.location
+        },
+        location: mapped.location
+      };
+    };
+    const mappedInstruction = mapInstructionExpressions(instruction, replace);
+    instructions.push(...prefix, mappedInstruction);
+  }
+  return rebuildLabels(program, instructions);
+}
+
+function expandVic20JoystickReads(program: LoweredProgram): LoweredProgram {
+  const allocateName = createGeneratedVariableNameAllocator(program.instructions, "MBVJ");
+  const instructions: Instruction[] = [];
+
+  for (const instruction of program.instructions) {
+    const reads: Array<{ readonly name: string; readonly expression: FunctionCallExpression }> = [];
+    const replace = (expression: Expression): Expression => {
+      const mapped = mapNestedExpression(expression, replace);
+      if (mapped.kind !== "function-call" || mapped.name !== builtinFunctions.getJoystick) {
+        return mapped;
+      }
+      const name = allocateName();
+      reads.push({ name, expression: mapped });
+      return { kind: "identifier", name, location: mapped.location };
+    };
+    const mappedInstruction = mapInstructionExpressions(instruction, replace);
+    if (reads.length === 0) {
+      instructions.push(mappedInstruction);
+      continue;
+    }
+    instructions.push(numericPoke(37154, 127, instruction.location));
+    for (const read of reads) {
+      instructions.push({ kind: "let", name: read.name, expression: read.expression, location: instruction.location });
+    }
+    instructions.push(numericPoke(37154, 255, instruction.location), mappedInstruction);
+  }
+
+  return rebuildLabels(program, instructions);
+}
+
+function mapNestedExpression(expression: Expression, map: (expression: Expression) => Expression): Expression {
+  switch (expression.kind) {
+    case "parenthesized":
+      return { ...expression, expression: map(expression.expression) };
+    case "unary":
+      return { ...expression, operand: map(expression.operand) };
+    case "binary":
+      return { ...expression, left: map(expression.left), right: map(expression.right) };
+    case "function-call":
+      return { ...expression, args: expression.args.map(map) };
+    case "array-access":
+      return { ...expression, indices: expression.indices.map(map) };
+    case "struct-field-access":
+      return { ...expression, indices: expression.indices.map(map) };
+    default:
+      return expression;
+  }
+}
 
 function hoistTestRs232Open(program: LoweredProgram): LoweredProgram {
   const index = program.instructions.findIndex(
@@ -200,6 +311,8 @@ let currentProgramInstructions: readonly Instruction[] = [];
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
 }
+
+export const setCommodoreRenderProgram = setC64RenderProgram;
 
 function lowerSafeC64Dispatch(instruction: Extract<Instruction, { kind: "on-goto" | "on-gosub" }>): Instruction[] {
   const location = instruction.location;
@@ -244,11 +357,11 @@ function deviceHandleIndex(handle: string): number {
   return Math.max(0, handles.indexOf(handle.toLowerCase()));
 }
 
-function expandDeviceAvailabilityChecks(program: LoweredProgram): LoweredProgram {
+function expandDeviceAvailabilityChecks(program: LoweredProgram, configuration: CommodoreBasicV2Configuration): LoweredProgram {
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
-    if (instruction.kind === "check-device" && (instruction.device === "printer" || instruction.device === "text-printer")) {
+    if (configuration.id === "c64" && instruction.kind === "check-device" && (instruction.device === "printer" || instruction.device === "text-printer")) {
       instructions.push({ kind: "open-device", handle: "__mb_probe", device: instruction.device, location: instruction.location });
       instructions.push({ kind: "close-device", handle: "__mb_probe", location: instruction.location });
       instructions.push(instruction);
@@ -287,8 +400,9 @@ function rejectC64SharedDrive(device: DeviceKind, location: Expression["location
   }
 }
 
-const renderKnownC64Function = createFunctionRenderer(
-  new Map([
+function createCommodoreFunctionRenderer(configuration: CommodoreBasicV2Configuration) {
+  const renderKnownFunction = createFunctionRenderer(
+    new Map([
     [builtinFunctions.abs, renderC64UnaryNumericFunction],
     [builtinFunctions.asc, renderC64Code],
     [builtinFunctions.atn, renderC64UnaryNumericFunction],
@@ -300,36 +414,55 @@ const renderKnownC64Function = createFunctionRenderer(
     [builtinFunctions.int, renderC64UnaryNumericFunction],
     [builtinFunctions.jiffies, () => "TI"],
     [builtinFunctions.keyPressed, () => "(PEEK(198) > 0)"],
-    [builtinFunctions.getJoystick, expression => [
-      "((PEEK(56320) AND 4) / 4 - (PEEK(56320) AND 8) / 8)",
-      "((PEEK(56320) AND 1) - (PEEK(56320) AND 2) / 2)",
-      "(1 - (PEEK(56320) AND 16) / 16)"
-    ][joystickControl(expression.args[0])]],
+    [builtinFunctions.getJoystick, expression => configuration.id === "vic20"
+      ? [
+          "((PEEK(37137) AND 16) / 16 - (PEEK(37152) AND 128) / 128)",
+          "((PEEK(37137) AND 4) / 4 - (PEEK(37137) AND 8) / 8)",
+          "(1 - (PEEK(37137) AND 32) / 32)"
+        ][joystickControl(expression.args[0])]
+      : [
+          "((PEEK(56320) AND 4) / 4 - (PEEK(56320) AND 8) / 8)",
+          "((PEEK(56320) AND 1) - (PEEK(56320) AND 2) / 2)",
+          "(1 - (PEEK(56320) AND 16) / 16)"
+        ][joystickControl(expression.args[0])]],
     [builtinFunctions.left, renderC64Left],
     [builtinFunctions.len, renderC64Len],
     [builtinFunctions.mid, renderC64Mid],
     [builtinFunctions.rnd, () => "RND(1)"],
     [builtinFunctions.right, renderC64Right],
-    [builtinFunctions.screenCode, renderC64ScreenCode],
+    [builtinFunctions.screenCode, configuration.id === "vic20" ? renderVic20ScreenCode : renderC64ScreenCode],
     [builtinFunctions.sgn, renderC64UnaryNumericFunction],
     [builtinFunctions.sin, renderC64UnaryNumericFunction],
     [builtinFunctions.sqr, renderC64UnaryNumericFunction],
     [builtinFunctions.str, renderC64Str],
     [builtinFunctions.val, renderC64Val]
-  ])
-);
+    ])
+  );
 
-function renderC64Function(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined {
-  if (expression.name === c64CompactNumberFunction) {
-    const rendered = renderExpression(expression.args[0], options);
-    return `MID$(STR$(${rendered}),1-(${rendered}>=0))`;
-  }
-  if (expression.name.toUpperCase() === "ASC") {
-    return `ASC(${renderExpression(expression.args[0], options)})`;
-  }
-
-  return renderKnownC64Function(expression, options);
+  return (expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string | undefined => {
+    if (expression.name === "__CBM_PEEK") {
+      return `PEEK(${renderExpression(expression.args[0], options)})`;
+    }
+    if (expression.name === "__CBM_BITAND") {
+      return `(${renderExpression(expression.args[0], options)} AND ${renderExpression(expression.args[1], options)})`;
+    }
+    if (expression.name === "__VIC_SCREEN_RAW") {
+      const [row, column] = expression.args;
+      return `PEEK(PEEK(648)*256-23+${renderExpression(row, options)}*22+${renderExpression(column, options)})`;
+    }
+    if (expression.name === c64CompactNumberFunction) {
+      const rendered = renderExpression(expression.args[0], options);
+      return `MID$(STR$(${rendered}),1-(${rendered}>=0))`;
+    }
+    if (expression.name.toUpperCase() === "ASC") {
+      return `ASC(${renderExpression(expression.args[0], options)})`;
+    }
+    return renderKnownFunction(expression, options);
+  };
 }
+
+const renderC64Function = createCommodoreFunctionRenderer(commodoreConfigurations.c64);
+
 
 function renderC64PrintItems(
   instruction: Extract<Instruction, { kind: "print" }>,
@@ -461,6 +594,12 @@ function renderC64Code(expression: FunctionCallExpression, options: { readonly v
 function renderC64ScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [row, column] = expression.args;
   const cell = `PEEK(983 + ${renderExpression(row, options)} * 40 + ${renderExpression(column, options)})`;
+  return `(${cell} - 64 * (${cell} < 32))`;
+}
+
+function renderVic20ScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+  const [row, column] = expression.args;
+  const cell = `PEEK(PEEK(648)*256-23+${renderExpression(row, options)}*22+${renderExpression(column, options)})`;
   return `(${cell} - 64 * (${cell} < 32))`;
 }
 
@@ -781,13 +920,13 @@ function isFirstSourceAssignment(instruction: Extract<Instruction, { kind: "let"
   return false;
 }
 
-function expandScreenControls(program: LoweredProgram): LoweredProgram {
+function expandScreenControls(program: LoweredProgram, configuration: CommodoreBasicV2Configuration): LoweredProgram {
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
     if (instruction.kind === "cls") {
       if (instruction.color) {
-        instructions.push({
+        instructions.push(configuration.id === "vic20" ? vic20BackgroundPoke(instruction.color.color, instruction.location) : {
           kind: "poke",
           address: 53281,
           value: { kind: "number", value: c64ColorCodes[instruction.color.color], raw: c64ColorCodes[instruction.color.color].toString(), location: instruction.location },
@@ -796,7 +935,7 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
       }
       instructions.push({ kind: "print-chr", code: 147, trailingSemicolon: true, location: instruction.location });
     } else if (instruction.kind === "border-color") {
-        instructions.push({
+        instructions.push(configuration.id === "vic20" ? vic20BorderPoke(instruction.color.color, instruction.location) : {
           kind: "poke",
           address: 53280,
           value: {
@@ -808,7 +947,7 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
         location: instruction.location
       });
     } else if (instruction.kind === "screen-background-color") {
-      instructions.push({
+      instructions.push(configuration.id === "vic20" ? vic20BackgroundPoke(instruction.color.color, instruction.location) : {
         kind: "poke",
         address: 53281,
         value: {
@@ -833,6 +972,8 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
       });
     } else if (instruction.kind === "cell-background-color" || instruction.kind === "suppress-scroll-prompt") {
       continue;
+    } else if (instruction.kind === "program-mode" && configuration.id === "vic20") {
+      instructions.push(numericPoke(204, 1, instruction.location));
     } else if (instruction.kind === "program-mode") {
       // $02ED-$02EF is free page-2 RAM. Install LDA #$01; RTS there before
       // redirecting STOP. The standard vector already has low byte $ED, so
@@ -857,6 +998,58 @@ function expandScreenControls(program: LoweredProgram): LoweredProgram {
   }
 
   return rebuildLabels(program, instructions);
+}
+
+function numericPoke(address: number, value: number, location: Expression["location"]): Instruction {
+  return { kind: "poke", address, value: { kind: "number", value, raw: value.toString(), location }, location };
+}
+
+function vic20RegisterRead(location: Expression["location"]): Expression {
+  return {
+    kind: "function-call",
+    name: "__CBM_PEEK",
+    args: [{ kind: "number", value: 36879, raw: "36879", location }],
+    valueType: "number",
+    location
+  };
+}
+
+function vic20BitAnd(left: Expression, value: number, location: Expression["location"]): Expression {
+  return {
+    kind: "function-call",
+    name: "__CBM_BITAND",
+    args: [left, { kind: "number", value, raw: value.toString(), location }],
+    valueType: "number",
+    location
+  };
+}
+
+function vic20BorderPoke(color: keyof typeof c64ColorCodes, location: Expression["location"]): Instruction {
+  return {
+    kind: "poke",
+    address: 36879,
+    value: {
+      kind: "binary", operator: "+",
+      left: vic20BitAnd(vic20RegisterRead(location), 248, location),
+      right: { kind: "number", value: c64ColorCodes[color], raw: c64ColorCodes[color].toString(), location },
+      location
+    },
+    location
+  };
+}
+
+function vic20BackgroundPoke(color: keyof typeof c64ColorCodes, location: Expression["location"]): Instruction {
+  return {
+    kind: "poke",
+    address: 36879,
+    value: {
+      kind: "binary", operator: "+",
+      left: { kind: "number", value: 16 * c64ColorCodes[color], raw: (16 * c64ColorCodes[color]).toString(), location },
+      right: vic20BitAnd(vic20RegisterRead(location), 15, location),
+      location
+    },
+    location
+  };
 }
 
 function expandC64FileExistenceChecks(program: LoweredProgram): LoweredProgram {

@@ -8,7 +8,7 @@ import { invertCondition, lowerProgram, normalizeLabel, type Instruction, type L
 import { parseSource } from "./parser.js";
 import { analyzeProgram } from "./semantic.js";
 import { getTarget, type TargetId } from "./targets/index.js";
-import { setC64RenderProgram } from "./targets/c64.js";
+import { setCommodoreRenderProgram } from "./targets/c64.js";
 import { setAtariDataDriveSpec, setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
@@ -80,16 +80,16 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice,
-    testRunnerUppercaseNames: options.target === "c64" && !hasTextCharacterGroup(font, "lowercase"),
+    testRunnerUppercaseNames: isCommodoreBasicV2(options.target) && !hasTextCharacterGroup(font, "lowercase"),
     reservedNames
   });
   lowered = rebuildLabels(lowered, lowered.instructions.map((instruction) => mapInstructionExpressions(instruction, (expression) => {
-    if (expression.kind !== "string" || (options.target !== "c64" && options.target !== "spectrum")) return expression;
+    if (expression.kind !== "string" || (!isCommodoreBasicV2(options.target) && options.target !== "spectrum")) return expression;
     let value = portableTextValue(expression.value, expression.location, options.target, font);
-    if (options.target === "c64" && !hasTextCharacterGroup(font, "lowercase")) value = value.toUpperCase();
+    if (isCommodoreBasicV2(options.target) && !hasTextCharacterGroup(font, "lowercase")) value = value.toUpperCase();
     return value === expression.value ? expression : { ...expression, value };
   })));
-  if (options.target === "c64" && hasTextCharacterGroup(font, "lowercase")) {
+  if (isCommodoreBasicV2(options.target) && hasTextCharacterGroup(font, "lowercase")) {
     const location = entrySourceLocation(ast, options.filename);
     lowered = rebuildLabels(lowered, [{ kind: "print-chr", code: 14, trailingSemicolon: true, location }, ...lowered.instructions]);
   }
@@ -112,7 +112,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   setAtariDataDriveSpec(options.atariDataDriveSpec);
   const targetLowered = renderProgramWithLineLengthRelief(target, lowered, readability, options.sourceComments === true, reservedNames);
 
-  const outputLines = options.target === "c64" && hasTextCharacterGroup(font, "lowercase")
+  const outputLines = isCommodoreBasicV2(options.target) && hasTextCharacterGroup(font, "lowercase")
     ? targetLowered.lines.map(lowercaseBasicSyntaxPreservingStrings)
     : targetLowered.lines;
   const sourceFiles = analyzed.sourceFiles ?? [...new Set(analyzed.statements.map((statement) => statement.location.filename))];
@@ -360,8 +360,8 @@ function setRenderProgram(target: TargetId, instructions: readonly Instruction[]
     setSpectrumRenderProgram(instructions);
   } else if (target === "atari800xl") {
     setAtariRenderProgram(instructions);
-  } else if (target === "c64") {
-    setC64RenderProgram(instructions);
+  } else if (isCommodoreBasicV2(target)) {
+    setCommodoreRenderProgram(instructions);
   } else {
     setAgonRenderProgram(instructions);
   }
@@ -690,7 +690,13 @@ function targetDisplayName(target: TargetId): string {
       return "Atari 800XL";
     case "c64":
       return "C64";
+    case "vic20":
+      return "VIC-20";
     case "agon":
       return "Agon Light";
   }
+}
+
+function isCommodoreBasicV2(target: TargetId): boolean {
+  return target === "c64" || target === "vic20";
 }

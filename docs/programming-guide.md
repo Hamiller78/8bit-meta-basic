@@ -39,7 +39,7 @@ List source modules in the order in which they should appear in generated BASIC.
 }
 ```
 
-`minimumScreenColumns` and `minimumScreenRows` describe the smallest text screen the project supports. Both are optional; omitted projects default to the ZX Spectrum text area of 32 columns by 22 rows. A build fails before compilation when the selected target is smaller. Lower these values only after accommodating the narrower or shorter layout—for example, a future VIC-20 target would require a project to opt into its narrower screen.
+`minimumScreenColumns` and `minimumScreenRows` describe the smallest text screen the project supports. Both are optional; omitted projects default to the ZX Spectrum text area of 32 columns by 22 rows. A build fails before compilation when the selected target is smaller. A VIC-20-compatible project must deliberately opt into its 22-column display with `"minimumScreenColumns": 22`.
 
 Build the project for one or every target:
 
@@ -145,7 +145,7 @@ nextColour = tileColours(0) + 1
 tileColours(1) = nextColour
 ```
 
-Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64 and Agon use native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
+Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64, VIC-20, and Agon use native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
 
 The fixed width is the element's capacity, not its logical string length. Assigning `"READY"` to an element of width 12 reads back as the five-character string `"READY"`; assigning `"READY "` preserves the deliberate trailing space and reads back with length 6. Spectrum and Atari generated code maintains hidden logical-length arrays so storage padding never becomes part of the Meta-BASIC value. This also applies to string fields in struct arrays.
 
@@ -451,7 +451,7 @@ npm run launch:spectrum -- --project my-game --run-tests --profile debug --print
 npm run launch:c64 -- --project my-game --run-tests --profile debug --printer-output --restart
 ```
 
-`--printer-output` mirrors the test runner through the target's verified host transport. Spectrum/Fuse uses ZX Printer text output, C64/VICE uses RS-232, and Atari uses a shared-drive file. The launch command returning only confirms that the emulator started. Wait for the captured file to reach the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, then check that the reported values for both `FAILED` and `FAILURES` are zero:
+`--printer-output` mirrors the test runner through the target's verified host transport. Spectrum/Fuse uses ZX Printer text output, C64/VICE and VIC-20/VICE use RS-232, and Atari uses a shared-drive file. The launch command returning only confirms that the emulator started. Wait for the captured file to reach the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, then check that the reported values for both `FAILED` and `FAILURES` are zero:
 
 ```text
 cat build/printer/debug/spectrum48/my-game.txt

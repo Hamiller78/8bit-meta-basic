@@ -3,7 +3,7 @@ import { compileSource } from "../src/compiler.js";
 import { compileSourceDetailed } from "../src/compiler.js";
 import type { TargetId } from "../src/targets/target.js";
 
-const targets: TargetId[] = ["spectrum", "atari800xl", "c64", "agon"];
+const targets: TargetId[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 const hardwareDecodedTargets: TargetId[] = ["spectrum", "atari800xl", "c64"];
 const source = "x = get_joystick(JOY_X)\ny = get_joystick(JOY_Y)\nf = get_joystick(JOY_FIRE1)\n";
 
@@ -69,7 +69,7 @@ describe("joystick input", () => {
       "assert_eq -1, readX()", "assert_eq 1, get_joystick(JOY_Y)", "assert_eq 1, get_joystick(JOY_FIRE1)", "end test",
       "test Second()", "assert_eq 0, get_joystick(JOY_X)", "assert_eq 0, get_joystick(JOY_Y)", "assert_eq 0, get_joystick(JOY_FIRE1)", "end test"
     ].join("\n"), { filename: "input.mbas", target, testMode: true, readability: 2 });
-    expect(output).not.toMatch(/PEEK\(56320\)|STICK\(|STRIG\(|IN 57342/);
+    expect(output).not.toMatch(/PEEK\(56320\)|PEEK\(37137\)|STICK\(|STRIG\(|IN 57342/);
     if (target === "spectrum") {
       for (const name of ["MBTJX", "MBTJY", "MBTJF"]) {
         expect(output.split("LET " + name + "=0").length - 1).toBe(2);

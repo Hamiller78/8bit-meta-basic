@@ -7,7 +7,7 @@ import { toolOutputReportsFailure } from "../tool-output.mjs";
 import { compilerTargetConfiguration } from "../target-configurations.mjs";
 import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
 
-export const targets = ["spectrum", "atari800xl", "c64", "agon"];
+export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 export const profiles = {
   debug: 2,
   balanced: 1,
@@ -21,6 +21,7 @@ const defaultTestOutputDevices = {
   spectrum: "text-printer",
   atari800xl: "shared-drive",
   c64: "rs232",
+  vic20: "text-printer",
   agon: "shared-drive"
 };
 
@@ -120,9 +121,51 @@ export async function buildTarget(options) {
 
   if (runTools) {
     await runConfiguredTools({ cwd, configPath, target, profile, program, artifacts, outDir, font });
+    if (target === "vic20") {
+      await writeTheVic20ConfigurationForBuild({ cwd, configPath, profile, program, outDir, artifacts });
+    }
   }
 
   return basicPath;
+}
+
+const theVic20MemoryOptions = new Set(["3k", "4k", "8k", "16k", "24k", "32k", "35k"]);
+
+export function theVic20ConfigurationText(options = {}) {
+  const videoStandard = options.videoStandard ?? "pal";
+  const memory = options.memory ?? "35k";
+  if (videoStandard !== "pal" && videoStandard !== "ntsc") {
+    throw new Error('THEVIC20 videoStandard must be "pal" or "ntsc".');
+  }
+  if (!theVic20MemoryOptions.has(memory)) {
+    throw new Error(`Unsupported THEVIC20 memory setting "${memory}".`);
+  }
+
+  return [
+    `X:vic,${videoStandard},${memory}`,
+    "J:1*:JU,JD,JL,JR,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF",
+    ""
+  ].join("\n");
+}
+
+export async function writeTheVic20Configuration(prgPath, options = {}) {
+  const cjmPath = prgPath.replace(/\.prg$/i, ".cjm");
+  if (cjmPath === prgPath) {
+    throw new Error(`THEVIC20 configuration requires a .prg artifact, got "${prgPath}".`);
+  }
+  await writeFile(cjmPath, theVic20ConfigurationText(options), "utf8");
+  return cjmPath;
+}
+
+async function writeTheVic20ConfigurationForBuild({ cwd, configPath, profile, program, outDir, artifacts }) {
+  const prgPath = artifacts.petcat ?? outputPathFor(cwd, outDir, profile, "vic20", program.name, ".prg");
+  if (!(await exists(prgPath))) return;
+
+  const config = await loadToolConfig(resolve(cwd, configPath));
+  const options = compilerTargetConfiguration(config, "vic20")?.theVic20 ?? {};
+  const cjmPath = await writeTheVic20Configuration(prgPath, options);
+  artifacts.theVic20Configuration = cjmPath;
+  console.log(`created ${relativeToCwd(cwd, cjmPath)}`);
 }
 
 async function writeAtariListing({ basicPath, listingPath }) {

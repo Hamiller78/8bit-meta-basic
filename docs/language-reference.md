@@ -118,11 +118,11 @@ Members without explicit values count upward from the previous value, starting a
 
 Every target supplies these environment constants:
 
-| Constant | Spectrum | Atari 800XL | C64 | Agon Light |
-| --- | ---: | ---: | ---: | ---: |
-| `TEXT_ROWS` | 22 | 24 | 25 | 30 |
-| `TEXT_COLUMNS` | 32 | 40 | 40 | 80 |
-| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 100 |
+| Constant | Spectrum | Atari 800XL | C64 | VIC-20 | Agon Light |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `TEXT_ROWS` | 22 | 24 | 25 | 23 | 30 |
+| `TEXT_COLUMNS` | 32 | 40 | 40 | 22 | 80 |
+| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 50 | 100 |
 
 The compiler also supplies target key constants, portable game-control constants, and portable colour constants. Their target mappings are described in [targets.md](targets.md).
 
@@ -290,7 +290,7 @@ Math functions lower to the target BASIC function of the same name when evaluate
 
 `FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, Spectrum uses the 48K ROM free-memory routine, and Agon uses `HIMEM-TOP`.
 
-`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, and Agon requests the character from the VDP, waits one vertical blank for the asynchronous response, and reads the returned MOS screen-character system variable. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
+`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, VIC-20 reads through the KERNAL screen-page pointer at address 648, and Agon requests the character from the VDP, waits one vertical blank for the asynchronous response, and reads the returned MOS screen-character system variable. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
 
 Agon's VDP reconstructs a character by comparing the pixels at the requested cell with the active character set. Its firmware documents that this may fail, and boundary cells on the final row or column can return `0` even when the character is visibly present. Tests for scrolling therefore read a separate sentinel away from the boundary rather than relying on boundary-cell recognition.
 
@@ -370,6 +370,7 @@ Diagonal movement and fire together are supported. Simultaneous opposing directi
 | Target | Input source |
 | --- | --- |
 | C64 | Joystick port 2, via `PEEK(56320)` and native bit masks |
+| VIC-20 | Control port through the VIA registers; the right-direction bit is exposed only while each read is performed |
 | Atari 800XL | First joystick, via `STICK(0)` and `STRIG(0)` |
 | Spectrum | Q/A for up/down, O/P for left/right, Space for fire, via direct keyboard-matrix `IN` reads |
 

@@ -42,6 +42,21 @@
         }
       ]
     },
+    "vic20": {
+      "theVic20": {
+        "videoStandard": "pal",
+        "memory": "35k"
+      },
+      "tools": [
+        {
+          "name": "petcat",
+          "path": "",
+          "inputTransform": "c64-petcat",
+          "args": ["-w2", "-l", "1201", "-o", "{output}", "--", "{input}"],
+          "outputExtension": ".prg"
+        }
+      ]
+    },
     "agon": {
       "tools": []
     }
@@ -186,6 +201,28 @@
         "path": "",
         "testOutputDevice": "rs232",
         "args": ["-autostart", "{artifact}", "-autostart-warp"],
+        "testArgs": ["-warp"],
+        "printerOutputPath": "build/printer/{profile}/{targetConfiguration}/{sourceName}.txt",
+        "printerArgs": ["-iecdevice4", "-prtxtdev1", "{printerOutput}", "-pr4txtdev", "0", "-pr4output", "text", "-pr4drv", "ascii"],
+        "rs232OutputPath": "build/rs232/{profile}/{targetConfiguration}/{sourceName}.txt",
+        "rs232Args": ["-userportdevice", "2", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
+      }
+    },
+    "vic20": {
+      "compilerTarget": "vic20",
+      "computer": {
+        "model": "VIC-20",
+        "ramKib": 32,
+        "videoStandard": "PAL",
+        "basic": "Commodore BASIC V2",
+        "memoryExpansion": "all"
+      },
+      "emulator": {
+        "type": "vice",
+        "name": "xvic",
+        "path": "",
+        "testOutputDevice": "rs232",
+        "args": ["-memory", "all", "-autostart", "{artifact}", "-autostart-warp"],
         "testArgs": ["-warp"],
         "printerOutputPath": "build/printer/{profile}/{targetConfiguration}/{sourceName}.txt",
         "printerArgs": ["-iecdevice4", "-prtxtdev1", "{printerOutput}", "-pr4txtdev", "0", "-pr4output", "text", "-pr4drv", "ascii"],

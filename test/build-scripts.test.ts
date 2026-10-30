@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -117,6 +117,37 @@ describe("build scripts", () => {
       args: ["-autostart", "{artifact}", "-autostart-warp"],
       testArgs: ["-warp"]
     });
+  });
+
+  it("configures VIC-20 packaging for VICE and THEVIC20", async () => {
+    const config = JSON.parse(await readFile("scripts/tools.example.json", "utf8"));
+
+    expect(config.targets.vic20.theVic20).toEqual({ videoStandard: "pal", memory: "35k" });
+    expect(config.targets.vic20.tools[0]).toMatchObject({
+      name: "petcat",
+      inputTransform: "c64-petcat",
+      args: ["-w2", "-l", "1201", "-o", "{output}", "--", "{input}"],
+      outputExtension: ".prg"
+    });
+  });
+
+  it("writes a matching THEVIC20 CJM sidecar with expanded memory and joystick 1", async () => {
+    const { theVic20ConfigurationText, writeTheVic20Configuration } = await import("../scripts/lib/build-target.mjs");
+    const directory = await mkdtemp(join(tmpdir(), "metabasic-thevic20-"));
+    try {
+      const prgPath = join(directory, "demo.prg");
+      await writeFile(prgPath, Buffer.from([0x01, 0x12]));
+      const cjmPath = await writeTheVic20Configuration(prgPath);
+
+      expect(cjmPath).toBe(join(directory, "demo.cjm"));
+      expect(await readFile(cjmPath, "utf8")).toBe(
+        "X:vic,pal,35k\nJ:1*:JU,JD,JL,JR,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF\n"
+      );
+      expect(theVic20ConfigurationText({ videoStandard: "ntsc", memory: "24k" })).toContain("X:vic,ntsc,24k");
+      expect(() => theVic20ConfigurationText({ memory: "all" })).toThrow("Unsupported THEVIC20 memory setting");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("prepares petcat input for both C64 character sets", async () => {

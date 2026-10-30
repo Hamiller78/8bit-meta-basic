@@ -17,14 +17,14 @@ async function launchC64(options) {
   const cwd = options.cwd ?? process.cwd();
   const config = await loadToolConfiguration(cwd, options.configPath);
   const targetConfiguration = resolveTargetConfiguration(config, options.targetConfiguration, {
-    compilerTarget: "c64",
     emulatorType: "vice"
   });
+  const compilerTarget = targetConfiguration.compilerTarget;
   const emulator = targetConfiguration.emulator;
   const testOutputDevice = options.testOutputDevice ?? configuredTestOutputDevice(emulator, defaultTestOutputDevice);
 
   await buildTarget({
-    target: "c64",
+    target: compilerTarget,
     profile: options.profile,
     source: options.source,
     buildConfigPath: options.buildConfigPath,
@@ -44,9 +44,9 @@ async function launchC64(options) {
   });
 
   const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
-  const artifact = outputPathFor(cwd, options.outDir, options.profile, "c64", program.name, ".prg");
+  const artifact = outputPathFor(cwd, options.outDir, options.profile, compilerTarget, program.name, ".prg");
   if (!(await exists(artifact))) {
-    throw new Error(`C64 launch artifact not found: ${artifact}. Check that petcat is configured and produced a .prg file.`);
+    throw new Error(`${targetConfiguration.computer?.model ?? compilerTarget} launch artifact not found: ${artifact}. Check that petcat is configured and produced a .prg file.`);
   }
 
   if (!emulator?.path) {
@@ -55,7 +55,7 @@ async function launchC64(options) {
 
   const emulatorPath = resolve(cwd, emulator.path);
   if (!(await exists(emulatorPath))) {
-    throw new Error(`C64 emulator not found at ${emulator.path}.`);
+    throw new Error(`${targetConfiguration.computer?.model ?? compilerTarget} emulator not found at ${emulator.path}.`);
   }
 
   if (options.restart) {
@@ -67,10 +67,10 @@ async function launchC64(options) {
     source: program.inputPath,
     sourceName: program.name,
     profile: options.profile,
-    target: "c64",
+    target: compilerTarget,
     targetConfiguration: options.targetConfiguration,
-    printerOutput: deviceOutputPath(cwd, emulator, options, program.name, "c64", "printer"),
-    rs232Output: deviceOutputPath(cwd, emulator, options, program.name, "c64", "rs232"),
+    printerOutput: deviceOutputPath(cwd, emulator, options, program.name, compilerTarget, "printer"),
+    rs232Output: deviceOutputPath(cwd, emulator, options, program.name, compilerTarget, "rs232"),
     rs232Endpoint: undefined
   };
   if (options.testPrinterOutput) {
@@ -97,7 +97,7 @@ async function launchC64(options) {
   child.unref();
 
   console.log(
-    `launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "C64"}) in ${emulator.name ?? "C64 emulator"} with ${relativeToCwd(cwd, artifact)}`
+    `launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? compilerTarget}) in ${emulator.name ?? "VICE"} with ${relativeToCwd(cwd, artifact)}`
   );
 }
 

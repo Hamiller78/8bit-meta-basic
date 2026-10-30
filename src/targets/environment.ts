@@ -117,6 +117,7 @@ const agonKeyCodes = {
 const letterKeyCodes = {
   spectrum: alphabetCodes(97),
   c64: alphabetCodes(65),
+  vic20: alphabetCodes(65),
   agon: alphabetCodes(65),
   atari800xl: {
     A: 63,
@@ -151,6 +152,7 @@ const letterKeyCodes = {
 const digitKeyCodes = {
   spectrum: digitCodes(48),
   c64: digitCodes(48),
+  vic20: digitCodes(48),
   agon: digitCodes(48),
   atari800xl: {
     "0": 50,
@@ -170,6 +172,7 @@ export const targetEnvironments: Readonly<Record<TargetId, TargetEnvironment>> =
   spectrum: buildEnvironment("spectrum", 22, 32, 50, spectrumKeyCodes),
   atari800xl: buildEnvironment("atari800xl", 24, 40, 50, atariKeyCodes),
   c64: buildEnvironment("c64", 25, 40, 50, c64KeyCodes),
+  vic20: buildEnvironment("vic20", 23, 22, 50, c64KeyCodes),
   agon: buildEnvironment("agon", 30, 80, 100, agonKeyCodes)
 };
 

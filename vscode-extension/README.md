@@ -27,7 +27,7 @@ For example, `MetaBASIC: Build Project` runs a compiler-only build:
 npm run build:all-targets -- --project <workspace-folder> --profile <profile> --out-dir <workspace-folder>/build --no-tools
 ```
 
-`MetaBASIC: Deploy Project` runs the same build without `--no-tools`, so configured tools such as `bas2tap`, `petcat`, or the Atari tokenizer can create emulator/device artifacts.
+`MetaBASIC: Deploy Project` runs the same build without `--no-tools`, so configured tools such as `bas2tap`, `petcat`, or the Atari tokenizer can create emulator/device artifacts. VIC-20 deployment produces both the tokenized `.prg` and its same-named THEVIC20 `.cjm` memory/joystick configuration.
 
 Build artifacts are written below the open project folder, for example:
 

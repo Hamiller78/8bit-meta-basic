@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { build, loadBuildConfiguration } from "../src/build-configuration.js";
 
 describe("Meta-BASIC language conformance suite", () => {
-  it("compiles for every target and uses the configured C64 font in test mode", async () => {
+  it("compiles for every target and uses the configured Commodore font in test mode", async () => {
     const configPath = "language-tests/instruction-suite/metabasic.json";
     const projectConfiguration = await loadBuildConfiguration(configPath);
     const configuration = {
@@ -19,7 +19,11 @@ describe("Meta-BASIC language conformance suite", () => {
     expect(c64).toMatch(/^10 print chr\$\(14\);/u);
     expect(c64).toMatch(/^10 /u);
     expect(c64).toContain("META CONTROL PROGRAM");
-  }, 30_000);
+
+    const vic20 = await build(configuration, { configPath, target: "vic20", readability: 0 });
+    expect(vic20).toMatch(/^10 print chr\$\(14\);/u);
+    expect(vic20).toContain("META CONTROL PROGRAM");
+  }, 45_000);
 });
 
 function testFiles(): string[] {

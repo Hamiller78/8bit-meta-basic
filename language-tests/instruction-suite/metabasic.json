@@ -1,5 +1,6 @@
 {
   "font": ["lowercase"],
+  "minimumScreenColumns": 22,
   "testScreenOutput": true,
   "files": [
     "source/main.mbas",
