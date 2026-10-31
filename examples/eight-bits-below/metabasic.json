@@ -1,0 +1,9 @@
+{
+  "minimumScreenColumns": 22,
+  "minimumScreenRows": 22,
+  "files": [
+    "source/main.mbas",
+    "source/dungeon.mbas"
+  ],
+  "textsDir": "texts"
+}

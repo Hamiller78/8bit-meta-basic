@@ -1,0 +1,24 @@
+uses "dungeon.mbas"
+
+program_mode
+randomize
+screen_border_color BLACK
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+
+print_at 1, 1, "EIGHT BITS BELOW";
+GenerateDungeon()
+DrawDungeon()
+
+print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON";
+
+mainLoop:
+    key = key_code()
+    if key = GAME_FIRE then
+        print_at TEXT_ROWS, 1, "GENERATING NEW DUNGEON...";
+        GenerateDungeon()
+        DrawDungeon()
+        print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON       ";
+    end if
+    goto mainLoop

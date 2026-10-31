@@ -1,0 +1,171 @@
+const dungeonWidth = 22
+const dungeonHeight = 16
+const dungeonSize = dungeonWidth * dungeonHeight
+
+const numRooms = 5
+
+const dungeonFloor$ = "."
+const dungeonWall$ = "#"
+const dungeonDoor$ = "+"
+const dungeonWallRow$ = string$(dungeonWall$, dungeonWidth)
+
+struct room
+    x
+    y
+    width
+    height
+end struct
+
+' Dungeon coordinates are 1-based; array indices remain 0-based.
+dim dungeonRows$(dungeonHeight, dungeonWidth)
+dim rooms as room(numRooms)
+
+function DrawDungeon()
+    local rowIndex
+
+    set_pos 1, 1
+    for rowIndex = 1 to dungeonHeight
+        print dungeonRows$(rowIndex - 1)
+    next rowIndex
+end function
+
+function GenerateDungeon()
+    local roomIndex, rowIndex, splitRoomIndex, splitHorizontally
+
+    ' Fill every row before drawing walls so all rows have the full dungeon width.
+    for rowIndex = 1 to dungeonHeight
+        dungeonRows$(rowIndex - 1) = string$(dungeonFloor$, dungeonWidth)
+    next rowIndex
+
+    InitFirstRoom()
+
+    for roomIndex = 1 to numRooms - 1
+        repeat
+            splitRoomIndex = int(rnd() * roomIndex)
+        until rooms(splitRoomIndex).width >= 5 or rooms(splitRoomIndex).height >= 5
+
+        splitHorizontally = int(rnd() * 2)
+        if rooms(splitRoomIndex).height < 5 then
+            splitHorizontally = 0
+        end if
+        if rooms(splitRoomIndex).width < 5 then
+            splitHorizontally = 1
+        end if
+
+        if splitHorizontally then
+            SplitRoomHorizontally(splitRoomIndex, roomIndex)
+        else
+            SplitRoomVertically(splitRoomIndex, roomIndex)
+        end if
+    next roomIndex
+end function
+
+inline function InitFirstRoom()
+    rooms(0).x = 1
+    rooms(0).y = 1
+    rooms(0).width = dungeonWidth
+    rooms(0).height = dungeonHeight
+
+    ' Surround dungeon with walls
+    DrawHorizontalWall(1, 1, dungeonWidth) ' Top wall
+    DrawHorizontalWall(dungeonHeight, 1, dungeonWidth)
+    DrawVerticalWall(1, 1, dungeonHeight) ' Left wall
+    DrawVerticalWall(dungeonWidth, 1, dungeonHeight) ' Right wall
+end function
+
+function SplitRoomHorizontally(roomIndex, newRoomIndex)
+    local firstHeight, wallRow, startCol, endCol
+
+    ' Bounds include walls. Both halves share the new dividing wall.
+    ' Each half needs two boundary walls and at least one floor row.
+    firstHeight = int(rnd() * (rooms(roomIndex).height - 4)) + 3
+    wallRow = rooms(roomIndex).y + firstHeight - 1
+    startCol = rooms(roomIndex).x + 1
+    endCol = rooms(roomIndex).x + rooms(roomIndex).width - 2
+
+    ' Preserve boundary doors and the floor tile immediately in front of each.
+    if mid$(dungeonRows$(wallRow - 1), startCol - 1, 1) = dungeonDoor$ then
+        startCol = startCol + 1
+    end if
+    if mid$(dungeonRows$(wallRow - 1), endCol + 1, 1) = dungeonDoor$ then
+        endCol = endCol - 1
+    end if
+
+    rooms(newRoomIndex).x = rooms(roomIndex).x
+    rooms(newRoomIndex).y = wallRow
+    rooms(newRoomIndex).width = rooms(roomIndex).width
+    rooms(newRoomIndex).height = rooms(roomIndex).height - firstHeight + 1
+    rooms(roomIndex).height = firstHeight ' Shrink the original room to the first half.
+
+    if startCol <= endCol then
+        DrawHorizontalWall(wallRow, startCol, endCol)
+    end if
+    ' A shortened wall already has an opening; only a full wall needs a new door.
+    if endCol - startCol + 1 = rooms(roomIndex).width - 2 then
+        PlaceDungeonDoor(wallRow, startCol + int(rnd() * (endCol - startCol + 1)))
+    end if
+end function
+
+function SplitRoomVertically(roomIndex, newRoomIndex)
+    local firstWidth, wallCol, startRow, endRow
+
+    ' Each half needs two boundary walls and at least one floor column.
+    firstWidth = int(rnd() * (rooms(roomIndex).width - 4)) + 3
+    wallCol = rooms(roomIndex).x + firstWidth - 1
+    startRow = rooms(roomIndex).y + 1
+    endRow = rooms(roomIndex).y + rooms(roomIndex).height - 2
+
+    if mid$(dungeonRows$(startRow - 2), wallCol, 1) = dungeonDoor$ then
+        startRow = startRow + 1
+    end if
+    if mid$(dungeonRows$(endRow), wallCol, 1) = dungeonDoor$ then
+        endRow = endRow - 1
+    end if
+
+    rooms(newRoomIndex).x = wallCol
+    rooms(newRoomIndex).y = rooms(roomIndex).y
+    rooms(newRoomIndex).width = rooms(roomIndex).width - firstWidth + 1
+    rooms(newRoomIndex).height = rooms(roomIndex).height
+    rooms(roomIndex).width = firstWidth ' Shrink the original room to the first half.
+
+    if startRow <= endRow then
+        DrawVerticalWall(wallCol, startRow, endRow)
+    end if
+    if endRow - startRow + 1 = rooms(roomIndex).height - 2 then
+        PlaceDungeonDoor(startRow + int(rnd() * (endRow - startRow + 1)), wallCol)
+    end if
+end function
+
+' Doors are inside the outer dungeon border, so both string slices are nonempty.
+function PlaceDungeonDoor(row, col)
+    dungeonRows$(row - 1) = left$(dungeonRows$(row - 1), col - 1) + dungeonDoor$ + mid$(dungeonRows$(row - 1), col + 1)
+end function
+
+function DrawHorizontalWall(row, startCol, endCol)
+    local rowText$
+
+    rowText$ = left$(dungeonWallRow$, endCol - startCol + 1)
+    if startCol > 1 then
+        rowText$ = left$(dungeonRows$(row - 1), startCol - 1) + rowText$
+    end if
+    if endCol < dungeonWidth then
+        rowText$ = rowText$ + mid$(dungeonRows$(row - 1), endCol + 1)
+    end if
+    dungeonRows$(row - 1) = rowText$
+
+end function
+
+function DrawVerticalWall(col, startRow, endRow)
+    local rowIndex, rowText$
+
+    for rowIndex = startRow to endRow
+        rowText$ = dungeonWall$
+        if col > 1 then
+            rowText$ = left$(dungeonRows$(rowIndex - 1), col - 1) + rowText$
+        end if
+        if col < dungeonWidth then
+            rowText$ = rowText$ + mid$(dungeonRows$(rowIndex - 1), col + 1)
+        end if
+        dungeonRows$(rowIndex - 1) = rowText$
+    next rowIndex
+end function
