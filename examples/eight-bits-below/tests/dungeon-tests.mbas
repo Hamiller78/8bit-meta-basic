@@ -128,14 +128,13 @@ test FirstRoomSurroundsFloorWithWalls()
     assert_eq wallRow$, dungeonRows$(0)
     assert_eq wallRow$, dungeonRows$(dungeonHeight - 1)
     for rowIndex = 1 to dungeonHeight - 2
-        assert_eq roomRow$, dungeonRows$(rowIndex)
+        assert_eq string$(".", 20), mid$(dungeonRows$(rowIndex), 2, dungeonWidth - 2)
     next rowIndex
 end test
 
 test HorizontalSplitSharesWallAndPreservesBounds()
     local col, doorCount
-    ResetDungeonRows()
-    InitFirstRoom()
+    CreateSplitTestRoom(0, 1, 1, dungeonWidth, dungeonHeight)
     SplitRoomHorizontally(0, 1)
     assert_eq 1, rooms(0).x
     assert_eq 1, rooms(0).y
@@ -164,8 +163,7 @@ end test
 
 test VerticalSplitSharesWallAndPreservesBounds()
     local rowIndex, doorCount
-    ResetDungeonRows()
-    InitFirstRoom()
+    CreateSplitTestRoom(0, 1, 1, dungeonWidth, dungeonHeight)
     SplitRoomVertically(0, 1)
     assert_eq 1, rooms(0).x
     assert_eq 1, rooms(0).y
@@ -376,7 +374,5 @@ test GenerateDungeonReinitializesEveryRow()
     assert_eq wallRow$, dungeonRows$(dungeonHeight - 1)
     for rowIndex = 1 to dungeonHeight - 2
         assert_eq dungeonWidth, len(dungeonRows$(rowIndex))
-        assert_eq "#", left$(dungeonRows$(rowIndex), 1)
-        assert_eq "#", right$(dungeonRows$(rowIndex), 1)
     next rowIndex
 end test

@@ -2,11 +2,13 @@ const dungeonWidth = 22
 const dungeonHeight = 16
 const dungeonSize = dungeonWidth * dungeonHeight
 
-const numRooms = 5
+const numRooms = 10
 
 const dungeonFloor$ = "."
 const dungeonWall$ = "#"
 const dungeonDoor$ = "+"
+const dungeonEntrance$ = "<"
+const dungeonExit$ = ">"
 const dungeonWallRow$ = string$(dungeonWall$, dungeonWidth)
 
 struct room
@@ -65,7 +67,8 @@ function GenerateDungeon()
     next roomIndex
 end function
 
-inline function InitFirstRoom()
+function InitFirstRoom()
+    local entranceRow, exitRow
     rooms(0).x = 1
     rooms(0).y = 1
     rooms(0).width = dungeonWidth
@@ -76,6 +79,12 @@ inline function InitFirstRoom()
     DrawHorizontalWall(dungeonHeight, 1, dungeonWidth)
     DrawVerticalWall(1, 1, dungeonHeight) ' Left wall
     DrawVerticalWall(dungeonWidth, 1, dungeonHeight) ' Right wall
+
+    ' Keep the corners intact; the two openings are positioned independently.
+    entranceRow = int(rnd() * (dungeonHeight - 2)) + 2
+    exitRow = int(rnd() * (dungeonHeight - 2)) + 2
+    dungeonRows$(entranceRow - 1) = dungeonEntrance$ + mid$(dungeonRows$(entranceRow - 1), 2)
+    dungeonRows$(exitRow - 1) = left$(dungeonRows$(exitRow - 1), dungeonWidth - 1) + dungeonExit$
 end function
 
 function SplitRoomHorizontally(roomIndex, newRoomIndex)
@@ -88,11 +97,11 @@ function SplitRoomHorizontally(roomIndex, newRoomIndex)
     startCol = rooms(roomIndex).x + 1
     endCol = rooms(roomIndex).x + rooms(roomIndex).width - 2
 
-    ' Preserve boundary doors and the floor tile immediately in front of each.
-    if mid$(dungeonRows$(wallRow - 1), startCol - 1, 1) = dungeonDoor$ then
+    ' Preserve boundary openings and the floor tile immediately in front of each.
+    if mid$(dungeonRows$(wallRow - 1), startCol - 1, 1) <> dungeonWall$ then
         startCol = startCol + 1
     end if
-    if mid$(dungeonRows$(wallRow - 1), endCol + 1, 1) = dungeonDoor$ then
+    if mid$(dungeonRows$(wallRow - 1), endCol + 1, 1) <> dungeonWall$ then
         endCol = endCol - 1
     end if
 
@@ -120,10 +129,10 @@ function SplitRoomVertically(roomIndex, newRoomIndex)
     startRow = rooms(roomIndex).y + 1
     endRow = rooms(roomIndex).y + rooms(roomIndex).height - 2
 
-    if mid$(dungeonRows$(startRow - 2), wallCol, 1) = dungeonDoor$ then
+    if mid$(dungeonRows$(startRow - 2), wallCol, 1) <> dungeonWall$ then
         startRow = startRow + 1
     end if
-    if mid$(dungeonRows$(endRow), wallCol, 1) = dungeonDoor$ then
+    if mid$(dungeonRows$(endRow), wallCol, 1) <> dungeonWall$ then
         endRow = endRow - 1
     end if
 
