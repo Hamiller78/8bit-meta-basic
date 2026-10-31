@@ -15,8 +15,27 @@ describe("example programs", () => {
 
       expect(compileSource(source, { filename: sourcePath, target: "spectrum", readability: 0 })).not.toHaveLength(0);
       expect(compileSource(source, { filename: sourcePath, target: "c64", readability: 0 })).not.toHaveLength(0);
+      expect(compileSource(source, { filename: sourcePath, target: "vic20", readability: 0 })).not.toHaveLength(0);
       expect(compileSource(source, { filename: sourcePath, target: "atari800xl", readability: 0 })).not.toHaveLength(0);
+      expect(compileSource(source, { filename: sourcePath, target: "agon", readability: 0 })).not.toHaveLength(0);
     }
+  });
+
+  it("lays out the N.A.R.F. header according to the target screen width", () => {
+    const sourcePath = "examples/narf.mbas";
+    const source = readFileSync(sourcePath, "utf8");
+    const agon = compileSource(source, { filename: sourcePath, target: "agon", readability: 0 });
+    const c64 = compileSource(source, { filename: sourcePath, target: "c64", readability: 0 });
+    const vic20 = compileSource(source, { filename: sourcePath, target: "vic20", readability: 0 });
+
+    expect(agon).toContain(`TICKERTEXT$=TICKERTEXT$ + "${" ".repeat(64)}"`);
+    expect(agon).not.toContain(`TICKERTEXT$=TICKERTEXT$ + "${" ".repeat(79)}"`);
+    expect(c64).toContain('POKE 211,31:SYS 58732:PRINT "23:00:00";');
+    expect(c64).toContain('PRINT "1983-11-06";');
+    expect(c64).toContain("POKE 214,1:POKE 211,31");
+    expect(c64).toContain('PRINT "23:";CHR$(48 + CL);CHR$(48 + V3);":";CHR$(48 + V4);CHR$(48 + V5);');
+    expect(vic20).toContain('POKE 211,13:SYS 58759:PRINT "23:00:00";');
+    expect(vic20).not.toContain("1983-11-06");
   });
 
   it("compiles the multi-file example build configuration for all targets", async () => {

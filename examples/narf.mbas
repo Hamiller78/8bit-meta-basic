@@ -1,6 +1,11 @@
 const tickerRow = TEXT_ROWS
 const lowerRuleRow = TEXT_ROWS - 1
 const tickerColumns = TEXT_COLUMNS - 1
+const clockWidth = 8
+const clockColumn = tickerColumns - clockWidth + 1
+const dateColumn = 9
+const dateWidth = 10
+const tickerPaddingLimit = 64
 const scrollDelay = JIFFIES_PER_SECOND / 5
 const ruleLine$ = string$("-", tickerColumns)
 const clearLine$ = space$(tickerColumns)
@@ -9,7 +14,11 @@ tickerText$ = "BEIRUT ROCKET BATTERY WORRIES U.S. * "
 tickerText$ = tickerText$ + "REAGAN MOURNS MARINES LOST IN LEBANON AND GRENADA * "
 tickerText$ = tickerText$ + "NBC REPORTS K.I.T.T. THE CAT ON KNIGHT RIDER TONIGHT * "
 tickerText$ = tickerText$ + "NATO MANEUVER ABLE ARCHER COMMENCES TOMORROW * "
-tickerText$ = tickerText$ + space$(tickerColumns)
+if tickerColumns > tickerPaddingLimit then
+    tickerText$ = tickerText$ + space$(tickerPaddingLimit)
+else
+    tickerText$ = tickerText$ + space$(tickerColumns)
+end if
 tickerPos = 1
 lastTick = jiffies()
 lastClockTick = jiffies()
@@ -24,7 +33,11 @@ cls
 screen_text_color WHITE
 
 print_at 1, 1, ruleLine$;
-print_at 2, 1, "DEFCON5 1983-11-06 23:00:00";
+print_at 2, 1, "DEFCON5";
+if clockColumn > dateColumn + dateWidth then
+    print_at 2, dateColumn, "1983-11-06";
+end if
+print_at 2, clockColumn, "23:00:00";
 print_at 3, 1, "N.A.R.F. FAILSAFE";
 print_at 4, 1, ruleLine$;
 print_at 6, 1, "COMMAND CHANNEL";
@@ -60,12 +73,7 @@ scroll:
             end if
         end if
         cell_text_color WHITE
-        print_at 2, 20, "23:";
-        print_at 2, 23, chr$(48 + clockMinuteTens);
-        print_at 2, 24, chr$(48 + clockMinuteOnes);
-        print_at 2, 25, ":";
-        print_at 2, 26, chr$(48 + clockSecondTens);
-        print_at 2, 27, chr$(48 + clockSecondOnes);
+        print_at 2, clockColumn, "23:"; chr$(48 + clockMinuteTens); chr$(48 + clockMinuteOnes); ":"; chr$(48 + clockSecondTens); chr$(48 + clockSecondOnes);
         cell_text_color YELLOW
     end if
     if jiffies() - lastTick >= scrollDelay then
