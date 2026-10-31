@@ -109,6 +109,7 @@ When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the s
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
 - `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`, then writes through the graphics-zero `S:` screen device with `PRINT #6`. This bypasses channel 0's logical-line editor, which can move existing physical rows when several independently positioned fields share a row. When a program uses this direct screen output, its generated startup executes `GRAPHICS 0` once to ensure channel 6 is open before the first positioned write; launchers and loaders are not required to preserve the interpreter's initial channel setup.
+- Ordinary `PRINT` newlines return to Atari's left margin, which defaults to zero-based column 2. `PROGRAM_MODE` sets that margin to zero, allowing aligned rows with one initial `SET_POS` followed by ordinary `PRINT` statements.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` accept string literals only and use `basicParser`'s inverse-string notation. The tokenized program contains inverse ATASCII bytes directly; no runtime `CHR$` construction or screen-memory inversion pass is generated.
 - Writing the bottom-right cell through `PRINT #6` scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - String variables receive `DIM NAME$(255)` before their first assignment.
@@ -122,7 +123,7 @@ When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the s
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
-- `PROGRAM_MODE` emits `POKE 752,1` to hide the text cursor.
+- `PROGRAM_MODE` emits `POKE 752,1` to hide the text cursor and `POKE 82,0` to remove the left text margin.
 - `KEY_PRESSED()` checks `PEEK(764) <> 255`; `KEY_CODE()` reads `PEEK(764)` and clears a consumed key with `POKE 764,255`.
 - `JIFFIES()` reads the three-byte `RTCLOK` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` lowers to native `FRE(0)`.

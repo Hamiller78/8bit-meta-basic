@@ -24,6 +24,14 @@ function CreateSplitTestRoom(roomIndex, x, y, width, height)
     DrawVerticalWall(x + width - 1, y, y + height - 1)
 end function
 
+test DrawDungeonPrintsRows()
+    ResetDungeonRows()
+    dungeonRows$(dungeonHeight - 1) = "LAST DUNGEON ROW"
+    program_mode
+    DrawDungeon()
+    assert_print "LAST DUNGEON ROW"
+end test
+
 test HorizontalWallPreservesBothSides()
     ResetDungeonRows()
     dungeonRows$(7) = "ABCDEFGHIJKLMNOPQRSTUV"

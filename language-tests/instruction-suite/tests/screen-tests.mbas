@@ -1,3 +1,15 @@
+test ProgramModeAlignsPrintNewlines()
+    program_mode
+    cls
+    set_pos 1, 1
+    print "1"
+    print "2"
+    print "3"
+    assert_eq code("1"), screen_code(1, 1)
+    assert_eq code("2"), screen_code(2, 1)
+    assert_eq code("3"), screen_code(3, 1)
+end test
+
 test PositionedOutputReachesScreen()
     cls
     print_at 3, 4, "7"; "8";

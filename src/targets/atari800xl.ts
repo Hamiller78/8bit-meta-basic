@@ -146,17 +146,19 @@ export const atari800xlTarget: TargetBackend = {
       } else if (instruction.kind === "suppress-scroll-prompt") {
         continue;
       } else if (instruction.kind === "program-mode") {
-        instructions.push({
-          kind: "poke",
-          address: 752,
-          value: {
-            kind: "number",
-            value: 1,
-            raw: "1",
+        for (const [address, value] of [[752, 1], [82, 0]] as const) {
+          instructions.push({
+            kind: "poke",
+            address,
+            value: {
+              kind: "number",
+              value,
+              raw: String(value),
+              location: instruction.location
+            },
             location: instruction.location
-          },
-          location: instruction.location
-        });
+          });
+        }
       } else if (instruction.kind === "randomize") {
         continue;
       } else if (instruction.kind === "check-device") {

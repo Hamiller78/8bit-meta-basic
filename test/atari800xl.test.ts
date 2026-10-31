@@ -26,9 +26,9 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
-  it("renders PROGRAM_MODE as Atari cursor hiding setup", () => {
+  it("renders PROGRAM_MODE as Atari cursor hiding and left-margin removal", () => {
     expect(compileSource('program_mode\nprint "OK"\n', { filename: "program-mode.mbas", target: "atari800xl", readability: 0 })).toBe(
-      ["10 POKE 752,1", '20 PRINT "OK"', ""].join("\n")
+      ["10 POKE 752,1:POKE 82,0", '20 PRINT "OK"', ""].join("\n")
     );
   });
 

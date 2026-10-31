@@ -25,7 +25,12 @@ function DrawDungeon()
 
     set_pos 1, 1
     for rowIndex = 1 to dungeonHeight
-        print dungeonRows$(rowIndex - 1)
+        ' Full-width rows already wrap on the VIC-20; this choice folds at compile time.
+        if dungeonWidth = TEXT_COLUMNS then
+            print dungeonRows$(rowIndex - 1);
+        else
+            print dungeonRows$(rowIndex - 1)
+        end if
     next rowIndex
 end function
 

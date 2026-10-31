@@ -16,9 +16,9 @@ print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON";
 mainLoop:
     key = key_code()
     if key = GAME_FIRE then
-        print_at TEXT_ROWS, 1, "GENERATING NEW DUNGEON...";
+        print_at TEXT_ROWS, 1, "GENERATING DUNGEON";
         GenerateDungeon()
         DrawDungeon()
-        print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON       ";
+        print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON";
     end if
     goto mainLoop
