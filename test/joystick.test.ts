@@ -47,11 +47,27 @@ describe("joystick input", () => {
     expect(output).not.toMatch(/MBTJ[XYF]/);
   });
 
-  it("maps Agon joystick controls to Q/A/O/P/Space keyboard-state checks", () => {
+  it("maps Agon joystick controls to cursor/Space keyboard-state checks", () => {
     const output = compileSource(source, { filename: "input.mbas", target: "agon", readability: 2 });
-    expect(output).toContain("-INKEY(-56)+INKEY(-55)");
-    expect(output).toContain("-INKEY(-66)+INKEY(-17)");
+    expect(output).toContain("-INKEY(-122)+INKEY(-26)");
+    expect(output).toContain("-INKEY(-42)+INKEY(-58)");
     expect(output).toContain("-INKEY(-99)");
+  });
+
+  it("normalizes every Agon cursor/Space combination, including opposite directions", () => {
+    const output = compileSource(source, { filename: "input.mbas", target: "agon", readability: 2 });
+    const expressions = [...output.matchAll(/^\d+ \w+=(.*)$/gm)]
+      .map(match => match[1])
+      .filter(expression => expression.includes("INKEY("));
+    expect(expressions).toHaveLength(3);
+    const evaluate = expressions.map(expression => new Function("keys", "return " + expression
+      .replace(/INKEY\((-\d+)\)/g, "keys[$1]")) as (keys: Record<number, number>) => number);
+    for (let switches = 0; switches < 32; switches++) {
+      const bit = (index: number) => (switches >> index) & 1;
+      // ADL BASIC INKEY(-n) returns -1 while the key is held, otherwise 0.
+      const keys = { [-26]: -bit(0), [-122]: -bit(1), [-58]: -bit(2), [-42]: -bit(3), [-99]: -bit(4) };
+      expect(evaluate.map(fn => fn(keys))).toEqual([bit(1) - bit(0), bit(3) - bit(2), bit(4)]);
+    }
   });
 
   it.each(targets)("accepts aliases and expression use on %s", target => {

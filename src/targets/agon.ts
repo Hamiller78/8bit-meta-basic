@@ -715,8 +715,8 @@ function agonExpressionValueType(expression: Expression): "number" | "string" {
 
 function renderAgonJoystick(expression: FunctionCallExpression): string {
   return [
-    "(-INKEY(-56)+INKEY(-55))",
-    "(-INKEY(-66)+INKEY(-17))",
+    "(-INKEY(-122)+INKEY(-26))",
+    "(-INKEY(-42)+INKEY(-58))",
     "(-INKEY(-99))"
   ][joystickControl(expression.args[0])];
 }

@@ -1,4 +1,4 @@
-' C64 port 2; Atari first joystick; Spectrum and Agon Q/A/O/P and Space.
+' C64 port 2; Atari first joystick; Spectrum Q/A/O/P/Space; Agon cursors/Space.
 cls
 print_at 8, 1, "HOLD DIRECTION / FIRE"
 lastX = 0
