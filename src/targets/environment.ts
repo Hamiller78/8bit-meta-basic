@@ -92,14 +92,15 @@ const c64KeyCodes = {
 
 const agonKeyCodes = {
   KEY_NONE: -1,
-  KEY_UP: 139,
-  KEY_DOWN: 138,
-  KEY_LEFT: 136,
-  KEY_RIGHT: 137,
-  GAME_UP: 139,
-  GAME_DOWN: 138,
-  GAME_LEFT: 136,
-  GAME_RIGHT: 137,
+  // MOS cursor ASCII codes, as returned by ADL BASIC INKEY(0).
+  KEY_UP: 11,
+  KEY_DOWN: 10,
+  KEY_LEFT: 8,
+  KEY_RIGHT: 21,
+  GAME_UP: 11,
+  GAME_DOWN: 10,
+  GAME_LEFT: 8,
+  GAME_RIGHT: 21,
   GAME_FIRE: 32,
   KEY_SPACE: 32,
   KEY_ENTER: 13,

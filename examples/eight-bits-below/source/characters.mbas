@@ -1,0 +1,97 @@
+uses "dungeon.mbas"
+
+const numMonsters = 10
+
+struct character
+    row
+    column
+    health
+    armor
+    attackDice
+    speed
+    symbol$(1)
+    name$(20)
+end struct
+
+dim monsters as character(numMonsters)
+dim player as character
+
+function InitPlayer()
+    PlacePlayerAtEntrance()
+    player.health = 10
+    player.armor = 0
+    player.attackDice = 1
+    player.speed = 1
+    player.symbol$ = "P"
+    player.name$ = "Hero"
+end function
+
+function PlacePlayerAtEntrance()
+    local rowIndex
+    player.column = 1
+    for rowIndex = 1 to dungeonHeight
+        if left$(dungeonRows$(rowIndex - 1), 1) = dungeonEntrance$ then
+            player.row = rowIndex
+        end if
+    next rowIndex
+end function
+
+function DrawPlayer()
+    cell_text_color YELLOW
+    print_at player.row, player.column, player.symbol$;
+    cell_text_color WHITE
+end function
+
+function HandlePlayerInput(key)
+    if key = GAME_UP then
+        MovePlayer(-1, 0)
+    end if
+    if key = GAME_DOWN then
+        MovePlayer(1, 0)
+    end if
+    if key = GAME_LEFT then
+        MovePlayer(0, -1)
+    end if
+    if key = GAME_RIGHT then
+        MovePlayer(0, 1)
+    end if
+end function
+
+function MovePlayer(rowStep, columnStep)
+    local nextRow, nextColumn, tile$
+    nextRow = player.row + rowStep
+    nextColumn = player.column + columnStep
+    ' Check bounds before indexing: logical operators need not short-circuit.
+    if nextRow >= 1 and nextRow <= dungeonHeight and nextColumn >= 1 and nextColumn <= dungeonWidth then
+        tile$ = mid$(dungeonRows$(nextRow - 1), nextColumn, 1)
+        if tile$ = dungeonExit$ then
+            GenerateDungeon()
+            PlacePlayerAtEntrance()
+            DrawDungeon()
+            DrawPlayer()
+        else
+            if tile$ = dungeonFloor$ or tile$ = dungeonDoor$ or tile$ = dungeonEntrance$ then
+                cell_text_color WHITE
+                print_at player.row, player.column, mid$(dungeonRows$(player.row - 1), player.column, 1);
+                player.row = nextRow
+                player.column = nextColumn
+                DrawPlayer()
+            end if
+        end if
+    end if
+end function
+
+function DrawCharacter(characterIndex%)
+    local rowIndex, columnIndex
+
+    rowIndex = monsters(characterIndex%).row
+    columnIndex = monsters(characterIndex%).column
+
+    if characterIndex% = 0 then
+        cell_text_color YELLOW
+    else
+        cell_text_color RED
+    end if
+    print_at rowIndex, columnIndex, monsters(characterIndex%).symbol$;
+    cell_text_color WHITE
+end function

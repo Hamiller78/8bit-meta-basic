@@ -189,6 +189,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`. BBC BASIC has no `RANDOMIZE` statement, so bare `RANDOMIZE` seeds through an assignment from `RND(-TIME)` and `RANDOMIZE seed` uses `RND(-seed)`.
 - Portable foreground/background colours use BBC BASIC `COLOUR`. Because the Agon text display has no separate border, a portable border-colour request changes the background instead; this keeps the test runner's red failure indication visible.
 - `PROGRAM_MODE` hides the text cursor with a VDU command. `SUPPRESS_SCROLL_PROMPT` has no effect.
+- `KEY_CODE()` uses ADL BASIC `INKEY(0)`. Agon MOS cursor codes are Up `11`, Down `10`, Left `8`, and Right `21`; `KEY_UP/DOWN/LEFT/RIGHT` and `GAME_UP/DOWN/LEFT/RIGHT` use these values. These were checked with physical key presses in Fab Agon 1.2.5 and BBC BASIC ADL 1.03; the classic BBC Micro codes `139/138/136/137` do not match this runtime.
 - `GET_JOYSTICK` currently provides the portable Q/A/O/P/Space keyboard controls, which also works on Agon Light models without Console8 joystick ports.
 - Device handles lower to files on the SD card. `PRINT_DEVICE` uses BBC BASIC `BPUT#` string output so test logs and ordinary output remain readable text instead of `PRINT#`'s typed binary record format.
 

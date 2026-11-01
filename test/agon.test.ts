@@ -3,6 +3,16 @@ import { compileSource } from "../src/compiler.js";
 import { targetEnvironments } from "../src/targets/environment.js";
 
 describe("Agon Light BBC BASIC lowering", () => {
+  it("matches cursor and game constants to Agon MOS key codes measured in Fab Agon", () => {
+    const output = compileSource([
+      "key = key_code()",
+      "print KEY_UP; KEY_DOWN; KEY_LEFT; KEY_RIGHT",
+      "print GAME_UP; GAME_DOWN; GAME_LEFT; GAME_RIGHT"
+    ].join("\n"), { filename: "cursor-keys.mbas", target: "agon" });
+    expect(output).toContain("KEY=INKEY(0)");
+    expect(output.match(/PRINT 11;10;8;21/gu)).toHaveLength(2);
+  });
+
   it("reads and swaps the current text colours once for adjacent inverted prints", () => {
     const output = compileSource('print_invert "A"\nprint_invert_at 2, 3, "B"\n', {
       filename: "invert.mbas",

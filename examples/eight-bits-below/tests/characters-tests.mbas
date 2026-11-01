@@ -1,0 +1,90 @@
+uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
+
+function PreparePlayerTest()
+    local rowIndex
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWallRow$
+    next rowIndex
+    dungeonRows$(3) = "<..+" + string$("#", 18)
+    dungeonRows$(4) = "#.." + string$("#", 19)
+    InitPlayer()
+end function
+
+test PlayerStartsAtEntrance()
+    PreparePlayerTest()
+    assert_eq 4, player.row
+    assert_eq 1, player.column
+    assert_eq 10, player.health
+    assert_eq "Hero", player.name$
+    DrawPlayer()
+    assert_printat 4, 1, "P"
+    assert_cell_text_color WHITE
+end test
+
+test DirectionKeysMoveAcrossFloorAndDoors()
+    PreparePlayerTest()
+    HandlePlayerInput(GAME_RIGHT)
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq 5, player.row
+    assert_eq 2, player.column
+    HandlePlayerInput(GAME_UP)
+    HandlePlayerInput(GAME_RIGHT)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 4, player.row
+    assert_eq 4, player.column
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq 3, player.column
+    assert_eq "+", mid$(dungeonRows$(3), 4, 1)
+    assert_printat 4, 3, "P"
+end test
+
+test WallsAndUnrelatedKeysDoNotMovePlayer()
+    PreparePlayerTest()
+    HandlePlayerInput(GAME_UP)
+    HandlePlayerInput(GAME_DOWN)
+    HandlePlayerInput(KEY_NONE)
+    HandlePlayerInput(GAME_FIRE)
+    assert_eq 4, player.row
+    assert_eq 1, player.column
+end test
+
+test PlayerCanReturnToEntranceButCannotLeaveBounds()
+    PreparePlayerTest()
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq 1, player.column
+    HandlePlayerInput(GAME_RIGHT)
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq 4, player.row
+    assert_eq 1, player.column
+    player.row = 1
+    HandlePlayerInput(GAME_UP)
+    assert_eq 1, player.row
+    player.row = dungeonHeight
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq dungeonHeight, player.row
+    player.column = dungeonWidth
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq dungeonWidth, player.column
+end test
+
+test ExitCreatesDungeonAndPreservesPlayerStats()
+    PreparePlayerTest()
+    dungeonRows$(3) = string$(".", 21) + dungeonExit$
+    player.column = dungeonWidth - 1
+    player.health = 7
+    player.armor = 2
+    player.attackDice = 3
+    player.speed = 2
+    player.name$ = "Explorer"
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 1, player.column
+    assert_eq dungeonEntrance$, left$(dungeonRows$(player.row - 1), 1)
+    assert_eq dungeonWallRow$, dungeonRows$(0)
+    assert_eq 7, player.health
+    assert_eq 2, player.armor
+    assert_eq 3, player.attackDice
+    assert_eq 2, player.speed
+    assert_eq "Explorer", player.name$
+    assert_printat player.row, 1, "P"
+end test

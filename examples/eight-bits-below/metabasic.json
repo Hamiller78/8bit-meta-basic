@@ -3,7 +3,8 @@
   "minimumScreenRows": 22,
   "files": [
     "source/main.mbas",
-    "source/dungeon.mbas"
+    "source/dungeon.mbas",
+    "source/characters.mbas"
   ],
   "textsDir": "texts"
 }

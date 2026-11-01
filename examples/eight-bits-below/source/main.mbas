@@ -1,24 +1,29 @@
 uses "dungeon.mbas"
+uses "characters.mbas"
 
 program_mode
-randomize
 screen_border_color BLACK
 screen_background_color BLACK
 screen_text_color WHITE
 cls
 
 print_at 1, 1, "EIGHT BITS BELOW";
+print_at TEXT_ROWS, 1, "PRESS ANY KEY TO START";
+repeat
+    key = key_code()
+until key <> KEY_NONE
+randomize
+cls
+print_at 1, 1, "EIGHT BITS BELOW";
 GenerateDungeon()
+InitPlayer()
 DrawDungeon()
+DrawPlayer()
 
-print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON";
+print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
+print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
 
 mainLoop:
     key = key_code()
-    if key = GAME_FIRE then
-        print_at TEXT_ROWS, 1, "GENERATING DUNGEON";
-        GenerateDungeon()
-        DrawDungeon()
-        print_at TEXT_ROWS, 1, "SPACE: NEW DUNGEON";
-    end if
+    HandlePlayerInput(key)
     goto mainLoop

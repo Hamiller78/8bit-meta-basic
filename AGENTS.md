@@ -256,7 +256,7 @@ All targets also provide read-only compile-time numeric constants `PI` and `E`.
 
 Targets also provide read-only numeric key constants: `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`, `KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through `KEY_Z`, and `KEY_0` through `KEY_9`. These are target-specific key-code values, not portable ASCII promises. Unsupported target keys currently resolve to `-1`. Direction constants represent each machine's cursor/direction key codes; letter constants such as `KEY_Q`, `KEY_A`, `KEY_O`, and `KEY_P` remain available.
 
-Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum and Agon map these to `Q`, `A`, `O`, `P`, and `SPACE`; C64 and Atari currently map movement to their cursor/direction keys and fire to space.
+Portable game-control constants are also available: `GAME_UP`, `GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. Spectrum maps these to `Q`, `A`, `O`, `P`, and `SPACE`; C64, Atari, and Agon map movement to their cursor/direction keys and fire to space. Agon MOS cursor codes are Up `11`, Down `10`, Left `8`, and Right `21`. Agon's separate `GET_JOYSTICK` helper uses Q/A/O/P/Space keyboard-state checks.
 
 Implemented requirements:
 

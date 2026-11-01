@@ -1,11 +1,28 @@
-' C64 port 2; Atari first joystick; Spectrum Q/A/O/P and Space.
+' C64 port 2; Atari first joystick; Spectrum and Agon Q/A/O/P and Space.
 cls
+print_at 8, 1, "HOLD DIRECTION / FIRE"
+lastX = 0
+lastY = 0
+lastFire = 0
 
 poll:
     x = get_joystick(JOY_X)
     y = get_joystick(JOY_Y)
     fire = get_joystick(JOY_FIRE1)
+    ' Retain non-neutral samples so short presses remain visible after release.
+    if x <> 0 then
+        lastX = x
+    end if
+    if y <> 0 then
+        lastY = y
+    end if
+    if fire <> 0 then
+        lastFire = fire
+    end if
     print_at 1, 1, "X: "; x; "   "
     print_at 2, 1, "Y: "; y; "   "
     print_at 3, 1, "FIRE: "; fire; "   "
+    print_at 5, 1, "LAST X: "; lastX; "   "
+    print_at 6, 1, "LAST Y: "; lastY; "   "
+    print_at 7, 1, "LAST FIRE: "; lastFire; "   "
     goto poll
