@@ -76,7 +76,9 @@ function MovePlayer(rowStep, columnStep)
                 print_at player.row, player.column, mid$(dungeonRows$(player.row - 1), player.column, 1);
                 player.row = nextRow
                 player.column = nextColumn
-                DiscoverRoomAt(player.row, player.column)
+                if tile$ = dungeonDoor$ then
+                    DiscoverRoomAt(player.row, player.column)
+                end if
                 DrawPlayer()
             end if
         end if

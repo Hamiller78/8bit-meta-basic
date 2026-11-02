@@ -47,16 +47,25 @@ function DrawRoom(roomIndex%)
 end function
 
 function DiscoverRoomAt(row%, column%)
-    local roomIndex
+    local roomIndex, rowOffset%, columnOffset%, touchesRoom%
+    ' Called on a door or the entrance: only room edges can match.
     for roomIndex = 0 to numRooms - 1
         if not rooms(roomIndex).isDiscovered% then
-            if column% >= rooms(roomIndex).x% and column% < rooms(roomIndex).x% + rooms(roomIndex).width% then
-                if row% >= rooms(roomIndex).y% and row% < rooms(roomIndex).y% + rooms(roomIndex).height% then
-                    rooms(roomIndex).isDiscovered% = TRUE
-                    DrawRoom(roomIndex)
-                    ' Shared walls and corners can touch several rooms: reveal one.
-                    exit for
+            rowOffset% = row% - rooms(roomIndex).y%
+            columnOffset% = column% - rooms(roomIndex).x%
+            touchesRoom% = FALSE
+            if rowOffset% = 0 or rowOffset% = rooms(roomIndex).height% - 1 then
+                touchesRoom% = columnOffset% >= 0 and columnOffset% < rooms(roomIndex).width%
+            else
+                if columnOffset% = 0 or columnOffset% = rooms(roomIndex).width% - 1 then
+                    touchesRoom% = rowOffset% > 0 and rowOffset% < rooms(roomIndex).height% - 1
                 end if
+            end if
+            if touchesRoom% then
+                rooms(roomIndex).isDiscovered% = TRUE
+                DrawRoom(roomIndex)
+                ' Shared walls and corners can touch several rooms: reveal one.
+                exit for
             end if
         end if
     next roomIndex

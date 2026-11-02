@@ -19,8 +19,9 @@ so adjacent rooms stay connected through doors rather than gaps in their walls.
 
 Room coordinates and dimensions use integer fields (`x%`, `y%`, `width%`, and
 `height%`). Every generated room starts with `isDiscovered% = FALSE`, including
-when replacing a previous dungeon. Entrance placement and movement discover
-rooms using `DiscoverRoomAt(row, column)`, which reveals at most one new room
+when replacing a previous dungeon. Entrance placement and movement onto door
+tiles discover rooms using `DiscoverRoomAt(row, column)`. This boundary-only
+lookup reveals at most one new room
 per call. `DrawDungeon()` clears the map area and redraws only discovered rooms,
 preserving the controls below it. Dungeon parameters and
 temporary coordinates use integers too; `FOR` counters remain ordinary numeric

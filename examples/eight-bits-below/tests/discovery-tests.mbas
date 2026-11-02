@@ -79,6 +79,46 @@ test BlockedMovesDoNotRevealRooms()
     assert_eq code(" "), screen_code(2, 6)
 end test
 
+test FloorAndEntranceStepsDoNotDiscoverRooms()
+    PrepareDiscoveryTest()
+    rooms(0).isDiscovered% = FALSE
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 2, player.column
+    assert_false rooms(0).isDiscovered%
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq 1, player.column
+    assert_false rooms(0).isDiscovered%
+end test
+
+test HorizontalDoorRevealsRoomBelow()
+    local rowIndex
+    PrepareDiscoveryTest()
+    rooms(1).x% = 1
+    rooms(1).y% = 5
+    rooms(2).width% = 0
+    rooms(2).height% = 0
+    dungeonRows$(4) = "##+##" + string$("#", 17)
+    for rowIndex = 5 to 7
+        dungeonRows$(rowIndex) = "#...#" + string$("#", 17)
+    next rowIndex
+    HandlePlayerInput(GAME_RIGHT)
+    HandlePlayerInput(GAME_RIGHT)
+    HandlePlayerInput(GAME_DOWN)
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq 5, player.row
+    assert_eq 3, player.column
+    assert_true rooms(1).isDiscovered%
+    assert_eq code("."), screen_code(6, 2)
+end test
+
+test SharedWallCoordinatesStillRequireTheRoomSpan()
+    PrepareDiscoveryTest()
+    DiscoverRoomAt(1, 20)
+    DiscoverRoomAt(12, 5)
+    assert_false rooms(1).isDiscovered%
+    assert_false rooms(2).isDiscovered%
+end test
+
 test RedrawKeepsDiscoveredRoomsAndControls()
     local stepIndex
     PrepareDiscoveryTest()
