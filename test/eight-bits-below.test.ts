@@ -10,14 +10,15 @@ describe("Eight Bits Below", () => {
       const game = await build(configuration, { configPath, target, readability: 0 });
       expect(game).toContain("EIGHT BITS BELOW");
       expect(game).not.toContain("ASSERT");
-      for (const module of ["dungeon", "entrance", "characters"]) {
+      for (const module of ["dungeon", "entrance", "characters", "room-state", "wall-doors", "draw-room", "discovery"]) {
         const tests = await build({
           ...configuration,
           testMode: true,
+          ...(["draw-room", "discovery"].includes(module) ? { testScreenOutput: true } : {}),
           files: [...configuration.files, `tests/${module}-tests.mbas`]
         }, { configPath, target, readability: 0 });
         expect(tests).toContain("META CONTROL PROGRAM");
       }
-    }, 30_000);
+    }, 60_000);
   }
 });

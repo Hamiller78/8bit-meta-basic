@@ -12,10 +12,11 @@ const dungeonExit$ = ">"
 const dungeonWallRow$ = string$(dungeonWall$, dungeonWidth)
 
 struct room
-    x
-    y
-    width
-    height
+    x%
+    y%
+    width%
+    height%
+    isDiscovered%
 end struct
 
 ' Dungeon coordinates are 1-based; array indices remain 0-based.
@@ -23,21 +24,46 @@ dim dungeonRows$(dungeonHeight, dungeonWidth)
 dim rooms as room(numRooms)
 
 function DrawDungeon()
-    local rowIndex
-
-    set_pos 1, 1
+    local rowIndex, roomIndex
+    ' Clear old map tiles without erasing the controls below the dungeon.
     for rowIndex = 1 to dungeonHeight
-        ' Full-width rows already wrap on the VIC-20; this choice folds at compile time.
-        if dungeonWidth = TEXT_COLUMNS then
-            print dungeonRows$(rowIndex - 1);
-        else
-            print dungeonRows$(rowIndex - 1)
+        print_at rowIndex, 1, space$(dungeonWidth);
+    next rowIndex
+    for roomIndex = 0 to numRooms - 1
+        if rooms(roomIndex).isDiscovered% then
+            DrawRoom(roomIndex)
         end if
+    next roomIndex
+end function
+
+function DrawRoom(roomIndex%)
+    local rowIndex, column%, width%, lastRow%
+    column% = rooms(roomIndex%).x%
+    width% = rooms(roomIndex%).width%
+    lastRow% = rooms(roomIndex%).y% + rooms(roomIndex%).height% - 1
+    for rowIndex = rooms(roomIndex%).y% to lastRow%
+        print_at rowIndex, column%, mid$(dungeonRows$(rowIndex - 1), column%, width%);
     next rowIndex
 end function
 
+function DiscoverRoomAt(row%, column%)
+    local roomIndex
+    for roomIndex = 0 to numRooms - 1
+        if not rooms(roomIndex).isDiscovered% then
+            if column% >= rooms(roomIndex).x% and column% < rooms(roomIndex).x% + rooms(roomIndex).width% then
+                if row% >= rooms(roomIndex).y% and row% < rooms(roomIndex).y% + rooms(roomIndex).height% then
+                    rooms(roomIndex).isDiscovered% = TRUE
+                    DrawRoom(roomIndex)
+                    ' Shared walls and corners can touch several rooms: reveal one.
+                    exit for
+                end if
+            end if
+        end if
+    next roomIndex
+end function
+
 function GenerateDungeon()
-    local roomIndex, rowIndex, splitRoomIndex, splitHorizontally
+    local roomIndex, rowIndex, splitRoomIndex%, splitHorizontally%
 
     ' Fill every row before drawing walls so all rows have the full dungeon width.
     for rowIndex = 1 to dungeonHeight
@@ -48,31 +74,32 @@ function GenerateDungeon()
 
     for roomIndex = 1 to numRooms - 1
         repeat
-            splitRoomIndex = int(rnd() * roomIndex)
-        until rooms(splitRoomIndex).width >= 5 or rooms(splitRoomIndex).height >= 5
+            splitRoomIndex% = int(rnd() * roomIndex)
+        until rooms(splitRoomIndex%).width% >= 5 or rooms(splitRoomIndex%).height% >= 5
 
-        splitHorizontally = int(rnd() * 2)
-        if rooms(splitRoomIndex).height < 5 then
-            splitHorizontally = 0
+        splitHorizontally% = int(rnd() * 2)
+        if rooms(splitRoomIndex%).height% < 5 then
+            splitHorizontally% = 0
         end if
-        if rooms(splitRoomIndex).width < 5 then
-            splitHorizontally = 1
+        if rooms(splitRoomIndex%).width% < 5 then
+            splitHorizontally% = 1
         end if
 
-        if splitHorizontally then
-            SplitRoomHorizontally(splitRoomIndex, roomIndex)
+        if splitHorizontally% then
+            SplitRoomHorizontally(splitRoomIndex%, roomIndex)
         else
-            SplitRoomVertically(splitRoomIndex, roomIndex)
+            SplitRoomVertically(splitRoomIndex%, roomIndex)
         end if
     next roomIndex
 end function
 
 function InitFirstRoom()
-    local entranceRow, exitRow
-    rooms(0).x = 1
-    rooms(0).y = 1
-    rooms(0).width = dungeonWidth
-    rooms(0).height = dungeonHeight
+    local entranceRow%, exitRow%
+    rooms(0).x% = 1
+    rooms(0).y% = 1
+    rooms(0).width% = dungeonWidth
+    rooms(0).height% = dungeonHeight
+    rooms(0).isDiscovered% = FALSE
 
     ' Surround dungeon with walls
     DrawHorizontalWall(1, 1, dungeonWidth) ' Top wall
@@ -81,104 +108,110 @@ function InitFirstRoom()
     DrawVerticalWall(dungeonWidth, 1, dungeonHeight) ' Right wall
 
     ' Keep the corners intact; the two openings are positioned independently.
-    entranceRow = int(rnd() * (dungeonHeight - 2)) + 2
-    exitRow = int(rnd() * (dungeonHeight - 2)) + 2
-    dungeonRows$(entranceRow - 1) = dungeonEntrance$ + mid$(dungeonRows$(entranceRow - 1), 2)
-    dungeonRows$(exitRow - 1) = left$(dungeonRows$(exitRow - 1), dungeonWidth - 1) + dungeonExit$
+    entranceRow% = int(rnd() * (dungeonHeight - 2)) + 2
+    exitRow% = int(rnd() * (dungeonHeight - 2)) + 2
+    dungeonRows$(entranceRow% - 1) = dungeonEntrance$ + mid$(dungeonRows$(entranceRow% - 1), 2)
+    dungeonRows$(exitRow% - 1) = left$(dungeonRows$(exitRow% - 1), dungeonWidth - 1) + dungeonExit$
 end function
 
-function SplitRoomHorizontally(roomIndex, newRoomIndex)
-    local firstHeight, wallRow, startCol, endCol
+function SplitRoomHorizontally(roomIndex%, newRoomIndex%)
+    local firstHeight%, wallRow%, startCol%, endCol%
 
     ' Bounds include walls. Both halves share the new dividing wall.
     ' Each half needs two boundary walls and at least one floor row.
-    firstHeight = int(rnd() * (rooms(roomIndex).height - 4)) + 3
-    wallRow = rooms(roomIndex).y + firstHeight - 1
-    startCol = rooms(roomIndex).x + 1
-    endCol = rooms(roomIndex).x + rooms(roomIndex).width - 2
+    firstHeight% = int(rnd() * (rooms(roomIndex%).height% - 4)) + 3
+    wallRow% = rooms(roomIndex%).y% + firstHeight% - 1
+    startCol% = rooms(roomIndex%).x% + 1
+    endCol% = rooms(roomIndex%).x% + rooms(roomIndex%).width% - 2
 
-    ' Preserve boundary openings and the floor tile immediately in front of each.
-    if mid$(dungeonRows$(wallRow - 1), startCol - 1, 1) <> dungeonWall$ then
-        startCol = startCol + 1
+    ' Connect boundary openings through a door at the end of the new wall.
+    if mid$(dungeonRows$(wallRow% - 1), startCol% - 1, 1) <> dungeonWall$ then
+        PlaceDungeonDoor(wallRow%, startCol%)
+        startCol% = startCol% + 1
     end if
-    if mid$(dungeonRows$(wallRow - 1), endCol + 1, 1) <> dungeonWall$ then
-        endCol = endCol - 1
+    if mid$(dungeonRows$(wallRow% - 1), endCol% + 1, 1) <> dungeonWall$ then
+        PlaceDungeonDoor(wallRow%, endCol%)
+        endCol% = endCol% - 1
     end if
 
-    rooms(newRoomIndex).x = rooms(roomIndex).x
-    rooms(newRoomIndex).y = wallRow
-    rooms(newRoomIndex).width = rooms(roomIndex).width
-    rooms(newRoomIndex).height = rooms(roomIndex).height - firstHeight + 1
-    rooms(roomIndex).height = firstHeight ' Shrink the original room to the first half.
+    rooms(newRoomIndex%).x% = rooms(roomIndex%).x%
+    rooms(newRoomIndex%).y% = wallRow%
+    rooms(newRoomIndex%).width% = rooms(roomIndex%).width%
+    rooms(newRoomIndex%).height% = rooms(roomIndex%).height% - firstHeight% + 1
+    rooms(newRoomIndex%).isDiscovered% = FALSE
+    rooms(roomIndex%).height% = firstHeight% ' Shrink the original room to the first half.
 
-    if startCol <= endCol then
-        DrawHorizontalWall(wallRow, startCol, endCol)
+    if startCol% <= endCol% then
+        DrawHorizontalWall(wallRow%, startCol%, endCol%)
     end if
-    ' A shortened wall already has an opening; only a full wall needs a new door.
-    if endCol - startCol + 1 = rooms(roomIndex).width - 2 then
-        PlaceDungeonDoor(wallRow, startCol + int(rnd() * (endCol - startCol + 1)))
+    ' Protected ends already have doors; a full wall needs a random door.
+    if endCol% - startCol% + 1 = rooms(roomIndex%).width% - 2 then
+        PlaceDungeonDoor(wallRow%, startCol% + int(rnd() * (endCol% - startCol% + 1)))
     end if
 end function
 
-function SplitRoomVertically(roomIndex, newRoomIndex)
-    local firstWidth, wallCol, startRow, endRow
+function SplitRoomVertically(roomIndex%, newRoomIndex%)
+    local firstWidth%, wallCol%, startRow%, endRow%
 
     ' Each half needs two boundary walls and at least one floor column.
-    firstWidth = int(rnd() * (rooms(roomIndex).width - 4)) + 3
-    wallCol = rooms(roomIndex).x + firstWidth - 1
-    startRow = rooms(roomIndex).y + 1
-    endRow = rooms(roomIndex).y + rooms(roomIndex).height - 2
+    firstWidth% = int(rnd() * (rooms(roomIndex%).width% - 4)) + 3
+    wallCol% = rooms(roomIndex%).x% + firstWidth% - 1
+    startRow% = rooms(roomIndex%).y% + 1
+    endRow% = rooms(roomIndex%).y% + rooms(roomIndex%).height% - 2
 
-    if mid$(dungeonRows$(startRow - 2), wallCol, 1) <> dungeonWall$ then
-        startRow = startRow + 1
+    if mid$(dungeonRows$(startRow% - 2), wallCol%, 1) <> dungeonWall$ then
+        PlaceDungeonDoor(startRow%, wallCol%)
+        startRow% = startRow% + 1
     end if
-    if mid$(dungeonRows$(endRow), wallCol, 1) <> dungeonWall$ then
-        endRow = endRow - 1
+    if mid$(dungeonRows$(endRow%), wallCol%, 1) <> dungeonWall$ then
+        PlaceDungeonDoor(endRow%, wallCol%)
+        endRow% = endRow% - 1
     end if
 
-    rooms(newRoomIndex).x = wallCol
-    rooms(newRoomIndex).y = rooms(roomIndex).y
-    rooms(newRoomIndex).width = rooms(roomIndex).width - firstWidth + 1
-    rooms(newRoomIndex).height = rooms(roomIndex).height
-    rooms(roomIndex).width = firstWidth ' Shrink the original room to the first half.
+    rooms(newRoomIndex%).x% = wallCol%
+    rooms(newRoomIndex%).y% = rooms(roomIndex%).y%
+    rooms(newRoomIndex%).width% = rooms(roomIndex%).width% - firstWidth% + 1
+    rooms(newRoomIndex%).height% = rooms(roomIndex%).height%
+    rooms(newRoomIndex%).isDiscovered% = FALSE
+    rooms(roomIndex%).width% = firstWidth% ' Shrink the original room to the first half.
 
-    if startRow <= endRow then
-        DrawVerticalWall(wallCol, startRow, endRow)
+    if startRow% <= endRow% then
+        DrawVerticalWall(wallCol%, startRow%, endRow%)
     end if
-    if endRow - startRow + 1 = rooms(roomIndex).height - 2 then
-        PlaceDungeonDoor(startRow + int(rnd() * (endRow - startRow + 1)), wallCol)
+    if endRow% - startRow% + 1 = rooms(roomIndex%).height% - 2 then
+        PlaceDungeonDoor(startRow% + int(rnd() * (endRow% - startRow% + 1)), wallCol%)
     end if
 end function
 
 ' Doors are inside the outer dungeon border, so both string slices are nonempty.
-function PlaceDungeonDoor(row, col)
-    dungeonRows$(row - 1) = left$(dungeonRows$(row - 1), col - 1) + dungeonDoor$ + mid$(dungeonRows$(row - 1), col + 1)
+function PlaceDungeonDoor(row%, col%)
+    dungeonRows$(row% - 1) = left$(dungeonRows$(row% - 1), col% - 1) + dungeonDoor$ + mid$(dungeonRows$(row% - 1), col% + 1)
 end function
 
-function DrawHorizontalWall(row, startCol, endCol)
+function DrawHorizontalWall(row%, startCol%, endCol%)
     local rowText$
 
-    rowText$ = left$(dungeonWallRow$, endCol - startCol + 1)
-    if startCol > 1 then
-        rowText$ = left$(dungeonRows$(row - 1), startCol - 1) + rowText$
+    rowText$ = left$(dungeonWallRow$, endCol% - startCol% + 1)
+    if startCol% > 1 then
+        rowText$ = left$(dungeonRows$(row% - 1), startCol% - 1) + rowText$
     end if
-    if endCol < dungeonWidth then
-        rowText$ = rowText$ + mid$(dungeonRows$(row - 1), endCol + 1)
+    if endCol% < dungeonWidth then
+        rowText$ = rowText$ + mid$(dungeonRows$(row% - 1), endCol% + 1)
     end if
-    dungeonRows$(row - 1) = rowText$
+    dungeonRows$(row% - 1) = rowText$
 
 end function
 
-function DrawVerticalWall(col, startRow, endRow)
+function DrawVerticalWall(col%, startRow%, endRow%)
     local rowIndex, rowText$
 
-    for rowIndex = startRow to endRow
+    for rowIndex = startRow% to endRow%
         rowText$ = dungeonWall$
-        if col > 1 then
-            rowText$ = left$(dungeonRows$(rowIndex - 1), col - 1) + rowText$
+        if col% > 1 then
+            rowText$ = left$(dungeonRows$(rowIndex - 1), col% - 1) + rowText$
         end if
-        if col < dungeonWidth then
-            rowText$ = rowText$ + mid$(dungeonRows$(rowIndex - 1), col + 1)
+        if col% < dungeonWidth then
+            rowText$ = rowText$ + mid$(dungeonRows$(rowIndex - 1), col% + 1)
         end if
         dungeonRows$(rowIndex - 1) = rowText$
     next rowIndex

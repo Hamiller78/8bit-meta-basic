@@ -16,8 +16,8 @@ randomize
 cls
 print_at 1, 1, "EIGHT BITS BELOW";
 GenerateDungeon()
-InitPlayer()
 DrawDungeon()
+InitPlayer()
 DrawPlayer()
 
 print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";

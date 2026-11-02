@@ -1,0 +1,58 @@
+uses "../source/dungeon.mbas"
+
+' Run this module with --test-screen-output to inspect actual rendered cells.
+test DrawRoomIncludesWallsAndDoorsAtItsOffset()
+    local rowIndex
+    program_mode
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = string$("X", dungeonWidth)
+    next rowIndex
+    rooms(2).x% = 4
+    rooms(2).y% = 6
+    rooms(2).width% = 5
+    rooms(2).height% = 3
+    rooms(2).isDiscovered% = FALSE
+    dungeonRows$(5) = "XXX##+##" + string$("X", 14)
+    dungeonRows$(6) = "XXX+...#" + string$("X", 14)
+    dungeonRows$(7) = "XXX#####" + string$("X", 14)
+    cls
+    print_at 5, 6, "Z";
+    print_at 9, 6, "Z";
+    print_at 7, 3, "Z";
+    print_at 7, 9, "Z";
+    DrawRoom(2)
+    assert_printat 8, 4, "#####"
+    assert_eq code("#"), screen_code(6, 4)
+    assert_eq code("+"), screen_code(6, 6)
+    assert_eq code("+"), screen_code(7, 4)
+    assert_eq code("."), screen_code(7, 6)
+    assert_eq code("#"), screen_code(8, 8)
+    assert_eq code("Z"), screen_code(5, 6)
+    assert_eq code("Z"), screen_code(9, 6)
+    assert_eq code("Z"), screen_code(7, 3)
+    assert_eq code("Z"), screen_code(7, 9)
+    assert_false rooms(2).isDiscovered%
+    assert_eq "XXX+...#" + string$("X", 14), dungeonRows$(6)
+end test
+
+test DrawRoomHandlesFullDungeonWidthWithoutExtraOutput()
+    program_mode
+    rooms(0).x% = 1
+    rooms(0).y% = dungeonHeight - 2
+    rooms(0).width% = dungeonWidth
+    rooms(0).height% = 3
+    rooms(0).isDiscovered% = TRUE
+    dungeonRows$(dungeonHeight - 3) = dungeonWallRow$
+    dungeonRows$(dungeonHeight - 2) = dungeonEntrance$ + string$(dungeonFloor$, dungeonWidth - 2) + dungeonExit$
+    dungeonRows$(dungeonHeight - 1) = dungeonWallRow$
+    cls
+    print_at dungeonHeight + 1, 1, "Z";
+    DrawRoom(0)
+    assert_printat dungeonHeight, 1, dungeonWallRow$
+    assert_eq code("#"), screen_code(dungeonHeight - 2, dungeonWidth)
+    assert_eq code("<"), screen_code(dungeonHeight - 1, 1)
+    assert_eq code(">"), screen_code(dungeonHeight - 1, dungeonWidth)
+    assert_eq code("#"), screen_code(dungeonHeight, dungeonWidth)
+    assert_eq code("Z"), screen_code(dungeonHeight + 1, 1)
+    assert_true rooms(0).isDiscovered%
+end test

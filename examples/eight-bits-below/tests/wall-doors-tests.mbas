@@ -1,0 +1,114 @@
+uses "../source/dungeon.mbas"
+
+function PrepareDoorTestRoom(roomIndex%, x%, y%, width%, height%)
+    local rowIndex
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = string$(dungeonFloor$, dungeonWidth)
+    next rowIndex
+    rooms(roomIndex%).x% = x%
+    rooms(roomIndex%).y% = y%
+    rooms(roomIndex%).width% = width%
+    rooms(roomIndex%).height% = height%
+    DrawHorizontalWall(y%, x%, x% + width% - 1)
+    DrawHorizontalWall(y% + height% - 1, x%, x% + width% - 1)
+    DrawVerticalWall(x%, y%, y% + height% - 1)
+    DrawVerticalWall(x% + width% - 1, y%, y% + height% - 1)
+end function
+
+test HorizontalSplitProtectsDoorsAtBothEnds()
+    PrepareDoorTestRoom(0, 4, 6, 5, 5)
+    PlaceDungeonDoor(8, 4)
+    PlaceDungeonDoor(8, 8)
+    SplitRoomHorizontally(0, 1)
+    assert_eq "...++#++..............", dungeonRows$(7)
+    assert_eq 3, rooms(0).height%
+    assert_eq 3, rooms(1).height%
+end test
+
+test VerticalSplitProtectsDoorsAtBothEnds()
+    PrepareDoorTestRoom(0, 4, 6, 5, 5)
+    PlaceDungeonDoor(6, 6)
+    PlaceDungeonDoor(10, 6)
+    SplitRoomVertically(0, 1)
+    assert_eq "+", mid$(dungeonRows$(5), 6, 1)
+    assert_eq "+", mid$(dungeonRows$(6), 6, 1)
+    assert_eq "#", mid$(dungeonRows$(7), 6, 1)
+    assert_eq "+", mid$(dungeonRows$(8), 6, 1)
+    assert_eq "+", mid$(dungeonRows$(9), 6, 1)
+    assert_eq 3, rooms(0).width%
+    assert_eq 3, rooms(1).width%
+end test
+
+test HorizontalSplitCanLeaveOnlyADoor()
+    PrepareDoorTestRoom(0, 4, 6, 3, 5)
+    PlaceDungeonDoor(8, 4)
+    rooms(1).x% = 99
+    SplitRoomHorizontally(0, 1)
+    assert_eq "...++#................", dungeonRows$(7)
+    assert_eq 3, rooms(0).height%
+    assert_eq 4, rooms(1).x%
+    assert_eq 8, rooms(1).y%
+    assert_eq 3, rooms(1).height%
+end test
+
+test VerticalSplitCanLeaveOnlyADoor()
+    PrepareDoorTestRoom(0, 4, 6, 5, 3)
+    PlaceDungeonDoor(6, 6)
+    rooms(1).x% = 99
+    SplitRoomVertically(0, 1)
+    assert_eq "...##+##..............", dungeonRows$(5)
+    assert_eq "...#.+.#..............", dungeonRows$(6)
+    assert_eq 3, rooms(0).width%
+    assert_eq 6, rooms(1).x%
+    assert_eq 6, rooms(1).y%
+    assert_eq 3, rooms(1).width%
+end test
+
+test HorizontalSplitProtectsDoorAtFarEnd()
+    PrepareDoorTestRoom(0, 4, 6, 5, 5)
+    PlaceDungeonDoor(8, 8)
+    SplitRoomHorizontally(0, 1)
+    assert_eq "...###++..............", dungeonRows$(7)
+    assert_eq 3, rooms(0).height%
+    assert_eq 3, rooms(1).height%
+end test
+
+test VerticalSplitProtectsDoorAtFarEnd()
+    PrepareDoorTestRoom(0, 4, 6, 5, 5)
+    PlaceDungeonDoor(10, 6)
+    SplitRoomVertically(0, 1)
+    assert_eq "#", mid$(dungeonRows$(5), 6, 1)
+    assert_eq "#", mid$(dungeonRows$(6), 6, 1)
+    assert_eq "#", mid$(dungeonRows$(7), 6, 1)
+    assert_eq "+", mid$(dungeonRows$(8), 6, 1)
+    assert_eq "+", mid$(dungeonRows$(9), 6, 1)
+    assert_eq 3, rooms(0).width%
+    assert_eq 3, rooms(1).width%
+end test
+
+test GeneratedDoorsHavePassages()
+    local rowIndex, col, doorCount, hasPassage
+    GenerateDungeon()
+    doorCount = 0
+    for rowIndex = 2 to dungeonHeight - 1
+        for col = 2 to dungeonWidth - 1
+            if mid$(dungeonRows$(rowIndex - 1), col, 1) = dungeonDoor$ then
+                doorCount = doorCount + 1
+                hasPassage = 0
+                if mid$(dungeonRows$(rowIndex - 2), col, 1) <> dungeonWall$ then
+                    if mid$(dungeonRows$(rowIndex), col, 1) <> dungeonWall$ then
+                        hasPassage = 1
+                    end if
+                end if
+                if mid$(dungeonRows$(rowIndex - 1), col - 1, 1) <> dungeonWall$ then
+                    if mid$(dungeonRows$(rowIndex - 1), col + 1, 1) <> dungeonWall$ then
+                        hasPassage = 1
+                    end if
+                end if
+                assert_true hasPassage
+            end if
+        next col
+    next rowIndex
+    assert_true doorCount >= 1
+    assert_true doorCount <= 2 * (numRooms - 1)
+end test

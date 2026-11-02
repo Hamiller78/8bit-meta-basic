@@ -42,13 +42,13 @@ test GeneratedOpeningsRemainAccessible()
         assert_eq dungeonWidth, len(dungeonRows$(rowIndex))
         if left$(dungeonRows$(rowIndex), 1) = dungeonEntrance$ then
             entranceCount = entranceCount + 1
-            assert_eq dungeonFloor$, mid$(dungeonRows$(rowIndex), 2, 1)
+            assert_true mid$(dungeonRows$(rowIndex), 2, 1) = dungeonFloor$ or mid$(dungeonRows$(rowIndex), 2, 1) = dungeonDoor$
         else
             assert_eq dungeonWall$, left$(dungeonRows$(rowIndex), 1)
         end if
         if right$(dungeonRows$(rowIndex), 1) = dungeonExit$ then
             exitCount = exitCount + 1
-            assert_eq dungeonFloor$, mid$(dungeonRows$(rowIndex), dungeonWidth - 1, 1)
+            assert_true mid$(dungeonRows$(rowIndex), dungeonWidth - 1, 1) = dungeonFloor$ or mid$(dungeonRows$(rowIndex), dungeonWidth - 1, 1) = dungeonDoor$
         else
             assert_eq dungeonWall$, right$(dungeonRows$(rowIndex), 1)
         end if
@@ -62,10 +62,10 @@ test HorizontalSplitProtectsEntranceAndExit()
     for rowIndex = 0 to dungeonHeight - 1
         dungeonRows$(rowIndex) = string$(".", dungeonWidth)
     next rowIndex
-    rooms(0).x = 1
-    rooms(0).y = 6
-    rooms(0).width = dungeonWidth
-    rooms(0).height = 5
+    rooms(0).x% = 1
+    rooms(0).y% = 6
+    rooms(0).width% = dungeonWidth
+    rooms(0).height% = 5
     DrawHorizontalWall(6, 1, dungeonWidth)
     DrawHorizontalWall(10, 1, dungeonWidth)
     DrawVerticalWall(1, 6, 10)
@@ -73,7 +73,7 @@ test HorizontalSplitProtectsEntranceAndExit()
     dungeonRows$(7) = dungeonEntrance$ + mid$(dungeonRows$(7), 2)
     dungeonRows$(7) = left$(dungeonRows$(7), dungeonWidth - 1) + dungeonExit$
     SplitRoomHorizontally(0, 1)
-    assert_eq "<." + string$("#", 18) + ".>", dungeonRows$(7)
-    assert_eq 3, rooms(0).height
-    assert_eq 3, rooms(1).height
+    assert_eq "<+" + string$("#", 18) + "+>", dungeonRows$(7)
+    assert_eq 3, rooms(0).height%
+    assert_eq 3, rooms(1).height%
 end test

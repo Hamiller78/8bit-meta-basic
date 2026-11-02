@@ -2,7 +2,16 @@ uses "../source/characters.mbas"
 uses "../source/dungeon.mbas"
 
 function PreparePlayerTest()
-    local rowIndex
+    local rowIndex, roomIndex
+    for roomIndex = 0 to numRooms - 1
+        rooms(roomIndex).width% = 0
+        rooms(roomIndex).height% = 0
+        rooms(roomIndex).isDiscovered% = FALSE
+    next roomIndex
+    rooms(0).x% = 1
+    rooms(0).y% = 3
+    rooms(0).width% = 5
+    rooms(0).height% = 4
     for rowIndex = 0 to dungeonHeight - 1
         dungeonRows$(rowIndex) = dungeonWallRow$
     next rowIndex

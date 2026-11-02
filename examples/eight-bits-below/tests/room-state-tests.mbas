@@ -1,0 +1,57 @@
+uses "../source/dungeon.mbas"
+
+function PrepareRoomStateTest()
+    local rowIndex
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = string$(dungeonFloor$, dungeonWidth)
+    next rowIndex
+    InitFirstRoom()
+end function
+
+test FirstRoomStartsUndiscovered()
+    rooms(0).isDiscovered% = TRUE
+    PrepareRoomStateTest()
+    assert_false rooms(0).isDiscovered%
+    assert_eq 1, rooms(0).x%
+    assert_eq 1, rooms(0).y%
+    assert_eq dungeonWidth, rooms(0).width%
+    assert_eq dungeonHeight, rooms(0).height%
+end test
+
+test HorizontalSplitStartsNewRoomUndiscovered()
+    PrepareRoomStateTest()
+    rooms(1).isDiscovered% = TRUE
+    SplitRoomHorizontally(0, 1)
+    assert_false rooms(1).isDiscovered%
+    assert_eq dungeonHeight, rooms(0).height% + rooms(1).height% - 1
+end test
+
+test VerticalSplitStartsNewRoomUndiscovered()
+    PrepareRoomStateTest()
+    rooms(1).isDiscovered% = TRUE
+    SplitRoomVertically(0, 1)
+    assert_false rooms(1).isDiscovered%
+    assert_eq dungeonWidth, rooms(0).width% + rooms(1).width% - 1
+end test
+
+test NewDungeonResetsAllDiscoveryFlags()
+    local roomIndex
+    for roomIndex = 0 to numRooms - 1
+        rooms(roomIndex).isDiscovered% = TRUE
+    next roomIndex
+    GenerateDungeon()
+    for roomIndex = 0 to numRooms - 1
+        assert_false rooms(roomIndex).isDiscovered%
+    next roomIndex
+end test
+
+test RoomFieldsStoreIntegers()
+    rooms(0).x% = 1.9
+    rooms(0).y% = 2.9
+    rooms(0).width% = 3.9
+    rooms(0).height% = 4.9
+    assert_eq 1, rooms(0).x%
+    assert_eq 2, rooms(0).y%
+    assert_eq 3, rooms(0).width%
+    assert_eq 4, rooms(0).height%
+end test

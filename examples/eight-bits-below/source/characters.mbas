@@ -34,6 +34,7 @@ function PlacePlayerAtEntrance()
             player.row = rowIndex
         end if
     next rowIndex
+    DiscoverRoomAt(player.row, player.column)
 end function
 
 function DrawPlayer()
@@ -66,8 +67,8 @@ function MovePlayer(rowStep, columnStep)
         tile$ = mid$(dungeonRows$(nextRow - 1), nextColumn, 1)
         if tile$ = dungeonExit$ then
             GenerateDungeon()
-            PlacePlayerAtEntrance()
             DrawDungeon()
+            PlacePlayerAtEntrance()
             DrawPlayer()
         else
             if tile$ = dungeonFloor$ or tile$ = dungeonDoor$ or tile$ = dungeonEntrance$ then
@@ -75,6 +76,7 @@ function MovePlayer(rowStep, columnStep)
                 print_at player.row, player.column, mid$(dungeonRows$(player.row - 1), player.column, 1);
                 player.row = nextRow
                 player.column = nextColumn
+                DiscoverRoomAt(player.row, player.column)
                 DrawPlayer()
             end if
         end if
