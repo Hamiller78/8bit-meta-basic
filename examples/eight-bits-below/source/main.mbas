@@ -23,7 +23,8 @@ DrawPlayer()
 print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
 print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
 
-mainLoop:
+repeat
     key = key_code()
     HandlePlayerInput(key)
-    goto mainLoop
+until gameOver%
+end

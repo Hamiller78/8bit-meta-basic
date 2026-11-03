@@ -1,7 +1,18 @@
 uses "dungeon.mbas"
 uses "combat.mbas"
 
-const numMonsters = 10
+const numMonsters = numRooms
+const attackLogRow = dungeonHeight + 1
+const statusRow = dungeonHeight + 2
+
+enum TurnAction
+    turnBlocked
+    turnMoved
+    turnAttacked
+    turnExit
+end enum
+
+gameOver% = FALSE
 
 struct character
     row
@@ -16,6 +27,79 @@ end struct
 
 dim monsters as character(numMonsters)
 dim player as character
+
+function ClearMonsters()
+    local monsterIndex
+    for monsterIndex = 0 to numMonsters - 1
+        monsters(monsterIndex).health = 0
+        monsters(monsterIndex).row = 0
+        monsters(monsterIndex).column = 0
+    next monsterIndex
+end function
+
+function MonsterAt(row%, column%)
+    local monsterIndex
+    for monsterIndex = 0 to numMonsters - 1
+        if monsters(monsterIndex).health > 0 then
+            if monsters(monsterIndex).row = row% and monsters(monsterIndex).column = column% then
+                return monsterIndex
+            end if
+        end if
+    next monsterIndex
+    return -1
+end function
+
+function RestoreTile(row%, column%)
+    cell_text_color WHITE
+    print_at row%, column%, mid$(dungeonRows$(row% - 1), column%, 1);
+end function
+
+function DespawnMonster(monsterIndex%)
+    if monsters(monsterIndex%).row >= 1 and monsters(monsterIndex%).column >= 1 then
+        RestoreTile(monsters(monsterIndex%).row, monsters(monsterIndex%).column)
+    end if
+    monsters(monsterIndex%).health = 0
+    monsters(monsterIndex%).row = 0
+    monsters(monsterIndex%).column = 0
+end function
+
+function ShowMessage(message$)
+    cell_text_color WHITE
+    print_at attackLogRow, 1, left$(message$ + space$(dungeonWidth), dungeonWidth);
+end function
+
+function DrawStatus()
+    local statusText$
+    statusText$ = "HP:" + str$(player.health)
+    if gameOver% then
+        statusText$ = "GAME OVER"
+    end if
+    cell_text_color WHITE
+    print_at statusRow, 1, left$(statusText$ + space$(dungeonWidth), dungeonWidth);
+end function
+
+function ReportAttack(attacker$, target$, damage%, health%)
+    local message$
+    ' Spectrum and Atari slices must not extend beyond a short name.
+    if len(attacker$) > 4 then
+        attacker$ = left$(attacker$, 4)
+    end if
+    if len(target$) > 4 then
+        target$ = left$(target$, 4)
+    end if
+    message$ = attacker$ + ">" + target$ + ": "
+    if damage% = 0 then
+        message$ = message$ + "NO DAMAGE"
+    else
+        message$ = message$ + str$(damage%)
+        if health% = 0 then
+            message$ = message$ + " DOWN"
+        else
+            message$ = message$ + " HP:" + str$(health%)
+        end if
+    end if
+    ShowMessage(message$)
+end function
 
 function InitBat(monsterIndex%, row%, column%)
     monsters(monsterIndex%).row = row%
@@ -34,9 +118,10 @@ function AttackMonster(monsterIndex%)
     if player.health > 0 and monsters(monsterIndex%).health > 0 then
         damage% = RollAttackDamage(player.attackDice, monsters(monsterIndex%).armor)
         monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
-        if monsters(monsterIndex%).health < 0 then
-            monsters(monsterIndex%).health = 0
+        if monsters(monsterIndex%).health <= 0 then
+            DespawnMonster(monsterIndex%)
         end if
+        ReportAttack(player.name$, monsters(monsterIndex%).name$, damage%, monsters(monsterIndex%).health)
     end if
 end function
 
@@ -45,20 +130,65 @@ function AttackPlayer(monsterIndex%)
     if player.health > 0 and monsters(monsterIndex%).health > 0 then
         damage% = RollAttackDamage(monsters(monsterIndex%).attackDice, player.armor)
         player.health = player.health - damage%
-        if player.health < 0 then
+        if player.health <= 0 then
             player.health = 0
+            gameOver% = TRUE
         end if
+        ReportAttack(monsters(monsterIndex%).name$, player.name$, damage%, player.health)
+        DrawStatus()
     end if
 end function
 
 function InitPlayer()
-    PlacePlayerAtEntrance()
+    ClearMonsters()
+    gameOver% = FALSE
     player.health = 10
     player.armor = 0
     player.attackDice = 1
     player.speed = 1
     player.symbol$ = "P"
     player.name$ = "Hero"
+    ShowMessage("")
+    DrawStatus()
+    PlacePlayerAtEntrance()
+end function
+
+function SpawnBatInRoom(roomIndex%)
+    local rowIndex, columnIndex, tile$
+    if rooms(roomIndex%).width% < 3 or rooms(roomIndex%).height% < 3 then
+        return
+    end if
+    ' Each room owns one slot. Interiors exclude the shared surrounding walls.
+    for rowIndex = rooms(roomIndex%).y% + 1 to rooms(roomIndex%).y% + rooms(roomIndex%).height% - 2
+        for columnIndex = rooms(roomIndex%).x% + 1 to rooms(roomIndex%).x% + rooms(roomIndex%).width% - 2
+            tile$ = mid$(dungeonRows$(rowIndex - 1), columnIndex, 1)
+            if tile$ = dungeonFloor$ or tile$ = dungeonDoor$ then
+                if rowIndex <> player.row or columnIndex <> player.column then
+                    if MonsterAt(rowIndex, columnIndex) < 0 then
+                        InitBat(roomIndex%, rowIndex, columnIndex)
+                        return
+                    end if
+                end if
+            end if
+        next columnIndex
+    next rowIndex
+end function
+
+function DiscoverRoomAt(row%, column%)
+    local roomIndex%
+    roomIndex% = RevealRoomAt(row%, column%)
+    if roomIndex% >= 0 then
+        SpawnBatInRoom(roomIndex%)
+        DrawMonsters()
+    end if
+end function
+
+function EnterNextDungeon()
+    ClearMonsters()
+    GenerateDungeon()
+    DrawDungeon()
+    ShowMessage("")
+    PlacePlayerAtEntrance()
 end function
 
 function PlacePlayerAtEntrance()
@@ -79,45 +209,130 @@ function DrawPlayer()
 end function
 
 function HandlePlayerInput(key)
+    local action%
+    if gameOver% or player.health <= 0 then
+        return
+    end if
+    action% = turnBlocked
     if key = GAME_UP then
-        MovePlayer(-1, 0)
+        action% = MovePlayer(-1, 0)
     end if
     if key = GAME_DOWN then
-        MovePlayer(1, 0)
+        action% = MovePlayer(1, 0)
     end if
     if key = GAME_LEFT then
-        MovePlayer(0, -1)
+        action% = MovePlayer(0, -1)
     end if
     if key = GAME_RIGHT then
-        MovePlayer(0, 1)
+        action% = MovePlayer(0, 1)
+    end if
+    if action% = turnExit then
+        ' A new floor begins with the player's next turn.
+        EnterNextDungeon()
+    else
+        if action% <> turnBlocked then
+            MoveMonsters()
+        end if
+    end if
+    if action% <> turnBlocked then
+        DrawStatus()
+        DrawPlayer()
     end if
 end function
 
 function MovePlayer(rowStep, columnStep)
-    local nextRow, nextColumn, tile$
-    nextRow = player.row + rowStep
-    nextColumn = player.column + columnStep
+    local nextRow%, nextColumn%, tile$, monsterIndex%
+    if gameOver% or player.health <= 0 then
+        return turnBlocked
+    end if
+    if abs(rowStep) + abs(columnStep) <> 1 then
+        return turnBlocked
+    end if
+    nextRow% = player.row + rowStep
+    nextColumn% = player.column + columnStep
     ' Check bounds before indexing: logical operators need not short-circuit.
-    if nextRow >= 1 and nextRow <= dungeonHeight and nextColumn >= 1 and nextColumn <= dungeonWidth then
-        tile$ = mid$(dungeonRows$(nextRow - 1), nextColumn, 1)
+    if IsOpenTile(nextRow%, nextColumn%) then
+        monsterIndex% = MonsterAt(nextRow%, nextColumn%)
+        if monsterIndex% >= 0 then
+            AttackMonster(monsterIndex%)
+            return turnAttacked
+        end if
+        tile$ = mid$(dungeonRows$(nextRow% - 1), nextColumn%, 1)
         if tile$ = dungeonExit$ then
-            GenerateDungeon()
-            DrawDungeon()
-            PlacePlayerAtEntrance()
-            DrawPlayer()
-        else
-            if tile$ = dungeonFloor$ or tile$ = dungeonDoor$ or tile$ = dungeonEntrance$ then
-                cell_text_color WHITE
-                print_at player.row, player.column, mid$(dungeonRows$(player.row - 1), player.column, 1);
-                player.row = nextRow
-                player.column = nextColumn
-                if tile$ = dungeonDoor$ then
-                    DiscoverRoomAt(player.row, player.column)
-                end if
-                DrawPlayer()
+            return turnExit
+        end if
+        RestoreTile(player.row, player.column)
+        player.row = nextRow%
+        player.column = nextColumn%
+        if tile$ = dungeonDoor$ then
+            DiscoverRoomAt(player.row, player.column)
+        end if
+        DrawPlayer()
+        return turnMoved
+    end if
+    return turnBlocked
+end function
+
+function TryMonsterStep(monsterIndex%, rowStep%, columnStep%)
+    local nextRow%, nextColumn%
+    if rowStep% = 0 and columnStep% = 0 then
+        return turnBlocked
+    end if
+    nextRow% = monsters(monsterIndex%).row + rowStep%
+    nextColumn% = monsters(monsterIndex%).column + columnStep%
+    if nextRow% = player.row and nextColumn% = player.column then
+        AttackPlayer(monsterIndex%)
+        return turnAttacked
+    end if
+    if IsOpenTile(nextRow%, nextColumn%) then
+        if IsDiscoveredTile(nextRow%, nextColumn%) then
+            if MonsterAt(nextRow%, nextColumn%) < 0 then
+                RestoreTile(monsters(monsterIndex%).row, monsters(monsterIndex%).column)
+                monsters(monsterIndex%).row = nextRow%
+                monsters(monsterIndex%).column = nextColumn%
+                DrawCharacter(monsterIndex%)
+                return turnMoved
             end if
         end if
     end if
+    return turnBlocked
+end function
+
+function MoveMonsters()
+    local monsterIndex, stepsLeft%, rowStep%, columnStep%, action%
+    for monsterIndex = 0 to numMonsters - 1
+        stepsLeft% = monsters(monsterIndex).speed
+        while stepsLeft% > 0 and monsters(monsterIndex).health > 0 and player.health > 0
+            rowStep% = sgn(player.row - monsters(monsterIndex).row)
+            columnStep% = sgn(player.column - monsters(monsterIndex).column)
+            if abs(player.column - monsters(monsterIndex).column) >= abs(player.row - monsters(monsterIndex).row) then
+                action% = TryMonsterStep(monsterIndex, 0, columnStep%)
+                if action% = turnBlocked then
+                    action% = TryMonsterStep(monsterIndex, rowStep%, 0)
+                end if
+            else
+                action% = TryMonsterStep(monsterIndex, rowStep%, 0)
+                if action% = turnBlocked then
+                    action% = TryMonsterStep(monsterIndex, 0, columnStep%)
+                end if
+            end if
+            if action% = turnMoved then
+                stepsLeft% = stepsLeft% - 1
+            else
+                ' An attack or two blocked directions end this bat's turn.
+                stepsLeft% = 0
+            end if
+        wend
+    next monsterIndex
+end function
+
+function DrawMonsters()
+    local monsterIndex
+    for monsterIndex = 0 to numMonsters - 1
+        if monsters(monsterIndex).health > 0 then
+            DrawCharacter(monsterIndex)
+        end if
+    next monsterIndex
 end function
 
 function DrawCharacter(characterIndex%)
@@ -126,11 +341,7 @@ function DrawCharacter(characterIndex%)
     rowIndex = monsters(characterIndex%).row
     columnIndex = monsters(characterIndex%).column
 
-    if characterIndex% = 0 then
-        cell_text_color YELLOW
-    else
-        cell_text_color RED
-    end if
+    cell_text_color RED
     print_at rowIndex, columnIndex, monsters(characterIndex%).symbol$;
     cell_text_color WHITE
 end function

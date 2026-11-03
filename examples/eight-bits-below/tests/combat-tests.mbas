@@ -1,7 +1,18 @@
 uses "../source/combat.mbas"
 uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
 
 function PrepareCombatTest()
+    local rowIndex
+    ClearMonsters()
+    gameOver% = FALSE
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = string$(dungeonFloor$, dungeonWidth)
+    next rowIndex
+    player.row = 4
+    player.column = 5
+    player.name$ = "Hero"
+    player.symbol$ = "P"
     player.health = 10
     player.armor = 0
     player.attackDice = 1
@@ -74,6 +85,8 @@ test PlayerAttackSubtractsDamageFromTheChosenMonster()
     player.attackDice = 3
     monsters(0).health = 5
     monsters(0).armor = 1
+    player.name$ = "Long Hero Name"
+    monsters(0).name$ = "Long Bat Name"
     set_rnd(0.5, 0.75, 0.99)
     AttackMonster(0)
     assert_eq 3, monsters(0).health
@@ -81,6 +94,9 @@ test PlayerAttackSubtractsDamageFromTheChosenMonster()
     assert_eq 10, player.health
     assert_eq 1, monsters(0).armor
     assert_eq 3, player.attackDice
+    assert_eq "Long Hero Name", player.name$
+    assert_eq "Long Bat Name", monsters(0).name$
+    assert_printat attackLogRow, 1, left$("Long>Long: " + str$(2) + " HP:" + str$(3) + space$(dungeonWidth), dungeonWidth)
 end test
 
 test BatAttackSubtractsDamageFromThePlayer()

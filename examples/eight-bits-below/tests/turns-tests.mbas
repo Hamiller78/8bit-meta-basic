@@ -1,0 +1,131 @@
+uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
+
+function PrepareTurnTest()
+    local rowIndex, roomIndex
+    program_mode
+    ClearMonsters()
+    gameOver% = FALSE
+    player.row = 5
+    player.column = 4
+    player.health = 10
+    player.armor = 0
+    player.attackDice = 1
+    player.symbol$ = "P"
+    player.name$ = "Hero"
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWall$ + string$(dungeonFloor$, dungeonWidth - 2) + dungeonWall$
+    next rowIndex
+    for roomIndex = 0 to numRooms - 1
+        rooms(roomIndex).isDiscovered% = FALSE
+    next roomIndex
+    rooms(0).x% = 1
+    rooms(0).y% = 1
+    rooms(0).width% = dungeonWidth
+    rooms(0).height% = dungeonHeight
+    rooms(0).isDiscovered% = TRUE
+    cls
+    DrawDungeon()
+    DrawPlayer()
+    InitBat(0, 5, 8)
+    DrawMonsters()
+end function
+
+test MovingAndAttackingEachAdvanceTheMonsterTurn()
+    PrepareTurnTest()
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 5, player.column
+    assert_eq 6, monsters(0).column
+    assert_eq 10, player.health
+    assert_eq code("H"), screen_code(statusRow, 1)
+    assert_eq code("."), screen_code(5, 8)
+    assert_eq code("B"), screen_code(5, 6)
+    set_rnd(0.99, 0.99)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 5, player.column
+    assert_eq 1, monsters(0).health
+    assert_eq 9, player.health
+    assert_eq code("B"), screen_code(attackLogRow, 1)
+    player.attackDice = 2
+    set_rnd(0.99, 0.99)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 0, monsters(0).health
+    assert_eq 0, monsters(0).row
+    assert_eq 0, monsters(0).column
+    assert_eq -1, MonsterAt(5, 6)
+    assert_eq 5, player.column
+    assert_eq code("."), screen_code(5, 6)
+    assert_eq code("H"), screen_code(attackLogRow, 1)
+    assert_eq 9, player.health
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 6, player.column
+    assert_eq code("P"), screen_code(5, 6)
+end test
+
+test EnteringADoorSpawnsABatAndGivesItItsFirstTurn()
+    local rowIndex
+    PrepareTurnTest()
+    ClearMonsters()
+    rooms(0).width% = 5
+    rooms(0).height% = 5
+    rooms(1).x% = 5
+    rooms(1).y% = 1
+    rooms(1).width% = 5
+    rooms(1).height% = 5
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWallRow$
+    next rowIndex
+    for rowIndex = 1 to 3
+        dungeonRows$(rowIndex) = "#...#...#" + string$("#", 13)
+    next rowIndex
+    dungeonRows$(2) = "#...+...#" + string$("#", 13)
+    player.row = 3
+    DrawDungeon()
+    DrawPlayer()
+    set_rnd(0.99)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_true rooms(1).isDiscovered%
+    assert_eq 5, player.column
+    assert_eq 9, player.health
+    assert_eq 2, monsters(1).health
+    assert_eq 3, monsters(1).row
+    assert_eq 6, monsters(1).column
+    assert_eq code("P"), screen_code(3, 5)
+    assert_eq code("B"), screen_code(3, 6)
+end test
+
+test BlockedMovesAndOtherKeysDoNotAdvanceTheTurn()
+    PrepareTurnTest()
+    player.column = 2
+    HandlePlayerInput(GAME_LEFT)
+    HandlePlayerInput(KEY_NONE)
+    HandlePlayerInput(GAME_FIRE)
+    assert_eq 2, player.column
+    assert_eq 8, monsters(0).column
+    assert_eq 10, player.health
+end test
+
+test GameOverIsVisibleAndFurtherInputDoesNothing()
+    PrepareTurnTest()
+    player.health = 1
+    RestoreTile(5, 8)
+    monsters(0).column = 6
+    DrawMonsters()
+    print_at attackLogRow, dungeonWidth - 1, "X";
+    print_at statusRow, dungeonWidth - 1, "X";
+    set_rnd(0.99, 0.125)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 0, player.health
+    assert_true gameOver%
+    assert_eq 5, player.column
+    assert_eq code("G"), screen_code(statusRow, 1)
+    assert_eq code("R"), screen_code(statusRow, 9)
+    assert_eq code("B"), screen_code(attackLogRow, 1)
+    assert_eq code(" "), screen_code(attackLogRow, dungeonWidth - 1)
+    assert_eq code(" "), screen_code(statusRow, dungeonWidth - 1)
+    HandlePlayerInput(GAME_LEFT)
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq 5, player.column
+    assert_eq 6, monsters(0).column
+    assert_eq 0.125, rnd()
+end test

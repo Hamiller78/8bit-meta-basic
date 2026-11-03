@@ -9,7 +9,9 @@ movement. Reaching the exit (`>`) generates a new dungeon and places the player
 at its entrance, preserving character stats. Only the entrance room is revealed
 at first. Stepping onto a shared door reveals the next room, including its
 walls and doors. Discovered rooms stay visible; doors further away do not reveal
-their rooms until the player reaches them. Atari uses the screen text colour
+their rooms until the player reaches them. Every newly discovered room, including
+the entrance room, spawns one red bat inside it. A cleared room stays cleared.
+Atari uses the screen text colour
 because its text mode does not support per-cell colours.
 
 The dungeon has a `<` entrance on its left wall and a `>` exit on its right wall.
@@ -29,12 +31,15 @@ variables because Meta-BASIC does not support integer loop variables yet.
 
 `DrawRoom(roomIndex)` prints one room at its dungeon coordinates, including its
 surrounding walls, doors, entrance, or exit. It reads the existing map and leaves
-the discovery flag untouched. `DiscoverRoomAt` sets the flag before calling it.
+the discovery flag untouched. The dungeon helper `RevealRoomAt` marks and draws
+one new room and returns its index (or -1). `DiscoverRoomAt` in the character
+module uses that result to spawn a bat and redraw the living monsters.
 
 Combat uses the same `character` struct for the player and monsters.
 `InitBat(monsterIndex, row, column)` fills a monster slot with a bat (`B`):
-2 health, 0 armor, 1 attack die, and speed 2. These are initial balancing values;
-speed is stored for a future turn system. Bats are not yet spawned in the dungeon.
+2 health, 0 armor, 1 attack die, and speed 2. A room's index is also its monster
+slot. Spawn placement scans the room interior for an open tile, avoiding the
+player and other monsters; it does not consume combat random numbers.
 
 `RollAttackDamage(attackDice, armor)` rolls one six-sided die per attack die.
 1–3 miss, 4–5 count as ordinary hits, and 6 counts as a critical hit worth one
@@ -44,7 +49,24 @@ random values. `AttackMonster(monsterIndex)` applies the player's attack to that
 monster; `AttackPlayer(monsterIndex)` applies that monster's attack to the player.
 Health stops at zero. Dead characters cannot attack or receive another attack.
 These helpers update stored characters directly because struct parameters are
-copied. Encounter handling and attack turns are not yet connected to movement.
+copied. A defeated monster despawns and restores the map tile below it.
+
+A successful player move or attack gives every living bat a turn. Attempting
+to enter a hostile character's tile attacks instead of moving; even a killing
+attack leaves the attacker in its old tile. Blocked moves and unrelated keys
+do not advance the turn. Each bat moves up to its speed in cardinal steps,
+favoring the axis with the greater distance to the player (horizontal on ties).
+If blocked it tries the other axis toward the player. Walls, other bats, and
+undiscovered areas block movement; bats do not search for detours. An attack
+ends that bat's turn, including when speed points remain. Player death stops
+all remaining actions and ends the game. Reaching the exit clears all old bats,
+preserves player stats, and starts the new dungeon at the player's next turn.
+
+Row 17 below the 16-row dungeon shows the latest attack: damage and remaining
+target health, `NO DAMAGE`, or `DOWN`. Row 18 shows player health or `GAME OVER`.
+Both lines use the dungeon's 22-column width and are cleared before shorter
+messages so old text cannot remain. Keeping them within the map width also
+avoids Atari editor wrapping that can disturb the controls below.
 
 The combat tests use `SET_RND` sequences to exercise complete attacks
 deterministically on every target.
@@ -56,6 +78,10 @@ npm run launch -- atari2 --project examples/eight-bits-below --run-tests --modul
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module entrance --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module characters --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module combat --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module spawn --test-screen-output --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module pursuit --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module turns --test-screen-output --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module exit --test-screen-output --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module room-state --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module wall-doors --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module draw-room --test-screen-output --profile release --printer-output
@@ -63,5 +89,6 @@ npm run launch -- atari2 --project examples/eight-bits-below --run-tests --modul
 ```
 
 Use the same module names with other configured target emulators.
-The `draw-room` and `discovery` tests require `--test-screen-output` because they inspect actual
+The `draw-room`, `discovery`, `spawn`, `turns`, and `exit` tests require `--test-screen-output` because they inspect actual
 screen cells, including sentinels outside the room that must remain unchanged.
+Stale-message checks inspect the right side of the 22-column status area.

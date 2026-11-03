@@ -1,0 +1,98 @@
+uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
+
+function PreparePursuitTest()
+    local rowIndex, roomIndex
+    ClearMonsters()
+    gameOver% = FALSE
+    player.row = 5
+    player.column = 10
+    player.health = 10
+    player.armor = 0
+    player.name$ = "Hero"
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWall$ + string$(dungeonFloor$, dungeonWidth - 2) + dungeonWall$
+    next rowIndex
+    for roomIndex = 0 to numRooms - 1
+        rooms(roomIndex).isDiscovered% = FALSE
+    next roomIndex
+    rooms(0).x% = 1
+    rooms(0).y% = 1
+    rooms(0).width% = dungeonWidth
+    rooms(0).height% = dungeonHeight
+    rooms(0).isDiscovered% = TRUE
+    InitBat(0, 5, 4)
+end function
+
+test BatMovesAtFullSpeedTowardsThePlayer()
+    PreparePursuitTest()
+    MoveMonsters()
+    assert_eq 5, monsters(0).row
+    assert_eq 6, monsters(0).column
+    assert_eq 10, player.health
+    player.row = 10
+    player.column = 6
+    MoveMonsters()
+    assert_eq 7, monsters(0).row
+    assert_eq 6, monsters(0).column
+end test
+
+test BatTriesTheOtherAxisWhenAWallBlocksIt()
+    PreparePursuitTest()
+    dungeonRows$(4) = "#...#" + string$(dungeonFloor$, 16) + "#"
+    MoveMonsters()
+    assert_eq 5, monsters(0).row
+    assert_eq 4, monsters(0).column
+    player.row = 7
+    MoveMonsters()
+    assert_eq 6, monsters(0).row
+    assert_eq 5, monsters(0).column
+end test
+
+test BatsCannotWalkThroughEachOtherOrUndiscoveredRooms()
+    PreparePursuitTest()
+    InitBat(1, 5, 5)
+    monsters(1).speed = 0
+    MoveMonsters()
+    assert_eq 4, monsters(0).column
+    assert_eq 5, monsters(1).column
+    DespawnMonster(1)
+    rooms(0).width% = 4
+    MoveMonsters()
+    assert_eq 4, monsters(0).column
+end test
+
+test BatCanMoveThenAttackWithoutEnteringThePlayerTile()
+    PreparePursuitTest()
+    monsters(0).column = 8
+    set_rnd(0.99)
+    MoveMonsters()
+    assert_eq 9, monsters(0).column
+    assert_eq 5, monsters(0).row
+    assert_eq 10, player.column
+    assert_eq 9, player.health
+end test
+
+test AttackingEndsTheBatsTurnEvenWithSpeedRemaining()
+    PreparePursuitTest()
+    monsters(0).column = 9
+    set_rnd(0.99, 0.125)
+    MoveMonsters()
+    assert_eq 9, player.health
+    assert_eq 9, monsters(0).column
+    assert_eq 0.125, rnd()
+end test
+
+test PlayerDeathStopsAllRemainingMonsterActions()
+    PreparePursuitTest()
+    player.health = 1
+    monsters(0).column = 9
+    InitBat(1, 6, 10)
+    set_rnd(0.99, 0.125)
+    MoveMonsters()
+    assert_eq 0, player.health
+    assert_true gameOver%
+    assert_eq 6, monsters(1).row
+    assert_eq 10, monsters(1).column
+    assert_eq 0.125, rnd()
+end test

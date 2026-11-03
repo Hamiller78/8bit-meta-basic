@@ -35,7 +35,7 @@ test EntranceRevealsOnlyItsRoom()
     assert_true rooms(0).isDiscovered%
     assert_false rooms(1).isDiscovered%
     assert_false rooms(2).isDiscovered%
-    assert_eq code("."), screen_code(2, 2)
+    assert_eq code("B"), screen_code(2, 2)
     assert_eq code(" "), screen_code(2, 6)
     assert_eq code(" "), screen_code(2, 10)
     assert_eq code("P"), screen_code(3, 1)
@@ -45,33 +45,33 @@ test DoorRevealsOneRoomWithoutFollowingFurtherDoors()
     local stepIndex
     PrepareDiscoveryTest()
     for stepIndex = 1 to 4
-        HandlePlayerInput(GAME_RIGHT)
+        MovePlayer(0, 1)
     next stepIndex
     assert_eq 5, player.column
     assert_true rooms(0).isDiscovered%
     assert_true rooms(1).isDiscovered%
     assert_false rooms(2).isDiscovered%
     assert_eq code("<"), screen_code(3, 1)
-    assert_eq code("."), screen_code(2, 6)
+    assert_eq code("B"), screen_code(2, 6)
     assert_eq code("+"), screen_code(3, 9)
     assert_eq code(" "), screen_code(2, 10)
     assert_eq code("P"), screen_code(3, 5)
     for stepIndex = 1 to 3
-        HandlePlayerInput(GAME_RIGHT)
+        MovePlayer(0, 1)
     next stepIndex
     assert_false rooms(2).isDiscovered%
-    HandlePlayerInput(GAME_RIGHT)
+    MovePlayer(0, 1)
     assert_true rooms(2).isDiscovered%
-    assert_eq code("."), screen_code(2, 10)
-    HandlePlayerInput(GAME_LEFT)
+    assert_eq code("B"), screen_code(2, 10)
+    MovePlayer(0, -1)
     assert_true rooms(2).isDiscovered%
 end test
 
 test BlockedMovesDoNotRevealRooms()
     PrepareDiscoveryTest()
-    HandlePlayerInput(GAME_LEFT)
-    HandlePlayerInput(GAME_UP)
-    HandlePlayerInput(KEY_NONE)
+    MovePlayer(0, -1)
+    MovePlayer(-1, 0)
+    MovePlayer(0, 0)
     assert_eq 3, player.row
     assert_eq 1, player.column
     assert_false rooms(1).isDiscovered%
@@ -82,10 +82,10 @@ end test
 test FloorAndEntranceStepsDoNotDiscoverRooms()
     PrepareDiscoveryTest()
     rooms(0).isDiscovered% = FALSE
-    HandlePlayerInput(GAME_RIGHT)
+    MovePlayer(0, 1)
     assert_eq 2, player.column
     assert_false rooms(0).isDiscovered%
-    HandlePlayerInput(GAME_LEFT)
+    MovePlayer(0, -1)
     assert_eq 1, player.column
     assert_false rooms(0).isDiscovered%
 end test
@@ -101,14 +101,14 @@ test HorizontalDoorRevealsRoomBelow()
     for rowIndex = 5 to 7
         dungeonRows$(rowIndex) = "#...#" + string$("#", 17)
     next rowIndex
-    HandlePlayerInput(GAME_RIGHT)
-    HandlePlayerInput(GAME_RIGHT)
-    HandlePlayerInput(GAME_DOWN)
-    HandlePlayerInput(GAME_DOWN)
+    MovePlayer(0, 1)
+    MovePlayer(0, 1)
+    MovePlayer(1, 0)
+    MovePlayer(1, 0)
     assert_eq 5, player.row
     assert_eq 3, player.column
     assert_true rooms(1).isDiscovered%
-    assert_eq code("."), screen_code(6, 2)
+    assert_eq code("B"), screen_code(6, 2)
 end test
 
 test SharedWallCoordinatesStillRequireTheRoomSpan()
@@ -123,44 +123,17 @@ test RedrawKeepsDiscoveredRoomsAndControls()
     local stepIndex
     PrepareDiscoveryTest()
     for stepIndex = 1 to 4
-        HandlePlayerInput(GAME_RIGHT)
+        MovePlayer(0, 1)
     next stepIndex
     print_at TEXT_ROWS - 1, 1, "HELP";
     ' A redraw must erase stale map cells outside the discovered rooms.
     print_at 2, 10, "X";
     DrawDungeon()
+    DrawMonsters()
     DrawPlayer()
-    assert_eq code("."), screen_code(2, 2)
-    assert_eq code("."), screen_code(2, 6)
+    assert_eq code("B"), screen_code(2, 2)
+    assert_eq code("B"), screen_code(2, 6)
     assert_eq code(" "), screen_code(2, 10)
     assert_eq code("H"), screen_code(TEXT_ROWS - 1, 1)
     assert_eq code("P"), screen_code(3, 5)
-end test
-
-test ExitClearsOldDiscoveryAndRevealsNewEntranceRoom()
-    local roomIndex, discoveredCount%, hiddenRow%, hiddenColumn%
-    PrepareDiscoveryTest()
-    rooms(1).isDiscovered% = TRUE
-    rooms(2).isDiscovered% = TRUE
-    dungeonRows$(2) = string$(dungeonFloor$, dungeonWidth - 1) + dungeonExit$
-    player.column = dungeonWidth - 1
-    player.health = 7
-    print_at TEXT_ROWS - 1, 1, "HELP";
-    HandlePlayerInput(GAME_RIGHT)
-    discoveredCount% = 0
-    for roomIndex = 0 to numRooms - 1
-        if rooms(roomIndex).isDiscovered% then
-            discoveredCount% = discoveredCount% + 1
-        else
-            hiddenRow% = rooms(roomIndex).y% + 1
-            hiddenColumn% = rooms(roomIndex).x% + 1
-        end if
-    next roomIndex
-    assert_eq 1, discoveredCount%
-    assert_eq 1, player.column
-    assert_eq 7, player.health
-    assert_eq dungeonEntrance$, left$(dungeonRows$(player.row - 1), 1)
-    assert_eq code(" "), screen_code(hiddenRow%, hiddenColumn%)
-    assert_eq code("H"), screen_code(TEXT_ROWS - 1, 1)
-    assert_printat player.row, 1, "P"
 end test

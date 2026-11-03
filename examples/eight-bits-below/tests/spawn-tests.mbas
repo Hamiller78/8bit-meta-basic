@@ -1,0 +1,76 @@
+uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
+
+function PrepareSpawnTest()
+    local rowIndex, roomIndex
+    program_mode
+    ClearMonsters()
+    gameOver% = FALSE
+    player.row = 3
+    player.column = 1
+    player.health = 10
+    player.symbol$ = "P"
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWallRow$
+    next rowIndex
+    for rowIndex = 1 to 3
+        dungeonRows$(rowIndex) = "#...#...#" + string$("#", 13)
+    next rowIndex
+    dungeonRows$(2) = "<...+...#" + string$("#", 13)
+    for roomIndex = 0 to numRooms - 1
+        rooms(roomIndex).x% = 0
+        rooms(roomIndex).y% = 0
+        rooms(roomIndex).width% = 0
+        rooms(roomIndex).height% = 0
+        rooms(roomIndex).isDiscovered% = FALSE
+    next roomIndex
+    for roomIndex = 0 to 1
+        rooms(roomIndex).x% = 1 + roomIndex * 4
+        rooms(roomIndex).y% = 1
+        rooms(roomIndex).width% = 5
+        rooms(roomIndex).height% = 5
+    next roomIndex
+    cls
+end function
+
+test DiscoverySpawnsOneBatInsideEachNewRoom()
+    PrepareSpawnTest()
+    DiscoverRoomAt(3, 1)
+    assert_true rooms(0).isDiscovered%
+    assert_eq 2, monsters(0).health
+    assert_eq 2, monsters(0).row
+    assert_eq 2, monsters(0).column
+    assert_eq 0, monsters(1).health
+    assert_eq code("B"), screen_code(2, 2)
+    assert_eq ".", mid$(dungeonRows$(1), 2, 1)
+    DiscoverRoomAt(3, 5)
+    assert_eq 2, monsters(1).health
+    assert_eq 2, monsters(1).row
+    assert_eq 6, monsters(1).column
+    assert_eq code("B"), screen_code(2, 2)
+    assert_eq code("B"), screen_code(2, 6)
+end test
+
+test RevisitingADiscoveredRoomDoesNotRespawnItsBat()
+    PrepareSpawnTest()
+    DiscoverRoomAt(3, 1)
+    DespawnMonster(0)
+    DiscoverRoomAt(3, 1)
+    assert_eq 0, monsters(0).health
+    assert_eq -1, MonsterAt(2, 2)
+    assert_eq code("."), screen_code(2, 2)
+end test
+
+test SpawnSkipsThePlayerWallsAndOccupiedTiles()
+    PrepareSpawnTest()
+    player.row = 2
+    player.column = 2
+    InitBat(1, 2, 3)
+    dungeonRows$(1) = "#..##...#" + string$("#", 13)
+    DiscoverRoomAt(3, 1)
+    assert_eq 3, monsters(0).row
+    assert_eq 2, monsters(0).column
+    assert_eq 2, monsters(1).row
+    assert_eq 3, monsters(1).column
+    assert_eq code("B"), screen_code(3, 2)
+end test

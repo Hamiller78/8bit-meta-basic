@@ -46,7 +46,7 @@ function DrawRoom(roomIndex%)
     next rowIndex
 end function
 
-function DiscoverRoomAt(row%, column%)
+function RevealRoomAt(row%, column%)
     local roomIndex, rowOffset%, columnOffset%, touchesRoom%
     ' Called on a door or the entrance: only room edges can match.
     for roomIndex = 0 to numRooms - 1
@@ -65,10 +65,37 @@ function DiscoverRoomAt(row%, column%)
                 rooms(roomIndex).isDiscovered% = TRUE
                 DrawRoom(roomIndex)
                 ' Shared walls and corners can touch several rooms: reveal one.
-                exit for
+                return roomIndex
             end if
         end if
     next roomIndex
+    return -1
+end function
+
+function IsDiscoveredTile(row%, column%)
+    local roomIndex
+    for roomIndex = 0 to numRooms - 1
+        if rooms(roomIndex).isDiscovered% then
+            if row% >= rooms(roomIndex).y% and row% < rooms(roomIndex).y% + rooms(roomIndex).height% then
+                if column% >= rooms(roomIndex).x% and column% < rooms(roomIndex).x% + rooms(roomIndex).width% then
+                    return TRUE
+                end if
+            end if
+        end if
+    next roomIndex
+    return FALSE
+end function
+
+function IsOpenTile(row%, column%)
+    local tile$
+    if row% < 1 or row% > dungeonHeight or column% < 1 or column% > dungeonWidth then
+        return FALSE
+    end if
+    tile$ = mid$(dungeonRows$(row% - 1), column%, 1)
+    if tile$ = dungeonFloor$ or tile$ = dungeonDoor$ or tile$ = dungeonEntrance$ or tile$ = dungeonExit$ then
+        return TRUE
+    end if
+    return FALSE
 end function
 
 function GenerateDungeon()

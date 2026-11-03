@@ -183,6 +183,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` query the current logical text foreground and background colours, swap them for an adjacent run of inverted prints, and then restore them. The query uses `VDU 23,0,&94` and MOS's returned palette-index byte, requiring Console8 VDP 2.7.0 or newer. Consecutive inverted prints share one query and swap.
 - `SCREEN_CODE` sends Agon's VDP character-read command, synchronizes through OSBYTE 19, and reads MOS system-variable byte 9 through OSBYTE.
+- In the configured Fab Agon 1.2.5 / BBC BASIC ADL 1.03 setup, `SCREEN_CODE` at the final text column returned `0` both before and after clearing a printed character; the preceding column returned the expected character codes. Screen assertions should currently use columns through `TEXT_COLUMNS - 1`, with visual checks for the final column.
 - Portable `CODE(text$)` renders as BBC BASIC `ASC(text$)`.
 - Generated `.bas` listings are readable UTF-8 and preserve supported international characters directly. The built-in Agon packaging step encodes them as Windows-1252 bytes in the tokenized `.bbc` artifact. Use `.bbc` rather than the UTF-8 listing as the directly loadable program.
 - `JIFFIES()` uses BBC BASIC `TIME`, whose unit is one centisecond; `JIFFIES_PER_SECOND` is therefore 100.
