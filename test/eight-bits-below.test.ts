@@ -10,7 +10,7 @@ describe("Eight Bits Below", () => {
       const game = await build(configuration, { configPath, target, readability: 0 });
       expect(game).toContain("EIGHT BITS BELOW");
       expect(game).not.toContain("ASSERT");
-      for (const module of ["dungeon", "entrance", "characters", "room-state", "wall-doors", "draw-room", "discovery"]) {
+      for (const module of ["dungeon", "entrance", "characters", "room-state", "wall-doors", "draw-room", "discovery", "combat"]) {
         const tests = await build({
           ...configuration,
           testMode: true,

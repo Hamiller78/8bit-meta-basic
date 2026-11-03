@@ -1,0 +1,130 @@
+uses "../source/combat.mbas"
+uses "../source/characters.mbas"
+
+function PrepareCombatTest()
+    player.health = 10
+    player.armor = 0
+    player.attackDice = 1
+    InitBat(0, 4, 6)
+end function
+
+test EachDieHitsOnFourFiveOrSix()
+    set_rnd(0, 0.25, 0.375, 0.5, 0.75, 0.99)
+    assert_eq 0, RollAttackDamage(1, 0)
+    assert_eq 0, RollAttackDamage(1, 0)
+    assert_eq 0, RollAttackDamage(1, 0)
+    assert_eq 1, RollAttackDamage(1, 0)
+    assert_eq 1, RollAttackDamage(1, 0)
+    assert_eq 1, RollAttackDamage(1, 0)
+end test
+
+test ArmorReducesTheWholeAttackRatherThanEachDie()
+    set_rnd(0.5, 0.75, 0.5)
+    assert_eq 2, RollAttackDamage(3, 1)
+    set_rnd(0.5, 0.75)
+    assert_eq 0, RollAttackDamage(2, 2)
+    set_rnd(0.5, 0.75)
+    assert_eq 0, RollAttackDamage(2, 5)
+end test
+
+test CriticalHitsIgnoreArmor()
+    set_rnd(0.99)
+    assert_eq 1, RollAttackDamage(1, 5)
+    set_rnd(0.99, 0.99)
+    assert_eq 2, RollAttackDamage(2, 5)
+    set_rnd(0.5, 0.75, 0.99)
+    assert_eq 2, RollAttackDamage(3, 1)
+    set_rnd(0.5, 0.75, 0.99)
+    assert_eq 1, RollAttackDamage(3, 2)
+end test
+
+test MissesCannotHealAnArmoredTarget()
+    set_rnd(0, 0.25, 0.375)
+    assert_eq 0, RollAttackDamage(3, 4)
+end test
+
+test AttackConsumesExactlyOneRandomValuePerDie()
+    set_rnd(0.5, 0.75, 0.99, 0.125)
+    assert_eq 3, RollAttackDamage(3, 0)
+    assert_eq 0.125, rnd()
+end test
+
+test NoAttackDiceConsumeNoRandomValues()
+    set_rnd(0.75)
+    assert_eq 0, RollAttackDamage(0, 0)
+    assert_eq 0.75, rnd()
+end test
+
+test BatUsesTheSharedCharacterStruct()
+    monsters(0).armor = 3
+    InitBat(0, 4, 6)
+    assert_eq "Bat", monsters(0).name$
+    assert_eq "B", monsters(0).symbol$
+    assert_eq 4, monsters(0).row
+    assert_eq 6, monsters(0).column
+    assert_eq 2, monsters(0).health
+    assert_eq 0, monsters(0).armor
+    assert_eq 1, monsters(0).attackDice
+    assert_eq 2, monsters(0).speed
+end test
+
+test PlayerAttackSubtractsDamageFromTheChosenMonster()
+    PrepareCombatTest()
+    InitBat(1, 5, 7)
+    player.attackDice = 3
+    monsters(0).health = 5
+    monsters(0).armor = 1
+    set_rnd(0.5, 0.75, 0.99)
+    AttackMonster(0)
+    assert_eq 3, monsters(0).health
+    assert_eq 2, monsters(1).health
+    assert_eq 10, player.health
+    assert_eq 1, monsters(0).armor
+    assert_eq 3, player.attackDice
+end test
+
+test BatAttackSubtractsDamageFromThePlayer()
+    PrepareCombatTest()
+    player.armor = 2
+    set_rnd(0.5)
+    AttackPlayer(0)
+    assert_eq 10, player.health
+    set_rnd(0.99)
+    AttackPlayer(0)
+    assert_eq 9, player.health
+    assert_eq 2, monsters(0).health
+    assert_eq 2, player.armor
+end test
+
+test HealthStopsAtZero()
+    PrepareCombatTest()
+    player.attackDice = 3
+    set_rnd(0.99, 0.99, 0.99)
+    AttackMonster(0)
+    assert_eq 0, monsters(0).health
+    InitBat(0, 4, 6)
+    monsters(0).attackDice = 3
+    player.health = 1
+    set_rnd(0.99, 0.99, 0.99)
+    AttackPlayer(0)
+    assert_eq 0, player.health
+end test
+
+test DeadCharactersNeitherAttackNorTakeAnotherAttack()
+    PrepareCombatTest()
+    monsters(0).health = 0
+    set_rnd(0.75)
+    AttackMonster(0)
+    AttackPlayer(0)
+    assert_eq 10, player.health
+    assert_eq 0, monsters(0).health
+    assert_eq 0.75, rnd()
+    monsters(0).health = 2
+    player.health = 0
+    set_rnd(0.75)
+    AttackMonster(0)
+    AttackPlayer(0)
+    assert_eq 0, player.health
+    assert_eq 2, monsters(0).health
+    assert_eq 0.75, rnd()
+end test

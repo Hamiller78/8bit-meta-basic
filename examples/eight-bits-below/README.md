@@ -31,12 +31,31 @@ variables because Meta-BASIC does not support integer loop variables yet.
 surrounding walls, doors, entrance, or exit. It reads the existing map and leaves
 the discovery flag untouched. `DiscoverRoomAt` sets the flag before calling it.
 
+Combat uses the same `character` struct for the player and monsters.
+`InitBat(monsterIndex, row, column)` fills a monster slot with a bat (`B`):
+2 health, 0 armor, 1 attack die, and speed 2. These are initial balancing values;
+speed is stored for a future turn system. Bats are not yet spawned in the dungeon.
+
+`RollAttackDamage(attackDice, armor)` rolls one six-sided die per attack die.
+1–3 miss, 4–5 count as ordinary hits, and 6 counts as a critical hit worth one
+damage that ignores armor. Damage is `criticalHits + max(0, ordinaryHits - armor)`;
+armor applies once per attack. Zero attack dice cause no damage and consume no
+random values. `AttackMonster(monsterIndex)` applies the player's attack to that
+monster; `AttackPlayer(monsterIndex)` applies that monster's attack to the player.
+Health stops at zero. Dead characters cannot attack or receive another attack.
+These helpers update stored characters directly because struct parameters are
+copied. Encounter handling and attack turns are not yet connected to movement.
+
+The combat tests use `SET_RND` sequences to exercise complete attacks
+deterministically on every target.
+
 Run native tests one module at a time to fit the Atari test runner in memory:
 
 ```text
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module dungeon --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module entrance --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module characters --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module combat --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module room-state --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module wall-doors --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module draw-room --test-screen-output --profile release --printer-output

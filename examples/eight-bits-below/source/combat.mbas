@@ -1,0 +1,23 @@
+' Roll one six-sided die per attack die. Sixes are separate armor-piercing hits.
+function RollAttackDamage(attackDice%, armor%)
+    local diceLeft%, roll%, hits%, criticalHits%, damage%
+    diceLeft% = attackDice%
+    hits% = 0
+    criticalHits% = 0
+    while diceLeft% > 0
+        roll% = int(rnd() * 6) + 1
+        if roll% = 6 then
+            criticalHits% = criticalHits% + 1
+        else
+            if roll% >= 4 then
+                hits% = hits% + 1
+            end if
+        end if
+        diceLeft% = diceLeft% - 1
+    wend
+    damage% = hits% - armor%
+    if damage% < 0 then
+        damage% = 0
+    end if
+    return damage% + criticalHits%
+end function

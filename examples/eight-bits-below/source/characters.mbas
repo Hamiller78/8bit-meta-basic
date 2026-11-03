@@ -1,4 +1,5 @@
 uses "dungeon.mbas"
+uses "combat.mbas"
 
 const numMonsters = 10
 
@@ -15,6 +16,40 @@ end struct
 
 dim monsters as character(numMonsters)
 dim player as character
+
+function InitBat(monsterIndex%, row%, column%)
+    monsters(monsterIndex%).row = row%
+    monsters(monsterIndex%).column = column%
+    monsters(monsterIndex%).health = 2
+    monsters(monsterIndex%).armor = 0
+    monsters(monsterIndex%).attackDice = 1
+    monsters(monsterIndex%).speed = 2
+    monsters(monsterIndex%).symbol$ = "B"
+    monsters(monsterIndex%).name$ = "Bat"
+end function
+
+' Mutate the stored character: struct parameters would only change a copy.
+function AttackMonster(monsterIndex%)
+    local damage%
+    if player.health > 0 and monsters(monsterIndex%).health > 0 then
+        damage% = RollAttackDamage(player.attackDice, monsters(monsterIndex%).armor)
+        monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
+        if monsters(monsterIndex%).health < 0 then
+            monsters(monsterIndex%).health = 0
+        end if
+    end if
+end function
+
+function AttackPlayer(monsterIndex%)
+    local damage%
+    if player.health > 0 and monsters(monsterIndex%).health > 0 then
+        damage% = RollAttackDamage(monsters(monsterIndex%).attackDice, player.armor)
+        player.health = player.health - damage%
+        if player.health < 0 then
+            player.health = 0
+        end if
+    end if
+end function
 
 function InitPlayer()
     PlacePlayerAtEntrance()

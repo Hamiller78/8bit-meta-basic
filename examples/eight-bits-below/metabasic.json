@@ -4,7 +4,8 @@
   "files": [
     "source/main.mbas",
     "source/dungeon.mbas",
-    "source/characters.mbas"
+    "source/characters.mbas",
+    "source/combat.mbas"
   ],
   "textsDir": "texts"
 }
