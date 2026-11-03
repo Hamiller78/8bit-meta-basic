@@ -72,6 +72,7 @@ When `--run-tests` or `testMode` is enabled, startup code is replaced by a gener
 - calls each test through generated `GOSUB`s,
 - captures logical program output for assertions,
 - replaces `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` with per-test fake runtime values,
+- lowers `SET_RND` sequences to shared queue storage and consumes each queued `RND()` result once before target expression rendering, retaining native generation when no queued values remain,
 - prints MCP progress and summary lines,
 - optionally mirrors that runner log to an emulator device.
 

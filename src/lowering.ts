@@ -16,6 +16,7 @@ import { normalizeName } from "./symbols.js";
 import { isIntegerVariableName } from "./variables.js";
 import { builtinFunctions } from "./functions.js";
 import { canonicalTestRuntimeSetterName, replaceTestRuntimeFunctionCalls, setterStorageName } from "./test-runtime.js";
+import { createTestRandomRuntime } from "./test-random.js";
 import {
   capturedPrintExpression,
   captureTestColor,
@@ -564,12 +565,17 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const generator = internalLabelGenerator(userLabels);
   const functions = collectFunctionImplementations(statements);
   const inlineFunctions = collectInlineFunctionImplementations(statements);
+  const testRandom = options.testMode ? createTestRandomRuntime(statements, generator) : undefined;
   const context: FunctionCallLoweringContext = {
     functions,
     inlineFunctions,
     nextTempId: 1,
     reservedNames: options.reservedNames,
     ...(options.testMode ? { transformExpandedExpression: replaceTestRuntimeFunctionCalls } : {}),
+    ...(testRandom ? {
+      expandBuiltinFunctionCall: (expression: Extract<Expression, { kind: "function-call" }>, targetInstructions: Instruction[]) => testRandom.expandCall(expression, targetInstructions, context),
+      setRandomSequence: testRandom.setSequence
+    } : {}),
     expandInlineFunctionCall: (definition, args, destinationName, targetInstructions) =>
       expandInlineFunctionCall(definition, args, destinationName, targetInstructions, generator, context, options)
   };
@@ -585,6 +591,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
 
   if (options.testMode) {
     const globalResetInstructions: Instruction[] = [];
+    instructions.push(...(testRandom?.initialization ?? []));
     lowerStatements([...mainLayout.declarations, ...mainLayout.initializers], instructions, generator, context);
     for (const statement of globalsStatements) {
       lowerStatements(statement.body, globalResetInstructions, generator, context);
@@ -593,7 +600,8 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
       printerOutput: options.testPrinterOutput === true,
       outputDevice: options.testOutputDevice ?? "printer",
       uppercaseNames: options.testRunnerUppercaseNames === true,
-      globalResetInstructions
+      globalResetInstructions,
+      runtimeResetInstructions: testRandom?.reset
     });
   } else if (!multiModule) {
     lowerStatements([...mainLayout.declarations, ...mainLayout.initializers, ...mainLayout.body], instructions, generator, context);
@@ -723,6 +731,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     }
   }
 
+  instructions.push(...(testRandom?.helper ?? []));
   lowerStatements(dataStatements, instructions, generator, context);
 
   const labels = buildLabelMap(instructions);
@@ -1250,6 +1259,17 @@ function lowerStatements(
         {
           const setter = canonicalTestRuntimeSetterName(statement.expression.name);
           if (setter) {
+            if (setter === builtinFunctions.setRnd) {
+              const values = statement.expression.args.map(arg => {
+                const expression = lowerExpression(arg, instructions, context, options);
+                const name = nextTempName(context, "MBTRNV");
+                instructions.push({ kind: "let", name, expression, location: arg.location });
+                return { kind: "identifier", name, location: arg.location } as const;
+              });
+              if (!context.setRandomSequence) throw new Error("Missing test random sequence runtime after semantic analysis.");
+              context.setRandomSequence(values, instructions, statement.location);
+              break;
+            }
             const valueIndex = setter === builtinFunctions.setJoystick ? 1 : 0;
             instructions.push({ kind: "let", name: setterStorageName(setter, statement.expression.args[0]), expression: lowerExpression(statement.expression.args[valueIndex], instructions, context, options), location: statement.location });
             break;

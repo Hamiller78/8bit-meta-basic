@@ -15,6 +15,8 @@ export interface FunctionCallLoweringContext {
     instructions: Instruction[]
   ) => Expression | undefined;
   readonly transformExpandedExpression?: (expression: Expression) => Expression;
+  readonly expandBuiltinFunctionCall?: (expression: Extract<Expression, { kind: "function-call" }>, instructions: Instruction[]) => Expression | undefined;
+  readonly setRandomSequence?: (values: readonly Expression[], instructions: Instruction[], location: Expression["location"]) => void;
   nextTempId: number;
   reservedNames?: ReadonlySet<string>;
 }
@@ -57,6 +59,8 @@ export function expandFunctionCalls(expression: Expression, instructions: Instru
       if (expression.name === builtinFunctions.deviceAvailable) {
         return expandDeviceAvailableCall(expression, instructions, context);
       }
+      const expandedBuiltin = context.expandBuiltinFunctionCall?.(expression, instructions);
+      if (expandedBuiltin) return expandedBuiltin;
 
       const inlineImplementation = context.inlineFunctions?.get(normalizeName(expression.name));
       if (inlineImplementation) {

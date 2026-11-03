@@ -11,18 +11,18 @@ export function isTestRuntimeSetterName(name: string): boolean {
   return canonical !== undefined;
 }
 
-type TestRuntimeSetter = typeof builtinFunctions.setJiffies | typeof builtinFunctions.setKeyCode | typeof builtinFunctions.setKeyPressed | typeof builtinFunctions.setJoystick;
+type TestRuntimeSetter = typeof builtinFunctions.setJiffies | typeof builtinFunctions.setKeyCode | typeof builtinFunctions.setKeyPressed | typeof builtinFunctions.setJoystick | typeof builtinFunctions.setRnd;
 
 export function canonicalTestRuntimeSetterName(name: string): TestRuntimeSetter | undefined {
   const canonical = canonicalFunctionName(name);
-  if (canonical === builtinFunctions.setJiffies || canonical === builtinFunctions.setKeyCode || canonical === builtinFunctions.setKeyPressed || canonical === builtinFunctions.setJoystick) {
+  if (canonical === builtinFunctions.setJiffies || canonical === builtinFunctions.setKeyCode || canonical === builtinFunctions.setKeyPressed || canonical === builtinFunctions.setJoystick || canonical === builtinFunctions.setRnd) {
     return canonical;
   }
 
   return undefined;
 }
 
-export function setterStorageName(name: TestRuntimeSetter, selector?: Expression): string {
+export function setterStorageName(name: Exclude<TestRuntimeSetter, typeof builtinFunctions.setRnd>, selector?: Expression): string {
   switch (name) {
     case builtinFunctions.setJoystick:
       if (!selector) throw new Error("Missing joystick selector after semantic analysis.");

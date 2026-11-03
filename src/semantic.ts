@@ -824,11 +824,27 @@ function analyzeTestRuntimeSetterStatement(
   }
 
   const isJoystick = setter === builtinFunctions.setJoystick;
-  if (statement.expression.args.length !== (isJoystick ? 2 : 1)) {
+  const isRnd = setter === builtinFunctions.setRnd;
+  if (isRnd && statement.expression.args.length === 0) {
+    throw new DiagnosticError(statement.expression.location, "SET_RND expects at least one argument.");
+  }
+  if (!isRnd && statement.expression.args.length !== (isJoystick ? 2 : 1)) {
     throw new DiagnosticError(statement.expression.location, `${setter} expects exactly ${isJoystick ? "two arguments" : "one argument"}.`);
   }
 
   const args = statement.expression.args.map(arg => foldExpression(arg, constants, unknownIdentifierIsError, arrays, functions, scope, structValues));
+  if (isRnd) {
+    for (const value of args) {
+      if (value.kind === "color" || isStringExpression(value)) {
+        throw new DiagnosticError(value.location, "SET_RND expects numeric arguments.");
+      }
+      const constantValue = value.kind === "number" ? value.value : value.kind === "boolean" ? Number(value.value) : undefined;
+      if (constantValue !== undefined && (constantValue < 0 || constantValue >= 1)) {
+        throw new DiagnosticError(value.location, "SET_RND values must satisfy 0 <= value < 1.");
+      }
+    }
+    return { ...statement, expression: { ...statement.expression, name: setter, args, valueType: "number" } };
+  }
   if (isJoystick) joystickControl(args[0]);
   const value = args[isJoystick ? 1 : 0];
   if (value.kind === "color" || isStringExpression(value)) {
@@ -1655,7 +1671,7 @@ function foldFunctionCall(
     return { ...expression, name, args: [selector], valueType: "number" };
   }
 
-  if (name === builtinFunctions.setJiffies || name === builtinFunctions.setKeyCode || name === builtinFunctions.setKeyPressed || name === builtinFunctions.setJoystick) {
+  if (name && canonicalTestRuntimeSetterName(name)) {
     throw new DiagnosticError(expression.location, `${name} can only be used as a statement inside a TEST.`);
   }
 

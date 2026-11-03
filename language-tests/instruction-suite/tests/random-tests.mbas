@@ -1,0 +1,67 @@
+function RandomDie()
+    return int(rnd() * 6) + 1
+end function
+
+inline function RandomInline()
+    return rnd()
+end function
+
+function RandomDifference(leftValue, rightValue)
+    return leftValue - rightValue
+end function
+
+test RandomSequenceFeedsFunctions()
+    set_rnd(0, 0.5, 0.99)
+    assert_eq 1, RandomDie()
+    assert_eq 4, RandomDie()
+    assert_eq 6, RandomDie()
+end test
+
+test RandomCallsAreConsumedOnceInSourceOrder()
+    set_rnd(0.75, 0.25, 0.875, 0.125)
+    assert_eq 0.5, rnd() - rnd()
+    assert_eq 0.75, RandomDifference(rnd(), rnd())
+    set_rnd(0.5, 0.25)
+    assert_eq 0, rnd() MOD 0.25
+    assert_eq 0.25, RandomInline()
+end test
+
+test RandomSequenceCanBeReplaced()
+    local nextValue
+    set_rnd(0.125, 0.875)
+    assert_eq 0.125, rnd()
+    nextValue = 0.5
+    set_rnd(nextValue)
+    randomize 123
+    assert_eq 0.5, rnd()
+end test
+
+test RandomSetterEvaluatesValuesBeforeReplacingSequence()
+    set_rnd(0.125, 0.875)
+    set_rnd(rnd() + 0.25, rnd() - 0.25)
+    assert_eq 0.375, rnd()
+    assert_eq 0.625, rnd()
+end test
+
+test ExhaustedSequenceUsesNativeRandom()
+    local value
+    set_rnd(0.5)
+    assert_eq 0.5, rnd()
+    randomize 123
+    value = rnd()
+    assert_true value >= 0
+    assert_true value < 1
+end test
+
+test LeaveUnusedRandomValues()
+    set_rnd(0.25, 0.75)
+    assert_eq 0.25, rnd()
+end test
+
+test NextTestGetsNativeRandom()
+    local value
+    randomize 123
+    value = rnd()
+    assert_true value >= 0
+    assert_true value < 1
+end test

@@ -50,6 +50,7 @@ export interface TestRunnerLowerOptions {
   readonly outputDevice?: DeviceKind;
   readonly uppercaseNames?: boolean;
   readonly globalResetInstructions?: readonly Instruction[];
+  readonly runtimeResetInstructions?: readonly Instruction[];
 }
 
 export function lowerTestRunner(
@@ -83,6 +84,7 @@ export function lowerTestRunner(
     const passedLabel = nextInternalLabel();
     const afterLabel = nextInternalLabel();
     instructions.push(...testRuntimeResetLets(test.location));
+    instructions.push(...cloneInstructions(options.runtimeResetInstructions ?? []));
     instructions.push(...testCaptureResetLets(test));
     instructions.push(...cloneInstructions(options.globalResetInstructions ?? []));
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });

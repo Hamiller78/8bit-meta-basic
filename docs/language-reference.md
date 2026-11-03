@@ -694,6 +694,21 @@ end test
 
 Runtime fakes for `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` are reset before each test. Use `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)` inside a test to make time and keyboard-dependent code deterministic.
 
+`SET_RND(value, ...)` supplies an ordered sequence of results for the next `RND()` calls, including calls inside ordinary and inline functions:
+
+```basic
+test AttackDice()
+    set_rnd(0, 0.5, 0.99)
+    assert_eq 1, int(rnd() * 6) + 1
+    assert_eq 4, int(rnd() * 6) + 1
+    assert_eq 6, int(rnd() * 6) + 1
+end test
+```
+
+The command takes one or more numeric expressions. Values must satisfy `0 <= value < 1`; out-of-range constants are rejected, and callers must keep runtime expressions in range. Arguments are evaluated left to right before replacing any unused sequence. Each `RND()` call consumes exactly one value, in source expression order. A second `SET_RND` replaces the sequence rather than appending to it. Before each test the sequence is cleared. Without a sequence, or after it is exhausted, `RND()` uses the target's native generator; supply enough values for a fully deterministic test. `RANDOMIZE` affects the native generator and leaves queued values intact.
+
+Like `SET_KEY_CODE` and the other runtime setters, `SET_RND` is a statement allowed only inside a `TEST` block with test mode enabled; it cannot be called from an ordinary helper function or used as a value. Normal builds emit no random fake storage or helper, and test builds without `SET_RND` retain native `RND()` directly.
+
 Supported assertions are:
 
 ```basic

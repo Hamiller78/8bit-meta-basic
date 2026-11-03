@@ -24,6 +24,7 @@ export const builtinFunctions = {
   setKeyCode: "SET_KEY_CODE",
   setKeyPressed: "SET_KEY_PRESSED",
   setJoystick: "SET_JOYSTICK",
+  setRnd: "SET_RND",
   sgn: "SGN",
   sin: "SIN",
   space: "SPACE$",

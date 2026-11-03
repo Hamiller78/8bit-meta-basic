@@ -463,6 +463,8 @@ Use `--module dice` on both the build and launch commands to select a matching t
 
 Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
 
+Use `set_rnd(0, 0.5, 0.99)` inside a test to supply the next three `rnd()` results, including reads in called functions. This gives portable, deterministic dice rolls without relying on each target's different seeded generator. Each call replaces the previous sequence; unused values are cleared before the next test. Once exhausted, reads return to the native generator, so supply enough values for the code under test.
+
 For emulator-level output checks, enable `testScreenOutput` in the project configuration (or pass `--test-screen-output` with `--run-tests`), print normally, and compare `SCREEN_CODE(row, column)` with `CODE("X")`. Unlike `ASSERT_PRINTAT`, this reads what the target actually placed on its display.
 
 ## Common mistakes

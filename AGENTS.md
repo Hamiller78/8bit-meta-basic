@@ -139,6 +139,7 @@ Supported constructs:
 - Test-mode `GLOBALS` / `END GLOBALS` fixture blocks
 - Test-mode assertions `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and portable colour assertions
 - Test-mode runtime fakes `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)`
+- Test-only `SET_RND(value, ...)` queues the next `RND()` results, replaces any previous sequence, and resets before each test; exhausted or unset sequences use native random generation
 - `cls` and `cls colour`
 - `border_color colour`
 - `text_color colour`

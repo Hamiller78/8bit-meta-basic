@@ -10,6 +10,7 @@ const modules = [
   "expressions-tests",
   "flow-tests",
   "functions-tests",
+  "random-tests",
   "runtime-tests",
   "screen-tests",
   "storage-tests",
