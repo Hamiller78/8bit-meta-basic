@@ -192,14 +192,22 @@ Spectrum output begins like this:
 
 ## Documentation
 
-- [Programming guide](docs/programming-guide.md)
-- [Language reference](docs/language-reference.md)
-- [Architecture](docs/architecture.md)
-- [Target machines and generated output](docs/targets.md)
-- [Build and external-tool pipeline](docs/toolchain.md)
-- [Running programs on emulators and retro devices](docs/running-programs.md)
-- [Documentation and software sources](docs/sources.md)
-- [Roadmap](docs/roadmap.md)
+| Source | Responsibility |
+| --- | --- |
+| [Programming guide](docs/programming-guide.md) | Learn application patterns through examples. |
+| [Language reference](docs/language-reference.md) | Look up syntax and language semantics, including test facilities. |
+| [Architecture](docs/architecture.md) | Understand compiler structure and implementation boundaries. |
+| [Targets](docs/targets.md) | Compare machine capabilities and generated BASIC dialects. |
+| [Toolchain](docs/toolchain.md) | Look up build/launch options, packaging, and artifact formats. |
+| [Running guide](docs/running-programs.md) | Configure emulators/devices and troubleshoot output transports. |
+| [MetaBASIC testing skill](skills/metabasic-testing/SKILL.md) | Develop behavior with focused native tests. |
+| [Language feature skill](skills/add-metabasic-feature/SKILL.md) | Extend the compiler with host tests and instruction-suite coverage. |
+| [Emulator testing skill](skills/run-metabasic-tests/SKILL.md) | Build runners, run suites, and verify captured results. |
+| [Sources](docs/sources.md) | Find external documentation and software sources. |
+| [Roadmap](docs/roadmap.md) | Track planned work. |
+
+The repository skills are readable Markdown procedures shared by agents and human
+contributors. Agents should follow the routing instructions in [AGENTS.md](AGENTS.md).
 
 ## VS Code extension prototype
 

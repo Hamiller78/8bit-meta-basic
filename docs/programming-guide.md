@@ -443,23 +443,10 @@ test RollStaysInRange()
 end test
 ```
 
-Build the generated runner first, then run it in the target emulators:
-
-```text
-npm run build:all-targets -- --project my-game --run-tests --profile debug
-npm run launch:spectrum -- --project my-game --run-tests --profile debug --printer-output --restart
-npm run launch:c64 -- --project my-game --run-tests --profile debug --printer-output --restart
-```
-
-`--printer-output` mirrors the test runner through the target's verified host transport. Spectrum/Fuse uses ZX Printer text output, C64/VICE and VIC-20/VICE use RS-232, and Atari uses a shared-drive file. The launch command returning only confirms that the emulator started. Wait for the captured file to reach the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, then check that the reported values for both `FAILED` and `FAILURES` are zero:
-
-```text
-cat build/printer/debug/spectrum48/my-game.txt
-cat build/rs232/debug/c64/my-game.txt
-cat build/altirra_drive/MCP.TXT
-```
-
-Use `--module dice` on both the build and launch commands to select a matching test file when a focused runner is more useful. Test runners inherit the project's font groups, so runner messages and output assertions use the same character set as the application. Pass `--font` only when intentionally overriding that project setting. Keep `--language` and the profile consistent. `debug` is convenient while diagnosing generated BASIC, while `release` catches problems caused by compact naming or memory pressure. Run every locally configured target emulator that is available. If an emulator cannot be run, report that target separately rather than treating a successful build as an emulator result. The complete setup and troubleshooting workflow is in [Running generated programs](running-programs.md#complete-emulator-test-workflow).
+For the development sequence, use [MetaBASIC testing](../skills/metabasic-testing/SKILL.md).
+For building runners, selecting test modules, running configured emulators, and
+checking captured results, follow [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md).
+Emulator setup and capture locations belong in the [running guide](running-programs.md#test-capture-locations).
 
 Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
 

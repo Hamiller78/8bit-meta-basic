@@ -1,0 +1,4 @@
+interface:
+  display_name: "MetaBASIC testing"
+  short_description: "Implement MetaBASIC changes with focused tests"
+  default_prompt: "Use $metabasic-testing to implement a MetaBASIC change with focused tests and captured emulator verification."

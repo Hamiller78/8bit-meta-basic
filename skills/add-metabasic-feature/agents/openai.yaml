@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add a MetaBASIC language feature"
+  short_description: "Extend the compiler with instruction-suite coverage"
+  default_prompt: "Use $add-metabasic-feature to implement a MetaBASIC language feature with host regression tests and instruction-suite verification."

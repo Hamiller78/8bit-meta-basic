@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run MetaBASIC emulator tests"
+  short_description: "Build runners and verify captured emulator results"
+  default_prompt: "Use $run-metabasic-tests to run a MetaBASIC project test suite on configured emulators and report captured results."

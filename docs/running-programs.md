@@ -8,54 +8,47 @@ This is a practical field guide for loading generated programs into emulators an
 
 Record emulator/device version, host operating system, target video mode, and relevant menu settings whenever a procedure is verified.
 
-The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, `c64`, or `agon`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target—for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
+The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, `c64`, `vic20`, or `agon`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target-for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
 
 ## Complete emulator test workflow
 
-Use this workflow after changing executable Meta-BASIC application code or user-visible compiler behavior. A compiler build proves that source can be lowered. The emulator run checks the generated artifact, target BASIC runtime, packaging tool, emulator configuration, and output transport together.
+Follow the repository skill [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md)
+for building runners, launching emulators, waiting for fresh captures, and deciding
+whether a native run passed. The skill is the shared procedure for agents and human
+readers. For writing tests and implementing behavior, use
+[MetaBASIC testing](../skills/metabasic-testing/SKILL.md).
 
-1. Put deterministic behavior in a `TEST ... END TEST` block under the project's `tests/` directory. Use `--module name` when only one matching test file is relevant.
-2. Compile the runner for all targets before opening an emulator:
+This guide owns emulator/device setup, output locations, and transport troubleshooting.
+The [language reference](language-reference.md#test-mode) owns test-language semantics;
+the [toolchain reference](toolchain.md) owns build/launch options and artifact formats.
 
-   ```text
-   npm run build:all-targets -- --project examples/san-golpe --run-tests --module characterfactory --profile release
-   ```
+## Test capture locations
 
-3. Launch each locally configured emulator with host output capture enabled. Use the same project, module, and profile options as the build:
+The historical `--printer-output` flag mirrors the runner log through the selected
+configuration's transport. It does not mean every target uses a printer. Resolve
+paths from the selected `--config` (normally `scripts/tools.local.json`), using the
+actual profile and source/project name. These are the conventional release paths:
 
-   ```text
-   npm run launch -- spectrum48 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
-   npm run launch -- c64 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
-   npm run launch -- atari1 --project examples/san-golpe --run-tests --module characterfactory --profile release --printer-output --restart
-   ```
+| Configuration | Transport | Capture |
+| --- | --- | --- |
+| `spectrum48` | Fuse ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum48/<name>.txt` |
+| `spectrum128` | Fuse ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum128/<name>.txt` |
+| `c64` | VICE user-port RS-232 | `build/rs232/release/c64/<name>.txt` |
+| `vic20` | VICE RS-232 in the supplied configuration | `build/rs232/release/vic20/<name>.txt` |
+| `atari1` | Altirra H: shared host directory (`H6:MCP.TXT`) | `build/altirra_drive/MCP.TXT` |
+| `atari2` | Atari800 H: shared host directory (`H1:MCP.TXT`) | `build/atari800_drive/MCP.TXT` |
+| `agon` | File on the virtual SD card | `<sdcardPath>/MCP.DAT`; runtime errors in `<sdcardPath>/MCP.ERR` |
 
-   The launcher selects the verified transport by default. The historical `--printer-output` flag means "mirror the test log to the configured external device"; it does not mean that every target uses a printer. Test runners inherit the project's character groups. On C64, the runner switches to the configured font before printing and uses matching casing for runner messages, test names, program output, and assertions. Pass `--font` only to override the project deliberately. Keep the program's intended `--language` and profile.
+For printer/serial captures, inspect `printerOutputPath` or `rs232OutputPath` in the
+selected `targetConfigurations` entry. For Atari, inspect `sharedDrivePath`,
+`sharedDriveOutputPath`, and `sharedDriveSpec`, including launcher defaults when
+fields are omitted. For Agon, inspect `sdcardPath`. Configuration overrides take
+precedence over this table. The launchers clear their selected captures before a
+run; shared paths are reused between projects/modules.
 
-4. Wait for the target runner to finish, then read the captured host file:
-
-   | Target configuration | Compiler target | Emulator | Transport | Default release log |
-   | --- | --- | --- | --- | --- |
-   | `spectrum48` | `spectrum` | Fuse | ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum48/san-golpe.txt` |
-   | `c64` | `c64` | VICE | user-port RS-232 at 2400 baud | `build/rs232/release/c64/san-golpe.txt` |
-   | `atari1` | `atari800xl` | Altirra | writable H: shared drive | `build/altirra_drive/MCP.TXT` |
-
-   Replace `release` with the selected profile and `san-golpe` with the project or source name. The launcher clears the selected log before starting. C64 output arrives slowly because it is sent through emulated 2400-baud RS-232.
-
-5. Treat the run as complete only when the capture reaches this final block:
-
-   ```text
-   META CONTROL PROGRAM (M.C.P.) RUN FINISHED
-   TESTS: ...
-   PASSED: ...
-   FAILED: 0
-   ASSERTIONS: ...
-   FAILURES: 0
-   FREE MEMORY: ...
-   ```
-
-   Also inspect each test's `PASSED`/`FAILED` result and the optional `FAILED TESTS` list, then confirm that the passed count equals the test count. Fuse's printer capture wraps at the Spectrum's text width, so the final banner can appear as `... RU` followed by `N FINISHED` on the next line. The launch command returning is not a test result because launchers detach after starting the emulator. An empty or partial file means the run is still in progress or the transport is misconfigured.
-
-Run every target emulator that is configured and working on the current machine. If one is unavailable, still compile its runner and record the missing emulator run explicitly. Do not describe a build-only check as emulator verification. Target-specific configuration and troubleshooting follow below.
+See the target sections below for setup details. Refer back to the execution skill
+for freshness checks and the completion criterion rather than inferring success
+from an empty file or the launch command returning.
 
 ## ZX Spectrum with Fuse
 

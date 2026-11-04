@@ -2,6 +2,19 @@
 
 These instructions describe the current project state and replace any earlier AGENTS.md guidance.
 
+## Repository skills
+
+Use the maintained repository skills under `skills/` for these workflows:
+
+- [MetaBASIC testing](skills/metabasic-testing/SKILL.md): write native tests and implement application behavior against them.
+- [Add a MetaBASIC feature](skills/add-metabasic-feature/SKILL.md): extend or fix the compiler/language with host regression tests and native instruction-suite coverage.
+- [Run MetaBASIC emulator tests](skills/run-metabasic-tests/SKILL.md): build runners, launch configured computers, receive captures, and verify results.
+
+Read the relevant skill before starting that workflow. Keep language semantics in
+`docs/language-reference.md`, application examples in `docs/programming-guide.md`,
+build/CLI details in `docs/toolchain.md`, and emulator/device setup in
+`docs/running-programs.md`. Link between these sources instead of duplicating procedures.
+
 ## Project purpose
 
 Meta-BASIC is a small, modern source language that transpiles into readable BASIC for classic home computers. The current implemented targets are:
@@ -711,7 +724,7 @@ Keep target-independent parsing and semantic analysis separate from all target r
 
 Preserve existing tests when changing behavior, updating goldens only when the behavioral change is intentional.
 
-For changes to executable Meta-BASIC application code, add or update focused Meta-BASIC `TEST` blocks where the behavior can be asserted. After host-side tests and compilation pass, launch the affected runner in every configured and working target emulator using `--run-tests --printer-output` and the program's intended language, font, and profile, then read the captured host log. A completed emulator test reaches the `META CONTROL PROGRAM (M.C.P.) RUN FINISHED` banner, which a narrow target may wrap across lines, reports zero for both `FAILED` and `FAILURES`, and has a passed count equal to its test count. The launch command returning is not an emulator result because launchers detach after starting the emulator. Build unavailable targets and report their emulator run as unavailable; do not present a build-only result as runtime verification. Use `docs/running-programs.md#complete-emulator-test-workflow` for commands, transport details, and capture paths.
+For executable Meta-BASIC changes, follow [MetaBASIC testing](skills/metabasic-testing/SKILL.md) and complete the relevant native verification through [Run MetaBASIC emulator tests](skills/run-metabasic-tests/SKILL.md). Report unavailable or incomplete runs explicitly; host compilation alone is not native runtime verification.
 
 Coverage currently includes:
 
