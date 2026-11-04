@@ -16,6 +16,17 @@ Generated BASIC is a development artifact: numbered, readable, and suitable for 
 
 This is an early compiler prototype. It has a tokenizer, typed syntax tree, compile-time constants, struct-backed arrays, structured-control lowering, named and inline functions with local variables, blocking keyboard `INPUT`, portable array/struct-array save/load and disk-file deletion, `EXIT FOR`/`CONTINUE FOR`, simple multi-file build configurations, deterministic line numbering, target-specific rendering, build profiles, source and module comments in readable output, and optional hooks for external packaging tools.
 
+The intended primary interface is a Visual Studio Code extension for creating,
+compiling, and testing Meta-BASIC projects in their own repositories, using the
+same compiler and scripts available from the command line. The extension is
+currently a prototype; its implemented capabilities are documented in the
+[extension README](vscode-extension/README.md).
+
+While the language and tooling are changing rapidly, applications are developed
+under `examples/` so compiler, tooling, and application changes can be made
+together. This is a development arrangement: application projects should be able
+to live outside the compiler repository without depending on its folder layout.
+
 ## Quick start
 
 Meta-BASIC requires Node.js 24 LTS or later.
@@ -204,7 +215,6 @@ Spectrum output begins like this:
 | [Language feature skill](skills/add-metabasic-feature/SKILL.md) | Extend the compiler with host tests and instruction-suite coverage. |
 | [Emulator testing skill](skills/run-metabasic-tests/SKILL.md) | Build runners, run suites, and verify captured results. |
 | [Sources](docs/sources.md) | Find external documentation and software sources. |
-| [Roadmap](docs/roadmap.md) | Track planned work. |
 
 The repository skills are readable Markdown procedures shared by agents and human
 contributors. Agents should follow the routing instructions in [AGENTS.md](AGENTS.md).

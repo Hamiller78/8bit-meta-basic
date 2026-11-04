@@ -1,419 +1,344 @@
 # Running generated programs
 
-This is a practical field guide for loading generated programs into emulators and compatible retro devices. Procedures must be labelled by evidence:
+Use this guide for emulator/device setup, loading, host capture, and runtime
+troubleshooting. The [toolchain reference](toolchain.md) owns command options,
+configuration fields, packaging, and artifacts. [Targets](targets.md) describes
+BASIC dialects and machine capabilities.
+
+Procedures are labelled by evidence:
 
 - **Verified:** repeated successfully on the named emulator or physical device.
-- **Documented:** taken from tool or device documentation but not yet repeated by this project.
-- **Expected:** inferred from compatible formats; still needs a hardware test.
+- **Documented:** taken from tool/device documentation but not repeated here.
+- **Expected:** inferred from compatible formats; still requires a hardware test.
 
-Record emulator/device version, host operating system, target video mode, and relevant menu settings whenever a procedure is verified.
+Keep emulator/device version, host OS, video mode, and relevant settings with each
+verification record. Historical success is evidence for that setup, not a claim
+that every current suite passes on every host.
 
-The local tool configuration deliberately separates a compiler target from a runnable target configuration. A compiler target (`spectrum`, `atari800xl`, `c64`, `vic20`, or `agon`) chooses generated BASIC and shared conversion tools. A named `targetConfigurations` entry chooses the concrete computer model, ROM/BASIC assumptions, emulator program, emulator arguments, and output transport. Several names may therefore reuse one compiler target-for example, `spectrum48` and `spectrum128` both compile with `spectrum`, while `atari1` and `atari2` both compile with `atari800xl`.
+## Before launching
+
+Install the selected emulator and packaging tools. Start from
+`scripts/tools.example.json`, create the ignored local configuration, and set paths
+for this machine. Its field definitions are in
+[Local tool configuration](toolchain.md#local-tool-configuration).
+Emulator arguments must enforce the intended model, ROMs, memory expansion, and
+video standard; descriptive computer metadata alone does not set them.
+
+The scripts supply command-line arguments. Manual profiles, host-device mappings,
+and installed ROMs may still be required as described below. Close an old emulator
+or request `--restart` when switching programs; check the actual result if an
+existing instance interferes. General launcher options are documented in
+[Emulator launch commands](toolchain.md#emulator-launch-commands).
 
 ## Complete emulator test workflow
 
-Follow the repository skill [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md)
-for building runners, launching emulators, waiting for fresh captures, and deciding
-whether a native run passed. The skill is the shared procedure for agents and human
-readers. For writing tests and implementing behavior, use
-[MetaBASIC testing](../skills/metabasic-testing/SKILL.md).
-
-This guide owns emulator/device setup, output locations, and transport troubleshooting.
-The [language reference](language-reference.md#test-mode) owns test-language semantics;
-the [toolchain reference](toolchain.md) owns build/launch options and artifact formats.
+Follow [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md) for
+runner builds, launching, keeping the session alive, waiting, and accepting captured
+results. Use [MetaBASIC testing](../skills/metabasic-testing/SKILL.md) for application
+tests and [Add a MetaBASIC feature](../skills/add-metabasic-feature/SKILL.md) for
+instruction-suite coverage. This guide supplies transport setup and troubleshooting.
 
 ## Test capture locations
 
-The historical `--printer-output` flag mirrors the runner log through the selected
-configuration's transport. It does not mean every target uses a printer. Resolve
-paths from the selected `--config` (normally `scripts/tools.local.json`), using the
-actual profile and source/project name. These are the conventional release paths:
+The supplied configurations use these release capture locations. Replace `<name>`
+with the source/project artifact name and `release` with the selected profile.
+Configured path overrides take precedence; resolve the actual path before a run.
 
 | Configuration | Transport | Capture |
 | --- | --- | --- |
-| `spectrum48` | Fuse ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum48/<name>.txt` |
-| `spectrum128` | Fuse ZX Printer text (`TEXT_PRINTER`/`LPRINT`) | `build/printer/release/spectrum128/<name>.txt` |
+| `spectrum48` | Fuse ZX Printer text | `build/printer/release/spectrum48/<name>.txt` |
+| `spectrum128` | Fuse ZX Printer text | `build/printer/release/spectrum128/<name>.txt` |
 | `c64` | VICE user-port RS-232 | `build/rs232/release/c64/<name>.txt` |
-| `vic20` | VICE RS-232 in the supplied configuration | `build/rs232/release/vic20/<name>.txt` |
-| `atari1` | Altirra H: shared host directory (`H6:MCP.TXT`) | `build/altirra_drive/MCP.TXT` |
-| `atari2` | Atari800 H: shared host directory (`H1:MCP.TXT`) | `build/atari800_drive/MCP.TXT` |
+| `vic20` | VICE user-port RS-232 | `build/rs232/release/vic20/<name>.txt` |
+| `atari1` | Altirra H: shared directory, `H6:MCP.TXT` | `build/altirra_drive/MCP.TXT` |
+| `atari2` | Atari800 H: shared directory, `H1:MCP.TXT` | `build/atari800_drive/MCP.TXT` |
 | `agon` | File on the virtual SD card | `<sdcardPath>/MCP.DAT`; runtime errors in `<sdcardPath>/MCP.ERR` |
 
-For printer/serial captures, inspect `printerOutputPath` or `rs232OutputPath` in the
-selected `targetConfigurations` entry. For Atari, inspect `sharedDrivePath`,
-`sharedDriveOutputPath`, and `sharedDriveSpec`, including launcher defaults when
-fields are omitted. For Agon, inspect `sdcardPath`. Configuration overrides take
-precedence over this table. The launchers clear their selected captures before a
-run; shared paths are reused between projects/modules.
-
-See the target sections below for setup details. Refer back to the execution skill
-for freshness checks and the completion criterion rather than inferring success
-from an empty file or the launch command returning.
+The historical `--printer-output` launch flag enables the selected transport.
+Capture fields and placeholders are defined in the
+[toolchain reference](toolchain.md#emulator-fields). Shared Atari/Agon files are
+reused across projects; preserve results before another launch clears them.
+The sections below explain how each emulator reaches the selected file.
 
 ## ZX Spectrum with Fuse
 
-Status: **partly verified**.
+Status: **manual loading partly verified; printer capture verified in Fuse 1.6.0
+on Linux/aarch64**.
 
-Configuration split:
-
-- JSON: set the shared `bas2tap` path under `targets.spectrum.tools`. Put the Fuse executable, explicit model argument, optional `testArgs`, and output settings in each named configuration such as `targetConfigurations.spectrum48` or `targetConfigurations.spectrum128`.
-- Manual: install Fuse and `bas2tap`; decide whether the local Fuse build needs `-auto-play` or already starts loaded tapes automatically.
-
-1. Build the Spectrum `.tap` using the configured `bas2tap` integration.
-2. Start Fuse with a Spectrum model compatible with the program.
-3. At the Sinclair prompt, enter:
-
-   ```basic
-   LOAD ""
-   ```
-
-4. Attach or open the generated `.tap` using Fuse's tape menu.
-5. Start tape playback if the emulator does not do so automatically.
-6. Run the program if it was saved without automatic start.
-
-Notes from testing:
-
-- Fuse's extended keyboard mode is entered with `Tab` in the tested configuration.
-- On a German host keyboard, `Y` and `Z` may be exchanged.
-- Entering quotation marks is a recurring source of friction; document the exact working key mapping next time.
-- Fuse can be generous about tape timing, so behaviour may be less forgiving on physical hardware or another emulator.
-
-Still to verify:
-
-- Exact Fuse version and model setting
-- Exact menu command for attaching the tape
-- Whether the generated file autoloads or requires `RUN`
-- Procedure on The Spectrum physical device
-
-## ZX Spectrum test output capture with Fuse
-
-Status: **verified locally with Fuse 1.6.0 on Linux, including a project test runner**.
-
-For Spectrum/Fuse text capture, use the Meta-BASIC `TEXT_PRINTER` device:
+Configure the selected Fuse entry with its executable and explicit model arguments
+(`--machine 48` or `--machine 128`). Keep packaging under `targets.spectrum.tools`
+and model-specific arguments under the named configuration. For example:
 
 ```text
-npm run test:language:spectrum -- --restart
+npm run launch -- spectrum48 --source examples/narf.mbas --restart
 ```
 
-If no explicit `--test-output-device` is passed to a launch script, the helper uses the target's configured default. The example configuration uses `text-printer` for Spectrum, `shared-drive` for Atari, and `rs232` for C64. Agon file-device output writes readable text through BBC BASIC `BPUT#`; the instruction-suite launcher writes `MCP.DAT` on the configured virtual SD card.
+The tape argument receives the generated `.tap`. Include `-auto-play` when the
+installed setup needs it; omit it if playback is already automatic. Use the manual
+sequence if loading or startup is not automatic.
 
-The Spectrum backend lowers mirrored test-runner output to `LPRINT`. The launch configuration should pass Fuse's ZX Printer text-file options:
+### Manual tape loading
+
+1. Start Fuse with a compatible Spectrum model.
+2. At the Sinclair prompt, enter `LOAD ""`.
+3. Attach the generated `.tap` using the tape menu and start playback.
+4. Enter `RUN` if the tape was saved without automatic start.
+
+In the tested keyboard setup, `Tab` enters extended mode; German host layouts may
+exchange Y and Z. Quote entry and exact tape-menu paths still need a reproducible
+host-specific record. Fuse can be generous about tape timing, so repeat loading
+on the physical The Spectrum separately before claiming hardware verification.
+
+### Printer capture setup
+
+Use `TEXT_PRINTER` for this Fuse setup. The selected configuration needs:
 
 ```json
 "testArgs": ["--speed", "1000"],
 "printerArgs": ["--printer", "--zxprinter", "--textfile", "{printerOutput}", "--graphicsfile", "{nullDevice}"]
 ```
 
-When `--run-tests` is used, the Spectrum launcher adds `testArgs`; by default this asks Fuse for `1000%` speed. Adjust the percentage in `scripts/tools.local.json` for the host machine. Normal Spectrum launches do not receive this speed override.
-`{nullDevice}` expands to `NUL` on Windows and `/dev/null` elsewhere so Fuse does not grow the default `printout.pbm` ZX Printer bitmap file while the text capture is active.
+`--zxprinter` is required by the verified 48K capture path. The graphics sink
+prevents growth of Fuse's default `printout.pbm`; the
+[placeholder reference](toolchain.md#placeholders) defines `{nullDevice}`.
+These arguments replace manual printer setup for the verified configuration.
+Test launches use the accelerated `testArgs` speed; normal runs retain their
+ordinary speed. Choose a percentage suitable for the host.
 
-Manual Fuse printer setup is not required for this path when the launcher arguments are configured as above. Keep `--zxprinter`; without it, the verified 48K text-file capture did not produce output. The `--graphicsfile {nullDevice}` part is what prevents the unwanted bitmap printout file.
-
-Captured output is written to:
-
-```text
-build/printer/<profile>/<target-configuration>/<source-name>.txt
-```
-
-The minimal verified experiment was:
+The minimal verified experiment was a 48K program containing:
 
 ```basic
 10 LPRINT "HELLO MCP"
 20 GO TO 20
 ```
 
-with Fuse launched as a 48K Spectrum and ZX Printer text output enabled. The host text file became visible while Fuse was still running. The Interface 1 RS-232 path was not usable on this Windows/Fuse setup because the receive-file option raised a "Not yet implemented on Win32" dialog, and the transmit path did not produce reliable live output.
+The host file updated while Fuse was running. Long runner lines can wrap at the
+Spectrum text width. The Interface 1 receive-file path raised "Not yet implemented
+on Win32" in the Windows experiment; its transmit path did not yield reliable live
+text. Printer text capture remains the documented route.
 
-On 2026-09-12, the focused San-Golpe character runner completed in Fuse 1.6.0 on Linux/aarch64 with 2 tests passed, 46 assertions, and 0 failures. The printer capture wrapped long runner lines at 32 columns as described above.
+On 2026-09-12, the focused San-Golpe character runner completed in Fuse 1.6.0 on
+Linux/aarch64 with 2 tests passed, 46 assertions, and zero failures. The exact
+manual tape-loading and physical The Spectrum procedures remain to be recorded.
 
-## Atari 800XL with an ATR listing
+## Atari 800XL with Altirra
 
-Status: **current documented project workflow; emulator details need a clean repeat test**.
+Status: **direct tokenized loading is configured; a clean repeat record of the
+broader loading procedure is pending. Minimal H: shared-directory capture is verified**.
 
-Configuration split:
-
-- JSON: set shared Atari packaging tools in `targets.atari800xl.tools`; set the Atari 800XL model metadata, Altirra executable, artifact launch arguments, and shared-drive output paths in `targetConfigurations.atari1`.
-- Manual: install Altirra and the Atari packaging tools; if using test capture, create or select an Altirra profile with a writable H: host device pointing at the configured shared-drive folder.
-
-The launch helper can build the selected program and run the tokenized `.BAS` in Altirra:
+Install Altirra with the intended ROM/BASIC profile. Configure `atari1` with the
+executable and tokenized loading arguments (`/runbas {artifact}`). Packaging and
+artifact selection are described in the
+[toolchain reference](toolchain.md#atari-800xl-direct-tokenization).
 
 ```text
-npm run launch:atari -- --source examples/narf.mbas
+npm run launch:atari -- --source examples/narf.mbas --restart
 ```
 
-Use `--restart` when switching examples. To open the generated data ATR instead:
+This uses tokenized `.BAS` by default. A packaged file exposed through an available
+disk/device can also be loaded in BASIC with `RUN "D:PROGRAM.BAS"`, or
+`LOAD "D:PROGRAM.BAS"` followed by `RUN`. Use `LIST` to inspect it against the
+readable listing. The [inspection tools](sources.md#conversion-and-inspection-tools)
+can detokenize it for a round-trip comparison. Record the artifact, tool version,
+ROM/profile, and host-device mapping when verifying this path.
+
+### Manual loading from a data ATR
+
+The generated ATR contains program files, not a bootable DOS system. To inspect
+that artifact in Altirra:
 
 ```text
 npm run launch:atari -- --source examples/narf.mbas --artifact atr --restart
 ```
 
-The generated ATR is not bootable; booting from it directly causes a boot error.
-
-Mount:
-
-```text
-D1: bootable Atari DOS 2.5 disk
-D2: generated program ATR data disk
-```
-
-After a cold boot, return from DOS to BASIC with `B. RUN CARTRIDGE` if necessary. Then enter:
+Mount a bootable Atari DOS 2.5 disk as D1 and the generated program ATR as D2.
+After cold boot, return to BASIC with `B. RUN CARTRIDGE` if necessary, then enter:
 
 ```basic
 NEW
-ENTER "D2:COLORS.LST"
+ENTER "D2:NARF.LST"
 LIST
-SAVE "D2:COLORS.BAS"
+SAVE "D2:NARF.BAS"
 RUN
 ```
 
-On later boots, the tokenized version can be started directly:
+Use the DOS-compatible filename actually staged by the build. On later boots,
+`RUN "D2:NARF.BAS"` loads the saved tokenized program. Booting the data ATR alone
+causes a boot error. If screen edges are cropped, inspect display size/overscan;
+the logical text area can exceed the TV-safe visible area.
 
-```basic
-RUN "D2:COLORS.BAS"
-```
+### Shared-directory capture setup
 
-`ENTER` parses the text listing; `SAVE` writes Atari BASIC's tokenized format.
+Configure Altirra's test profile with a writable Host device (H:) whose H1/H6 path
+maps to the repository's `build/altirra_drive/`, or the selected configuration's
+host directory. The runner uses `H6:MCP.TXT`; H6 translates Atari line endings into
+host CR/LF. The launcher clears its configured host output before starting.
 
-If the rightmost column or bottom row is cropped, increase the emulator/device display size or overscan. The program uses the logical `GRAPHICS 0` text area, but the visible TV-safe area varies.
-
-## Atari 800XL with direct tokenized BASIC
-
-Status: **artifact generation available; emulator/device loading still needs a clean repeat test**.
-
-1. Build the Atari target with `basicParser` configured in `scripts/tools.local.json`.
-2. Mount the generated ATR or expose the staged tokenized `.BAS` file to Altirra.
-3. In Atari BASIC, run:
-
-   ```basic
-   RUN "D:PROGRAM.BAS"
-   ```
-
-4. If direct `RUN` behaves differently, try `LOAD "D:PROGRAM.BAS"` followed by `RUN`.
-5. `LIST` the result and compare it with the generated text.
-6. Optionally detokenize it with `atariconv` or `listbas` and compare the round trip.
-
-Record during the test:
-
-- `tbxl-parser` version, `basicParser` executable path/name, and download/build source
-- Exact generated artifact used: `.tokenized.bas`, staged `.BAS`, or generated `.atr`
-- Whether `-f` preserves Meta-BASIC's readable Atari variable names
-- Altirra version and host-directory/disk setup
-- A400 Mini file/container requirements
-
-For an explicit raw tokenized-file launch in Altirra:
-
-```text
-npm run launch:atari -- --source examples/narf.mbas --artifact tokenized-bas --restart
-```
+This H: mapping is a **manual Altirra setting**. A host path in JSON does not create
+the emulator profile or install its Host device. Verify that the active profile
+maps to the directory prepared by the launcher. Minimal Host-device capture is
+verified; printer (`P:`) and serial (`R:`) hooks remain experimental alternatives.
 
 ## Atari 800XL with Atari800 7.x
 
-Status: **script support added; emulator behavior should be checked per machine**.
+Status: **launcher support present; repeat behavior checks for the installed
+emulator and ROM set**.
 
-Atari800 7.x can be launched directly from the command line. Configure `targetConfigurations.atari2.emulator.path` in `scripts/tools.local.json`, then run:
+Configure `atari2` with its executable and ROMs for an 800XL with BASIC. The
+supplied argument template is:
+
+```json
+"args": ["-xl", "-pal", "-basic", "-H1", "{sharedDrive}", "-hreadwrite", "-run", "{artifact}"]
+```
+
+The corresponding `artifactArgs` entries retain those model/host-drive arguments
+for the selected loading method. Launch with:
 
 ```text
 npm run launch:atari800 -- --source examples/narf.mbas --restart
 ```
 
-The example configuration uses:
+`-xl` and `-basic` select the BASIC environment. `-H1` maps the host directory and
+`-hreadwrite` enables writes. Unlike Altirra's manual profile mapping, this adapter
+passes the host-directory setup on the command line. For capture, retain the
+supplied `shared-drive` selection and `H1:MCP.TXT` device specification; the
+launcher clears `build/atari800_drive/MCP.TXT` before starting.
+
+For empty capture, check that the active H1 directory matches the configured host
+capture directory and is writable. Programs launched under these Atari profiles
+also use the selected host data drive for data-file operations: mounting an ATR
+by itself does not install a DOS `D:` handler. Artifact choices and selection among
+named computers belong in the [launcher reference](toolchain.md#emulator-launch-commands).
+
+## Commodore computers with VICE
+
+Status: **C64 RS-232 capture verified in VICE 3.7.1 on Linux/aarch64; exact manual
+loading still needs a repeat record. VIC-20 setup is supplied in configuration**.
+
+Install VICE and configure `x64sc` for C64 or `xvic` for VIC-20. Retain the
+[petcat packaging settings](toolchain.md#commodore-64-petcat).
+The supplied `xvic` profile enables all conventional memory expansions with
+`-memory all`, matching the expanded PRG layout. Use a project that supports the
+VIC-20 display, such as Eight Bits Below:
 
 ```text
--xl -pal -basic -H1 build/atari800_drive -hreadwrite -run <artifact>
+npm run launch:c64 -- --source examples/narf.mbas --restart
+npm run launch:vic20 -- --project examples/eight-bits-below --restart
 ```
 
-`-xl` and `-basic` should start the emulator directly into Atari BASIC. The launcher still builds the normal Atari 800XL target and uses the configured Atari tokenization/ATR tools. The default launch artifact is the tokenized `.BAS`; `--artifact basic`, `--artifact lst`, and `--artifact atr` are also available for experiments.
+The supplied profiles autostart the packaged PRG. For manual loading, attach or
+autostart `.prg` through VICE, then enter `RUN` if it loads without starting.
+Use `LIST` to compare the tokenized program with the readable `.bas`. Record VICE
+and petcat versions, loading method, and treatment of quotes/PETSCII when verifying
+a new host setup.
 
-For all-configuration launches, both Atari configurations are started when both have emulator paths. Named filtering replaces the former Atari-specific emulator switch:
+### RS-232 capture setup
 
-```text
-npm run launch:all -- --source examples/narf.mbas --restart
-npm run launch:all -- --source examples/narf.mbas --restart --target-configuration atari1
-npm run launch:all -- --source examples/narf.mbas --restart --target-configuration atari2
+The supplied C64 and VIC-20 configurations select RS-232 with:
+
+```json
+"rs232Args": ["-userportdevice", "2", "-rsuserdev", "0", "-rsuserbaud", "2400", "-rsdev1", "{rs232Endpoint}", "-rsdev1baud", "2400"]
 ```
 
-## Atari 800XL test output capture
+The launcher starts the capture helper and supplies its dynamic localhost endpoint.
+In the VICE GUI, verify:
 
-Status: **minimal Altirra H: host-device path verified locally**.
+- Userport RS232/modem enabled and assigned to Serial 1.
+- Baud rate 2400.
+- Serial 1 shows `127.0.0.1:<port>`, not a literal placeholder or file path.
+- `IP232` unchecked.
 
-Meta-BASIC can lower `PRINTER` output to Atari `P:`, `RS232` output to `R:`, and `SHARED_DRIVE` output to Altirra's H: host-device file `H6:MCP.TXT`.
+C64 BASIC device 2 uses this user-port route; ACIA/SwiftLink settings are separate.
+`-userportdevice 2` selects the device in the verified VICE 3.7.1 setup; `-rsuser`
+is ambiguous in that version and can make it exit before startup. Arguments must
+match the installed VICE version. There is normally no need to enter the dynamic
+port manually. The helper decodes received PETSCII into readable host text.
 
-For test-runner capture, configure Altirra's `Testrunner` profile with a writable Host device (H:) whose H1/H6 path points at:
+The supplied `testArgs: ["-warp"]` keeps tests accelerated after autostart.
+`-autostart-warp` accelerates loading only. Keep serial baud rate at 2400 regardless
+of warp speed. Printer capture hooks remain available, but printer-to-file behavior
+varies by VICE version/settings and is not the preferred documented route.
 
-```text
-C:\Users\Knees\source\repos\8bit-meta-basic\build\altirra_drive\
-```
+For an empty file, inspect startup errors and the actual endpoint/device selection.
+A listening helper alone does not establish a VICE connection. Use the
+[execution skill](../skills/run-metabasic-tests/SKILL.md) to check fresh output and
+accept results. For the expanded VIC-20, use the instruction-module orchestrator
+listed in the [toolchain reference](toolchain.md#language-conformance-suite), since
+a monolithic suite consumes essentially the whole BASIC area.
 
-The launcher clears `build/altirra_drive/MCP.TXT` before starting Altirra, and the generated Atari test runner writes to `H6:MCP.TXT` so line endings become readable on the host.
-
-This H: mapping is currently a manual Altirra setting. The JSON config only tells the launcher which host folder and output filename to prepare; it does not create the emulator profile or change Altirra's GUI settings.
-
-For Atari800, the launcher configures the H: host device on the command line. The default Atari800 test path is `H1:MCP.TXT`, mapped to `build/atari800_drive/MCP.TXT`:
-
-```text
-npm run launch:atari800 -- --project language-tests/instruction-suite --run-tests --printer-output --restart
-```
-
-Shared-drive capture:
-
-```text
-npm run test:language:atari -- --restart
-```
-
-Printer and serial hooks remain available for experiments:
-
-```text
-npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device printer --restart
-npm run launch:atari -- --project language-tests/instruction-suite --run-tests --printer-output --test-output-device rs232 --restart
-```
+On 2026-09-12, the focused San-Golpe character runner completed in VICE 3.7.1 on
+Linux/aarch64 with 2 tests passed, 46 assertions, and zero failures. That run used
+the former `--font mixed` spelling, now `--font lowercase`; current runners inherit
+the project setting.
 
 ## Agon Light with Fab Agon Emulator
 
-Status: **tokenized launch, German San Golpe intro, and the complete 50-test instruction suite verified in Fab Agon Emulator 1.2.5 with BBC BASIC ADL 1.03**.
+Status: **tokenized launch, German San Golpe intro, and the then-current 50-test
+instruction suite verified in Fab Agon Emulator 1.2.5 with BBC BASIC ADL 1.03**.
 
-The local `agon` configuration points to Fab Agon Emulator 1.2.5 and its `basiccard` virtual SD-card directory. The card contains `bin/bbcbasic24.bin`: the older, broadly BBC BASIC 4-compatible interpreter converted to the eZ80's 24-bit ADL mode. It can use the Agon's much larger memory, but it is not the newer BBC BASIC V interpreter. Launch a program with:
+Put `bin/bbcbasic24.bin` on the selected virtual card. This backend uses the ADL
+1.03 interpreter; its capabilities are described in [targets](targets.md#agon-light).
+Configure Fab Agon's executable, working directory, virtual card path, and
+`--sdcard {sdcard}` argument. Launch with:
 
 ```text
 npm run launch:agon -- --project examples/san-golpe --language de --restart
 ```
 
-The launcher compiles target `agon`, creates readable `.bas` and tokenized `.bbc` artifacts, writes the tokenized program as `metabasic.bbc`, and writes these boot commands to `autoexec.txt`:
+The launcher stages the tokenized program and writes `autoexec.txt` on that card:
 
 ```text
 LOAD bin/bbcbasic24.bin
 RUN . /metabasic.bbc
 ```
 
-Fab Agon receives the card with `--sdcard <basiccard>`. The generated BASIC selects mode 3, so `TEXT_COLUMNS` is 80 and `TEXT_ROWS` is 30. The launcher-owned `metabasic.bbc` and `autoexec.txt` files are replaced on each launch; keep personal card files under other names. Existing local configurations that still specify a `.bas` card filename are normalized to `.bbc`.
+The selected card must be writable. The launcher replaces the staged program and
+`autoexec.txt`; keep personal card files under other names. Test launches also
+clear `MCP.DAT` and `MCP.ERR` and install an error trap. Ordinary runner output is
+written to `MCP.DAT`; an unexpected BBC BASIC error writes its number and generated
+line to `MCP.ERR`. Inspect both when diagnosing a run.
 
-For test runs, the launcher clears its previous `MCP.DAT` and `MCP.ERR` files and adds a target-side error trap. An unexpected BBC BASIC runtime error is written to `MCP.ERR` with its error number and generated line, while the ordinary readable test log is written to `MCP.DAT`.
-
-For a physical Agon, copy `build/<profile>/agon/<name>.bbc` to an SD card and start `bbcbasic24.bin` with the same `LOAD`/`RUN` sequence. Keep the adjacent `.bas` as the human-readable listing for inspection and debugging. Meta-BASIC currently relies only on the older interpreter's supported feature set and supplies lowerings instead of assuming BBC BASIC V operations.
-
-## Commodore 64 emulator
-
-Status: **artifact generation available; exact repeatable procedure still to document**.
-
-Configuration split:
-
-- JSON: set `petcat`, VICE executable path, autostart arguments, optional test-only `testArgs`, and printer/RS-232 capture arguments in `scripts/tools.local.json`. Keep the petcat tool's `inputTransform` set to `c64-petcat`; it encodes quoted letters according to the project's selected C64 character set while making BASIC syntax tokenizable.
-- Manual: install VICE; use `--restart` when changing programs if you want the launcher to replace an existing VICE window.
-
-1. Build and launch with:
-
-   ```text
-   npm run launch:c64 -- --source examples/narf.mbas
-   ```
-
-2. When switching to another example, close VICE yourself or launch with `--restart`.
-3. Or build a `.prg` with the configured `petcat -w2` integration and attach or autostart it in VICE manually.
-4. If the emulator loads without running it, enter:
-
-   ```basic
-   RUN
-   ```
-
-4. Use `LIST` to inspect the tokenized program and compare it with the generated `.bas` file.
-
-Record during the next test:
-
-- VICE version
-- Exact `petcat` version and command
-- Autostart versus manual load procedure
-- Treatment of quotes, PETSCII symbols, and letter case
-
-## Commodore 64 test output capture in VICE
-
-Status: **verified locally with VICE and a localhost RS-232 capture endpoint**.
-
-Run:
-
-```text
-npm run test:language:c64 -- --restart
-```
-
-The C64 launcher appends `testArgs` only when `--run-tests` is active. The example configuration uses `-warp`, which keeps VICE in warp mode after the accelerated autostart completes. The RS-232 arguments continue to select 2400 baud; do not raise that rate because it is part of the emulated user-port connection.
-
-The launch script starts a small local TCP capture helper, passes VICE a dynamic `127.0.0.1:<port>` Serial 1 endpoint, and writes the test-runner output to:
-
-```text
-build/rs232/release/c64/instruction-suite.txt
-```
-
-For other programs, replace `instruction-suite` with the selected source or project name. For other profiles, replace `release` with the selected profile.
-
-VICE settings observed during verification:
-
-- Userport RS232 emulation enabled
-- Userport RS232 device set to Serial 1
-- Baud rate 2400
-- Serial 1 displays the dynamic localhost endpoint
-- `IP232` unchecked
-
-ACIA/SwiftLink RS-232 settings are separate from this workflow. C64 BASIC V2 `OPEN 1,2,...` uses the userport RS-232 path configured above.
-
-The launcher supplies the dynamic localhost endpoint through `rs232Args`. In normal use you do not need to type that port into VICE yourself; the GUI is only useful for checking that the placeholder was expanded correctly.
-
-The example configuration uses `-userportdevice 2` to attach the RS-232/modem device to the C64 user port. The shorter `-rsuser` spelling is ambiguous in VICE 3.7.1 and makes that emulator exit before launch. The capture helper converts the PETSCII stream to readable UTF-8 text before writing the host log.
-
-If the file is empty, check that the GUI shows a localhost endpoint rather than a literal placeholder such as `{rs232Endpoint}` or `{rs232Output}`.
-
-On 2026-09-12, the focused San-Golpe character runner completed under VICE 3.7.1 on Linux/aarch64 with the former `--font mixed` spelling, now `--font lowercase`: 2 tests passed, 46 assertions, and 0 failures. This records that earlier run; current test runners inherit the project setting automatically.
+For a physical Agon, copy `.bbc` onto SD and use the same interpreter `LOAD`/`RUN`
+sequence with the chosen filename. Keep `.bas` for inspection rather than relying
+on the plain-text loader to accept UTF-8. Encoding and tokenization belong in the
+[toolchain reference](toolchain.md#agon-bbc-basic-tokenizer).
 
 ## The C64 Mini
 
-Status: **physical device available; detailed workflow unverified in this guide**.
+Status: **physical device available; detailed loading procedure unverified here**.
 
-Likely workflow:
-
-1. Copy the `.prg` to a FAT32 USB stick.
-2. Open it with the Mini's media browser.
-3. Start in the mode that provides BASIC/keyboard support.
-
-Record:
-
-- Firmware version
-- Filename restrictions
-- Whether the program must be renamed or accompanied by configuration flags
-- Required keyboard, joystick, and USB-hub arrangement
-- Whether two USB ports are sufficient for the tested setup
+Expected procedure: copy `.prg` to a FAT32 USB stick, open it with the Mini's media
+browser, and select a mode providing BASIC/keyboard support. Record firmware,
+filename restrictions, companion configuration flags, and the keyboard/controller
+and USB-hub arrangement before treating this as verified guidance.
 
 ## THEVIC20
 
 Status: **deployment artifacts implemented; physical-device verification pending**.
 
-The VIC-20 target is compiled for expanded BASIC memory starting at `$1201`. Running the configured packaging tools therefore creates two files with the same base name:
+Copy the generated `.prg` and matching `.cjm` into the same directory on a FAT32
+USB stick. They must have exactly the same base name, such as `game.prg` and
+`game.cjm`, for THEVIC20 to associate the configuration with the program.
 
-```text
-build/release/vic20/game.prg
-build/release/vic20/game.cjm
-```
-
-Copy both files into the same directory on the FAT32 USB stick. THEVIC20 associates the configuration only when the `.cjm` has exactly the same base name as the virtual program file. The generated configuration defaults to:
-
-```text
-X:vic,pal,35k
-J:1*:JU,JD,JL,JR,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF,JF
-```
-
-The first line selects a PAL VIC-20 with all expansion banks, matching the supplied VICE `-memory all` profile. The second line makes the VIC-20's only joystick port the primary port and maps every controller button to native fire. This line is necessary because, when a CJM is present, THEVIC20 requires an explicit joystick definition; without it, no joystick port is made available to the program.
-
-Change `targets.vic20.theVic20.videoStandard` to `ntsc` or its `memory` value to an officially supported alias (`3k`, `4k`, `8k`, `16k`, `24k`, `32k`, or `35k`) in the local tool configuration when deliberately producing another hardware layout. Ordinary Meta-BASIC VIC-20 builds expect at least the expanded `$1201` BASIC layout; the supplied configuration remains `35k`.
+Use the generated sidecar so that model, video standard, expansion memory, and
+joystick settings accompany the program. The runtime layout must match the compiled
+PRG; ordinary builds do not target unexpanded memory. CJM contents, supported
+memory aliases, and fields for producing another layout are defined in
+[THEVIC20 deployment settings](toolchain.md#thevic20-deployment-settings).
 
 ## The A400 Mini
 
-Status: **physical device available; needs direct tokenized-BASIC and listing-import experiments**.
+Status: **physical device available; direct tokenized-BASIC and listing-import
+procedures need verification**.
 
-Potential inputs include a device-managed ATR image, a generated ATR, a staged `.LST`, or a tokenized `.BAS`. Early testing suggests the carousel may start BASIC programs from `.BAS` files but not `.LST` listings, making the `basicParser` tokenized output especially useful. Treat this as a working observation until the exact firmware flow has been repeated and recorded.
+Potential inputs include a device-managed ATR, generated ATR, staged `.LST`, or
+tokenized `.BAS`. Early testing suggests the carousel can start `.BAS` programs but
+not `.LST` listings; treat that as an observation requiring a clean repeat rather
+than a general format guarantee. Where the device manages its own ATR, copy the
+staged DOS-compatible `.LST` or `.BAS` into it instead of nesting the generated `.atr`.
 
-Record:
-
-- Firmware version
-- How BASIC is selected
-- Accepted disk/file formats
-- Whether a raw `.BAS` can be opened directly
-- How files are copied into a device-managed ATR
-- Keyboard layout and USB-hub behaviour
+Record firmware, how BASIC is selected, accepted formats, raw `.BAS` loading,
+file-copy steps, keyboard layout, and USB-hub behavior.
 
 ## Test record template
 

@@ -1,8 +1,8 @@
 # Meta-BASIC language reference
 
-This document describes the implemented source language. Start with the [programming guide](programming-guide.md) for project structure and copyable application patterns. Target-specific rendering is documented in [targets.md](targets.md).
+This document describes the implemented source language. Start with the [programming guide](programming-guide.md) for project structure and copyable application patterns. Machine-specific values, native behavior, and generated BASIC are documented in [targets](targets.md). Build/configuration options belong in the [toolchain reference](toolchain.md).
 
-The forms documented here are the supported Meta-BASIC source syntax. Do not infer additional source syntax from generated Spectrum, Atari, C64, or Agon BBC BASIC. In particular, target output may contain `LET`, native functions, `POKE`, `SYS`, compact variable names, and zero-based coordinates that are not written that way in Meta-BASIC.
+The forms documented here are the supported Meta-BASIC source syntax. Do not infer additional source syntax from generated Spectrum, Atari, C64, VIC-20, or Agon BBC BASIC. In particular, target output may contain `LET`, native functions, `POKE`, `SYS`, compact variable names, and zero-based coordinates that are not written that way in Meta-BASIC.
 
 Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may contain ASCII letters, digits, and underscores, must begin with a letter or underscore, and may end in `$` to denote a string variable or `%` to denote an integer numeric variable.
 
@@ -17,6 +17,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 - [Keyboard input](#keyboard-input)
 - [Joystick input](#joystick-input)
 - [Data streams](#data-streams)
+- [Data files](#data-files)
 - [User-defined functions](#user-defined-functions)
 - [Output, layout, localization, and devices](#output)
 - [Test Mode](#test-mode)
@@ -65,7 +66,7 @@ start:
     goto start ' Keep polling
 ```
 
-Source comments have no runtime effect. When source-comment emission is enabled, for example by the `debug` build profile or the direct `--source-comments` flag, full-line comments and trailing comments are emitted as generated `REM` lines. Otherwise they are discarded.
+Source comments have no runtime effect. Keeping comments in generated output is controlled by the [toolchain readability options](toolchain.md#profiles-and-readable-output).
 
 Labels use `name:` and may be referenced by `goto` or `gosub`. Duplicate and undefined labels are compile-time errors.
 
@@ -80,7 +81,7 @@ uses "../shared/clock.mbas"
 DrawText()
 ```
 
-The quoted path is relative to the file containing `USES`, not to the build configuration. The referenced file must already be part of the build configuration or the source files selected by `--project`. `USES` does not load files, insert source text, emit BASIC, or change configured execution or initializer order. Use one declaration per dependency. Empty paths, duplicate declarations (including normalized path aliases), missing build inputs, and declarations inside blocks are errors.
+The quoted path is relative to the file containing `USES`, not the build configuration. The referenced file must already be a selected build input. `USES` does not load files, insert source text, emit BASIC, or change configured execution or initializer order. Use one declaration per dependency. Empty paths, duplicate declarations (including normalized aliases), missing build inputs, and declarations inside blocks are errors. Input selection is described in the [toolchain reference](toolchain.md#program-inputs-and-project-configuration).
 
 A module may access another module's functions, constants, enum members, global variables, arrays, struct types and values, labels, and device handles only with a direct `USES` declaration. This applies to writes as well as reads, including test assertions and `GLOBALS` fixtures. Built-in functions and target environment constants need no declaration. Parameters and `LOCAL` variables retain their existing function/test scope.
 
@@ -88,7 +89,11 @@ Dependencies are not transitive: if A uses B and B uses C, A must also declare `
 
 `USES` introduces access checking, not namespaces or exports. Existing global name uniqueness rules remain; symbols are still used without qualification. A scalar's module-level initialization determines ownership before assignments inside functions or tests. When an importing module also assigns that scalar, the dependency's initializer remains its owner. Otherwise, the first unscoped assignment in build order establishes ownership; a read-only implicit scalar belongs to its first referencing module. Initialize shared state in its owning module and use `LOCAL` for unrelated scratch variables that happen to share a name.
 
-Existing multi-file programs must add these declarations. Tests normally use paths such as `uses "../source/math.mbas"`; source modules should not depend on their tests.
+Tests normally use paths such as `uses "../source/math.mbas"`; source modules should not depend on tests.
+
+### Declaration and initialization order
+
+Top-level enum members, struct types, and `DIM` storage are available across the selected compilation unit before executable statements are checked, subject to direct `USES` access. They can be declared in a later configured module. Constant declarations still evaluate in source/build order and can reference only earlier constants. Storage setup and module-global initialization run before entry-module code. Module order is defined by the selected build input; see the [toolchain reference](toolchain.md#program-inputs-and-project-configuration).
 
 ## Constants
 
@@ -102,8 +107,6 @@ const borderLine$ = string$("*", TEXT_COLUMNS)
 
 A constant may reference an earlier constant. Names are case-insensitive. Duplicate constants, unknown references, invalid operations, and compile-time division by zero are rejected.
 
-Top-level constants, enums, struct type definitions, and `DIM` storage declarations are collected across the whole compilation unit before executable statements are analyzed. With the required `USES` declaration, startup code in an earlier file can use an enum member, struct type, native array, or struct value declared in a later file. Constant declarations themselves still evaluate in source/build order, so a constant expression may only refer to constants that have already been declared.
-
 Enums are compile-time collections of integer constants:
 
 ```basic
@@ -116,17 +119,15 @@ end enum
 
 Members without explicit values count upward from the previous value, starting at `0`. In the example, `ThreatIdle` is `0`, `ThreatTracking` is `4`, and `ThreatLocked` is `5`. Enum members currently become ordinary compile-time constants in the surrounding scope; the enum name is documentation, not a namespace.
 
-Every target supplies these environment constants:
-
-| Constant | Spectrum | Atari 800XL | C64 | VIC-20 | Agon Light |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `TEXT_ROWS` | 22 | 24 | 25 | 23 | 30 |
-| `TEXT_COLUMNS` | 32 | 40 | 40 | 22 | 80 |
-| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 50 | 100 |
-
-The compiler also supplies target key constants, portable game-control constants, and portable colour constants. Their target mappings are described in [targets.md](targets.md).
+`TEXT_ROWS` and `TEXT_COLUMNS` describe the selected text area; `JIFFIES_PER_SECOND` gives the timer frequency. Their values are listed in [target environment constants](targets.md#environment-constants). Target key constants, portable game-control constants, and portable colour constants are read-only too; device/key mappings belong in [targets](targets.md).
 
 All targets also provide compile-time numeric constants `PI` and `E`.
+
+Key constants include `KEY_NONE`, `KEY_UP`, `KEY_DOWN`, `KEY_LEFT`, `KEY_RIGHT`,
+`KEY_SPACE`, `KEY_ENTER`, `KEY_ESCAPE`, `KEY_F1` through `KEY_F8`, `KEY_A` through
+`KEY_Z`, and `KEY_0` through `KEY_9`. Portable game-control names are `GAME_UP`,
+`GAME_DOWN`, `GAME_LEFT`, `GAME_RIGHT`, and `GAME_FIRE`. These are read-only numeric
+constants; their native interpretation is described in [targets](targets.md#keyboard-input).
 
 ## Variables and assignment
 
@@ -146,9 +147,9 @@ Integer variable assignment accepts any numeric expression and stores `INT(expre
 counter% = 3.7
 ```
 
-Spectrum and Atari lower integer variables to ordinary numeric variables plus explicit `INT(...)` assignment coercion. C64 and Agon lower them to native `%` integer variables and still emit explicit `INT(...)` coercion for consistent Meta-BASIC semantics. Integer variables are not supported as `FOR` loop variables yet.
+Integer variables cannot currently be used as `FOR` loop counters. Native integer storage differs by target; see [targets](targets.md).
 
-`BYTE` is an experimental compact storage type for one-dimensional arrays and struct fields. It is not a separate arithmetic type: a read becomes a native numeric value before it participates in an expression, and a write applies `INT(...)` before storing the value. Compile-time numeric writes must be integers in `0..255`; runtime expressions are currently the program's responsibility to keep in that range.
+`BYTE` is an experimental compact storage type for scalars, one-dimensional arrays, and struct fields. A read yields a numeric value and a write applies `INT(...)`. Compile-time numeric writes must be integers in `0..255`; runtime expressions are the program's responsibility to keep in range.
 
 Current string support includes assignment, concatenation, output, `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `CHR$`, `CODE`, `ASC`, `STR$`, and `VAL`. Keep string values within the portable 255-character limit.
 
@@ -169,7 +170,7 @@ print values(0); counters%(2)
 
 `dim values(3)` creates valid indexes `0`, `1`, and `2`. Constant indexes are checked at compile time; dynamic indexes are not range-checked yet. Dimensions must be positive compile-time integers. Integer arrays ending in `%` coerce assigned values with `INT(...)`, matching integer variable assignments.
 
-`dim pixels as byte(256)` creates 256 compact byte slots; `dim currentColour as byte` creates one compact byte scalar. `BYTE` arrays have exactly one element-count dimension. Spectrum and Atari store bytes as characters in backing strings and translate reads with `CODE` or `ASC`; C64 and Agon use native integer storage. The compiler initializes byte storage to zero before entry code.
+`dim pixels as byte(256)` creates 256 byte slots; `dim currentColour as byte` creates a byte scalar. Byte arrays take exactly one element-count dimension. Byte storage is initialized to zero before entry code. Native representations and memory trade-offs are described in [targets](targets.md).
 
 String arrays are fixed-width:
 
@@ -181,7 +182,9 @@ messages$(2) = "STANDBY"
 print messages$(0); messages$(2)
 ```
 
-The declared width is the element's storage capacity. It is not part of the string value: `"READY"` retains length 5, while `"READY "` retains length 6 and preserves its deliberate trailing space. Reads, `LEN`, slicing, comparisons, output, and concatenation use that logical value consistently on every target. Spectrum and Atari generated code stores hidden element lengths beside its fixed-width character storage; C64 and Agon use the native length of each string-array element. String fields in struct arrays use the same rules.
+The declared width is the element's storage capacity, not part of the string value: `"READY"` has length 5, while `"READY "` has length 6 and preserves the trailing space. Reads, `LEN`, slicing, comparisons, output, and concatenation use the logical value on every target. String-array access supplies only the element index; width belongs to the declaration. Literal assignments exceeding that width are rejected. String fields in struct arrays use the same rules.
+
+### Structs
 
 Use `STRUCT` blocks to define small record-like storage shapes:
 
@@ -200,7 +203,7 @@ textQueue(0).textQueueRow = 4
 newElement.textQueue$ = "READY"
 ```
 
-Struct definitions are compile-time-only type definitions. A numeric field is written as a bare field name, a byte field as `flags AS BYTE`, and a fixed-width string field with one width argument such as `text$(39)`. Struct arrays lower to target-native backing storage: Spectrum packs two or more numeric fields into one two-dimensional numeric array, while byte fields use compact character strings. C64 packs compatible numeric fields into two-dimensional arrays and keeps byte fields in native integer storage. Atari 800XL uses one backing array per field, with byte fields stored as character strings. Scalar struct values lower to one backing scalar per field. Access fields with `value.field` or `array(index).field`; the storage layout does not change Meta-BASIC indexing.
+Struct definitions are compile-time-only type definitions and cannot be nested. A numeric field is a bare name, a byte field uses `AS BYTE`, and a fixed-width string field has one width argument such as `text$(39)`. Access fields with `value.field` or `array(index).field`. The [target storage layouts](targets.md) do not change source indexing or value semantics.
 
 Whole-struct assignment copies every field from a scalar struct value of the same type:
 
@@ -217,11 +220,9 @@ The right-hand side must be a scalar struct value, not an expression or struct a
 
 `insert_element(array, index, value)` inserts into a one-dimensional native array or struct array. Existing elements from `index` upward are moved one slot higher, and the last element is lost. For struct arrays, `value` must currently be a scalar struct value of the same type. `remove_element(array, index)` moves elements from `index + 1` downward and overwrites the element at `index`; the final slot is left as whatever value remains there.
 
-Functions can accept scalar struct parameters with `parameter AS StructName`. Struct parameters are copied field-by-field before the function call, so assigning to `parameter.field` inside the function does not write back to the caller's struct value. Struct arrays cannot be passed as function parameters yet. Struct definitions cannot be nested.
+Scalar struct parameters and their copy semantics are defined under [User-defined functions](#user-defined-functions).
 
-`dim messages$(3, 12)` creates three string slots with a maximum width of 12 characters. String array use still supplies only the element index; the width is part of the storage declaration. String literal assignments longer than the fixed width are rejected at compile time.
-
-Top-level `DIM` declarations are resolved before executable statements across a multi-file compilation unit. Their generated storage setup runs before entry-module code, while each module's generated section remains in the order configured by `metabasic.json`.
+Declaration visibility and startup initialization follow the [module-order rules](#declaration-and-initialization-order).
 
 ## Expressions
 
@@ -244,9 +245,9 @@ Supported operators, from highest to lowest precedence:
 6. `AND`
 7. `OR`
 
-Binary operators are left-associative. `MOD` lowers portably to `A - INT(A / B) * B`; for now, avoid side-effecting operands such as `RND()` because the naive runtime rendering may evaluate operands more than once. `^` renders to the native target exponentiation operator; target-specific numeric precision and domain quirks remain visible. Spectrum BASIC rejects negative bases for exponentiation at runtime, so avoid expressions such as `(-x) ^ 2` in portable programs for now. Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
+Binary operators are left-associative. `MOD` uses the floor-based remainder; its current runtime implementation may evaluate operands more than once, so avoid side-effecting operands such as `RND()`. Exponentiation retains target-native numeric/domain restrictions; see [runtime function mappings](targets.md#runtime-function-mappings). Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
 
-Meta-BASIC treats zero as false and every nonzero numeric value as true. Target lowering preserves these logical semantics despite differences between the original BASIC implementations.
+Meta-BASIC treats zero as false and every nonzero numeric value as true, regardless of the native BASIC representation of logical values.
 
 ## Built-in functions
 
@@ -282,19 +283,9 @@ Meta-BASIC treats zero as false and every nonzero numeric value as true. Target 
 | `screen_code(row, column)` | Runtime | Read the character code currently visible at a 1-based text-screen position |
 | `device_available(device)` | Runtime | Best-effort availability check for `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, or `RS232` |
 
-`CHR$`, `CODE`, and `ASC` are portable source spellings, but character-code meanings remain target-specific outside ordinary printable text. Spectrum lowers `CODE` and `ASC` to native `CODE`; Atari, C64, and Agon lower both to `ASC`.
+`CHR$`, `CODE`, and `ASC` use target character codes rather than promising ASCII outside ordinary printable text. Use `VAL` with plain numeric strings for portability. Native spellings, numeric behavior, and memory/timer implementations are documented in [targets](targets.md#runtime-function-mappings).
 
-`STR$` and `VAL` are portable source spellings for number/string conversion. Spectrum lowers them to `STR$ expression` and `VAL expression`; Atari, C64, and Agon lower them to their parenthesized native forms. For portable programs, use `VAL` with plain numeric strings rather than relying on Spectrum's ability to evaluate a string as a BASIC expression.
-
-Math functions lower to the target BASIC function of the same name when evaluated at runtime. The compiler folds `INT` with a constant argument, including inside cursor coordinates such as `set_pos int(TEXT_ROWS / 2), 1`, so generated BASIC uses literal positions. Trigonometric functions use each target dialect's native angle unit and numeric behaviour.
-
-`FREE_MEMORY()` lowers to each target's native or customary BASIC free-memory check. C64 output corrects the signed `FRE(0)` result, Atari uses native `FRE(0)`, Spectrum uses the 48K ROM free-memory routine, and Agon uses `HIMEM-TOP`.
-
-`SCREEN_CODE(row, column)` uses the same 1-based coordinates as `PRINT_AT` and returns a code comparable with `CODE("X")` for ordinary portable printable text. Spectrum uses `SCREEN$`, Atari reads the current `SAVMSC` text screen, C64 reads the standard BASIC text screen at address 1024, VIC-20 reads through the KERNAL screen-page pointer at address 648, and Agon requests the character from the VDP, waits one vertical blank for the asynchronous response, and reads the returned MOS screen-character system variable. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. This reads the target's actual display state rather than test-mode output capture.
-
-Agon's VDP reconstructs a character by comparing the pixels at the requested cell with the active character set. Its firmware documents that this may fail, and boundary cells on the final row or column can return `0` even when the character is visibly present. Tests for scrolling therefore read a separate sentinel away from the boundary rather than relying on boundary-cell recognition.
-
-The bottom-right cell is a native scrolling boundary on Atari and C64: printing a character there scrolls the screen immediately, even when the statement has a trailing semicolon. Spectrum `PRINT AT` leaves the bottom-right character in place. Portable layouts that must not scroll should therefore leave the bottom-right cell unused. Other cells on the bottom and right edges remain usable.
+`SCREEN_CODE(row, column)` uses 1-based coordinates and returns a code comparable with `CODE("X")` for ordinary portable printable text. Constant coordinates are range-checked; dynamic coordinates are not yet checked at runtime. It reads actual display state rather than logical test capture. Character recognition and screen-edge limitations are [target-specific](targets.md#screen-boundaries).
 
 Random numbers use:
 
@@ -303,7 +294,7 @@ randomize 1983
 value = rnd()
 ```
 
-`randomize` accepts an optional numeric seed. Atari BASIC ignores the seed because its native `RND` facility does not use the same explicit seed model. Agon BBC BASIC seeds through a negative argument to `RND`, because that dialect has no `RANDOMIZE` statement.
+`RANDOMIZE` accepts an optional numeric seed. Seeding behavior depends on the target; it does not promise an identical sequence across dialects. See [target mappings](targets.md#runtime-function-mappings).
 
 `STRING$` and `SPACE$` require constant arguments, and their result is limited to 255 characters. `KEY_PRESSED()` returns true when a key is available. `KEY_CODE()` is currently supported only as the complete right-hand side of a numeric assignment:
 
@@ -311,24 +302,7 @@ value = rnd()
 key = key_code()
 ```
 
-In test mode, tests can replace the runtime values returned by the timer and keyboard helpers:
-
-```basic
-test FakesRuntimeInputs()
-    set_jiffies(123)
-    set_key_code(KEY_SPACE)
-    set_key_pressed(1)
-
-    assert_eq 123, jiffies()
-    assert_eq KEY_SPACE, key_code()
-    assert_true key_pressed()
-
-    set_key_pressed(0)
-    assert_false key_pressed()
-end test
-```
-
-`SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+For controlled runtime input values in tests, see [Runtime input controls](#runtime-input-controls).
 
 ## Keyboard input
 
@@ -367,28 +341,7 @@ The read-only selectors `JOY_X` (0), `JOY_Y` (1), and `JOY_FIRE1` (2) must be kn
 
 Diagonal movement and fire together are supported. Simultaneous opposing directions cancel to zero. Each call polls independently; separate calls are not an atomic snapshot. The function may appear in numeric expressions, conditions, and function return values, not just assignments.
 
-| Target | Input source |
-| --- | --- |
-| C64 | Joystick port 2, via `PEEK(56320)` and native bit masks |
-| VIC-20 | Control port through the VIA registers; the right-direction bit is exposed only while each read is performed |
-| Atari 800XL | First joystick, via `STICK(0)` and `STRIG(0)` |
-| Spectrum | Q/A for up/down, O/P for left/right, Space for fire, via direct keyboard-matrix `IN` reads |
-
-Spectrum does not require a joystick interface and does not consume buffered keyboard input. Only the three selectors above are currently supported; additional buttons are reserved for future extensions. Existing `GAME_*` constants remain keyboard key codes, not joystick selectors.
-
-In test mode, all `GET_JOYSTICK` calls, including calls in ordinary functions, read independent fake controls instead of hardware:
-
-```basic
-test MoveLeftAndFire()
-    set_joystick(JOY_X, -1)
-    set_joystick(JOY_FIRE1, 1)
-    assert_eq -1, get_joystick(JOY_X)
-    assert_eq 0, get_joystick(JOY_Y)
-    assert_eq 1, get_joystick(JOY_FIRE1)
-end test
-```
-
-`SET_JOYSTICK(control, value)` is a statement allowed only directly inside a `TEST` block. Its selector must be constant, and its value must be numeric. Supply normalized values from the table above; the fake stores the supplied value without conversion. Setting one control leaves the other controls unchanged. All three reset to zero before every test, independently of the keyboard fakes. Normal builds emit no joystick fake storage or resets.
+Only the selectors above are supported. `GAME_*` constants are keyboard key codes, not joystick selectors. Hardware ports, keyboard-backed controls, and native polling are listed in [Joystick mappings](targets.md#joystick-mappings). Test controls are defined under [Runtime input controls](#runtime-input-controls).
 
 ## Data streams
 
@@ -405,7 +358,7 @@ restore
 read itemCode, message$
 ```
 
-`DATA` values must be compile-time numeric, string, or boolean values after constant folding. Runtime expressions and function calls are rejected. The compiler preserves their source order but emits all `DATA` statements together at the end of generated BASIC. `READ` targets are scalar variables only. Array elements are not supported as `READ` targets yet. `RESTORE` currently has no argument and rewinds to the beginning of the data stream on all targets. Labelled or line-targeted restore is intentionally not implemented yet because C64 BASIC V2 cannot do that natively.
+`DATA` values must fold to numeric, string, or boolean literals; runtime expressions and calls are rejected. Values form one program-wide stream in source order. `READ` targets scalar variables only, not array elements. Bare `RESTORE` rewinds the whole stream; labelled/line-targeted restore is not supported. The placement of generated data records is described in [architecture](architecture.md#program-inputs).
 
 ## Data files
 
@@ -419,15 +372,11 @@ load_file "STORY1", names$
 dim people AS Person(12)
 save_file "PEOPLE", people
 load_file "PEOPLE", people
-
-delete_file "PEOPLE"
-
-peopleFileExists = file_exists("PEOPLE")
 ```
 
-The filename is a portable logical name: 1 to 8 letters or digits, beginning with a letter. The array must already be declared. Sequential-file targets serialize a struct array field by field using its existing backing arrays, so the compiler does not allocate a duplicate record array there. Strings are stored as a length followed by character codes; commas, quotes, and empty strings therefore round-trip without depending on a dialect's `INPUT#` string parsing. Spectrum instead uses the packed scratch-buffer scheme described below.
+The filename is a portable logical name: 1 to 8 letters or digits, beginning with a letter. The array must already be declared. Whole-array storage preserves values including empty strings, commas, and quotes; native formats, serialization, and temporary memory requirements are described in [File storage](targets.md#file-storage).
 
-`FILE_EXISTS("NAME")` returns `1` when the corresponding data file exists and `0` otherwise. It must currently be the complete right-hand side of a numeric assignment. `DELETE_FILE "NAME"` deletes the corresponding data file. Both operations are supported for C64 disk, Atari disk or emulator host-drive storage, and Agon SD-card storage. An unguarded use is rejected for tape builds because cassette storage has no file directory to query or modify. Shared source can guard the operations with `IF FILE_STORAGE_DISK THEN`; compile-time constant branch elimination removes them completely from tape builds:
+`FILE_EXISTS("NAME")` returns `1` if the corresponding data file exists and `0` otherwise; it must currently be the complete right-hand side of a numeric assignment. `DELETE_FILE "NAME"` deletes that file. Both require rewritable storage. Unguarded uses are rejected in tape builds because cassette storage has no directory. A compile-time `IF FILE_STORAGE_DISK THEN` guard removes these operations from tape builds:
 
 ```basic
 if FILE_STORAGE_DISK then
@@ -440,7 +389,7 @@ end if
 
 Deleting a nonexistent or protected file retains the target system's native behavior.
 
-The project option `"fileStorage": "disk"` or `"tape"` selects the medium. Defaults are disk for C64 and Atari, tape for Spectrum, and the Agon SD card. C64 and Atari support either setting; Spectrum currently supports tape only and Agon disk/SD only. The same choice is available as `--file-storage disk|tape`. `FILE_STORAGE_TAPE` and `FILE_STORAGE_DISK` are read-only compile-time constants (one is 1, the other 0), allowing localized instructions before an operation:
+`FILE_STORAGE_TAPE` and `FILE_STORAGE_DISK` are read-only compile-time constants, one `1` and the other `0`, for the selected medium. Storage selection is a [toolchain option](toolchain.md#program-inputs-and-project-configuration); supported/default media are listed in [targets](targets.md#file-storage). A program can issue appropriate user instructions before an operation:
 
 ```basic
 if FILE_STORAGE_TAPE then
@@ -449,11 +398,9 @@ end if
 load_file "SAVE1", gameState
 ```
 
-Tape is sequential. C64 and Spectrum can search forward for a named block, but cannot search backward; Atari cassette files have no filename and `LOAD_FILE` reads the next file at the current tape position. Applications should therefore ask the user to rewind or cue the tape before loading. Native BASIC/ROM prompts still handle PLAY or RECORD+PLAY where the machine provides them. File-not-found and media errors currently remain native BASIC errors.
+Tape operations continue from the current physical position. Loading an earlier save requires rewinding or cueing first. File-not-found and media errors remain native BASIC errors; there is no portable recovery/status API. Machine-specific prompts and tape naming are described in [targets](targets.md#file-storage).
 
-On rewritable storage, `SAVE_FILE` already replaces an existing file with the same logical name: C64 uses the 1541 replace filename form, Atari opens the `.DAT` file for output, and Agon uses `OPENOUT`. This is native replacement behavior, not a portable transactional or crash-recovery protocol.
-
-On Spectrum, one `SAVE_FILE` operation produces one tape block even when a struct array has several backing arrays. The compiler packs the logical values into a reusable character-array buffer before `SAVE DATA` and unpacks it after `LOAD DATA`. This consumes additional RAM: fixed-width strings reserve their declared width plus one length byte per element, while numeric elements reserve 17 bytes each for a length-prefixed `STR$` representation. The buffer is shared by all file operations and is sized for the largest one.
+`SAVE_FILE` replaces an existing file on rewritable storage; a preceding `DELETE_FILE` is unnecessary. Replacement is not a portable transactional or crash-recovery guarantee.
 
 ## User-defined functions
 
@@ -469,6 +416,8 @@ end function
 Total = AddBonus(CurrentScore, 10)
 ```
 
+Functions are top-level declarations and may be called before their definition. Parameters and names declared with one or more `LOCAL` statements are scoped to the function; other names refer to globals. Recursive and mutually recursive calls are rejected.
+
 Scalar struct parameters use `AS` in the parameter list:
 
 ```basic
@@ -480,15 +429,17 @@ function ShiftedRow(item AS TelegraphText, offset)
 end function
 ```
 
+Scalar structs are passed by value: changing a parameter field does not change the caller's struct. Struct arrays cannot currently be parameters.
+
 Use a function call in an expression when the return value matters. A user-defined function may also be called as a standalone statement when only its side effects matter:
 
 ```basic
 DrawHeader()
 ```
 
-The standalone form lowers to the generated `GOSUB` call and discards the return value. A function used only as a standalone side-effect helper does not need a `RETURN expression`; the generated BASIC subroutine returns at `END FUNCTION`. Built-in functions and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
+A standalone call discards the return value. A side-effect-only function may omit `RETURN expression`; reaching `END FUNCTION` returns to its caller. Built-ins and array reads are not valid standalone statements, so `values(0)` by itself is rejected.
 
-Small helpers can be declared as `INLINE FUNCTION`. Inline functions are expanded at every call site and do not emit a BASIC subroutine or `GOSUB` call:
+Small helpers can be declared as `INLINE FUNCTION`. Their body is expanded at each call site; the restrictions below make that expansion predictable:
 
 ```basic
 inline function PrintCell(row, column, text$)
@@ -516,7 +467,7 @@ print_at 1, 1, "WARNING"
 print_at warningRow, 1, "SECONDS: "; countdown
 ```
 
-The comma after the column is required. Constant coordinates are checked against the selected target's screen dimensions; dynamic coordinates are not range-checked yet. Target renderers lower these human-facing coordinates to each machine's native zero-based positioning.
+The comma after the column is required. Constant coordinates are checked against the selected screen dimensions; dynamic coordinates are not range-checked yet. See [targets](targets.md#overview) for screen dimensions and [positioned output](targets.md#positioned-output) for generated BASIC.
 
 `PRINT_INVERT` and `PRINT_INVERT_AT` draw string literals with foreground and background reversed. They retain the ordinary trailing-semicolon and `PRINT_AT` coordinate syntax, but do not accept runtime strings or numeric expressions:
 
@@ -525,9 +476,7 @@ print_invert "SELECTED"
 print_invert_at menuRow, menuColumn, "CURRENT ACTION"
 ```
 
-Adjacent inverted prints form one inverse-output run on targets with a persistent output mode. Spectrum therefore emits one `INVERSE 1`/`INVERSE 0` pair, while C64 emits one PETSCII reverse-on/reverse-off pair. Agon reads the current logical foreground and background colours once at the beginning of such a run, swaps them, and restores them at the end. Any intervening non-inverted instruction ends the run; this keeps labels and control-flow entry points safe. Spectrum and C64 do not need to read or exchange the current colours.
-
-Atari has no equivalent persistent print mode. Its tokenizer stores every inverted literal directly as inverse ATASCII, with no runtime `CHR$` expressions, screen-memory pass, or extra control bytes.
+Native inverse-video mechanisms and firmware requirements are documented in [targets](targets.md).
 
 ### Cursor positioning and blank lines
 
@@ -541,9 +490,7 @@ print "STATUS"
 print
 ```
 
-Coordinates are numeric expressions and are 1-based, as with `PRINT_AT`. `SET_POS` uses row, column order and changes the cursor without emitting text; in particular, Atari lowering is a bare `POSITION` rather than an empty `PRINT`. Constant coordinates are checked against the target screen bounds; dynamic coordinates are not range-checked. Neither cursor command replaces the last captured output used by test-mode print assertions.
-
-`SET_COLUMN` lowers to the native cursor state on each target: Spectrum rebuilds its complete print position using the current row, Atari and C64 update their cursor-column variable, and Agon emits `PRINT TAB(column,VPOS);`.
+Coordinates are numeric expressions with the same 1-based order and bounds as `PRINT_AT`. Cursor movement emits no visible output or newline and does not replace captured print output used by test assertions. Constant positions are checked; dynamic positions are not range-checked.
 
 ### Compile-time text layout
 
@@ -565,9 +512,9 @@ print_centered text$("continue")
 print_centered text$("creatingCharactersProgress"); created = createdCount, 2; total = 11, 2
 ```
 
-These statements generate ordinary BASIC `PRINT` commands during compilation. Runtime string variables cannot be wrapped or centered. The optional width must fold to an integer from `1` through `TEXT_COLUMNS`; the default is the target's full width: Spectrum 32, Atari 40, C64 40, or Agon 80 columns.
+Text layout is resolved during compilation. Runtime string variables cannot be wrapped or centered. Width must fold to an integer from `1` through `TEXT_COLUMNS`; it defaults to the selected screen's full width.
 
-Words stay together when possible; words longer than the width are split. Single line breaks inside paragraphs become spaces, and blank lines separate paragraphs. Layout begins at the current cursor position and does not track cursor state across statements or branches. Start full-width output at column 1. A narrower width limits line length but does not establish a persistent left indent: ordinary BASIC line endings return to the left margin. Atari programs using these statements initialize the screen margins to columns 0 and 39.
+Words stay together when possible; longer words split. Single line breaks within a paragraph become spaces, and blank lines separate paragraphs. Layout starts at the current cursor position and does not track cursor state across statements/branches. Start full-width output at column 1. A narrower width limits line length without establishing a persistent left indent; native left-margin behavior is described in [targets](targets.md).
 
 Text is not automatically paginated. Split long pages into separate resources and position them explicitly to avoid native screen scrolling.
 
@@ -612,26 +559,7 @@ print_centered text$("npcRanAway"); actor = actorName$, 21; target = targetName$
 
 The compiler reserves the declared maximum length while wrapping and centering, then emits ordinary runtime `PRINT` expressions in place of the placeholders. Centering uses these maximum lengths, so a shorter runtime value can appear slightly off center; target-specific numeric `PRINT` spacing can also affect its visible width. The maximum must be a positive compile-time integer no larger than the selected output width. It is a promise about the runtime value rather than an instruction to truncate it. A placeholder and surrounding punctuation form one word and must fit within the output width at its maximum size. Every placeholder in the selected translation needs one binding, and every binding must be used. Names are case-insensitive and translations may reorder or repeat them. Use `{{` and `}}` for literal braces.
 
-English (`en`) is the default; pass `--language de` for German. A missing translation produces a diagnostic at the source statement; there is no automatic fallback to English.
-
-```sh
-npm run build:c64 -- --project examples/san-golpe --language de --font lowercase,international --no-tools
-```
-
-The CLI and build/launch scripts accept `--language` and `--font`. The font option declares the character groups used by the program, independently of any one target's font layout:
-
-- `lowercase`: preserve lowercase letters. C64 selects its uppercase/lowercase character set and emits lowercase BASIC syntax outside string literals. Spectrum and Atari already provide lowercase letters in their normal text fonts, so they need no switch.
-- `international`: preserve supported international letters where a target provides them. Atari XL/XE selects its ROM international character set with `POKE 756,204`. Spectrum and C64 currently use transliteration fallbacks.
-
-Groups may be combined as `--font lowercase,international`; JSON configurations use an array such as `"font": ["lowercase", "international"]`. With no requested groups, each target uses its normal font and applies fallbacks. Inserted placeholder values retain their runtime contents because they are not known at compile time.
-
-When `international` is requested for Atari or Agon, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain display characters; Agon also preserves `ß`. Atari's readable `.bas` retains Unicode spelling; `.LST` packaging converts each supported letter to its single-byte ATASCII international code before tokenization, so no runtime `CHR$` fragments are needed. `ß` and `ẞ` still become `ss` and `SS` on Atari because its ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`; an uppercase umlaut becomes `AE`/`OE`/`UE` when its whole word is uppercase, so `PRÄSIDENT` becomes `PRAESIDENT` while `Präsident` becomes `Praesident`. A C64 build without `lowercase` capitalizes all static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
-
-Agon's readable `.bas` is a UTF-8 development artifact and preserves international characters directly. The build scripts encode those characters as Windows-1252 bytes while creating the tokenized `.bbc` program, so the running program pays no `CHR$` concatenation cost. Because BBC BASIC's plain-text loader does not reliably accept that UTF-8 representation, use `.bbc` for execution and `.bas` for reading and debugging.
-
-JSON build configurations accept optional `textsDir`, `language`, `font`, `minimumScreenColumns`, and `minimumScreenRows` fields. The screen requirements must be positive integers. They default to 32 columns and 22 rows, matching the ZX Spectrum text area, and compilation rejects targets whose `TEXT_COLUMNS` or `TEXT_ROWS` value is smaller. Projects that deliberately support a smaller display can lower the corresponding minimum.
-
-`textsDir` defaults to `texts` relative to the configuration file. CLI language/font options override configuration defaults. Conventional project builds preserve these fields from the project's `metabasic.json`, or use the project's `texts/` folder when `textsDir` is omitted. Single-source CLI builds look for `texts/` beside the source; `--texts-dir path` overrides resource discovery. Compiler library callers supply a selected-language `texts` dictionary through `CompileOptions`, keeping filesystem access outside the compiler core.
+Missing translations produce a source-location diagnostic; there is no automatic fallback to another language. Resource discovery, language selection, and requested font groups are [toolchain settings](toolchain.md#program-inputs-and-project-configuration). Character preservation, transliteration, and output encodings depend on the [selected target](targets.md#character-sets). Placeholder values retain their runtime contents because they are not known during compilation.
 
 ### Device output
 
@@ -645,31 +573,19 @@ if device_available(RS232) then
 end if
 ```
 
-Supported device constants are `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`. Device handles are Meta-BASIC names local to the compilation unit and are lowered to target-specific channel or stream numbers. `PRINT_DEVICE` uses the same semicolon-separated item style as `PRINT`.
+Supported device constants are `PRINTER`, `TEXT_PRINTER`, `SHARED_DRIVE`, and `RS232`. Handles are source-level names for opened devices. A handle must be declared with `OPEN_DEVICE` for use by `PRINT_DEVICE` or `CLOSE_DEVICE`; duplicate handle declarations are rejected. `PRINT_DEVICE` accepts the same semicolon-separated items as `PRINT`. Native channels and support differ by target; see [Device mappings](targets.md#device-mappings).
 
-`TEXT_PRINTER` is intended for plain text capture workflows. On Spectrum it lowers `PRINT_DEVICE` to native `LPRINT`, which is the path Fuse can write to a host text file through ZX Printer emulation. On Atari and C64 it currently behaves like `PRINTER`.
-
-`SHARED_DRIVE` is intended for emulator host-folder workflows. It is implemented for Atari host-device workflows and lowers to `H6:MCP.TXT` by default for Altirra. The Atari800 launcher overrides that to `H1:MCP.TXT`.
-
-`DEVICE_AVAILABLE` is a best-effort runtime helper; C64 RS-232 currently reports available because probing the channel can disturb the connection, while printer availability can be checked more directly on some targets.
+`DEVICE_AVAILABLE` is a best-effort availability check, not a guarantee that later I/O will succeed. Target-specific probing limitations are listed with [device mappings](targets.md#device-mappings).
 
 ## Test Mode
 
-Builds may enable `testMode` through the compiler options, the CLI `--run-tests` flag, or a build configuration JSON property:
-
-```json
-{
-  "testMode": true,
-  "testScreenOutput": true,
-  "files": ["tests.mbas"]
-}
-```
+Enable test mode through the [toolchain runner options](toolchain.md#test-build-and-capture-options).
 
 Test-only syntax is rejected in normal builds. In test mode, the compiler generates a test runner instead of normal program startup. All `TEST` blocks are discovered automatically and executed in deterministic source order.
 
-By default, application `PRINT`, `PRINT_AT`, cursor, clear-screen, and colour operations inside tests are captured for assertions without touching the real display. Set `testScreenOutput` to `true`, or pass `--test-screen-output` together with `--run-tests`, to capture those operations and execute them as well. This permits emulator tests to inspect actual target output with `SCREEN_CODE` while keeping `ASSERT_PRINT` and `ASSERT_PRINTAT` available.
+By default, application print, cursor, clear-screen, and colour operations in tests are captured for assertions without changing the real display. Optional screen-output execution performs them as well, permitting `SCREEN_CODE` checks while retaining logical print assertions. Build settings are documented in the [toolchain reference](toolchain.md#test-build-and-capture-options).
 
-Test builds inherit the project's configured font groups. This keeps application output, `ASSERT_PRINT` expectations, test names, and the generated runner readable under the same active character set. On C64, a project requesting `lowercase` switches the font before the runner's first output and emits the entire generated runner using matching BASIC/text casing. An explicit command-line `--font` remains an override, including an empty library-level font list when deliberately testing fallback behavior.
+Tests use the project's selected character groups for application output, runner messages, and expected text. Font selection is a [toolchain setting](toolchain.md#program-inputs-and-project-configuration); native character-set behavior belongs in [targets](targets.md#character-sets).
 
 ```basic
 function Add(Left, Right)
@@ -692,7 +608,40 @@ end test
 
 `TEST Name()` takes no parameters and returns no value. It may declare `LOCAL` variables, use normal statements, and call normal `FUNCTION`s.
 
-Runtime fakes for `JIFFIES()`, `KEY_CODE()`, and `KEY_PRESSED()` are reset before each test. Use `SET_JIFFIES(n)`, `SET_KEY_CODE(n)`, and `SET_KEY_PRESSED(n)` inside a test to make time and keyboard-dependent code deterministic.
+### Runtime input controls
+
+In test mode, tests can replace the runtime values returned by the timer and keyboard helpers:
+
+```basic
+test FakesRuntimeInputs()
+    set_jiffies(123)
+    set_key_code(KEY_SPACE)
+    set_key_pressed(1)
+
+    assert_eq 123, jiffies()
+    assert_eq KEY_SPACE, key_code()
+    assert_true key_pressed()
+
+    set_key_pressed(0)
+    assert_false key_pressed()
+end test
+```
+
+`SET_JIFFIES`, `SET_KEY_CODE`, and `SET_KEY_PRESSED` are valid only inside `TEST` blocks. The generated runner resets all three fake values to `0` before every test.
+
+In test mode, all `GET_JOYSTICK` calls, including calls in ordinary functions, read independent fake controls instead of hardware:
+
+```basic
+test MoveLeftAndFire()
+    set_joystick(JOY_X, -1)
+    set_joystick(JOY_FIRE1, 1)
+    assert_eq -1, get_joystick(JOY_X)
+    assert_eq 0, get_joystick(JOY_Y)
+    assert_eq 1, get_joystick(JOY_FIRE1)
+end test
+```
+
+`SET_JOYSTICK(control, value)` is a statement allowed only directly inside a `TEST` block. Its selector must be constant, and its value must be numeric. Supply normalized values from the [joystick input table](#joystick-input); the fake stores the supplied value without conversion. Setting one control leaves the other controls unchanged. All three reset to zero before every test, independently of the keyboard fakes. Normal builds emit no joystick fake storage or resets.
 
 `SET_RND(value, ...)` supplies an ordered sequence of results for the next `RND()` calls, including calls inside ordinary and inline functions:
 
@@ -708,6 +657,8 @@ end test
 The command takes one or more numeric expressions. Values must satisfy `0 <= value < 1`; out-of-range constants are rejected, and callers must keep runtime expressions in range. Arguments are evaluated left to right before replacing any unused sequence. Each `RND()` call consumes exactly one value, in source expression order. A second `SET_RND` replaces the sequence rather than appending to it. Before each test the sequence is cleared. Without a sequence, or after it is exhausted, `RND()` uses the target's native generator; supply enough values for a fully deterministic test. `RANDOMIZE` affects the native generator and leaves queued values intact.
 
 Like `SET_KEY_CODE` and the other runtime setters, `SET_RND` is a statement allowed only inside a `TEST` block with test mode enabled; it cannot be called from an ordinary helper function or used as a value. Normal builds emit no random fake storage or helper, and test builds without `SET_RND` retain native `RND()` directly.
+
+### Assertions
 
 Supported assertions are:
 
@@ -727,10 +678,10 @@ assert_cell_background_color colour
 
 Assertions count successes and failures, continue after failure, and failed tests do not prevent later tests from running. The generated summary prints test, pass, fail, assertion, failure, and free-memory counts.
 
-When launched through the helper scripts, `--printer-output` mirrors the test runner's own progress and summary output to a configured device in addition to the screen. Select the device with `--test-output-device printer`, `--test-output-device text-printer`, `--test-output-device shared-drive`, or `--test-output-device rs232`. If no device is passed to a launch script, each target chooses its configured default. Normal program `PRINT` output remains captured or suppressed according to test-mode assertion behavior; the mirrored output is the runner log, not arbitrary output from the code under test.
+Runner progress and summaries can be mirrored to an external device. This mirrors the runner log, not arbitrary application output; application prints retain their test-capture behavior. Configuration is described in the [toolchain reference](toolchain.md#test-build-and-capture-options), and working transports in the [running guide](running-programs.md#test-capture-locations).
 
 `ASSERT_PRINT` compares against the most recent logical non-positioned `PRINT` output captured in test mode. Semicolon-separated print items are concatenated into one captured value, so `print "A"; "B"` captures `AB`.
-For portable output assertions, prefer string output. Numeric spellings can still vary with each target BASIC's conversion rules. In mixed C64 output, a numeric item following a string item has the native leading positive-sign space removed so labels do not gain an extra gap.
+For portable text assertions, prefer strings. Numeric formatting follows target BASIC conventions; see [numeric output formatting](targets.md#numeric-output-formatting).
 
 `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory; use `testScreenOutput` together with `SCREEN_CODE` when the actual rendered screen is what matters.
 
@@ -814,7 +765,7 @@ end
 
 ## Screen and colour commands
 
-Portable colours are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`.
+Portable colours are `BLACK`, `BLUE`, `RED`, `MAGENTA`, `GREEN`, `CYAN`, `YELLOW`, and `WHITE`. Colour arguments must be known at compile time and resolve to a portable colour. Constant aliases such as `const alertColour = RED` are allowed.
 
 ```basic
 cls
@@ -828,13 +779,15 @@ suppress_scroll_prompt
 program_mode
 ```
 
+`CLS` clears the text screen. `CLS colour` first selects the screen background and does not change foreground/text or border colour. `SCREEN_BORDER_COLOR`, `SCREEN_BACKGROUND_COLOR`, and `SCREEN_TEXT_COLOR` select screen-wide/current colours; `CELL_TEXT_COLOR` and `CELL_BACKGROUND_COLOR` affect following printed cells where supported.
+
 `border_color` is a compatibility spelling for `screen_border_color`; `text_color` is a compatibility spelling for `screen_text_color`.
 
 Cell colours may have no effect on targets without the corresponding per-cell feature. This is deliberate rather than an attempt to simulate the feature with a large runtime.
 
-`suppress_scroll_prompt` refreshes the ZX Spectrum scroll counter so long printed output can continue without the interactive `scroll?` prompt. It has no effect on Atari 800XL, C64, or Agon.
+`SUPPRESS_SCROLL_PROMPT` requests uninterrupted long output on targets with an interactive scroll prompt. Other targets may ignore it; native effects are documented in [targets](targets.md).
 
-`program_mode` performs best-effort target setup for running a finished program: Spectrum refreshes the scroll counter, Atari hides the text cursor and sets the left text margin to zero, Agon hides the text cursor, and C64 installs a three-byte no-STOP routine in free RAM at `$02ED–$02EF` before redirecting the RUN/STOP vector with one POKE. The C64 routine preserves `LIST`; leave those bytes unused by application code. It does not make ordinary `PRINT` safe for writing past the last screen cell; avoid bottom-right cursor-advancing output when you do not want native scrolling.
+`PROGRAM_MODE` requests best-effort setup for running a finished program. Effects differ by machine, including cursor/margin changes and break-key handling; see [targets](targets.md) for native effects and any reserved memory. It does not prevent native scrolling from output at the screen boundary.
 
 ## Current omissions
 

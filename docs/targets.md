@@ -1,12 +1,18 @@
 # Target machines and generated output
 
-All targets share one parsed syntax tree and target-independent control-flow lowering. Each backend then renders readable BASIC and expands portable operations where the original dialect differs.
+This guide owns machine capabilities, target-dependent values, and native BASIC
+mappings. Source syntax and portable semantics belong in the
+[language reference](language-reference.md); configuration/packaging belong in the
+[toolchain reference](toolchain.md), and emulator/device setup in the
+[running guide](running-programs.md). Native commands shown here are generated
+output, not additional Meta-BASIC source syntax.
 
 ## Overview
 
 | Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | VIC-20 | Agon Light |
 | --- | --- | --- | --- | --- | --- |
-| Text area | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) |
+| `TEXT_ROWS` × `TEXT_COLUMNS` | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) |
+| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 50 | 100 |
 | Maximum line number | 9999 | 32767 | 63999 | 63999 | 65279 |
 | Practical generated-line limit | 640 | 120 | 80 | 80 | 251 |
 | Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` | `X=1` |
@@ -16,11 +22,21 @@ All targets share one parsed syntax tree and target-independent control-flow low
 | Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
 | Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
 
-Line numbers normally begin at 10 in increments of 10. The compiler switches to increments of 1 if necessary and rejects programs that still exceed the target limit.
+## Environment constants
 
-Release builds pack safe target operations produced by one Meta-BASIC statement onto colon-separated BASIC lines where the target line limit permits it. Consequently, the Atari and C64 expansions shown below may occupy one physical BASIC line in release output while remaining separate in readable output.
+`TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND` have the per-target values
+in the overview. Coordinates span 1 through the corresponding text dimension.
+`PI` and `E`, portable colour names, key names, and game-control names are described
+by the [language reference](language-reference.md#constants); their hardware
+interpretation remains target-specific.
 
-Short release-mode conditional bodies use each dialect's native `IF ... THEN statement` form. Atari and C64 line-number branches omit the redundant `GOTO` keyword (`IF condition THEN line`); Spectrum requires and retains `GO TO`. Dense enum-based subroutine dispatch uses `ON ... GOSUB` on Atari and C64 and an equivalent `IF ... THEN GO SUB` sequence on Spectrum. Atari gives native dispatch a dedicated no-match entry and computes a guaranteed in-range index, so unmatched values fall through without an extra guard line or error 3.
+## Line limits and numbering
+
+Line numbers normally begin at 10 in increments of 10. The compiler uses increments
+of 1 when needed and rejects programs that still exceed the target limit.
+Examples below expand native operations for clarity; release packing can put them
+on fewer physical lines. Packing/dispatch algorithms belong in
+[architecture](architecture.md#control-flow-and-line-packing).
 
 ## Positioned output
 
@@ -58,23 +74,128 @@ C64:
 40 PRINT "WARNING"
 ```
 
-Constant Meta-BASIC source coordinates must fit these 1-based ranges:
+## Cursor positioning
 
-- Spectrum: rows `1..22`, columns `1..32`
-- Atari: rows `1..24`, columns `1..40`
-- C64: rows `1..25`, columns `1..40`
-- VIC-20: rows `1..23`, columns `1..22`
-- Agon: rows `1..30`, columns `1..80`
+`SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211; Agon combines the lowered column with native `VPOS`. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
+
+## Keyboard input
 
 Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atari ensures string destinations are dimensioned before input; Spectrum maps string names to its required single-letter variables and emits a following empty `PRINT` because native Spectrum `INPUT` does not advance the program's output cursor; C64 applies its deterministic two-character-safe names; and Agon retains safe BBC BASIC names. Meta-BASIC integer and `BYTE` destinations are read through numeric temporary storage and then coerced with `INT`.
 
-Portable `SAVE_FILE`/`LOAD_FILE` use sequential files on C64 (`OPEN` device 8 for disk or device 1 for cassette), Atari (`D:` or `C:`), and Agon (`OPENOUT`/`OPENIN` on SD). Numeric records and length-prefixed character-code records make string data independent of delimiters. Spectrum packs the complete logical array into one compiler-generated character array and uses one native `SAVE name DATA array$()` or `LOAD name DATA array$()` tape block. Strings and the `STR$` representation of numbers are length-prefixed inside that block; loading reconstructs numeric values with `VAL`. The reusable scratch array is sized at compile time from the largest file operation in the program, trading some RAM for a single ROM tape interaction. A plain Atari compilation retains `D:` for a real DOS-equipped machine. The `atari1` and `atari2` launch profiles instead select their writable emulator host devices (`H6:` and `H1:`), because merely mounting the generated program image does not install a DOS `D:` handler in the BASIC session.
+Unsupported target keys resolve to `-1`; key constants are native codes, not an
+ASCII guarantee. `GAME_UP/DOWN/LEFT/RIGHT` map to Q/A/O/P on Spectrum and cursor
+keys on Atari, Commodore, and Agon; `GAME_FIRE` maps to Space. These event codes
+are separate from the held controls described under [Joystick mappings](#joystick-mappings).
 
-`FILE_EXISTS("NAME")` probes the 1541 status channel on C64, uses a trapped read-only `OPEN` on Atari, and tests the handle returned by `OPENIN` on Agon. The handle is closed immediately when the file exists. `DELETE_FILE "NAME"` lowers to a 1541 `SCRATCH` command on C64, `XIO 33` against the selected data drive on Atari, and MOS `*DELETE` on Agon. Both operations are rejected when the selected storage is tape unless they are inside a branch made unreachable by a compile-time false condition such as `IF FILE_STORAGE_DISK THEN`. Disk/SD `SAVE_FILE` already uses each target's replacing output operation; no preceding `DELETE_FILE` is required for ordinary overwrites.
+## Joystick mappings
+
+| Target | Input source |
+| --- | --- |
+| ZX Spectrum | Q/A for up/down, O/P for left/right, Space for fire, through keyboard-matrix `IN` reads. No joystick interface is required and buffered key input is not consumed. |
+| Atari 800XL | First joystick, through `STICK(0)` and `STRIG(0)`. |
+| C64 | Port 2 through `PEEK(56320)` and native masks. |
+| VIC-20 | Control port through VIA registers; the right-direction bit is exposed during the read. |
+| Agon | Cursor keys and Space through held-key polling; native scan selectors are listed under [Agon Light](#agon-light). |
+
+Normalized selector/value semantics and independent polling are defined in
+[Joystick input](language-reference.md#joystick-input).
+
+## File storage
+
+| Target | Default medium | Other supported medium |
+| --- | --- | --- |
+| ZX Spectrum | Tape | None |
+| Atari 800XL | Disk | Tape; emulator host-drive overrides |
+| C64/VIC-20 | Disk | Tape |
+| Agon Light | SD-card filesystem | None |
+
+Select the medium using the [toolchain configuration](toolchain.md#program-inputs-and-project-configuration).
+
+Portable `SAVE_FILE`/`LOAD_FILE` use sequential files on C64/VIC-20 (`OPEN` device 8 for disk or device 1 for cassette), Atari (`D:` or `C:`), and Agon (`OPENOUT`/`OPENIN` on SD). Numeric records and length-prefixed character-code records make string data independent of delimiters. A plain Atari compilation retains `D:` for a DOS-equipped machine; host-drive overrides are described in the [running guide](running-programs.md#atari-800xl-with-atari800-7x).
+
+Sequential-file targets serialize struct arrays field by field through their existing
+backing arrays rather than allocating a duplicate record array. Strings are stored
+as lengths followed by character codes, preserving delimiters and empty values.
+
+`FILE_EXISTS("NAME")` probes the 1541 status channel on C64, uses a trapped read-only `OPEN` on Atari, and tests the handle returned by `OPENIN` on Agon. The handle is closed immediately when the file exists. `DELETE_FILE "NAME"` lowers to a 1541 `SCRATCH` command on C64, `XIO 33` against the selected data drive on Atari, and MOS `*DELETE` on Agon. Source-level storage restrictions and replacement semantics are defined in [Data files](language-reference.md#data-files).
+
+On Spectrum, one `SAVE_FILE` operation produces one tape block even when a struct array has several backing arrays. The compiler packs the logical values into a reusable character-array buffer before native `SAVE name DATA array$()` and unpacks it after `LOAD name DATA array$()`. Loading reconstructs numeric values with `VAL`. This consumes additional RAM: fixed-width strings reserve their declared width plus one length byte per element, while numeric elements reserve 17 bytes each for a length-prefixed `STR$` representation. The buffer is shared by all file operations and is sized for the largest one.
+
+C64 and Spectrum can search forward for a named tape block but cannot search
+backward. Atari cassette files have no filename; loading reads the next file at
+the current position. Native BASIC/ROM prompts still handle PLAY or RECORD+PLAY
+where provided. Physical loading and media setup belong in the [running guide](running-programs.md).
+
+## Numeric output formatting
 
 When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the same Meta-BASIC statement, it is converted through `STR$` and has the reserved positive-sign space removed. This prevents an unwanted extra gap in mixed output such as `PRINT "TURN "; turn`. Other numeric items retain C64's native formatting. Compound numeric expressions are evaluated once into reusable temporary storage before conversion.
 
-`SET_COLUMN column` uses the same 1-based column ranges but retains the current row. Spectrum reads its current print row and emits a native `PRINT AT`; Atari updates the low byte of `COLCRS` at address 85; C64 updates its cursor column at address 211; Agon combines the lowered column with native `VPOS`. Atari's supported 40-column `GRAPHICS 0` environment keeps the `COLCRS` high byte at address 86 equal to zero, so both Atari and C64 need only one `POKE`.
+VIC-20 shares the Commodore numeric formatting path. Other targets retain their
+native BASIC numeric spelling and spacing.
+
+## Runtime function mappings
+
+`CODE`/`ASC` render as native `CODE` on Spectrum and `ASC` on Atari, Commodore,
+and Agon. `STR$`/`VAL` use Spectrum's operator-style spelling and parenthesized
+forms on the other dialects. Spectrum can evaluate a string expression through
+native `VAL`; portable source should use plain numeric strings.
+
+Runtime math functions use the native BASIC equivalents and retain native angle
+units, numeric precision, and domain restrictions. `INT` on constants is folded
+before rendering. Runtime `MOD` is expanded as `A - INT(A / B) * B`; operands can
+therefore be evaluated more than once. Per-machine timer, memory, keyboard, random,
+and screen-code implementations are listed in the dialect sections below.
+
+## Screen boundaries
+
+Atari positioned `PRINT #6` and C64 output scroll immediately when a character is
+written into the bottom-right cell, even with a trailing semicolon. Spectrum
+`PRINT AT` leaves that cell in place. Portable layouts that must not scroll should
+leave it unused; the rest of the bottom row and right edge remain usable. Agon
+edge behavior needs further verification; its character-recognition caveats are
+listed under [Agon Light](#agon-light).
+
+## Character sets
+
+Requested character groups are [toolchain settings](toolchain.md#program-inputs-and-project-configuration).
+`lowercase` selects C64's uppercase/lowercase font and matching BASIC syntax;
+Spectrum and Atari already provide lowercase in their normal fonts. VIC-20 uses
+the shared Commodore character handling. `international` selects Atari XL/XE's
+international ROM with `POKE 756,204`; Spectrum and Commodore use fallback spellings
+where that group is unsupported.
+
+When `international` is requested for Atari or Agon, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain display characters; Agon also preserves `ß`. `ß` and `ẞ` still become `ss` and `SS` on Atari because its ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`; an uppercase umlaut becomes `AE`/`OE`/`UE` when its whole word is uppercase, so `PRÄSIDENT` becomes `PRAESIDENT` while `Präsident` becomes `Praesident`. A C64 build without `lowercase` capitalizes all static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
+
+Readable listings and directly loadable artifacts can have different encodings.
+Atari native listing conversion and Agon UTF-8/Windows-1252 tokenization are owned
+by the [toolchain reference](toolchain.md#generated-artifacts).
+
+## Device mappings
+
+| Target | Native device behavior |
+| --- | --- |
+| ZX Spectrum | `TEXT_PRINTER` uses `LPRINT`; `PRINTER` opens stream `#4` as `"P"`, and `RS232` opens stream `#4` as `"t"` for Interface 1 text serial output. No shared-drive support. |
+| Atari 800XL | Printer devices use `P:`, serial uses `R:`, and the shared-drive default is `H6:MCP.TXT`; the Atari800 adapter selects `H1:MCP.TXT`. |
+| C64/VIC-20 | Printer devices use device 4; RS-232 uses device 2. No shared-drive support. |
+| Agon Light | Device handles become SD-card files. Text output uses `BPUT#` rather than typed binary `PRINT#` records. |
+
+`DEVICE_AVAILABLE` is best-effort. Atari probes through a trapped `OPEN` where practical; Commodore printers can be probed through the status channel. Commodore serial availability currently reports
+true because probing the connection can disturb it. Working host captures and
+manual device mappings are described in the
+[running guide](running-programs.md#test-capture-locations).
+
+## Storage layouts
+
+Scalar struct values use one generated scalar per field. Struct arrays use the
+native layouts described for each dialect below; source field access and copying
+retain the [language-level rules](language-reference.md#structs).
+
+## Inverted output
+
+On targets with a persistent inverse-video mode, adjacent inverted prints share
+one mode-change pair. Any intervening instruction, including a label, ends that
+run so a control-flow entry cannot bypass the mode setup. Native mechanisms are
+listed per machine below.
 
 ## ZX Spectrum
 
@@ -87,11 +208,7 @@ When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the s
 - Experimental `BYTE` arrays and fields use single-letter string storage at one character per value. Writes use `CHR$`; reads use `CODE` and become ordinary numeric expressions.
 - When a struct array has multiple numeric fields, the compiler packs those fields into one two-dimensional Spectrum numeric array: the first dimension selects the element and the second selects the field. This saves single-letter array names; Meta-BASIC source still uses ordinary struct field access. String fields remain separate string arrays.
 - Fixed-width string arrays are mapped to single-letter Spectrum string arrays such as `M$(3,12)`, plus hidden numeric arrays holding each element's logical length. Reads slice to the stored length, so implementation padding is excluded while deliberate trailing spaces remain part of the value.
-- `PRINT_AT` maps to native `PRINT AT` with source coordinates lowered by one.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` use native `INVERSE 1`/`INVERSE 0`. Consecutive inverted prints share one pair; the current INK and PAPER values do not need to be read or rewritten.
-- Printing into the bottom-right cell does not scroll the Spectrum display. Atari and C64 differ, and Agon's edge behavior has not yet been emulator-tested, so portable layouts should leave that one cell unused.
-- `TEXT_PRINTER` device output maps `PRINT_DEVICE` to `LPRINT` so Fuse's ZX Printer text-file capture can receive plain text.
-- `SHARED_DRIVE` is not supported on Spectrum.
 - `CLS colour` uses `PAPER` and then `CLS`.
 - Border, global text, and following-cell colours use native `BORDER`, `INK`, and `PAPER` concepts.
 - `SUPPRESS_SCROLL_PROMPT` emits `POKE 23692,255` to refresh the native scroll-prompt counter.
@@ -99,23 +216,20 @@ When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the s
 - `KEY_PRESSED()` checks `INKEY$ <> ""`; `KEY_CODE()` uses `INKEY$`, so short taps can be missed while the program is busy.
 - `JIFFIES()` reads the three-byte `FRAMES` counter and renders it as one parenthesized expression, so arithmetic such as `targetTime - jiffies()` subtracts the whole counter value.
 - `FREE_MEMORY()` uses the 48K ROM free-memory routine via `USR 7962`.
+- Native exponentiation rejects negative bases at runtime, including expressions such as `(-x) ^ 2`; use another form for portable programs.
 - `SCREEN_CODE` uses native `SCREEN$` followed by `CODE`.
 - `RND()` lowers to native `RND`; `RANDOMIZE` lowers to Spectrum `RANDOMIZE`.
 
 ## Atari 800XL
 
 - The backend targets built-in Atari BASIC, not Turbo-BASIC XL or BASIC XL.
-- Requesting the `international` character group emits `POKE 756,204` to select the XL/XE international ROM character set. Supported umlauts stay readable in generated `.bas` text and become their one-byte ATASCII codes in the `.LST` passed to `basicParser`; they do not generate runtime `CHR$` fragments.
 - Assignments omit `LET`.
 - Readability `0` and `1` use deterministic compact variable names to save memory and avoid native tokenizer surprises. Readability `2` keeps readable uppercase names where practical for source-level inspection.
 - `PRINT_AT` lowers 1-based source coordinates to Atari's zero-based `POSITION column,row`, then writes through the graphics-zero `S:` screen device with `PRINT #6`. This bypasses channel 0's logical-line editor, which can move existing physical rows when several independently positioned fields share a row. When a program uses this direct screen output, its generated startup executes `GRAPHICS 0` once to ensure channel 6 is open before the first positioned write; launchers and loaders are not required to preserve the interpreter's initial channel setup.
 - Ordinary `PRINT` newlines return to Atari's left margin, which defaults to zero-based column 2. `PROGRAM_MODE` sets that margin to zero, allowing aligned rows with one initial `SET_POS` followed by ordinary `PRINT` statements.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` accept string literals only and use `basicParser`'s inverse-string notation. The tokenized program contains inverse ATASCII bytes directly; no runtime `CHR$` construction or screen-memory inversion pass is generated.
-- Writing the bottom-right cell through `PRINT #6` scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
-- `TEXT_PRINTER` currently lowers like `PRINTER` and opens `P:`.
-- `SHARED_DRIVE` opens `H6:MCP.TXT` by default for Altirra H: host-device text capture. The Atari800 launcher overrides it to `H1:MCP.TXT`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
 - Experimental `BYTE` arrays and fields use packed string storage at one character per value. Writes use `CHR$`; reads use `ASC` on a one-character slice.
@@ -138,14 +252,11 @@ Atari colour values are deterministic approximations and can look different betw
 - Assignments omit `LET`.
 - `PRINT_AT` lowers 1-based source coordinates to writes to zero-based row and column editor variables followed by `SYS 58732`.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` use PETSCII reverse-on and reverse-off control bytes. `petcat` places those bytes directly in string literals, and consecutive inverted prints share one control pair.
-- Printing into the bottom-right cell scrolls the display immediately, including with a trailing semicolon. Leave that cell unused when scrolling is unwanted.
 - `CLS` uses `PRINT CHR$(147);`.
 - Border and background colours use `POKE 53280` and `POKE 53281`; the current text colour uses `POKE 646`.
 - C64 cell background colour has no direct equivalent and therefore has no effect.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `PROGRAM_MODE` stores a three-byte no-STOP routine (`LDA #1; RTS`) in free RAM at `$02ED–$02EF`, then changes only the STOP vector's high byte with `POKE 809,2`. The standard C64 vector already has low byte `$ED`. This keeps `LIST` working and avoids an unsafe vector address between POKEs. Programs using `PROGRAM_MODE` must leave those three RAM bytes alone.
-- `TEXT_PRINTER` currently lowers like `PRINTER` and uses device 4.
-- `SHARED_DRIVE` is not supported on C64.
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
@@ -168,7 +279,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `SCREEN_CODE` obtains the active screen page from KERNAL location 648, so it remains correct with the expanded screen-memory layout.
 - `PROGRAM_MODE` hides the cursor with `POKE 204,1`; it does not install the C64-specific STOP-vector routine.
 - `GET_JOYSTICK` reads the VIA registers. Reading right requires temporarily changing VIA direction register 37154, so lowering saves each joystick result before restoring that register.
-- The supplied VICE profile captures test output through VIC user-port RS-232. Because the complete instruction suite nearly fills expanded BASIC memory, `npm run test:language:vic20` runs and summarizes its test modules separately.
+- The complete instruction suite nearly fills expanded BASIC memory. See the [toolchain module orchestrator](toolchain.md#language-conformance-suite) for a runner that fits.
 
 ## Agon Light
 
@@ -183,21 +294,19 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `PRINT_AT` and `SET_POS` use native `PRINT TAB(column,row);`; `SET_COLUMN` uses `VPOS` to retain the current row.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` query the current logical text foreground and background colours, swap them for an adjacent run of inverted prints, and then restore them. The query uses `VDU 23,0,&94` and MOS's returned palette-index byte, requiring Console8 VDP 2.7.0 or newer. Consecutive inverted prints share one query and swap.
 - `SCREEN_CODE` sends Agon's VDP character-read command, synchronizes through OSBYTE 19, and reads MOS system-variable byte 9 through OSBYTE.
+- Agon's VDP reconstructs a character by comparing the pixels at the requested cell with the active character set. Its firmware documents that this may fail, and boundary cells on the final row or column can return `0` even when the character is visibly present. Tests for scrolling therefore read a separate sentinel away from the boundary rather than relying on boundary-cell recognition.
 - In the configured Fab Agon 1.2.5 / BBC BASIC ADL 1.03 setup, `SCREEN_CODE` at the final text column returned `0` both before and after clearing a printed character; the preceding column returned the expected character codes. Screen assertions should currently use columns through `TEXT_COLUMNS - 1`, with visual checks for the final column.
-- Portable `CODE(text$)` renders as BBC BASIC `ASC(text$)`.
-- Generated `.bas` listings are readable UTF-8 and preserve supported international characters directly. The built-in Agon packaging step encodes them as Windows-1252 bytes in the tokenized `.bbc` artifact. Use `.bbc` rather than the UTF-8 listing as the directly loadable program.
 - `JIFFIES()` uses BBC BASIC `TIME`, whose unit is one centisecond; `JIFFIES_PER_SECOND` is therefore 100.
 - `FREE_MEMORY()` uses `HIMEM-TOP`, and `RND()` uses `RND(1)`. BBC BASIC has no `RANDOMIZE` statement, so bare `RANDOMIZE` seeds through an assignment from `RND(-TIME)` and `RANDOMIZE seed` uses `RND(-seed)`.
 - Portable foreground/background colours use BBC BASIC `COLOUR`. Because the Agon text display has no separate border, a portable border-colour request changes the background instead; this keeps the test runner's red failure indication visible.
 - `PROGRAM_MODE` hides the text cursor with a VDU command. `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `KEY_CODE()` uses ADL BASIC `INKEY(0)`. Agon MOS cursor codes are Up `11`, Down `10`, Left `8`, and Right `21`; `KEY_UP/DOWN/LEFT/RIGHT` and `GAME_UP/DOWN/LEFT/RIGHT` use these values. These were checked with physical key presses in Fab Agon 1.2.5 and BBC BASIC ADL 1.03; the classic BBC Micro codes `139/138/136/137` do not match this runtime.
 - `GET_JOYSTICK` uses cursor keys and Space as keyboard-backed controls, including on Agon Light models without Console8 joystick ports. It checks held-key state with ADL BASIC `INKEY(-n)`: Left `-26`, Right `-122`, Up `-58`, Down `-42`, and Space `-99`. These scan selectors differ from the event codes returned by `KEY_CODE()`. Opposite directions cancel, diagonals are supported, and fire can be held with movement.
-- Device handles lower to files on the SD card. `PRINT_DEVICE` uses BBC BASIC `BPUT#` string output so test logs and ordinary output remain readable text instead of `PRINT#`'s typed binary record format.
-
-The Fab Agon launch configuration copies tokenized BBC BASIC to the configured virtual SD card and writes an `autoexec.txt` that starts BBC BASIC ADL 1.03 from `bin/bbcbasic24.bin` with the staged `.bbc` program. Every build retains the readable `.bas` listing beside that tokenized artifact.
 
 ## Readability
 
-`--readability 0`, `1`, and `2` control label comments, module separators, and variable-name compactness. The separate `--source-comments` option can keep `.mbas` apostrophe comments as generated `REM` lines; the debug profile enables it automatically. Generated code remains deterministic at every level. String literal contents are preserved; target character-set translation is a separate concern.
-
-The compiler reuses generated expression-result variables when their values cannot be live at the same time. A result needed across a `GOSUB` keeps storage distinct from temporaries in the called routine. Function parameters, locals, and return values also draw from shared type-specific storage pools. Functions that can call one another receive distinct slots, while functions that cannot be active together may share slots across those source-level roles. This reduces variable-table pressure on all targets without changing Meta-BASIC source variables or function-call order.
+The [toolchain profiles](toolchain.md#profiles-and-readable-output) select comments
+and naming compactness. Per-dialect name rules are listed above. Generated names
+are deterministic; character-set conversion follows the selected groups described
+under [Character sets](#character-sets). Shared compiler storage allocation is
+explained in [architecture](architecture.md#generated-storage-allocation).

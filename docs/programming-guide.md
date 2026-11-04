@@ -39,22 +39,15 @@ List source modules in the order in which they should appear in generated BASIC.
 }
 ```
 
-`minimumScreenColumns` and `minimumScreenRows` describe the smallest text screen the project supports. Both are optional; omitted projects default to the ZX Spectrum text area of 32 columns by 22 rows. A build fails before compilation when the selected target is smaller. A VIC-20-compatible project must deliberately opt into its 22-column display with `"minimumScreenColumns": 22`.
+Choose minimum dimensions that match the layout you intend to support. For a VIC-20-compatible game, set `"minimumScreenColumns": 22`. Defaults, configuration fields, and source-discovery rules are defined in the [toolchain reference](toolchain.md#program-inputs-and-project-configuration).
 
-Build the project for one or every target:
+Build a readable version while developing:
 
 ```text
 npm run build:c64 -- --project my-game --profile debug
-npm run build:all-targets -- --project my-game --profile debug
 ```
 
-| Profile | Generated BASIC |
-| --- | --- |
-| `debug` | Module separators, source and generated labels, source comments, readable names where possible |
-| `balanced` | Module separators and source labels with compact variables |
-| `release` | Compact output without generated comments |
-
-Use `debug` while developing. Generated `.bas` files are meant to be read and debugged.
+Inspect the generated `.bas` when diagnosing behavior. For other targets, build profiles, and packaging options, use the [toolchain reference](toolchain.md#build-scripts). An all-target build requires a layout compatible with every selected computer.
 
 ## Organize modules
 
@@ -103,11 +96,9 @@ function CreateCharacters()
 end function
 ```
 
-Every cross-module access needs a direct `USES` declaration. Paths are relative to the module containing `USES`. `USES` grants access; it does not load a file, so every source module must also appear in `metabasic.json`. Dependencies are not transitive: if `main.mbas` uses symbols from both `characters.mbas` and `names.mbas`, it names both modules even when `names.mbas` already uses `characters.mbas`.
+Keep each module's dependencies visible at the top of the file. In this example, both `main.mbas` and `names.mbas` declare their direct access to `characters.mbas`. Add dependencies to the selected build input too: `USES` does not load them. The full [module rules](language-reference.md#module-dependencies-uses) explain access and ownership.
 
-Top-level enums, structs, and `DIM` declarations are known across the compilation unit before executable code is checked. They may live in a later configured module. Constants are the exception: constant expressions can only refer to constants declared earlier in build order.
-
-The compiler runs generated storage and module-global initialization before entry code. It keeps the configured module order in the listing. All `DATA` statements are collected, in source order, into a final generated data section.
+Prefer constants and shared storage in a module that callers can name directly, and initialize application state in a clearly named setup function. Check [declaration and initialization order](language-reference.md#declaration-and-initialization-order) when splitting an existing program across files.
 
 ## Variables, arrays, and structs
 
@@ -133,7 +124,7 @@ scores(0) = score
 names$(0) = name$
 ```
 
-An array dimension is an element count rather than the largest index. Constant indexes are checked by the compiler; dynamic indexes remain the program's responsibility.
+Use `0` through `count - 1` when looping over an array. Validate indexes derived from user input before accessing it; see the [array rules](language-reference.md#arrays).
 
 Use experimental `BYTE` storage for dense values that remain in `0..255`:
 
@@ -145,9 +136,9 @@ nextColour = tileColours(0) + 1
 tileColours(1) = nextColour
 ```
 
-Reads are converted to ordinary native numeric values before calculation, and writes are integer-coerced. Constant out-of-range writes are rejected. Spectrum and Atari use one character per element in a backing string; C64, VIC-20, and Agon use native integer-array elements. This saves memory but can cost conversion time on Spectrum and Atari. The comparison benchmark is in `performance-tests/byte-arrays`.
+Use compact bytes for dense maps, flags, or character indexes, then measure memory and execution time on the intended computer. The [target guide](targets.md) explains storage costs; `performance-tests/byte-arrays` provides a comparison benchmark.
 
-The fixed width is the element's capacity, not its logical string length. Assigning `"READY"` to an element of width 12 reads back as the five-character string `"READY"`; assigning `"READY "` preserves the deliberate trailing space and reads back with length 6. Spectrum and Atari generated code maintains hidden logical-length arrays so storage padding never becomes part of the Meta-BASIC value. This also applies to string fields in struct arrays.
+Reserve enough capacity for each string element, but use `LEN` for its current content. For example, a width-12 slot containing `"READY"` still has length 5. Deliberate trailing spaces remain significant. Exact capacity and assignment rules are in the [language reference](language-reference.md#arrays).
 
 Structs group related values at source level:
 
@@ -168,7 +159,7 @@ nextMessage.text$ = "READY"
 queue(0) = nextMessage
 ```
 
-Use `insert_element(queue, index, value)` and `remove_element(queue, index)` with one-dimensional native or struct arrays. Insert shifts values upward and discards the last slot. Remove shifts values downward; the final slot is left unspecified.
+For a bounded queue, `insert_element` and `remove_element` can shift entries for you. Choose a policy for a full queue before inserting; the [array operations reference](language-reference.md#arrays) defines what happens at its ends.
 
 ## Constants and expressions
 
@@ -218,9 +209,9 @@ roll = RollDie(6)
 DrawStatus(2, "READY")
 ```
 
-Declare function and test-local values in one or more `LOCAL` statements. Parameters and locals belong to that function in Meta-BASIC source. A name used in a function that is neither a parameter nor declared `LOCAL` refers to global program state, so declare every scratch value explicitly. Functions are top-level declarations and may be called before their definition. The generated target storage is static, so recursive and mutually recursive function calls are rejected. The compiler shares type-compatible parameter, local, and return slots between functions that cannot be active together; this is invisible to Meta-BASIC source and is recorded through aliases in debug information.
+Declare scratch values with `LOCAL`, so a helper does not accidentally overwrite global state. Keep global changes explicit in functions such as `InitializeGame` or `ApplyDamage`. The [function reference](language-reference.md#user-defined-functions) defines scope, returns, inline helpers, and recursion restrictions.
 
-A function used only for side effects may omit an explicit `RETURN`; reaching `END FUNCTION` returns to the caller. Use `RETURN expression` when the call appears in an expression.
+Call a procedure-like helper as a standalone statement when you need its side effect; use a returned value in an assignment or expression when it computes a result.
 
 Scalar structs can be parameters:
 
@@ -230,7 +221,7 @@ function DrawMessage(item AS Message)
 end function
 ```
 
-The struct is copied into function storage. Assigning to `item.field` does not change the caller's value. Struct arrays cannot currently be parameters.
+Treat struct parameters as input values. Return the calculated value or update explicitly owned global state when the caller needs to observe a change; see [struct parameter semantics](language-reference.md#user-defined-functions).
 
 ## Control flow
 
@@ -264,7 +255,7 @@ repeat
 until key <> KEY_NONE
 ```
 
-`EXIT FOR` and `CONTINUE FOR` apply to the nearest `FOR` loop. Labels, `GOTO`, `GOSUB`, and `RETURN` are available for code that naturally fits classic BASIC subroutines.
+Use `CONTINUE FOR` to skip an item and `EXIT FOR` to stop a search. Labels and classic subroutines remain useful for simple flows:
 
 ```basic
 gosub DrawHeader
@@ -307,7 +298,7 @@ screen_text_color WHITE
 cls
 ```
 
-The [screen and colour reference](language-reference.md#screen-and-colour-commands) describes global and per-cell operations and which targets ignore an unsupported operation.
+Initialize common screen settings once, then use positioned output for fields that change. Leave the bottom-right cell unused when the layout must not scroll; [screen boundaries](targets.md#screen-boundaries) differ by computer. The [screen command reference](language-reference.md#screen-and-colour-commands) defines the portable operations.
 
 ## Compile-time wrapping and localization
 
@@ -319,12 +310,13 @@ print_wrap "A narrow column.", TEXT_COLUMNS - 8
 print_centered "SAN-GOLPE"
 ```
 
-Use `PRINT_TEXT` for localized resources. Long text belongs in an individual UTF-8 file such as `texts/en/intro.txt`. Short strings share `strings.json`:
+Use one UTF-8 file such as `texts/en/intro.txt` for a long passage. Put short messages and templates together in `texts/en/strings.json`:
 
 ```json
 {
   "continue": "Press any key to continue",
-  "new_game": "New game"
+  "new_game": "New game",
+  "npcRanAway": "{actor} ran away with {target}."
 }
 ```
 
@@ -335,29 +327,9 @@ print_centered text$("npcRanAway"); actor = actorName$, 21; target = targetName$
 print_centered text$("continue")
 ```
 
-`PRINT_TEXT`, `PRINT_WRAP`, and `PRINT_CENTERED` wrap during compilation, using the selected target's column count and the optional width. They require compile-time text; they do not wrap a runtime string variable.
+The `21` values reserve display space for the inserted names. Choose realistic maxima before translating the message so each language can arrange those names naturally. Start wrapped output at the left margin and split long pages explicitly; layout is performed during compilation.
 
-For short localized templates, put named placeholders in the resource and bind them in `PRINT_TEXT`:
-
-```json
-{
-  "npcRanAway": "{actor} ran away with {target}."
-}
-```
-
-```basic
-print_text "npcRanAway"; actor = actorName$, 21; target = targetName$, 21
-```
-
-The number after each expression is its maximum possible display length. The compiler uses those maxima when choosing line breaks and centering; the target evaluates and prints the expressions at runtime. A shorter value may therefore appear slightly off center, and native numeric output can add spacing. Translations may reorder the placeholders. The declared maximum must be a positive compile-time integer no larger than the output width; runtime values should not exceed it.
-
-English (`en`) is the default language. Select a translation and the character groups used by its text from the build command:
-
-```text
-npm run build:c64 -- --project my-game --language de --font lowercase,international
-```
-
-Resource keys are case-sensitive. Every selected language needs its own value; there is no automatic English fallback. `lowercase` makes C64 select its uppercase/lowercase character set. `international` makes Atari XL/XE select its international ROM font and package supported letters such as `ä` and `ö` as one-byte ATASCII. Agon keeps those letters readable in its UTF-8 `.bas` and encodes them as Windows-1252 in `.bbc`. Other targets use transliterations such as `ae` and `oe` when they cannot honor a requested group; all-uppercase words retain their casing, for example `PRÄSIDENT` becomes `PRAESIDENT`.
+Keep the same resource keys in each selected language. The [layout and resource reference](language-reference.md#localized-text-resources-and-fonts) defines bindings and lookup errors. Choose language and font groups through the [toolchain settings](toolchain.md#program-inputs-and-project-configuration); check [target character sets](targets.md#character-sets) when a translation needs non-ASCII characters.
 
 ## Input, time, and random numbers
 
@@ -378,11 +350,7 @@ input person.name$, person.age%
 people(0) = person
 ```
 
-The generated program uses each target BASIC's native blocking `INPUT`. For continuously responsive controls, use the polling functions below instead.
-
-### Saving and loading arrays
-
-Use `SAVE_FILE "NAME", array` and `LOAD_FILE "NAME", array` for whole numeric, string, or struct arrays. On disk or SD storage, saving replaces an existing file of the same name. `FILE_EXISTS("NAME")` checks for that data file and `DELETE_FILE "NAME"` removes it. `FILE_EXISTS` must currently be the complete right-hand side of a numeric assignment. Wrap either operation in `IF FILE_STORAGE_DISK THEN` when the same source must also compile for a tape target. Compile-time branch elimination removes the unsupported operation from that build. Put `"fileStorage": "tape"` in `metabasic.json` for cassette builds; otherwise C64 and Atari default to disk, Spectrum to tape, and Agon to its SD-card filesystem. Use the compile-time `FILE_STORAGE_TAPE` constant to show a localized rewind/cue message. Tape operations always continue from the current physical position, so loading an earlier save requires rewinding or cueing first. Spectrum packs every logical array or struct array into one character-array tape block; this avoids repeated ROM prompts but requires a compiler-generated scratch buffer sized for the largest file operation.
+Use blocking input for menus and forms. For a game that must keep responding between commands, poll instead:
 
 Keyboard polling is non-blocking:
 
@@ -411,6 +379,30 @@ die = int(rnd() * 6) + 1
 
 `RND()` returns a native value in the range `0 <= value < 1`. Use `jiffies()` for the running target tick counter and `JIFFIES_PER_SECOND` to express portable delays.
 
+## Saving and loading arrays
+
+Store a compact save state in an array and write/read the whole array:
+
+```basic
+dim saveState(3)
+saveState(0) = 12
+saveState(1) = 2
+saveState(2) = 40
+save_file "SAVE1", saveState
+
+if FILE_STORAGE_DISK then
+    saveExists = file_exists("SAVE1")
+    if saveExists then
+        load_file "SAVE1", saveState
+    end if
+else
+    print "REWIND TO SAVE1"
+    load_file "SAVE1", saveState
+end if
+```
+
+The disk branch checks for a file before loading; tape needs a user rewind/cue prompt instead. Use the same guard around disk-only `DELETE_FILE` when offering a delete-save action. A probe does not protect against all media errors, and saving is not transactional. Consult [Data files](language-reference.md#data-files) for the contract, [target storage costs](targets.md#file-storage) when sizing a save, and the [toolchain](toolchain.md#program-inputs-and-project-configuration) for medium selection.
+
 ## Data streams
 
 `DATA`, `READ`, and bare `RESTORE` form one program-wide stream:
@@ -423,9 +415,9 @@ restore
 read itemCode, message$
 ```
 
-`DATA` accepts compile-time numbers, strings, and booleans. `READ` currently targets scalar variables. `RESTORE` always rewinds the complete stream and takes no label. Generated `DATA` lines appear at the end of the BASIC listing, regardless of their source module.
+Read a stream once during initialization when several parts of the game need the same table, then keep the results in arrays. The [data-stream reference](language-reference.md#data-streams) defines accepted values and rewind behavior.
 
-When several modules contribute data, their configured source order determines the stream. Keep a function that calls `RESTORE` coupled to the expected first data block, or read the stream once during initialization and store it in arrays.
+Keep data tables together or make their order clear in the build input; a helper that rewinds the stream depends on that order.
 
 ## Test application code
 
@@ -434,12 +426,9 @@ Tests live in the project's `tests/` folder and directly name the source modules
 ```basic
 uses "../source/dice.mbas"
 
-test RollStaysInRange()
-    local roll
-    randomize 1983
-    roll = RollDie(6)
-    assert_true roll >= 1
-    assert_true roll <= 6
+test RollUsesSuppliedRandomInput()
+    set_rnd(0.5)
+    assert_eq 4, RollDie(6)
 end test
 ```
 
@@ -448,11 +437,7 @@ For building runners, selecting test modules, running configured emulators, and
 checking captured results, follow [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md).
 Emulator setup and capture locations belong in the [running guide](running-programs.md#test-capture-locations).
 
-Available assertions include `ASSERT_TRUE`, `ASSERT_FALSE`, `ASSERT_EQ`, `ASSERT_NE`, `ASSERT_PRINT`, `ASSERT_PRINTAT`, and the screen/cell colour assertions. `GLOBALS ... END GLOBALS` establishes fixture assignments replayed before every test. Runtime fakes are documented in [Test Mode](language-reference.md#test-mode).
-
-Use `set_rnd(0, 0.5, 0.99)` inside a test to supply the next three `rnd()` results, including reads in called functions. This gives portable, deterministic dice rolls without relying on each target's different seeded generator. Each call replaces the previous sequence; unused values are cleared before the next test. Once exhausted, reads return to the native generator, so supply enough values for the code under test.
-
-For emulator-level output checks, enable `testScreenOutput` in the project configuration (or pass `--test-screen-output` with `--run-tests`), print normally, and compare `SCREEN_CODE(row, column)` with `CODE("X")`. Unlike `ASSERT_PRINTAT`, this reads what the target actually placed on its display.
+The test supplies a known input to the dice function, so it checks the same outcome on different machines. The [test reference](language-reference.md#test-mode) defines assertions, fixtures, and runtime-input controls, including calls made through helpers. Use logical output assertions for presentation logic, or actual display checks when rendered screen cells are the behavior being tested.
 
 ## Common mistakes
 
