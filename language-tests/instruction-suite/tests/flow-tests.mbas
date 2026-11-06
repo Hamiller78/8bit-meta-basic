@@ -61,6 +61,83 @@ test ReturnFromForLoop()
     assert_eq 2, returnFromForLoop()
 end test
 
+test FixedStepsWithEarlyExit()
+    local index, total
+    total = 0
+    for index = 1 to 5 step 2
+        total = total + index
+        if index = 99 then
+            exit for
+        end if
+    next index
+    assert_eq 9, total
+    total = 0
+    for index = 6 to 0 step -2
+        if index = 4 then
+            continue for
+        end if
+        if index = 0 then
+            exit for
+        end if
+        total = total + index
+    next index
+    assert_eq 8, total
+end test
+
+test DynamicStepAndLimitAreCaptured()
+    local index, limit, stride, total
+    limit = 5
+    stride = 2
+    total = 0
+    for index = 1 to limit step stride
+        total = total + index
+        limit = 0
+        stride = -1
+        if index = 5 then
+            exit for
+        end if
+    next index
+    assert_eq 9, total
+end test
+
+test ZeroStepCanExit()
+    local index, total
+    total = 0
+    for index = 0 to 1 step 0
+        total = total + 1
+        if total = 3 then
+            exit for
+        end if
+    next index
+    assert_eq 3, total
+end test
+
+test EmptyDynamicLoopWithExit()
+    local index, limit, total
+    limit = 0
+    total = 0
+    for index = 1 to limit
+        total = 1
+        exit for
+    next index
+    assert_eq 0, total
+end test
+
+function returnFromDescendingForLoop()
+    local index
+    for index = 5 to 1 step -2
+        if index = 3 then
+            return index
+        end if
+    next index
+    return -1
+end function
+
+test ReturnFromDescendingForLoop()
+    assert_eq 3, returnFromDescendingForLoop()
+    assert_eq 3, returnFromDescendingForLoop()
+end test
+
 test WhileWendLoop()
     Count = 0
     Total = 0

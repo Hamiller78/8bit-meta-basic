@@ -150,6 +150,10 @@ Consecutive terminal equality branches over the same value are recognized as a c
 
 An `IF`/`ELSE` whose branch always transfers control is laid out so that the terminal branch removes the otherwise necessary join jump. In release output, a short conditional body may be fused back into native `IF expression THEN statement[:statement...]` form after target expansion. If the fused line would exceed the target limit, rendering automatically falls back to the separate branch and body. Atari and C64 conditional line branches use their shorter `THEN line` spelling; Spectrum retains `THEN GO TO line`.
 
+Agon's stack-free lowering for loops with an early exit or return uses the known
+direction of a constant step to emit one loop-bound comparison. Dynamic steps
+retain their saved value and runtime direction checks.
+
 Release output may join up to four safe target instructions with colons when they came from the same Meta-BASIC source statement. Labels, branches, returns, comments, and unrelated source statements are never joined. A simple `FOR`, non-branching body, and matching `NEXT` may also share one line. If a packed line would exceed a target's practical line-length limit, the compiler automatically splits it and assigns line numbers again.
 
 ## Adding A Feature

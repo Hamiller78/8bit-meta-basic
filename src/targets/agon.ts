@@ -302,6 +302,7 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
     const nextContext = byNextIndex.get(index);
     if (instruction.kind === "next" && nextContext) {
       const variable = identifierExpression(nextContext.variable, instruction.location);
+      const fixedStep = nextContext.step.kind === "number" ? nextContext.step.value : undefined;
       const step = identifierExpression(nextContext.stepName, instruction.location);
       const limit = identifierExpression(nextContext.limitName, instruction.location);
       lowered.push({
@@ -312,22 +313,24 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
       });
       lowered.push({
         kind: "if-goto",
-        condition: binaryExpression(
-          "OR",
-          binaryExpression(
-            "AND",
-            binaryExpression(">=", step, numberExpression(0, instruction.location), instruction.location),
-            binaryExpression("<=", variable, limit, instruction.location),
+        condition: fixedStep !== undefined
+          ? binaryExpression(fixedStep < 0 ? ">=" : "<=", variable, limit, instruction.location)
+          : binaryExpression(
+            "OR",
+            binaryExpression(
+              "AND",
+              binaryExpression(">=", step, numberExpression(0, instruction.location), instruction.location),
+              binaryExpression("<=", variable, limit, instruction.location),
+              instruction.location
+            ),
+            binaryExpression(
+              "AND",
+              binaryExpression("<", step, numberExpression(0, instruction.location), instruction.location),
+              binaryExpression(">=", variable, limit, instruction.location),
+              instruction.location
+            ),
             instruction.location
           ),
-          binaryExpression(
-            "AND",
-            binaryExpression("<", step, numberExpression(0, instruction.location), instruction.location),
-            binaryExpression(">=", variable, limit, instruction.location),
-            instruction.location
-          ),
-          instruction.location
-        ),
         label: nextContext.loopLabel,
         location: instruction.location
       });
