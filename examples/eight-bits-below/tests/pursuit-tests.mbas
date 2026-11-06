@@ -37,6 +37,59 @@ test BatMovesAtFullSpeedTowardsThePlayer()
     assert_eq 6, monsters(0).column
 end test
 
+test MonsterWithSpeedOnePrefersHorizontalOnTies()
+    PreparePursuitTest()
+    player.row = 8
+    player.column = 7
+    monsters(0).speed = 1
+    MoveMonsters()
+    assert_eq 5, monsters(0).row
+    assert_eq 5, monsters(0).column
+end test
+
+test InactiveSlotsAreSkippedWithoutMissingLaterMonsters()
+    PreparePursuitTest()
+    DespawnMonster(0)
+    monsters(0).column = 4
+    InitBat(numMonsters - 1, 5, 6)
+    MoveMonsters()
+    assert_eq 4, monsters(0).column
+    assert_eq 8, monsters(numMonsters - 1).column
+end test
+
+test MultipleActiveMonstersMoveAcrossEmptySlots()
+    PreparePursuitTest()
+    player.column = 20
+    InitBat(numMonsters - 1, 5, 8)
+    MoveMonsters()
+    assert_eq 6, monsters(0).column
+    assert_eq 10, monsters(numMonsters - 1).column
+end test
+
+test ActiveMonsterCountTracksLifecycle()
+    PreparePursuitTest()
+    assert_eq 1, activeMonsterCount%
+    InitBat(0, 5, 4)
+    assert_eq 1, activeMonsterCount%
+    InitBat(numMonsters - 1, 5, 6)
+    assert_eq 2, activeMonsterCount%
+    player.attackDice = 2
+    set_rnd(0.99, 0.99)
+    AttackMonster(0)
+    assert_eq 1, activeMonsterCount%
+    assert_eq 0, monsters(0).health
+    DespawnMonster(0)
+    assert_eq 1, activeMonsterCount%
+    DespawnMonster(numMonsters - 1)
+    assert_eq 0, activeMonsterCount%
+    InitBat(numMonsters - 1, 5, 6)
+    assert_eq 1, activeMonsterCount%
+    ClearMonsters()
+    assert_eq 0, activeMonsterCount%
+    MoveMonsters()
+    assert_eq 0, monsters(numMonsters - 1).health
+end test
+
 test BatTriesTheOtherAxisWhenAWallBlocksIt()
     PreparePursuitTest()
     dungeonRows$(4) = "#...#" + string$(dungeonFloor$, 16) + "#"

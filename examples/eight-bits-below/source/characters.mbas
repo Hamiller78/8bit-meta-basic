@@ -13,6 +13,7 @@ enum TurnAction
 end enum
 
 gameOver% = FALSE
+activeMonsterCount% = 0
 
 struct character
     row
@@ -35,6 +36,7 @@ function ClearMonsters()
         monsters(monsterIndex).row = 0
         monsters(monsterIndex).column = 0
     next monsterIndex
+    activeMonsterCount% = 0
 end function
 
 function MonsterAt(row%, column%)
@@ -55,6 +57,9 @@ function RestoreTile(row%, column%)
 end function
 
 function DespawnMonster(monsterIndex%)
+    if monsters(monsterIndex%).health > 0 then
+        activeMonsterCount% = activeMonsterCount% - 1
+    end if
     if monsters(monsterIndex%).row >= 1 and monsters(monsterIndex%).column >= 1 then
         RestoreTile(monsters(monsterIndex%).row, monsters(monsterIndex%).column)
     end if
@@ -102,6 +107,9 @@ function ReportAttack(attacker$, target$, damage%, health%)
 end function
 
 function InitBat(monsterIndex%, row%, column%)
+    if monsters(monsterIndex%).health <= 0 then
+        activeMonsterCount% = activeMonsterCount% + 1
+    end if
     monsters(monsterIndex%).row = row%
     monsters(monsterIndex%).column = column%
     monsters(monsterIndex%).health = 2
@@ -117,9 +125,10 @@ function AttackMonster(monsterIndex%)
     local damage%
     if player.health > 0 and monsters(monsterIndex%).health > 0 then
         damage% = RollAttackDamage(player.attackDice, monsters(monsterIndex%).armor)
-        monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
-        if monsters(monsterIndex%).health <= 0 then
+        if damage% >= monsters(monsterIndex%).health then
             DespawnMonster(monsterIndex%)
+        else
+            monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
         end if
         ReportAttack(player.name$, monsters(monsterIndex%).name$, damage%, monsters(monsterIndex%).health)
     end if
@@ -298,31 +307,47 @@ function TryMonsterStep(monsterIndex%, rowStep%, columnStep%)
     return turnBlocked
 end function
 
+inline function MoveMonsterTowardPlayer(monsterIndex%)
+    local rowStep%, columnStep%, action%
+    rowStep% = sgn(player.row - monsters(monsterIndex%).row)
+    columnStep% = sgn(player.column - monsters(monsterIndex%).column)
+    if abs(player.column - monsters(monsterIndex%).column) >= abs(player.row - monsters(monsterIndex%).row) then
+        action% = TryMonsterStep(monsterIndex%, 0, columnStep%)
+        if action% = turnBlocked then
+            action% = TryMonsterStep(monsterIndex%, rowStep%, 0)
+        end if
+    else
+        action% = TryMonsterStep(monsterIndex%, rowStep%, 0)
+        if action% = turnBlocked then
+            action% = TryMonsterStep(monsterIndex%, 0, columnStep%)
+        end if
+    end if
+    return action%
+end function
+
 function MoveMonsters()
-    local monsterIndex, stepsLeft%, rowStep%, columnStep%, action%
+    local monsterIndex, stepsLeft%, action%, monstersLeft%
+    monstersLeft% = activeMonsterCount%
+    if monstersLeft% = 0 then
+        return
+    end if
     for monsterIndex = 0 to numMonsters - 1
-        stepsLeft% = monsters(monsterIndex).speed
-        while stepsLeft% > 0 and monsters(monsterIndex).health > 0 and player.health > 0
-            rowStep% = sgn(player.row - monsters(monsterIndex).row)
-            columnStep% = sgn(player.column - monsters(monsterIndex).column)
-            if abs(player.column - monsters(monsterIndex).column) >= abs(player.row - monsters(monsterIndex).row) then
-                action% = TryMonsterStep(monsterIndex, 0, columnStep%)
-                if action% = turnBlocked then
-                    action% = TryMonsterStep(monsterIndex, rowStep%, 0)
+        if monsters(monsterIndex).health > 0 then
+            stepsLeft% = monsters(monsterIndex).speed
+            while stepsLeft% > 0 and player.health > 0
+                action% = MoveMonsterTowardPlayer(monsterIndex)
+                if action% = turnMoved then
+                    stepsLeft% = stepsLeft% - 1
+                else
+                    ' An attack or two blocked directions end this bat's turn.
+                    stepsLeft% = 0
                 end if
-            else
-                action% = TryMonsterStep(monsterIndex, rowStep%, 0)
-                if action% = turnBlocked then
-                    action% = TryMonsterStep(monsterIndex, 0, columnStep%)
-                end if
+            wend
+            monstersLeft% = monstersLeft% - 1
+            if monstersLeft% = 0 then
+                return
             end if
-            if action% = turnMoved then
-                stepsLeft% = stepsLeft% - 1
-            else
-                ' An attack or two blocked directions end this bat's turn.
-                stepsLeft% = 0
-            end if
-        wend
+        end if
     next monsterIndex
 end function
 

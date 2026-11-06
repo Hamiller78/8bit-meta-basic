@@ -578,7 +578,15 @@ describe("C64 compiler", () => {
 
   it("preserves logical truth behavior in representative expressions", () => {
     const output = compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "c64" });
-    expect(output).toContain("IF ((((A = 0) <> 0) OR ((B = 0) <> 0)) <> 0) AND ((C) <> 0) THEN");
+    expect(output).toContain("IF (((A = 0) OR (B = 0)) <> 0) AND ((C) <> 0) THEN");
+  });
+
+  it("uses native comparison truth for Commodore logical operands", () => {
+    for (const target of ["c64", "vic20"] as const) {
+      const output = compileSource("result = (a < b) and v\nother = (a = b) or (a >= b)\n", { filename: "logic.mbas", target });
+      expect(output).toContain("(A < B) AND ((V) <> 0)");
+      expect(output).toContain("(A = B) OR (A >= B)");
+    }
   });
 
   it("renders exact output for the colors example", () => {

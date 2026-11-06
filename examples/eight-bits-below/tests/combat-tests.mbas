@@ -128,14 +128,14 @@ end test
 
 test DeadCharactersNeitherAttackNorTakeAnotherAttack()
     PrepareCombatTest()
-    monsters(0).health = 0
+    DespawnMonster(0)
     set_rnd(0.75)
     AttackMonster(0)
     AttackPlayer(0)
     assert_eq 10, player.health
     assert_eq 0, monsters(0).health
     assert_eq 0.75, rnd()
-    monsters(0).health = 2
+    InitBat(0, 4, 6)
     player.health = 0
     set_rnd(0.75)
     AttackMonster(0)

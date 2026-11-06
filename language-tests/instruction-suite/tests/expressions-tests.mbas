@@ -12,6 +12,22 @@ test ComparisonsAndLogic()
     assert_false 0 and 1
 end test
 
+test RuntimeComparisonLogic()
+    local low, high, nonzero, zero
+    low = -3
+    high = 4
+    nonzero = 0.5
+    zero = 0
+    assert_true (low < high) and (high >= low)
+    assert_false (low > high) or (high < low)
+    assert_true (low < high) and nonzero
+    assert_false (low < high) and zero
+    assert_true (low > high) or nonzero
+    assert_false (low > high) or zero
+    assert_true (low <> high) and (low <= high)
+    assert_true (low = low) and (high > low)
+end test
+
 test EnvironmentConstants()
     assert_true TEXT_COLUMNS >= 22
     assert_true TEXT_ROWS >= 22

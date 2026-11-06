@@ -40,6 +40,10 @@ Combat uses the same `character` struct for the player and monsters.
 2 health, 0 armor, 1 attack die, and speed 2. A room's index is also its monster
 slot. Spawn placement scans the room interior for an open tile, avoiding the
 player and other monsters; it does not consume combat random numbers.
+`activeMonsterCount%` tracks living monsters as slots are initialized, cleared,
+or despawned. Use `InitBat`, `DespawnMonster`, and `ClearMonsters` for those
+transitions so the count stays in sync. Movement stops scanning once it has
+processed that many monsters.
 
 `RollAttackDamage(attackDice, armor)` rolls one six-sided die per attack die.
 1–3 miss, 4–5 count as ordinary hits, and 6 counts as a critical hit worth one

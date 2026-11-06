@@ -50,6 +50,8 @@ export interface ExpressionRenderOptions {
   readonly variableMap?: ReadonlyMap<string, string>;
   readonly functionRenderer?: (expression: Extract<Expression, { kind: "function-call" }>, options: ExpressionRenderOptions) => string | undefined;
   readonly arrayRenderer?: (expression: Extract<Expression, { kind: "array-access" }>, options: ExpressionRenderOptions) => string;
+  /** Native comparisons already produce the bitwise truth values used by AND/OR. */
+  readonly nativeComparisonTruth?: boolean;
 }
 
 export type SpectrumColorCode = Readonly<Record<PortableColor, number>>;
@@ -415,7 +417,15 @@ function renderModuloExpression(leftExpression: Expression, rightExpression: Exp
 }
 
 function renderTruthy(expression: Expression, options: ExpressionRenderOptions): string {
+  if (options.nativeComparisonTruth && isComparisonExpression(expression)) {
+    return expression.kind === "parenthesized" ? renderExpression(expression, options) : `(${renderExpression(expression, options)})`;
+  }
   return `((${renderExpression(expression, options)}) <> 0)`;
+}
+
+function isComparisonExpression(expression: Expression): boolean {
+  if (expression.kind === "parenthesized") return isComparisonExpression(expression.expression);
+  return expression.kind === "binary" && ["=", "<>", "<", "<=", ">", ">="].includes(expression.operator);
 }
 
 function expressionPrecedence(expression: Expression): number {

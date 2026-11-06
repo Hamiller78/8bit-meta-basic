@@ -74,7 +74,7 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildVariableMap(currentProgramInstructions, readability);
-    const renderOptions = { variableMap, functionRenderer, arrayRenderer: renderC64ArrayAccess };
+    const renderOptions = { variableMap, functionRenderer, arrayRenderer: renderC64ArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
       case "label":

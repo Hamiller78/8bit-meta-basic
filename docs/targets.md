@@ -263,6 +263,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `SCREEN_CODE` reads the standard BASIC text screen at address 1024 and converts ordinary printable screen codes to their comparable PETSCII codes.
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
+- In `AND` and `OR`, native comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
 - Experimental `BYTE` arrays and fields render as native `%` integer storage. Compatible byte fields may be packed into a two-dimensional integer backing array.
 - In a struct array, two or more floating numeric fields share one two-dimensional numeric array, and two or more `%` fields share one two-dimensional integer array. The first dimension selects the element and the second selects the field. A single field of either type keeps its one-dimensional array; string fields remain separate.

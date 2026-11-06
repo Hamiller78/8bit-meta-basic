@@ -47,21 +47,11 @@ function DrawRoom(roomIndex%)
 end function
 
 function RevealRoomAt(row%, column%)
-    local roomIndex, rowOffset%, columnOffset%, touchesRoom%
+    local roomIndex
     ' Called on a door or the entrance: only room edges can match.
     for roomIndex = 0 to numRooms - 1
         if not rooms(roomIndex).isDiscovered% then
-            rowOffset% = row% - rooms(roomIndex).y%
-            columnOffset% = column% - rooms(roomIndex).x%
-            touchesRoom% = FALSE
-            if rowOffset% = 0 or rowOffset% = rooms(roomIndex).height% - 1 then
-                touchesRoom% = columnOffset% >= 0 and columnOffset% < rooms(roomIndex).width%
-            else
-                if columnOffset% = 0 or columnOffset% = rooms(roomIndex).width% - 1 then
-                    touchesRoom% = rowOffset% > 0 and rowOffset% < rooms(roomIndex).height% - 1
-                end if
-            end if
-            if touchesRoom% then
+            if IsOnRoomBoundary(roomIndex, row%, column%) then
                 rooms(roomIndex).isDiscovered% = TRUE
                 DrawRoom(roomIndex)
                 ' Shared walls and corners can touch several rooms: reveal one.
@@ -70,6 +60,21 @@ function RevealRoomAt(row%, column%)
         end if
     next roomIndex
     return -1
+end function
+
+inline function IsOnRoomBoundary(roomIndex%, row%, column%)
+    local rowOffset%, columnOffset%, touchesRoom%
+    rowOffset% = row% - rooms(roomIndex%).y%
+    columnOffset% = column% - rooms(roomIndex%).x%
+    touchesRoom% = FALSE
+    if rowOffset% = 0 or rowOffset% = rooms(roomIndex%).height% - 1 then
+        touchesRoom% = columnOffset% >= 0 and columnOffset% < rooms(roomIndex%).width%
+    else
+        if columnOffset% = 0 or columnOffset% = rooms(roomIndex%).width% - 1 then
+            touchesRoom% = rowOffset% > 0 and rowOffset% < rooms(roomIndex%).height% - 1
+        end if
+    end if
+    return touchesRoom%
 end function
 
 function IsDiscoveredTile(row%, column%)
