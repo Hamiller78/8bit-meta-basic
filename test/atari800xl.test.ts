@@ -567,7 +567,7 @@ describe("Atari 800XL compiler", () => {
 
   it("preserves logical truth behavior in representative expressions", () => {
     expect(compileSource("if a and b or not c then\nprint \"YES\"\nend if\n", { filename: "logic.mbas", target: "atari800xl" })).toContain(
-      "IF ((((A = 0) <> 0) OR ((B = 0) <> 0)) <> 0) AND ((C) <> 0) THEN"
+      "IF (((A = 0) OR (B = 0)) <> 0) AND ((C) <> 0) THEN"
     );
   });
 

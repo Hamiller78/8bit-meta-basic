@@ -225,7 +225,7 @@ export const atari800xlTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildAtariVariableMap(currentProgramInstructions, readability);
-    const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess };
+    const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
       case "label":

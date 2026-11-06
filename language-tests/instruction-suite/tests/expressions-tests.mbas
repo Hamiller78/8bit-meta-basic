@@ -13,7 +13,7 @@ test ComparisonsAndLogic()
 end test
 
 test RuntimeComparisonLogic()
-    local low, high, nonzero, zero
+    local low, high, nonzero, zero, word$
     low = -3
     high = 4
     nonzero = 0.5
@@ -26,6 +26,14 @@ test RuntimeComparisonLogic()
     assert_false (low > high) or zero
     assert_true (low <> high) and (low <= high)
     assert_true (low = low) and (high > low)
+    nonzero = -2.5
+    assert_true nonzero and (low < high)
+    assert_true ((low < high) and nonzero) or (high < low)
+    word$ = "BAT"
+    assert_true (word$ = "BAT") and nonzero
+    set_rnd(0.25, 0.75, 0.5)
+    assert_true (rnd() < 0.5) and (rnd() > 0.5)
+    assert_eq 0.5, rnd()
 end test
 
 test EnvironmentConstants()

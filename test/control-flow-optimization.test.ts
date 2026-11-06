@@ -65,7 +65,7 @@ describe("control-flow optimization", () => {
   it("retains the direct compound condition when inlining the body", () => {
     const output = compileSource('if left = 0 or right = 0 then\nprint "MISSING"\nend if\n', { filename: "compound-branch.mbas", target: "spectrum", readability: 0 });
 
-    expect(output).toContain('IF ((LEFT = 0) <> 0) OR ((RIGHT = 0) <> 0) THEN PRINT "MISSING"');
+    expect(output).toContain('IF (LEFT = 0) OR (RIGHT = 0) THEN PRINT "MISSING"');
   });
 
   it("uses native ON GOSUB for enum call dispatch and IF GOSUB on Spectrum", () => {

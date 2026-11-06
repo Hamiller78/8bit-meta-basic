@@ -121,7 +121,7 @@ export const spectrumTarget: TargetBackend = {
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildSpectrumVariableMap(currentProgramInstructions, readability);
     const stringArrayWidths = buildSpectrumStringArrayWidths(currentProgramInstructions);
-    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess, stringArrayWidths };
+    const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess, stringArrayWidths, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
       case "label":

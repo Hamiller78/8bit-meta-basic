@@ -94,7 +94,7 @@ export const agonTarget: TargetBackend = {
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
     const variableMap = buildAgonVariableMap(currentProgramInstructions, readability);
-    const renderOptions = { variableMap, functionRenderer: renderAgonFunction, arrayRenderer: renderAgonArrayAccess };
+    const renderOptions = { variableMap, functionRenderer: renderAgonFunction, arrayRenderer: renderAgonArrayAccess, nativeComparisonTruth: true };
     switch (instruction.kind) {
       case "label":
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;

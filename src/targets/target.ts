@@ -50,7 +50,7 @@ export interface ExpressionRenderOptions {
   readonly variableMap?: ReadonlyMap<string, string>;
   readonly functionRenderer?: (expression: Extract<Expression, { kind: "function-call" }>, options: ExpressionRenderOptions) => string | undefined;
   readonly arrayRenderer?: (expression: Extract<Expression, { kind: "array-access" }>, options: ExpressionRenderOptions) => string;
-  /** Native comparisons already produce the bitwise truth values used by AND/OR. */
+  /** Native comparison results can be used directly by AND/OR. */
   readonly nativeComparisonTruth?: boolean;
 }
 

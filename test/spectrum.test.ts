@@ -210,7 +210,7 @@ describe("Spectrum compiler", () => {
         "30 LET UNARY=-A + 3",
         "40 LET POWER=BASE ^ EXPONENT * 3",
         "50 LET NEGATIVEPOWER=-(BASE ^ EXPONENT)",
-        "60 IF ((CONFIRMED) <> 0) AND ((((A = B) <> 0) OR ((C > 10) <> 0)) <> 0) THEN GO TO 80",
+        "60 IF ((CONFIRMED) <> 0) AND (((A = B) OR (C > 10)) <> 0) THEN GO TO 80",
         '70 PRINT "YES";',
         "80 REM __MB_1:",
         ""
@@ -589,9 +589,9 @@ describe("Spectrum compiler", () => {
       expect(output).not.toContain("LET B=0");
       expect(output).toMatch(/PRINT B\((?:BN|V0) \+ 1\)/u);
       if (readability === 0) {
-        expect(output).toMatch(/\(\((?:BN|V0) = 0\) <> 0\) OR \(\((?:BN|V0) = 1\) <> 0\) OR \(\((?:BN|V0) = 2\) <> 0\)/u);
+        expect(output).toMatch(/\((?:BN|V0) = 0\) OR \((?:BN|V0) = 1\) OR \((?:BN|V0) = 2\)/u);
       } else {
-        expect(output).toMatch(/\(\((?:BN|V0) <> 0\) <> 0\) AND \(\((?:BN|V0) <> 1\) <> 0\) AND \(\((?:BN|V0) <> 2\) <> 0\)/u);
+        expect(output).toMatch(/\((?:BN|V0) <> 0\) AND \((?:BN|V0) <> 1\) AND \((?:BN|V0) <> 2\)/u);
       }
     }
   });

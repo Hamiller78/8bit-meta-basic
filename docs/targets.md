@@ -203,6 +203,7 @@ listed per machine below.
 - Labels and identifiers are rendered in uppercase where appropriate.
 - String variables are mapped deterministically to single-letter names such as `A$`.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
+- In `AND` and `OR`, comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Readability `0` and `1` compact long numeric scalar names while preserving Spectrum's required single-letter names for strings, arrays, and `FOR` counters. Readability `2` keeps readable uppercase numeric scalar names where practical.
 - Numeric and integer arrays are mapped to single-letter numeric array names. Meta-BASIC index `0` renders as Spectrum index `1`.
 - Experimental `BYTE` arrays and fields use single-letter string storage at one character per value. Writes use `CHR$`; reads use `CODE` and become ordinary numeric expressions.
@@ -231,6 +232,7 @@ listed per machine below.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
+- In `AND` and `OR`, comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
 - Experimental `BYTE` arrays and fields use packed string storage at one character per value. Writes use `CHR$`; reads use `ASC` on a one-character slice.
 - Fixed-width string arrays render as one packed Atari backing string plus a hidden numeric array holding each element's logical length. In readable output, `dim messages$(3,12)` reserves `DIM MESSAGES$(36)` for character storage. Reads copy only the recorded number of characters from the corresponding slice, preserving deliberate trailing spaces without exposing unused padding. Empty elements use a guarded read because Atari BASIC rejects an end position before the start position.
@@ -289,6 +291,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - Target lowering therefore uses only features supported by `bbcbasic24.bin`; the compiler must not assume that a facility from BBC BASIC V is available merely because a newer Agon interpreter implements it.
 - Generated programs begin with `MODE 3`, establishing the compiler's fixed 80-column by 30-row text environment.
 - Assignments omit `LET`; `%` variables use BBC BASIC's native 32-bit integer storage.
+- In `AND` and `OR`, native comparison results are used directly; other numeric operands are normalized before BBC BASIC's bitwise operations.
 - Readable variable names are preserved unless they begin with a BBC BASIC keyword; unsafe names such as `TOTAL` and `VALUES` receive a `V_` prefix so the native tokenizer cannot reinterpret `TO` or `VAL` as syntax.
 - Numeric, integer, byte, and string arrays retain Meta-BASIC's zero-based indexes. Declared element counts become BBC BASIC upper bounds, while a fixed string width remains a compile-time check and is not emitted as another array dimension.
 - A `FOR` loop containing `EXIT FOR` or an early function `RETURN` lowers to an explicit counter loop. It therefore creates no BBC BASIC loop-control stack frame that could be bypassed by the jump or return; ordinary `FOR` loops retain native syntax.
