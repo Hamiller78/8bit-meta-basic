@@ -84,6 +84,14 @@ it does not imply that every emulator uses a printer.
 - Run configurations sequentially when they share an executable, artifact, SD
   card, or capture path. Preserve each capture before another launch clears it.
   Avoid concurrent rebuilds or `--restart` calls that interrupt an active runner.
+- Prevent test windows from accumulating. Between sequential runs, use
+  `--restart` when all existing instances of that emulator are disposable test
+  sessions. `--restart` can terminate every process matching the emulator, not
+  just the previous test. If an existing session must be preserved, omit it and
+  close only the test instance you started after its capture is complete.
+- After the final run, preserve its capture and close the test emulator and any
+  capture helper you started unless the user wants the session left open. Track
+  process identities so cleanup does not close unrelated emulator sessions.
 - Prefer individual launch commands when diagnosing failures. `launch:all` stops
   launching further configurations on a launcher failure and does not aggregate
   native results. Continue other independent configurations when one is unavailable.
