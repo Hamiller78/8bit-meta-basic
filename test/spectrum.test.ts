@@ -333,9 +333,9 @@ describe("Spectrum compiler", () => {
     expect(entriesName).toBeDefined();
     expect(othersName).toBeDefined();
     expect(entriesName).not.toBe(othersName);
-    expect(output).toContain(`LET ${entriesName}(1,1)=INT (7)`);
+    expect(output).toContain(`LET ${entriesName}(1,1)=7`);
     expect(output).toContain(`LET ${entriesName}(2,2)=INT (${entriesName}(1,1) + 2)`);
-    expect(output).toContain(`LET ${othersName}(1,2)=INT (5)`);
+    expect(output).toContain(`LET ${othersName}(1,2)=5`);
     expect(output).toContain(`${entriesName}(2,2);${othersName}(1,2)`);
     expect(output).toMatch(/DIM [A-Z]\$\(3,8\)/u);
     expect(output).toMatch(/DIM [A-Z]\(3\)/u);

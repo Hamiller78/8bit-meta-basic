@@ -264,7 +264,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
 - `SCREEN_CODE` reads the standard BASIC text screen at address 1024 and converts ordinary printable screen codes to their comparable PETSCII codes.
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
-- Integer `%` variables render as native C64 integer variables and assignment is coerced with `INT`.
+- Integer `%` variables render as native C64 integer variables. Assignments preserve `INT` coercion, omitting the call when the value is already known to be an integer.
 - In `AND` and `OR`, native comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Numeric and integer arrays render as native C64 arrays with deterministic variable-name mapping and zero-based upper bounds.
 - Experimental `BYTE` arrays and fields render as native `%` integer storage. Compatible byte fields may be packed into a two-dimensional integer backing array.

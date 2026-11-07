@@ -1421,6 +1421,21 @@ function validateStringArrayAssignmentLength(name: string, expression: Expressio
 }
 
 function intCoercion(expression: Expression, location: Expression["location"]): Expression {
+  if (isDefinitelyInteger(expression)) return expression;
+  return explicitIntCoercion(expression, location);
+}
+
+function isDefinitelyInteger(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "number": return Number.isInteger(expression.value);
+    case "identifier": return isIntegerVariableName(expression.name);
+    case "function-call": return expression.name === builtinFunctions.sgn;
+    case "parenthesized": return isDefinitelyInteger(expression.expression);
+    default: return false;
+  }
+}
+
+function explicitIntCoercion(expression: Expression, location: Expression["location"]): Expression {
   return {
     kind: "function-call",
     name: builtinFunctions.int,
@@ -1433,7 +1448,7 @@ function byteCoercion(expression: Expression, location: Expression["location"]):
   if (expression.kind === "number" && (!Number.isInteger(expression.value) || expression.value < 0 || expression.value > 255)) {
     throw new DiagnosticError(expression.location, `BYTE value ${formatNumber(expression.value)} is outside the supported range 0..255.`);
   }
-  return intCoercion(expression, location);
+  return explicitIntCoercion(expression, location);
 }
 
 function analyzeColorExpression(
