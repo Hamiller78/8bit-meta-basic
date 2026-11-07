@@ -33,6 +33,25 @@ const enumDispatchSource = [
 ].join("\n");
 
 describe("control-flow optimization", () => {
+  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("removes jumps to consecutive labels on %s", (target) => {
+    const output = compileSource('print "ONE"\ngoto second\nfirst:\nsecond:\nprint "TWO"\n', { filename: "fallthrough.mbas", target, readability: 0 });
+    expect(output).not.toMatch(/\bGO ?TO\b/u);
+    expect(output).toContain('PRINT "TWO"');
+  });
+
+  it("keeps referenced labels and non-fallthrough jumps", () => {
+    const source = 'if ready then\ngoto second\nend if\ngoto second\nfirst:\nsecond:\nprint "TWO"\ngoto first\n';
+    const output = compileSource(source, { filename: "fallthrough.mbas", target: "spectrum", readability: 2 });
+    expect(output).toContain("REM FIRST:");
+    expect(output).toContain("REM SECOND:");
+    expect(output.match(/GO TO/g)).toHaveLength(3);
+  });
+
+  it("does not remove a jump over an executable instruction", () => {
+    const output = compileSource('goto later\nprint "SKIPPED"\nlater:\nprint "DONE"\n', { filename: "fallthrough.mbas", target: "spectrum", readability: 0 });
+    expect(output).toMatch(/GO TO \d+/u);
+  });
+
   it("removes branches whose conditions fold to compile-time constants", () => {
     const output = compileSource('if TRUE then\nprint "YES"\nelse\nprint "NO"\nend if\nif FALSE then\nprint "NEVER"\nend if\n', {
       filename: "constant-branch.mbas", target: "c64", readability: 2

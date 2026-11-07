@@ -9,6 +9,20 @@ test IfThenElse()
     assert_eq 10, Result
 end test
 
+test FallthroughJumpKeepsLabels()
+    local value
+    value = 0
+    goto FirstDestination
+    value = 99
+FirstDestination:
+    value = value + 1
+    goto SecondDestination
+AliasDestination:
+SecondDestination:
+    value = value + 2
+    assert_eq 3, value
+end test
+
 function dispatchResult(value)
     if value = 0 then
         return 10

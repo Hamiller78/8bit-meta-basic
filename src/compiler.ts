@@ -160,7 +160,7 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const reused = reuseTemporaryStorage(current, reservedNames);
-    const targetPrepared = insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability);
+    const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability));
     setRenderProgram(target.id, targetPrepared.instructions);
     const targetLowered = readability === 0 ? fuseSimpleConditionalBodies(targetPrepared, conditionalInliningBreaks) : targetPrepared;
     const numbered = assignLineNumbers(targetLowered, readability, {
@@ -214,6 +214,20 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   }
 
   throw new Error("Internal error: line-length relief did not converge.");
+}
+
+function removeFallthroughJumps(program: LoweredProgram): LoweredProgram {
+  const instructions = program.instructions.filter((instruction, index) => {
+    if (instruction.kind !== "goto") return true;
+    const destination = normalizeLabel(instruction.label);
+    for (let next = index + 1; next < program.instructions.length; next += 1) {
+      const following = program.instructions[next];
+      if (following.kind !== "label") break;
+      if (normalizeLabel(following.name) === destination) return false;
+    }
+    return true;
+  });
+  return rebuildLabels(program, instructions);
 }
 
 function fuseSimpleConditionalBodies(program: LoweredProgram, breaks: ReadonlySet<string>): LoweredProgram {
