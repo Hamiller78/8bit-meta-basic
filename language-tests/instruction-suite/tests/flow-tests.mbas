@@ -9,6 +9,62 @@ test IfThenElse()
     assert_eq 10, Result
 end test
 
+function dispatchResult(value)
+    if value = 0 then
+        return 10
+    end if
+    if value = 1 then
+        return 20
+    end if
+    if value = 2 then
+        return 30
+    end if
+    return 99
+end function
+
+function dispatchFirst()
+    DispatchCallResult = 10
+    return 0
+end function
+
+function dispatchSecond()
+    DispatchCallResult = 20
+    return 0
+end function
+
+function dispatchThird()
+    DispatchCallResult = 30
+    return 0
+end function
+
+function runCallDispatch(value)
+    DispatchCallResult = 99
+    if value = 0 then
+        dispatchFirst()
+    end if
+    if value = 1 then
+        dispatchSecond()
+    end if
+    if value = 2 then
+        dispatchThird()
+    end if
+    return DispatchCallResult
+end function
+
+test ComputedDispatchBoundaries()
+    local value, expected
+    for value = -1 to 3
+        expected = 99
+        if value >= 0 and value <= 2 then
+            expected = 10 + value * 10
+        end if
+        assert_eq expected, dispatchResult(value)
+        assert_eq expected, runCallDispatch(value)
+    next value
+    assert_eq 99, dispatchResult(0.5)
+    assert_eq 99, runCallDispatch(0.5)
+end test
+
 test ForNextLoop()
     Total = 0
     for Index = 0 to 3

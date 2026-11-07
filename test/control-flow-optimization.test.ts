@@ -45,7 +45,8 @@ describe("control-flow optimization", () => {
 
   it("uses native one-based ON GOTO dispatch after folding zero-based enum members", () => {
     const atari = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target: "atari800xl", readability: 0 });
-    expect(atari).toMatch(/ON 1 \+ ABS\(.+ = 1\) \+ 2 \* ABS\(.+ = 2\) \+ 3 \* ABS\(.+ = 3\) GOTO/u);
+    expect(atari).toMatch(/ON 1 \+ \(.+ = 1\) \+ 2 \* \(.+ = 2\) \+ 3 \* \(.+ = 3\) GOTO/u);
+    expect(atari).not.toContain("ABS(");
     const c64 = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target: "c64", readability: 0 });
     expect(c64).not.toContain(" ON ");
     expect(c64.match(/IF .+ = [123] THEN \d+/g)).toHaveLength(3);
@@ -81,7 +82,8 @@ describe("control-flow optimization", () => {
     ].join("\n");
 
     const atari = compileSource(source, { filename: "call-dispatch.mbas", target: "atari800xl", readability: 0 });
-    expect(atari).toMatch(/ON 1 \+ ABS\(.+ = 1\) \+ 2 \* ABS\(.+ = 2\) \+ 3 \* ABS\(.+ = 3\) GOSUB/u);
+    expect(atari).toMatch(/ON 1 \+ \(.+ = 1\) \+ 2 \* \(.+ = 2\) \+ 3 \* \(.+ = 3\) GOSUB/u);
+    expect(atari).not.toContain("ABS(");
     expect(atari).not.toMatch(/IF .+ < 1.+ > 3.+ THEN/u);
     const c64 = compileSource(source, { filename: "call-dispatch.mbas", target: "c64", readability: 0 });
     expect(c64).not.toContain(" ON ");

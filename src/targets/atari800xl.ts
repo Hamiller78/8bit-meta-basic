@@ -1410,7 +1410,8 @@ function lowerSafeAtariDispatch(instruction: Extract<Instruction, { kind: "on-go
       right: { kind: "number", value: entry.index, raw: String(entry.index), location },
       location
     };
-    const matched: Expression = { kind: "function-call", name: builtinFunctions.abs, args: [equality], location };
+    // Atari BASIC comparisons already produce 0 or 1, including in arithmetic.
+    const matched: Expression = equality;
     const offset = caseIndex + 1;
     const contribution: Expression = offset === 1
       ? matched
