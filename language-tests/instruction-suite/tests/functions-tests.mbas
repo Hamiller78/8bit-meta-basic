@@ -1,5 +1,27 @@
 uses "../source/functions.mbas"
 
+struct IntegerBounds
+    left%
+    right%
+end struct
+dim integerBounds as IntegerBounds(2)
+
+function IntegerBoundsCounter()
+    local count%
+    count% = integerBounds(0).left% + integerBounds(0).right%
+    while count% > 0
+        count% = count% - 1
+    wend
+    return count%
+end function
+
+test IntegerBoundsAndCounter()
+    integerBounds(0).left% = 2
+    integerBounds(0).right% = 3
+    assert_eq 5, integerBounds(0).left% + integerBounds(0).right%
+    assert_eq 0, IntegerBoundsCounter()
+end test
+
 test FunctionCallWithVariable()
     local Value
     Value = 5
@@ -63,6 +85,39 @@ test InlineIntegerSnapshots()
     result% = InlineIntegerResult(-1.25)
     assert_eq -2, result%
     assert_eq 7, InlineIntegerResult(2) + InlineIntegerResult(5)
+end test
+
+function IntegerParameterResult(value%)
+    local result%
+    result% = value% + 1
+    return result%
+end function
+
+function ForwardIntegerParameter(value%)
+    return IntegerParameterResult(value%)
+end function
+
+function LocallyInitializedIntegerParameter()
+    local source%
+    source% = 4
+    return IntegerParameterResult(source%)
+end function
+
+function MixedParameterDifference(value%)
+    local expected, result%
+    expected = int(value% + 1)
+    result% = value% + 1
+    return result% - expected
+end function
+
+test IntegerParameterCallSites()
+    local source%
+    source% = -3
+    assert_eq -2, IntegerParameterResult(source%)
+    assert_eq 5, ForwardIntegerParameter(4)
+    assert_eq 5, LocallyInitializedIntegerParameter()
+    assert_eq 0, MixedParameterDifference(2)
+    assert_eq 0, MixedParameterDifference(-1.25)
 end test
 
 test TemporaryValuesSurviveBranchesAndLoops()

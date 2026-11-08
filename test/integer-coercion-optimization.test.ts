@@ -9,7 +9,7 @@ describe("integer coercion optimization", () => {
       "result% = values%(0) + 0.5", "result% = ordinary(0)"
     ].join("\n");
     const output = compileSource(source, { filename: "integer-array-coercion.mbas", target, readability: 2 });
-    expect(output.match(/\bINT\b/gu)).toHaveLength(target === "spectrum" || target === "atari800xl" ? 4 : 2);
+    expect(output.match(/\bINT\b/gu)).toHaveLength(2);
   });
 
   it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("recognizes native packed integer struct fields on %s", (target) => {
@@ -18,7 +18,7 @@ describe("integer coercion optimization", () => {
       "boxes(0).left% = -3", "boxes(0).right% = 4", "result% = boxes(0).left% + boxes(0).right%"
     ].join("\n");
     const output = compileSource(source, { filename: "integer-struct-coercion.mbas", target, readability: 2 });
-    expect(output.match(/\bINT\b/gu)?.length ?? 0).toBe(target === "spectrum" || target === "atari800xl" ? 1 : 0);
+    expect(output.match(/\bINT\b/gu)?.length ?? 0).toBe(0);
   });
 
   it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("omits coercion of boolean BYTE writes on %s", (target) => {
@@ -59,8 +59,8 @@ describe("integer coercion optimization", () => {
       "destination% = value - source%"
     ].join("\n"), { filename: "integer-arithmetic.mbas", target, readability: 2 });
 
-    // Spectrum and Atari may store fractions in integer-named variables through READ or parameters.
-    expect(output.match(/\bINT\b/gu)).toHaveLength(target === "spectrum" || target === "atari800xl" ? 5 : 3);
+    // No READ or fractional parameter can write source% in this program.
+    expect(output.match(/\bINT\b/gu)).toHaveLength(3);
     expect(output).toMatch(/\bSGN\b/u);
   });
 
@@ -77,6 +77,6 @@ describe("integer coercion optimization", () => {
 
     expect(output).toMatch(/\bSGN\b/u);
     expect(output).toMatch(/INT\s*\(-1\.25\)/u);
-    expect(output.match(/\bINT\b/gu)).toHaveLength(target === "spectrum" || target === "atari800xl" ? 4 : 3);
+    expect(output.match(/\bINT\b/gu)).toHaveLength(3);
   });
 });

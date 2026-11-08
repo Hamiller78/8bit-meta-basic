@@ -21,6 +21,7 @@ import { DiagnosticError } from "./diagnostics.js";
 import type { DeviceKind, Expression } from "./ast.js";
 import { isStringVariableName } from "./variables.js";
 import { reuseTemporaryStorage } from "./temporary-reuse.js";
+import { optimizeIntegerParameters } from "./integer-parameter-optimization.js";
 import { defaultFileStorage, validateFileStorage, type FileStorage } from "./file-storage.js";
 import { setFileStorage } from "./targets/file-io.js";
 
@@ -76,7 +77,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   };
   const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), environment, { testMode: options.testMode });
   const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
-  let lowered = lowerProgram(layoutText(analyzed, options.target, textOptions), {
+  let lowered = lowerProgram(optimizeIntegerParameters(layoutText(analyzed, options.target, textOptions)), {
     testMode: options.testMode,
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,

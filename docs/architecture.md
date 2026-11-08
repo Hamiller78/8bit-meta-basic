@@ -148,6 +148,8 @@ Integer assignment retains `INT` coercion for expressions that may be fractional
 
 Struct parameters are copied into generated function storage before the native call; inline function bodies are expanded at their call sites rather than emitted as separate BASIC subroutines. Source-level copying and scope rules are defined in the [language reference](language-reference.md#user-defined-functions).
 
+Before lowering, integer analysis uses the complete set of syntactic call sites to prove when a parameter receives only integral values. It propagates facts through calls to a fixed point and recognizes explicitly assigned scoped locals, integer globals, and integer arrays and struct fields when their contents cannot have been loaded or inserted without conversion. The analysis accounts for shared function storage and raw `READ` values; unknown or fractional inputs prevent the proof. Proven facts remove redundant integer coercions while preserving the existing behavior of fractional inputs. This runs before target cleanup because source-level function and storage identities are still available.
+
 ## Control-flow and line packing
 
 Shared lowering prefers fall-through control flow. A block without `ELSE` inverts its condition and jumps over the body instead of emitting a conditional jump followed by an unconditional jump. `WHILE` and `REPEAT` use the same rule.
