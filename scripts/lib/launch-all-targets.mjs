@@ -48,6 +48,7 @@ async function launchAll(options) {
     ...(options.testPrinterOutput ? ["--printer-output"] : []),
     ...(options.testPrinterOutput && options.testOutputDevice ? ["--test-output-device", options.testOutputDevice] : []),
     ...(options.moduleName ? ["--module", options.moduleName] : []),
+    ...(options.hidden ? ["--hidden"] : []),
     ...(options.runBuild ? [] : ["--skip-build"])
   ];
 
@@ -99,7 +100,8 @@ function parseArgs(argv) {
     atariArtifact: undefined,
     targetConfigurations: [],
     runBuild: true,
-    restart: false
+    restart: false,
+    hidden: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -175,6 +177,10 @@ function parseArgs(argv) {
     }
     if (arg === "--skip-build") {
       options.runBuild = false;
+      continue;
+    }
+    if (arg === "--hidden") {
+      options.hidden = true;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

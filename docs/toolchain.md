@@ -222,9 +222,10 @@ entry points are:
 | `npm run test:language:agon` | Launch on `agon` with capture. |
 | `npm run test:language:vic20` | VIC-20 module orchestrator; waits for captures and reports totals. |
 
-Individual launch aliases accept options such as `--module strings` and `--restart`
-after npm's `--`. The VIC-20 orchestrator has its own fixed module list and timeout;
-it does not forward arbitrary launch options. Other named configurations can use
+Individual launch aliases accept options such as `--module strings`, `--restart`,
+and `--hidden` after npm's `--`. The VIC-20 orchestrator has its own fixed module
+list and timeout and requests hidden windows by default; use `-- --visible` to see
+them. It does not forward arbitrary launch options. Other named configurations can use
 the generic launcher with the suite's `--project`. Required development coverage
 is owned by [Add a MetaBASIC feature](../skills/add-metabasic-feature/SKILL.md), and
 execution by [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md).
@@ -344,6 +345,7 @@ output-directory, and `--skip-build` options apply.
 | Launch option | Scope and effect |
 | --- | --- |
 | `--restart` | Request termination of existing emulator processes. Windows handling is best-effort. |
+| `--hidden` | Request a hidden emulator window on Windows; intended for captured automated runs. Agon uses SDL's dummy video driver and software renderer. Other platforms do not hide the window. |
 | `--fast` | Individual Spectrum/VICE launchers append `testArgs`, as test mode does. Agon accepts it without a speed change. |
 | `--artifact tokenized-bas\|lst\|atr\|disk-directory` | Individual Atari launchers; default `tokenized-bas`. Atari800 also accepts `basic`. |
 | `--file-storage disk\|tape` | Individual Commodore/Atari launchers support this override. |
@@ -358,7 +360,7 @@ npm run launch:all -- --project examples/eight-bits-below --restart
 This launches named entries with nonempty emulator paths. Repeat
 `--target-configuration name` to restrict the selection. Common input/test/profile,
 language/font, configuration, output-directory, and `--skip-build` options apply.
-Use `--atari-artifact` rather than an individual Atari launcher's `--artifact`.
+Use `--atari-artifact` rather than an individual Atari launcher's `--artifact`. `--hidden` is forwarded to each emulator.
 The command skips unconfigured emulators and stops launching further configurations
 on a launcher error. `launch:all-targets` and `launch:all-configurations` are aliases.
 It does not aggregate native test results; use the

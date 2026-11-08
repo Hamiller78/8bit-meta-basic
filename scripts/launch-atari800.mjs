@@ -104,7 +104,7 @@ async function launchAtari800(options) {
     cwd,
     detached: true,
     stdio: "ignore",
-    windowsHide: false
+    windowsHide: options.hidden
   });
   child.unref();
 
@@ -135,7 +135,8 @@ function parseArgs(argv) {
     artifact: "tokenized-bas",
     runBuild: true,
     restart: false,
-    fileStorage: undefined
+    fileStorage: undefined,
+    hidden: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -217,6 +218,10 @@ function parseArgs(argv) {
     }
     if (arg === "--skip-build") {
       options.runBuild = false;
+      continue;
+    }
+    if (arg === "--hidden") {
+      options.hidden = true;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

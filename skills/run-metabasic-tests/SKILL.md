@@ -71,6 +71,11 @@ Repeat for each relevant available configuration with the same input selections.
 The historical `--printer-output` flag enables the configured runner-log transport;
 it does not imply that every emulator uses a printer.
 
+On Windows, use `--hidden` for automated captured runs when nobody needs to
+inspect the screen. Omit it for interactive play or visual verification. The
+VIC-20 suite orchestrator requests hidden windows by default; `--visible` opts
+into visible windows. Verify that hidden runs actually start and deliver captures.
+
 - Record the start time and confirm that the capture was cleared/recreated for
   this run. Look for current test names. Never reuse another suite's log as proof.
 - Keep the launching shell session alive until its emulator and capture helper

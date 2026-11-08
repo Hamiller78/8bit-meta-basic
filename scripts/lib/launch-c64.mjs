@@ -92,7 +92,7 @@ async function launchC64(options) {
     cwd,
     detached: true,
     stdio: "ignore",
-    windowsHide: false
+    windowsHide: options.hidden
   });
   child.unref();
 
@@ -125,7 +125,8 @@ function parseArgs(argv) {
     runBuild: true,
     restart: false,
     fast: false,
-    fileStorage: undefined
+    fileStorage: undefined,
+    hidden: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -206,6 +207,10 @@ function parseArgs(argv) {
     }
     if (arg === "--fast") {
       options.fast = true;
+      continue;
+    }
+    if (arg === "--hidden") {
+      options.hidden = true;
       continue;
     }
     if (arg === "--restart" || arg === "--kill-existing") {

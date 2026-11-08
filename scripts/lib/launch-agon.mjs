@@ -58,7 +58,10 @@ export async function launchAgon(options) {
   const args = (emulator.args ?? ["--sdcard", "{sdcard}"]).map((argument) =>
     argument.replaceAll("{sdcard}", sdcardPath).replaceAll("{artifact}", artifact)
   );
-  const child = spawn(emulatorPath, args, { cwd: emulator.workingDirectory ? resolve(cwd, emulator.workingDirectory) : cwd, detached: true, stdio: "ignore", windowsHide: false });
+  const env = options.hidden && process.platform === "win32"
+    ? { ...process.env, SDL_VIDEODRIVER: "dummy", SDL_RENDER_DRIVER: "software" }
+    : process.env;
+  const child = spawn(emulatorPath, args, { cwd: emulator.workingDirectory ? resolve(cwd, emulator.workingDirectory) : cwd, detached: true, stdio: "ignore", windowsHide: options.hidden, env });
   child.unref();
   console.log(`launched target configuration "${options.targetConfiguration}" (${targetConfiguration.computer?.model ?? "Agon Light"}) in ${emulator.name ?? "Fab Agon Emulator"} with ${relativeToCwd(cwd, artifact)}`);
 }
@@ -126,7 +129,8 @@ function parseArgs(argv) {
     configPath: defaultToolConfig,
     targetConfiguration: "agon",
     runBuild: true,
-    restart: false
+    restart: false,
+    hidden: false
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -151,6 +155,7 @@ function parseArgs(argv) {
     else if (arg === "--printer-output") options.testPrinterOutput = true;
     else if (arg === "--skip-build") options.runBuild = false;
     else if (arg === "--restart") options.restart = true;
+    else if (arg === "--hidden") options.hidden = true;
     else if (arg === "--fast") { /* The eZ80 is already fast; accepted for launch-all parity. */ }
     else throw new Error(`Unknown option "${arg}".`);
   }

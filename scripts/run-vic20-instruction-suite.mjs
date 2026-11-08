@@ -19,6 +19,7 @@ const modules = [
 ];
 
 const cwd = process.cwd();
+const visible = process.argv.slice(2).includes("--visible");
 const outputPath = resolve(cwd, "build/rs232/release/vic20/instruction-suite.txt");
 
 await run(process.execPath, [resolve(cwd, "node_modules/typescript/bin/tsc")]);
@@ -38,6 +39,7 @@ for (const moduleName of modules) {
     "--run-tests",
     "--profile", "release",
     "--printer-output",
+    ...(visible ? [] : ["--hidden"]),
     "--module", moduleName,
     "--restart",
     "--skip-build"
