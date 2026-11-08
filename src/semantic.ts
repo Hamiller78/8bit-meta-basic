@@ -1426,15 +1426,24 @@ function intCoercion(expression: Expression, location: Expression["location"]): 
 }
 
 export function isDefinitelyInteger(expression: Expression, nativeIntegerVariables = false): boolean {
+  if (isBooleanValued(expression)) return true;
   switch (expression.kind) {
     case "number": return Number.isInteger(expression.value);
     case "identifier": return nativeIntegerVariables && isIntegerVariableName(expression.name);
+    case "array-access": return nativeIntegerVariables && isIntegerVariableName(expression.name);
     case "function-call": return expression.name === builtinFunctions.sgn || expression.name === builtinFunctions.int;
     case "parenthesized": return isDefinitelyInteger(expression.expression, nativeIntegerVariables);
     case "binary": return (expression.operator === "+" || expression.operator === "-") &&
       isDefinitelyInteger(expression.left, nativeIntegerVariables) && isDefinitelyInteger(expression.right, nativeIntegerVariables);
     default: return false;
   }
+}
+
+function isBooleanValued(expression: Expression): boolean {
+  if (expression.kind === "parenthesized") return isBooleanValued(expression.expression);
+  if (expression.kind === "boolean") return true;
+  if (expression.kind === "unary") return expression.operator === "NOT";
+  return expression.kind === "binary" && ["=", "<>", "<", "<=", ">", ">=", "AND", "OR"].includes(expression.operator);
 }
 
 function explicitIntCoercion(expression: Expression, location: Expression["location"]): Expression {
@@ -1450,7 +1459,7 @@ function byteCoercion(expression: Expression, location: Expression["location"]):
   if (expression.kind === "number" && (!Number.isInteger(expression.value) || expression.value < 0 || expression.value > 255)) {
     throw new DiagnosticError(expression.location, `BYTE value ${formatNumber(expression.value)} is outside the supported range 0..255.`);
   }
-  return explicitIntCoercion(expression, location);
+  return isBooleanValued(expression) ? expression : explicitIntCoercion(expression, location);
 }
 
 function analyzeColorExpression(

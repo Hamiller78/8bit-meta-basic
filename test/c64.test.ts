@@ -493,7 +493,7 @@ describe("C64 compiler", () => {
     expect(integerName).toBeDefined();
     expect(numericName).toBeDefined();
     expect(output).toContain(`${integerName}(0,0)=INT(3.7)`);
-    expect(output).toContain(`${integerName}(0,1)=INT(${integerName}(0,0) + 1)`);
+    expect(output).toContain(`${integerName}(0,1)=${integerName}(0,0) + 1`);
     expect(output).toContain(`${numericName}(0,0)=1.5`);
     expect(output).toContain(`${numericName}(0,1)=${numericName}(0,0) + 0.5`);
     expect(output).toMatch(new RegExp(`${integerName}\\(([A-Z][A-Z0-9]?) \\+ 1,0\\)=${integerName}\\(\\1,0\\)`, "u"));

@@ -4,6 +4,11 @@ struct QueueStorage
     QueueText$(8)
 end struct
 
+struct IntegerBoundsStorage
+    left%
+    right%
+end struct
+
 function ShiftedQueueRow(Item AS QueueStorage, Offset)
     local Result
     Result = Item.QueueRow + Offset
@@ -28,10 +33,37 @@ end test
 
 test IntegerArrays()
     dim Counts%(2)
+    local result%
     Counts%(0) = 4.8
     Counts%(1) = Counts%(0) + 2.2
     assert_eq 4, Counts%(0)
     assert_eq 6, Counts%(1)
+    Counts%(0) = -3.8
+    result% = Counts%(0)
+    assert_eq -4, result%
+    result% = Counts%(0) + 1
+    assert_eq -3, result%
+    result% = Counts%(0) + 0.5
+    assert_eq -4, result%
+end test
+
+test IntegerStructArrayFields()
+    dim Boxes as IntegerBoundsStorage(2)
+    local result%
+    Boxes(0).left% = -3
+    Boxes(0).right% = 4
+    result% = Boxes(0).left% + Boxes(0).right%
+    assert_eq 1, result%
+    result% = Boxes(0).left% + 0.5
+    assert_eq -3, result%
+end test
+
+test ByteBooleanAssignments()
+    dim Flags as byte(2)
+    Flags(0) = false
+    Flags(1) = true
+    assert_eq 0, Flags(0)
+    assert_eq 1, Flags(1)
 end test
 
 test StringArrays()

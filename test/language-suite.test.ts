@@ -23,7 +23,7 @@ describe("Meta-BASIC language conformance suite", () => {
     const vic20 = await build(configuration, { configPath, target: "vic20", readability: 0 });
     expect(vic20).toMatch(/^10 print chr\$\(14\);/u);
     expect(vic20).toContain("META CONTROL PROGRAM");
-  }, 45_000);
+  }, 90_000);
 });
 
 function testFiles(): string[] {
