@@ -364,12 +364,16 @@ function renderSpectrumLen(expression: FunctionCallExpression, options: { readon
   return `LEN ${renderSpectrumLenArgument(source, options)}`;
 }
 
-function renderSpectrumMid(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
+function renderSpectrumMid(expression: FunctionCallExpression, options: SpectrumRenderOptions): string {
   const [source, start, length] = expression.args;
   if (!length) {
     return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO )`;
   }
-  return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO ${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  const renderedStart = renderExpression(start, options);
+  let end = `${renderedStart} + ${renderExpression(length, options)} - 1`;
+  if (start.kind === "number" && length.kind === "number" && Number.isInteger(start.value) && Number.isInteger(length.value) && Math.abs(start.value) <= 32767 && Math.abs(length.value) <= 32767) end = String(start.value + length.value - 1);
+  else if (length.kind === "number" && length.value === 1) end = renderedStart;
+  return `${renderSpectrumSliceSource(source, options)}(${renderedStart} TO ${end})`;
 }
 
 function renderSpectrumLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
@@ -383,7 +387,9 @@ function renderSpectrumRight(expression: FunctionCallExpression, options: { read
   const sourceLength = source.kind === "array-access" && isStringVariableName(source.name)
     ? renderSpectrumStringArrayLength(source, options as SpectrumRenderOptions)
     : `LEN ${renderSpectrumLenArgument(source, options)}`;
-  return `${renderedSource}(${sourceLength} - ${renderExpression(length, options)} + 1 TO )`;
+  return length.kind === "number" && length.value === 1
+    ? `${renderedSource}(${sourceLength} TO )`
+    : `${renderedSource}(${sourceLength} - ${renderExpression(length, options)} + 1 TO )`;
 }
 
 interface SpectrumRenderOptions {
@@ -472,17 +478,15 @@ function renderSpectrumArrayAssignmentTarget(
   return `${renderSpectrumArrayName(name, options.variableMap ?? new Map())}(${indices.map((index) => renderSpectrumArrayIndex(index, options)).join(",")})`;
 }
 
-function renderSpectrumArrayIndex(
-  expression: Expression,
-  options: {
-    readonly variableMap?: ReadonlyMap<string, string>;
-    readonly functionRenderer?: typeof renderSpectrumFunction;
-    readonly arrayRenderer?: typeof renderSpectrumArrayAccess;
-    readonly stringArrayWidths?: ReadonlyMap<string, number>;
-  }
-): string {
+function renderSpectrumArrayIndex(expression: Expression, options: SpectrumRenderOptions): string {
   if (expression.kind === "number") {
     return (expression.value + 1).toString();
+  }
+
+  let index: Expression = expression;
+  while (index.kind === "parenthesized") index = index.expression;
+  if (index.kind === "binary" && index.operator === "-" && index.right.kind === "number" && index.right.value === 1) {
+    return renderExpression(index.left, options);
   }
 
   return `${renderExpression(expression, options)} + 1`;

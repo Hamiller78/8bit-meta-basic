@@ -483,8 +483,39 @@ describe("Spectrum compiler", () => {
 
   it("renders MID$ as Spectrum string slicing", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5); mid$(tickerText$, 7)\n', { filename: "mid.mbas", target: "spectrum" })).toBe(
-      ['10 LET A$="HELLO WORLD"', "20 PRINT A$(2 TO 2 + 5 - 1);A$(7 TO )", ""].join("\n")
+      ['10 LET A$="HELLO WORLD"', "20 PRINT A$(2 TO 6);A$(7 TO )", ""].join("\n")
     );
+  });
+
+  it("simplifies array indexes and one-character slices inside loops", () => {
+    const source = ["dim rows$(3,4)", "for i = 1 to 3", "print mid$(rows$(i - 1), i, 1)", "next i"].join("\n");
+    const output = compileSource(source, { filename: "bounded-slices.mbas", target: "spectrum", readability: 2 });
+    expect(output).toContain("(R$(I,1 TO M(I)))(I TO I)");
+  });
+
+  it("simplifies arithmetic for fractional or modified loop counters", () => {
+    const cases = [
+      ["for i = 1.5 to 3", "print mid$(rows$(i - 1), i, 1)", "next i"],
+      ["for i = 1 to 3 step 0.5", "print mid$(rows$(i - 1), i, 1)", "next i"],
+      ["for i = 1 to 3", "i = 1.5", "print mid$(rows$(i - 1), i, 1)", "next i"]
+    ];
+    for (const body of cases) {
+      const output = compileSource(["dim rows$(3,4)", ...body].join("\n"), { filename: "unbounded-slices.mbas", target: "spectrum", readability: 2 });
+      expect(output).toContain("(R$(I,1 TO M(I)))(I TO I)");
+    }
+  });
+
+  it("simplifies arithmetic when control can jump into a loop", () => {
+    const source = ["dim rows$(3,4)", "goto inside", "for i = 1 to 3", "inside:", "print mid$(rows$(i - 1), i, 1)", "next i"].join("\n");
+    const output = compileSource(source, { filename: "loop-entry.mbas", target: "spectrum", readability: 2 });
+    expect(output).toContain("(R$(I,1 TO M(I)))(I TO I)");
+  });
+
+  it("simplifies dynamic indexes outside loops while retaining other offsets", () => {
+    const source = ["dim rows$(3,4)", "print mid$(rows$((position - 1)), position, 1)", "print rows$(position - 2)"].join("\n");
+    const output = compileSource(source, { filename: "dynamic-slices.mbas", target: "spectrum", readability: 2 });
+    expect(output).toContain("(R$(POSITION,1 TO M(POSITION)))(POSITION TO POSITION)");
+    expect(output).toContain("POSITION - 2 + 1");
   });
 
   it("renders LEN as a Spectrum string length expression", () => {
@@ -519,7 +550,7 @@ describe("Spectrum compiler", () => {
 
   it("parenthesizes Spectrum string slices of function-call results", () => {
     expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "spectrum" })).toBe(
-      ["10 PRINT (STR$ DEFCON)(LEN (STR$ DEFCON) - 1 + 1 TO )", ""].join("\n")
+      ["10 PRINT (STR$ DEFCON)(LEN (STR$ DEFCON) TO )", ""].join("\n")
     );
   });
 

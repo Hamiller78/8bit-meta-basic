@@ -1,3 +1,28 @@
+dim BoundedSliceRows$(3, 3)
+
+test SpectrumFractionalSingleCharacterSlice()
+    local unit, position, text$
+    if TEXT_COLUMNS = 32 then
+        unit = 1
+        position = 1.5 - unit / 2147483648
+        text$ = "ABC"
+        assert_eq "A", mid$(text$, position, 1)
+    end if
+end test
+
+test BoundedArraySlices()
+    local i, result$
+    BoundedSliceRows$(0) = "ABC"
+    BoundedSliceRows$(1) = "DEF"
+    BoundedSliceRows$(2) = "GHI"
+    result$ = ""
+    for i = 1 to 3
+        result$ = result$ + mid$(BoundedSliceRows$(i - 1), i, 1)
+    next i
+    assert_eq "AEI", result$
+    assert_eq "I", right$(BoundedSliceRows$(2), 1)
+end test
+
 test StringAssignmentAndConcat()
     T$ = "META"
     T$ = T$ + "-BASIC"
