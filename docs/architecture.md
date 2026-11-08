@@ -140,7 +140,7 @@ Targets should not invent new source-language semantics. If a feature has portab
 
 The compiler reuses generated expression-result variables when their values cannot be live at the same time. A result needed across a `GOSUB` keeps storage distinct from temporaries in the called routine. Function parameters, locals, and return values also draw from shared type-specific storage pools. Functions that can call one another receive distinct slots, while functions that cannot be active together may share slots across those source-level roles. This reduces variable-table pressure on all targets without changing Meta-BASIC source variables or function-call order.
 
-Before reusing temporary storage, the compiler forwards a numeric function return directly to an immediately following assignment when its generated snapshot has exactly one definition and one consuming instruction. Other snapshots remain in place, including those needed across calls or branches.
+Before reusing temporary storage, the compiler forwards a numeric function return directly to an immediately following assignment or conditional branch when its generated snapshot has exactly one definition and one consuming instruction. Other snapshots remain in place, including those needed across calls or branches.
 
 Integer assignment retains `INT` coercion for expressions that may be fractional. Semantic analysis omits the redundant call for integer literals, `INT` and `SGN` results, and addition or subtraction of known integers, including parenthesized forms. A target-aware pass also recognizes native integer variables on Commodore and Agon; Spectrum and Atari numeric storage can receive fractional values through `READ` or function parameters.
 

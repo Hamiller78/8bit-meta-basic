@@ -37,6 +37,21 @@ test ImmediateIntegerFunctionResult()
     assert_eq 2, result%
 end test
 
+test FunctionResultsInConditions()
+    local result
+    result = 0
+    if AddValues(2, 3) = 5 then
+        result = result + 1
+    end if
+    if AddValues(2, 3) = 6 then
+        result = result + 10
+    end if
+    if AddValues(1, 0) < AddValues(2, 0) then
+        result = result + 2
+    end if
+    assert_eq 3, result
+end test
+
 test TemporaryValuesSurviveBranchesAndLoops()
     local Index, Total
     Total = 0

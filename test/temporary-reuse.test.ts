@@ -4,6 +4,21 @@ import { compileSourceDetailed, type Target } from "../src/compiler.js";
 const targets: readonly Target[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 
 describe("compiler temporary storage", () => {
+  it.each(targets)("forwards an immediately tested function result on %s", (target) => {
+    const source = ["if Calculate(3) = 4 then", "print 1", "end if", "function Calculate(value)", "return value + 1", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "immediate-condition.mbas", target, readability: 2 });
+    expect(result.debugInfo.variables.filter((variable) => /^mbt\d+$/i.test(variable.storageName))).toHaveLength(0);
+    const returnVariable = result.debugInfo.variables.find((variable) => /^mbf\d+r$/i.test(variable.storageName));
+    expect(returnVariable).toBeDefined();
+    expect(result.output).toMatch(new RegExp(`IF [^\\n]*\\b${returnVariable!.targetName}\\b`, "iu"));
+  });
+
+  it.each(targets)("keeps an earlier result when another call precedes its test on %s", (target) => {
+    const source = ["if Calculate(1) < Calculate(2) then", "print 1", "end if", "function Calculate(value)", "return value", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "two-call-condition.mbas", target, readability: 2 });
+    expect(result.debugInfo.variables.filter((variable) => /^mbt\d+$/i.test(variable.storageName)).length).toBeGreaterThanOrEqual(1);
+  });
+
   it.each(targets)("forwards an immediately consumed numeric function result on %s", (target) => {
     const source = ["result% = Calculate(3)", "function Calculate(value)", "    return value + 0.5", "end function"].join("\n");
     const result = compileSourceDetailed(source, { filename: "immediate-result.mbas", target, readability: 2 });

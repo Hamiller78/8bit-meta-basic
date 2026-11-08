@@ -119,7 +119,8 @@ function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: Re
     if (copy.kind === "let" && /^MBT\d+$/i.test(copy.name) && !reservedNames.has(copy.name.toLowerCase()) &&
         copy.expression.kind === "identifier" && /^MBF\d+[A-Z]\d*$/i.test(copy.expression.name) &&
         instructions[index - 1]?.kind === "gosub" &&
-        consumer?.kind === "let" && useCounts.get(copy.name.toUpperCase()) === 1 &&
+        (consumer?.kind === "let" || consumer?.kind === "if-goto" || consumer?.kind === "if-gosub") &&
+        useCounts.get(copy.name.toUpperCase()) === 1 &&
         definitionCounts.get(copy.name.toUpperCase()) === 1 && usedTemporaries(consumer).has(copy.name.toUpperCase())) {
       const replacements = new Map([[copy.name.toUpperCase(), copy.expression.name]]);
       result.push(mapInstructionExpressions(consumer, (expression) => renameExpression(expression, replacements)));
