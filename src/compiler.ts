@@ -6,7 +6,8 @@ import type { NumberedProgram } from "./line-numbering.js";
 import { buildDebugInfo, collectSourceAliases, type DebugInfo } from "./debug-info.js";
 import { invertCondition, lowerProgram, normalizeLabel, type Instruction, type LoweredProgram } from "./lowering.js";
 import { parseSource } from "./parser.js";
-import { analyzeProgram } from "./semantic.js";
+import { analyzeProgram, isDefinitelyInteger } from "./semantic.js";
+import { builtinFunctions } from "./functions.js";
 import { getTarget, type TargetId } from "./targets/index.js";
 import { setCommodoreRenderProgram } from "./targets/c64.js";
 import { setAtariDataDriveSpec, setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
@@ -160,7 +161,9 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const reused = reuseTemporaryStorage(current, reservedNames);
-    const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(reused, readability), includeSourceComments)), readability));
+    const nativeIntegers = isCommodoreBasicV2(target.id) || target.id === "agon";
+    const prepared = nativeIntegers ? simplifyNativeIntegerCoercions(reused) : reused;
+    const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(prepared, readability), includeSourceComments)), readability));
     setRenderProgram(target.id, targetPrepared.instructions);
     const targetLowered = readability === 0 ? fuseSimpleConditionalBodies(targetPrepared, conditionalInliningBreaks) : targetPrepared;
     const numbered = assignLineNumbers(targetLowered, readability, {
@@ -214,6 +217,14 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   }
 
   throw new Error("Internal error: line-length relief did not converge.");
+}
+
+function simplifyNativeIntegerCoercions(program: LoweredProgram): LoweredProgram {
+  return rebuildLabels(program, program.instructions.map((instruction) => mapInstructionExpressions(instruction, (expression) => {
+    if (expression.kind === "function-call" && expression.name === builtinFunctions.int &&
+        expression.args.length === 1 && isDefinitelyInteger(expression.args[0], true)) return expression.args[0];
+    return expression;
+  })));
 }
 
 function removeFallthroughJumps(program: LoweredProgram): LoweredProgram {

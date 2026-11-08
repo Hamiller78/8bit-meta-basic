@@ -63,7 +63,27 @@ test IntegerAssignmentCoercion()
     assert_eq 4, destination%
     destination% = 1.25
     assert_eq 1, destination%
+    source% = -32768
+    destination% = source% + 1
+    assert_eq -32767, destination%
+    source% = 32767
+    destination% = source% - 1
+    assert_eq 32766, destination%
+    source% = -3
+    destination% = source% - 1
+    assert_eq -4, destination%
+    destination% = int(fraction) + 1
+    assert_eq -1, destination%
+    destination% = source% + fraction
+    assert_eq -5, destination%
+    assert_eq 0, checkIntegerArgument(-1.25)
 end test
+
+function checkIntegerArgument(value%)
+    local destination%
+    destination% = value% - 1
+    return destination% - int(value% - 1)
+end function
 
 enum DemoState
     DemoIdle

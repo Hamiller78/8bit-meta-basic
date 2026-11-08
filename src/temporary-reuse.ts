@@ -10,6 +10,7 @@ import { rebuildLabels } from "./targets/target.js";
  * caller value that survives a call must not share storage with the callee.
  */
 export function reuseTemporaryStorage(program: LoweredProgram, reservedNames: ReadonlySet<string>): LoweredProgram {
+  program = forwardImmediateReturnCopies(program, reservedNames);
   const instructions = program.instructions;
   const names = new Set<string>();
   const uses: Set<string>[] = [];
@@ -99,6 +100,35 @@ export function reuseTemporaryStorage(program: LoweredProgram, reservedNames: Re
   if ([...replacements].every(([from, to]) => from === to)) return program;
   const renamed = instructions.map((instruction) => renameInstruction(instruction, replacements));
   return rebuildLabels(program, renamed.filter((instruction) => !isRedundantTemporaryCopy(instruction, reservedNames)));
+}
+
+/** Forward a function result only when its snapshot has one immediate consumer. */
+function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: ReadonlySet<string>): LoweredProgram {
+  const instructions = program.instructions;
+  const useCounts = new Map<string, number>();
+  const definitionCounts = new Map<string, number>();
+  for (const instruction of instructions) {
+    for (const name of usedTemporaries(instruction)) useCounts.set(name, (useCounts.get(name) ?? 0) + 1);
+    for (const name of definedTemporaries(instruction)) definitionCounts.set(name, (definitionCounts.get(name) ?? 0) + 1);
+  }
+
+  const result: Instruction[] = [];
+  for (let index = 0; index < instructions.length; index += 1) {
+    const copy = instructions[index];
+    const consumer = instructions[index + 1];
+    if (copy.kind === "let" && /^MBT\d+$/i.test(copy.name) && !reservedNames.has(copy.name.toLowerCase()) &&
+        copy.expression.kind === "identifier" && /^MBF\d+[A-Z]\d*$/i.test(copy.expression.name) &&
+        instructions[index - 1]?.kind === "gosub" &&
+        consumer?.kind === "let" && useCounts.get(copy.name.toUpperCase()) === 1 &&
+        definitionCounts.get(copy.name.toUpperCase()) === 1 && usedTemporaries(consumer).has(copy.name.toUpperCase())) {
+      const replacements = new Map([[copy.name.toUpperCase(), copy.expression.name]]);
+      result.push(mapInstructionExpressions(consumer, (expression) => renameExpression(expression, replacements)));
+      index += 1;
+    } else {
+      result.push(copy);
+    }
+  }
+  return result.length === instructions.length ? program : rebuildLabels(program, result);
 }
 
 function isRedundantTemporaryCopy(instruction: Instruction, reservedNames: ReadonlySet<string>): boolean {

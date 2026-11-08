@@ -1,13 +1,17 @@
 test ReadDataAndRestore()
-    local T$
+    local T$, input%, output%
     data 10, "TEN"
     data 20, "TWENTY"
+    data -1.25
     read DCode, T$
     assert_eq 10, DCode
     assert_eq "TEN", T$
     read DCode, T$
     assert_eq 20, DCode
     assert_eq "TWENTY", T$
+    read input%
+    output% = input% - 1
+    assert_eq int(input% - 1), output%
     restore
     read DCode, T$
     assert_eq 10, DCode

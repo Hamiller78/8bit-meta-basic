@@ -28,7 +28,7 @@ describe("BYTE storage", () => {
   it("uses native integer arrays on C64", () => {
     const output = compileSource(arraySource, { filename: "byte.mbas", target: "c64", readability: 2 });
     expect(output).toContain("DIM VA%(3)");
-    expect(output).toContain("VA%(0)=INT(65)");
+    expect(output).toContain("VA%(0)=65");
     expect(output).toContain("VA%(1)=INT(VA%(0) + 1)");
     expect(output).toContain("PRINT VA%(1)");
   });

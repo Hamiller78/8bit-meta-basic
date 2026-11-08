@@ -144,7 +144,7 @@ describe("Meta-BASIC functions", () => {
     expect(output).toContain("LET MBF1P1=1");
     expect(output).toContain("LET MBF2P1=MBF1P1");
     expect(output).toContain("LET MBF2L1=MBF2P1 + 1");
-    expect(output).toContain("LET MBF1L1=MBT1 + MBF1P1");
+    expect(output).toContain("LET MBF1L1=MBF2R + MBF1P1");
   });
 
   it("lowers function calls, nested argument calls, and preserved intermediate return values left-to-right", () => {

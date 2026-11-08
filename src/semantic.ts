@@ -1425,12 +1425,14 @@ function intCoercion(expression: Expression, location: Expression["location"]): 
   return explicitIntCoercion(expression, location);
 }
 
-function isDefinitelyInteger(expression: Expression): boolean {
+export function isDefinitelyInteger(expression: Expression, nativeIntegerVariables = false): boolean {
   switch (expression.kind) {
     case "number": return Number.isInteger(expression.value);
-    case "identifier": return isIntegerVariableName(expression.name);
-    case "function-call": return expression.name === builtinFunctions.sgn;
-    case "parenthesized": return isDefinitelyInteger(expression.expression);
+    case "identifier": return nativeIntegerVariables && isIntegerVariableName(expression.name);
+    case "function-call": return expression.name === builtinFunctions.sgn || expression.name === builtinFunctions.int;
+    case "parenthesized": return isDefinitelyInteger(expression.expression, nativeIntegerVariables);
+    case "binary": return (expression.operator === "+" || expression.operator === "-") &&
+      isDefinitelyInteger(expression.left, nativeIntegerVariables) && isDefinitelyInteger(expression.right, nativeIntegerVariables);
     default: return false;
   }
 }

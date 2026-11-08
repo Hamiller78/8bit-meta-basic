@@ -29,6 +29,14 @@ test TemporaryValuesSurviveNestedCalls()
     assert_eq 17, AddValues(NestedBonus(5), LocalShadow(2))
 end test
 
+test ImmediateIntegerFunctionResult()
+    local result%
+    result% = AddValues(-2, 0.5)
+    assert_eq -2, result%
+    result% = AddValues(2, 0.5)
+    assert_eq 2, result%
+end test
+
 test TemporaryValuesSurviveBranchesAndLoops()
     local Index, Total
     Total = 0

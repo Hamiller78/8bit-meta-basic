@@ -217,7 +217,7 @@ describe("build configuration", () => {
 
       const output = await compileBuildConfiguration({ files: ["main.mbas", "outer.mbas", "inner.mbas"] }, { baseDir: dir, target: "spectrum", readability: 0 });
 
-      expect(output).toContain("LET MBF1R=MBT1 + 1");
+      expect(output).toContain("LET MBF1R=MBF2R + 1");
       expect(output).toContain("LET MBF2R=MBF2P1 * 2");
     });
   });
