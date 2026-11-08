@@ -1,9 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { compileSourceDetailed, type Target } from "../src/compiler.js";
+import { reuseTemporaryStorage } from "../src/temporary-reuse.js";
+import type { Instruction, LoweredProgram } from "../src/lowering.js";
 
 const targets: readonly Target[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 
 describe("compiler temporary storage", () => {
+  it("repeats immediate-copy cleanup until a chain is fully forwarded", () => {
+    const location = { filename: "copy-chain.mbas", line: 1, column: 1 };
+    const reference = (name: string) => ({ kind: "identifier" as const, name, location });
+    const instructions: Instruction[] = [
+      { kind: "let", name: "MBT1", expression: reference("MBF1L1%"), location },
+      { kind: "let", name: "MBT2", expression: reference("MBT1"), location },
+      { kind: "let", name: "RESULT%", expression: reference("MBT2"), location }
+    ];
+    const program: LoweredProgram = { instructions, labels: new Map() };
+    const result = reuseTemporaryStorage(program, new Set(), { integerToNumericCopyIsExact: true });
+    expect(result.instructions).toHaveLength(1);
+    expect(result.instructions[0]).toMatchObject({ kind: "let", name: "RESULT%", expression: { kind: "identifier", name: "MBF1L1%" } });
+  });
+
+  it.each(targets)("forwards safe inline integer results on %s", (target) => {
+    const source = ["result% = InlineValue(7)", "inline function InlineValue(value)", "local answer%", "answer% = value", "return answer%", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "inline-integer.mbas", target, readability: 2 });
+    const temporaries = result.debugInfo.variables.filter((variable) => /^mbt\d+$/i.test(variable.storageName));
+    expect(temporaries).toHaveLength(target === "agon" ? 1 : 0);
+  });
+
   it.each(targets)("forwards an immediately tested function result on %s", (target) => {
     const source = ["if Calculate(3) = 4 then", "print 1", "end if", "function Calculate(value)", "return value + 1", "end function"].join("\n");
     const result = compileSourceDetailed(source, { filename: "immediate-condition.mbas", target, readability: 2 });

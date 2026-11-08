@@ -9,8 +9,16 @@ import { rebuildLabels } from "./targets/target.js";
  * be live at the same time. GOSUB bodies are accounted for separately: a
  * caller value that survives a call must not share storage with the callee.
  */
-export function reuseTemporaryStorage(program: LoweredProgram, reservedNames: ReadonlySet<string>): LoweredProgram {
-  program = forwardImmediateReturnCopies(program, reservedNames);
+export function reuseTemporaryStorage(
+  program: LoweredProgram,
+  reservedNames: ReadonlySet<string>,
+  options: { readonly integerToNumericCopyIsExact: boolean }
+): LoweredProgram {
+  while (true) {
+    const forwarded = forwardImmediateReturnCopies(program, reservedNames, options.integerToNumericCopyIsExact);
+    if (forwarded === program) break;
+    program = forwarded;
+  }
   const instructions = program.instructions;
   const names = new Set<string>();
   const uses: Set<string>[] = [];
@@ -103,7 +111,7 @@ export function reuseTemporaryStorage(program: LoweredProgram, reservedNames: Re
 }
 
 /** Forward a function result only when its snapshot has one immediate consumer. */
-function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: ReadonlySet<string>): LoweredProgram {
+function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: ReadonlySet<string>, integerToNumericCopyIsExact: boolean): LoweredProgram {
   const instructions = program.instructions;
   const useCounts = new Map<string, number>();
   const definitionCounts = new Map<string, number>();
@@ -116,9 +124,12 @@ function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: Re
   for (let index = 0; index < instructions.length; index += 1) {
     const copy = instructions[index];
     const consumer = instructions[index + 1];
+    const functionResult = copy.kind === "let" && copy.expression.kind === "identifier" &&
+      /^MBF\d+[A-Z]\d*$/i.test(copy.expression.name) && instructions[index - 1]?.kind === "gosub";
+    const inlineIntegerResult = integerToNumericCopyIsExact && copy.kind === "let" && copy.expression.kind === "identifier" &&
+      /^MBF\d+[A-Z]\d*%$/i.test(copy.expression.name) && consumer?.kind === "let";
     if (copy.kind === "let" && /^MBT\d+$/i.test(copy.name) && !reservedNames.has(copy.name.toLowerCase()) &&
-        copy.expression.kind === "identifier" && /^MBF\d+[A-Z]\d*$/i.test(copy.expression.name) &&
-        instructions[index - 1]?.kind === "gosub" &&
+        copy.expression.kind === "identifier" && (functionResult || inlineIntegerResult) &&
         (consumer?.kind === "let" || consumer?.kind === "if-goto" || consumer?.kind === "if-gosub") &&
         useCounts.get(copy.name.toUpperCase()) === 1 &&
         definitionCounts.get(copy.name.toUpperCase()) === 1 && usedTemporaries(consumer).has(copy.name.toUpperCase())) {

@@ -142,6 +142,8 @@ The compiler reuses generated expression-result variables when their values cann
 
 Before reusing temporary storage, the compiler forwards a numeric function return directly to an immediately following assignment or conditional branch when its generated snapshot has exactly one definition and one consuming instruction. Other snapshots remain in place, including those needed across calls or branches.
 
+The same cleanup can forward an inline function's integer result to an immediate assignment when copying it into numeric temporary storage is exact. It repeats until no eligible copy remains; each successful pass removes an instruction. Agon retains integer-to-numeric snapshots because its integer and floating-point representations have different precision guarantees. Target-specific integer coercion cleanup then handles any newly exposed expressions.
+
 Integer assignment retains `INT` coercion for expressions that may be fractional. Semantic analysis omits the redundant call for integer literals, `INT` and `SGN` results, and addition or subtraction of known integers, including parenthesized forms. A target-aware pass also recognizes native integer variables on Commodore and Agon; Spectrum and Atari numeric storage can receive fractional values through `READ` or function parameters.
 
 Struct parameters are copied into generated function storage before the native call; inline function bodies are expanded at their call sites rather than emitted as separate BASIC subroutines. Source-level copying and scope rules are defined in the [language reference](language-reference.md#user-defined-functions).

@@ -52,6 +52,19 @@ test FunctionResultsInConditions()
     assert_eq 3, result
 end test
 
+inline function InlineIntegerResult(value)
+    local result%
+    result% = value
+    return result%
+end function
+
+test InlineIntegerSnapshots()
+    local result%
+    result% = InlineIntegerResult(-1.25)
+    assert_eq -2, result%
+    assert_eq 7, InlineIntegerResult(2) + InlineIntegerResult(5)
+end test
+
 test TemporaryValuesSurviveBranchesAndLoops()
     local Index, Total
     Total = 0

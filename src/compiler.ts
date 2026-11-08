@@ -160,7 +160,7 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   const conditionalInliningBreaks = new Set<string>();
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const reused = reuseTemporaryStorage(current, reservedNames);
+    const reused = reuseTemporaryStorage(current, reservedNames, { integerToNumericCopyIsExact: target.id !== "agon" });
     const nativeIntegers = isCommodoreBasicV2(target.id) || target.id === "agon";
     const prepared = nativeIntegers ? simplifyNativeIntegerCoercions(reused) : reused;
     const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(prepared, readability), includeSourceComments)), readability));
