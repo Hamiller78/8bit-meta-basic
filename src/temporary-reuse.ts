@@ -12,10 +12,9 @@ import { rebuildLabels } from "./targets/target.js";
 export function reuseTemporaryStorage(
   program: LoweredProgram,
   reservedNames: ReadonlySet<string>,
-  options: { readonly integerToNumericCopyIsExact: boolean }
 ): LoweredProgram {
   while (true) {
-    const forwarded = forwardImmediateReturnCopies(program, reservedNames, options.integerToNumericCopyIsExact);
+    const forwarded = forwardImmediateReturnCopies(program, reservedNames);
     if (forwarded === program) break;
     program = forwarded;
   }
@@ -111,7 +110,7 @@ export function reuseTemporaryStorage(
 }
 
 /** Forward a function result only when its snapshot has one immediate consumer. */
-function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: ReadonlySet<string>, integerToNumericCopyIsExact: boolean): LoweredProgram {
+function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: ReadonlySet<string>): LoweredProgram {
   const instructions = program.instructions;
   const useCounts = new Map<string, number>();
   const definitionCounts = new Map<string, number>();
@@ -126,7 +125,7 @@ function forwardImmediateReturnCopies(program: LoweredProgram, reservedNames: Re
     const consumer = instructions[index + 1];
     const functionResult = copy.kind === "let" && copy.expression.kind === "identifier" &&
       /^MBF\d+[A-Z]\d*$/i.test(copy.expression.name) && instructions[index - 1]?.kind === "gosub";
-    const inlineIntegerResult = integerToNumericCopyIsExact && copy.kind === "let" && copy.expression.kind === "identifier" &&
+    const inlineIntegerResult = copy.kind === "let" && copy.expression.kind === "identifier" &&
       /^MBF\d+[A-Z]\d*%$/i.test(copy.expression.name) && consumer?.kind === "let";
     if (copy.kind === "let" && /^MBT\d+$/i.test(copy.name) && !reservedNames.has(copy.name.toLowerCase()) &&
         copy.expression.kind === "identifier" && (functionResult || inlineIntegerResult) &&

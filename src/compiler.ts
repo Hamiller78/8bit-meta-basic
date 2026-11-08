@@ -77,14 +77,16 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     constants: new Map([...baseEnvironment.constants, ["file_storage_tape", fileStorage === "tape" ? 1 : 0], ["file_storage_disk", fileStorage === "disk" ? 1 : 0]])
   };
   const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), environment, { testMode: options.testMode });
-  const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
-  let lowered = lowerProgram(optimizeIntegerParameters(layoutText(analyzed, options.target, textOptions), { inlineIntegerResultIsExact: options.target !== "agon" }), {
+  const sourceAliases = collectSourceAliases(analyzed.statements);
+  const reservedNames = new Set(sourceAliases.keys());
+  let lowered = lowerProgram(optimizeIntegerParameters(layoutText(analyzed, options.target, textOptions)), {
     testMode: options.testMode,
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,
     testOutputDevice: options.testOutputDevice,
     testRunnerUppercaseNames: isCommodoreBasicV2(options.target) && !hasTextCharacterGroup(font, "lowercase"),
-    reservedNames
+    reservedNames,
+    sourceNames: new Set([...sourceAliases].filter(([name, aliases]) => aliases.some((alias) => alias.name.toLowerCase() === name)).map(([name]) => name))
   });
   lowered = rebuildLabels(lowered, lowered.instructions.map((instruction) => mapInstructionExpressions(instruction, (expression) => {
     if (expression.kind !== "string" || (!isCommodoreBasicV2(options.target) && options.target !== "spectrum")) return expression;
@@ -162,7 +164,7 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   const conditionalInliningBreaks = new Set<string>();
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const reused = removeRedundantCopies(reuseTemporaryStorage(current, reservedNames, { integerToNumericCopyIsExact: target.id !== "agon" }));
+    const reused = removeRedundantCopies(reuseTemporaryStorage(current, reservedNames));
     const nativeIntegers = isCommodoreBasicV2(target.id) || target.id === "agon";
     const prepared = nativeIntegers ? simplifyNativeIntegerCoercions(reused) : reused;
     const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(prepared, readability), includeSourceComments)), readability));

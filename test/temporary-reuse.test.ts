@@ -6,6 +6,24 @@ import type { Instruction, LoweredProgram } from "../src/lowering.js";
 const targets: readonly Target[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
 
 describe("compiler temporary storage", () => {
+  it.each(targets)("writes a branched inline result into its caller's local on %s", (target) => {
+    const source = ["print Outer(1)", "function Outer(flag)", "local value%", "value% = Pick(flag)", "return value%", "end function", "inline function Pick(flag)", "local answer%", "if flag then", "answer% = 7", "else", "answer% = 9", "end if", "return answer%", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "inline-branches.mbas", target, readability: 2 });
+    const answer = result.debugInfo.variables.find((variable) => variable.sourceAliases.some((alias) => alias.name.includes("Pick.answer%")));
+    expect(answer).toBeUndefined();
+  });
+
+  it.each(targets)("preserves inline storage when an argument reads the destination on %s", (target) => {
+    const source = ["print Outer(1)", "function Outer(flag)", "local value%", "value% = flag", "value% = Pick(value%)", "return value%", "end function", "inline function Pick(flag)", "local answer%", "answer% = 7", "if flag then", "answer% = 9", "end if", "return answer%", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "inline-argument.mbas", target, readability: 2 });
+    expect(result.debugInfo.variables.find((variable) => variable.sourceAliases.some((alias) => alias.name.includes("Pick.answer%")))).toBeDefined();
+  });
+
+  it.each(targets)("preserves inline storage when a branch leaves the result unassigned on %s", (target) => {
+    const source = ["print Outer(1)", "function Outer(flag)", "local value%", "value% = Pick(flag)", "return value%", "end function", "inline function Pick(flag)", "local answer%", "if flag then", "answer% = 7", "end if", "return answer%", "end function"].join("\n");
+    const result = compileSourceDetailed(source, { filename: "inline-unassigned.mbas", target, readability: 2 });
+    expect(result.debugInfo.variables.find((variable) => variable.sourceAliases.some((alias) => alias.name.includes("Pick.answer%")))).toBeDefined();
+  });
   it("repeats immediate-copy cleanup until a chain is fully forwarded", () => {
     const location = { filename: "copy-chain.mbas", line: 1, column: 1 };
     const reference = (name: string) => ({ kind: "identifier" as const, name, location });
@@ -15,7 +33,7 @@ describe("compiler temporary storage", () => {
       { kind: "let", name: "RESULT%", expression: reference("MBT2"), location }
     ];
     const program: LoweredProgram = { instructions, labels: new Map() };
-    const result = reuseTemporaryStorage(program, new Set(), { integerToNumericCopyIsExact: true });
+    const result = reuseTemporaryStorage(program, new Set());
     expect(result.instructions).toHaveLength(1);
     expect(result.instructions[0]).toMatchObject({ kind: "let", name: "RESULT%", expression: { kind: "identifier", name: "MBF1L1%" } });
   });
@@ -24,7 +42,7 @@ describe("compiler temporary storage", () => {
     const source = ["result% = InlineValue(7)", "inline function InlineValue(value)", "local answer%", "answer% = value", "return answer%", "end function"].join("\n");
     const result = compileSourceDetailed(source, { filename: "inline-integer.mbas", target, readability: 2 });
     const temporaries = result.debugInfo.variables.filter((variable) => /^mbt\d+$/i.test(variable.storageName));
-    expect(temporaries).toHaveLength(target === "agon" ? 1 : 0);
+    expect(temporaries).toHaveLength(0);
   });
 
   it.each(targets)("forwards an immediately tested function result on %s", (target) => {

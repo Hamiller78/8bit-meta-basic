@@ -24,7 +24,7 @@ interface ArrayWrite {
 }
 
 /** Remove coercions when whole-program and scoped integer facts prove them redundant. */
-export function optimizeIntegerParameters(program: Program, options: { readonly inlineIntegerResultIsExact?: boolean } = {}): Program {
+export function optimizeIntegerParameters(program: Program): Program {
   const functions = new Map<string, FunctionStatement>();
   const calls = new Map<string, CallSite[]>();
   const returns = new Map<string, ReturnSite[]>();
@@ -147,7 +147,7 @@ export function optimizeIntegerParameters(program: Program, options: { readonly 
     }
     for (const [key, fn] of functions) {
       const sites = returns.get(key);
-      if (provenResults.has(key) || !sites?.length || !endsWithReturn(fn.body) || (fn.inline && options.inlineIntegerResultIsExact === false)) continue;
+      if (provenResults.has(key) || !sites?.length || !endsWithReturn(fn.body)) continue;
       let hasJump = false;
       visitStatements(fn.body, (entry) => { if (entry.kind === "label" || entry.kind === "goto" || entry.kind === "gosub") hasJump = true; });
       if (!hasJump && sites.every(({ expression, assigned }) => knownInteger(expression, (name) => storageIsInteger(name, fn, assigned), arrayIsInteger, resultIsInteger))) {

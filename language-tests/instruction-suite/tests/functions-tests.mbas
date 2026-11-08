@@ -2,6 +2,45 @@ uses "../source/functions.mbas"
 
 CopyOptimizationInput = 0
 
+inline function InlineBranchResult(flag)
+    local answer%
+    if flag then
+        answer% = 7
+    else
+        answer% = 9
+    end if
+    return answer%
+end function
+
+inline function InlineReadsDestination(flag)
+    local answer%
+    answer% = 7
+    if flag then
+        answer% = 9
+    end if
+    return answer%
+end function
+
+function InlineBranchCaller(flag)
+    local value%
+    value% = InlineBranchResult(flag)
+    return value%
+end function
+
+function InlineDestinationCaller(flag)
+    local value%
+    value% = flag
+    value% = InlineReadsDestination(value%)
+    return value%
+end function
+
+test InlineBranchResults()
+    assert_eq 7, InlineBranchCaller(true)
+    assert_eq 9, InlineBranchCaller(false)
+    assert_eq 9, InlineDestinationCaller(true)
+    assert_eq 7, InlineDestinationCaller(false)
+end test
+
 function CopyOptimizationFirst(value%)
     return value% + 1
 end function
@@ -204,6 +243,46 @@ test InlineIntegerSnapshots()
     result% = InlineIntegerResult(-1.25)
     assert_eq -2, result%
     assert_eq 7, InlineIntegerResult(2) + InlineIntegerResult(5)
+end test
+
+inline function InlineBoundaryValue(value%)
+    local answer%
+    answer% = value%
+    return answer%
+end function
+
+function InlineBoundaryCaller(value%)
+    local result%
+    result% = InlineBoundaryValue(value%)
+    return result%
+end function
+
+test InlineIntegerBoundaries()
+    local original%, result%, snapshot
+    ' Only Agon has both an 80-column display and 32-bit integer variables.
+    if TEXT_COLUMNS = 80 then
+        original% = 2147483647
+        snapshot = original%
+        result% = int(snapshot)
+        assert_eq original%, result%
+        result% = InlineBoundaryCaller(original%)
+        assert_eq original%, snapshot
+        assert_eq original%, result%
+        original% = -2147483647
+        original% = original% - 1
+        snapshot = original%
+        result% = int(snapshot)
+        assert_eq original%, result%
+        result% = InlineBoundaryCaller(original%)
+        assert_eq original%, snapshot
+        assert_eq original%, result%
+        original% = 16777217
+        result% = InlineBoundaryCaller(original%)
+        assert_eq original%, result%
+        original% = -16777217
+        result% = InlineBoundaryCaller(original%)
+        assert_eq original%, result%
+    end if
 end test
 
 function IntegerParameterResult(value%)

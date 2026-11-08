@@ -556,6 +556,7 @@ export interface LowerOptions {
   readonly testOutputDevice?: DeviceKind;
   readonly testRunnerUppercaseNames?: boolean;
   readonly reservedNames?: ReadonlySet<string>;
+  readonly sourceNames?: ReadonlySet<string>;
 }
 
 export function lowerProgram(program: Program, options: LowerOptions = {}): LoweredProgram {
@@ -1763,6 +1764,13 @@ function expandInlineFunctionCall(
   const body = substituteInlineStatements(definition.body, parameters);
   const final = body[body.length - 1];
   const bodyWithoutFinalReturn = final?.kind === "return" ? body.slice(0, -1) : body;
+  if (destinationName && final?.kind === "return" && final.expression?.kind === "identifier"
+    && canWriteInlineResultDirectly(definition, bodyWithoutFinalReturn, final.expression.name, destinationName, context, options)) {
+    const replacements = new Map([[normalizeName(final.expression.name), { kind: "identifier" as const, name: destinationName, location: final.expression.location }]]);
+    const renamed = renameInlineResultAssignments(substituteInlineStatements(bodyWithoutFinalReturn, replacements), final.expression.name, destinationName);
+    lowerStatements(renamed, instructions, nextInternalLabel, context, undefined, options);
+    return { kind: "identifier", name: destinationName, location: final.location };
+  }
   lowerStatements(bodyWithoutFinalReturn, instructions, nextInternalLabel, context, undefined, options);
 
   if (destinationName && final?.kind === "return" && final.expression) {
@@ -1778,6 +1786,61 @@ function expandInlineFunctionCall(
   }
 
   return destinationName ? { kind: "identifier", name: destinationName, location: definition.body[0]?.location ?? { filename: "<unknown>", line: 1 } } : undefined;
+}
+
+function canWriteInlineResultDirectly(definition: InlineFunctionImplementation, body: readonly Statement[], resultName: string, destinationName: string, context: FunctionCallLoweringContext, options: LowerOptions): boolean {
+  const result = normalizeName(resultName);
+  const destination = normalizeName(destinationName);
+  if (result === destination || !isIntegerVariableName(resultName) || !isIntegerVariableName(destinationName)
+    || !options.sourceNames || options.sourceNames.has(destination)
+    || !definition.implementation.locals.some((local) => normalizeName(local.storageName) === result)
+    || [...definition.implementation.locals, ...definition.implementation.parameters].some((local) => normalizeName(local.storageName) === destination)
+    || ![...context.functions.values(), ...[...(context.inlineFunctions?.values() ?? [])].map((item) => item.implementation)]
+      .some((implementation) => implementation.locals.some((local) => normalizeName(local.storageName) === destination))) return false;
+
+  const mentions = (expression: Expression, name: string): boolean => {
+    switch (expression.kind) {
+      case "identifier": return normalizeName(expression.name) === name;
+      case "array-access": return normalizeName(expression.name) === name || expression.indices.some((item) => mentions(item, name))
+        || (expression.fixedWidthStorageLength !== undefined && mentions(expression.fixedWidthStorageLength, name))
+        || (expression.fixedWidthStorageStart !== undefined && mentions(expression.fixedWidthStorageStart, name));
+      case "struct-field-access": return expression.indices.some((item) => mentions(item, name));
+      case "function-call": return expression.args.some((item) => mentions(item, name));
+      case "parenthesized": return mentions(expression.expression, name);
+      case "unary": return mentions(expression.operand, name);
+      case "binary": return mentions(expression.left, name) || mentions(expression.right, name);
+      default: return false;
+    }
+  };
+  const check = (statements: readonly Statement[], assigned: boolean): boolean | undefined => {
+    for (const statement of statements) {
+      if (statement.kind === "comment") continue;
+      if (statement.kind === "if") {
+        if (mentions(statement.condition, destination) || (!assigned && mentions(statement.condition, result))) return undefined;
+        const left = check(statement.thenBranch, assigned);
+        const right = check(statement.elseBranch, assigned);
+        if (left === undefined || right === undefined) return undefined;
+        assigned = left && right;
+      } else if (statement.kind === "let" || statement.kind === "function-call-statement") {
+        const expression = statement.expression;
+        if (mentions(expression, destination) || (!assigned && mentions(expression, result))) return undefined;
+        if (statement.kind === "let") {
+          if (normalizeName(statement.name) === destination) return undefined;
+          if (normalizeName(statement.name) === result) assigned = true;
+        }
+      } else return undefined;
+    }
+    return assigned;
+  };
+  return check(body, false) === true;
+}
+
+function renameInlineResultAssignments(statements: readonly Statement[], resultName: string, destinationName: string): readonly Statement[] {
+  return statements.map((statement) => {
+    if (statement.kind === "let" && normalizeName(statement.name) === normalizeName(resultName)) return { ...statement, name: destinationName };
+    if (statement.kind === "if") return { ...statement, thenBranch: renameInlineResultAssignments(statement.thenBranch, resultName, destinationName), elseBranch: renameInlineResultAssignments(statement.elseBranch, resultName, destinationName) };
+    return statement;
+  });
 }
 
 function substituteInlineStatements(statements: readonly Statement[], parameters: ReadonlyMap<string, Expression>): readonly Statement[] {
