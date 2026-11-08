@@ -1,5 +1,42 @@
 uses "../source/functions.mbas"
 
+CopyOptimizationInput = 0
+
+function CopyOptimizationFirst(value%)
+    return value% + 1
+end function
+
+function CopyOptimizationSecond(value%)
+    return value% + 2
+end function
+
+function CopyOptimizationChangeInput(value%)
+    CopyOptimizationInput = CopyOptimizationInput + 1
+    return value%
+end function
+
+function CopyOptimizationChangeParameter(value%)
+    value% = 8
+    return value%
+end function
+
+test RepeatedCallArguments()
+    local first, second
+    CopyOptimizationInput = 3
+    first = CopyOptimizationFirst(CopyOptimizationInput)
+    second = CopyOptimizationSecond(CopyOptimizationInput)
+    assert_eq 4, first
+    assert_eq 5, second
+    first = CopyOptimizationChangeInput(CopyOptimizationInput)
+    second = CopyOptimizationSecond(CopyOptimizationInput)
+    assert_eq 3, first
+    assert_eq 6, second
+    first = CopyOptimizationChangeParameter(CopyOptimizationInput)
+    second = CopyOptimizationSecond(CopyOptimizationInput)
+    assert_eq 8, first
+    assert_eq 6, second
+end test
+
 struct IntegerBounds
     left%
     right%

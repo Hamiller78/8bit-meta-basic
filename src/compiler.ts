@@ -21,6 +21,7 @@ import { DiagnosticError } from "./diagnostics.js";
 import type { DeviceKind, Expression } from "./ast.js";
 import { isStringVariableName } from "./variables.js";
 import { reuseTemporaryStorage } from "./temporary-reuse.js";
+import { removeRedundantCopies } from "./redundant-copy-optimization.js";
 import { optimizeIntegerParameters } from "./integer-parameter-optimization.js";
 import { defaultFileStorage, validateFileStorage, type FileStorage } from "./file-storage.js";
 import { setFileStorage } from "./targets/file-io.js";
@@ -161,7 +162,7 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
   const conditionalInliningBreaks = new Set<string>();
 
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const reused = reuseTemporaryStorage(current, reservedNames, { integerToNumericCopyIsExact: target.id !== "agon" });
+    const reused = removeRedundantCopies(reuseTemporaryStorage(current, reservedNames, { integerToNumericCopyIsExact: target.id !== "agon" }));
     const nativeIntegers = isCommodoreBasicV2(target.id) || target.id === "agon";
     const prepared = nativeIntegers ? simplifyNativeIntegerCoercions(reused) : reused;
     const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(prepared, readability), includeSourceComments)), readability));
