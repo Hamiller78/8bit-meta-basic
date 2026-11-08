@@ -9,6 +9,78 @@ import type { Expression } from "../src/ast.js";
 const targets = ["spectrum", "atari800xl"] as const;
 
 describe("integer parameter optimization", () => {
+  it.each(targets)("recognizes an integral loop index passed through a read-only numeric parameter on %s", (target) => {
+    const source = ["print Run()", "function Run()", "local i, result%", "result% = 0", "for i = 1 to 3", "result% = Convert(i)", "next i", "return result%", "end function", "function Convert(value)", "local result%", "result% = value", "return result%", "end function"].join("\n");
+    expect(compileSource(source, { filename: "whole-loop-parameter.mbas", target, readability: 2 })).not.toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("retains conversion for fractional loop starts and steps on %s", (target) => {
+    for (const header of ["for i = 0.5 to 2", "for i = 0 to 2 step 0.5"]) {
+      const source = ["print Run()", "function Run()", "local i, result%", header, "result% = Convert(i)", "next i", "return result%", "end function", "function Convert(value)", "local result%", "result% = value", "return result%", "end function"].join("\n");
+      expect(compileSource(source, { filename: "fractional-loop.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+    }
+  });
+
+  it.each(targets)("retains conversion when the loop body modifies its index on %s", (target) => {
+    const source = ["print Run()", "function Run()", "local i, result%", "for i = 1 to 3", "i = 1.5", "result% = Convert(i)", "next i", "return result%", "end function", "function Convert(value)", "local result%", "result% = value", "return result%", "end function"].join("\n");
+    expect(compileSource(source, { filename: "modified-loop.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("retains conversion for mixed and modified numeric parameters on %s", (target) => {
+    const mixed = ["print Convert(1)", "print Convert(-1.25)", "function Convert(value)", "local result%", "result% = value", "return result%", "end function"].join("\n");
+    const modified = ["print Convert(1)", "function Convert(value)", "local result%", "value = -1.25", "result% = value", "return result%", "end function"].join("\n");
+    for (const source of [mixed, modified]) expect(compileSource(source, { filename: "numeric-parameter.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("recognizes numeric scalar fields only when all writes are integral on %s", (target) => {
+    const prefix = ["struct Player", "row", "end struct", "dim player as Player"];
+    const whole = [...prefix, "player.row = 2", "result% = player.row"].join("\n");
+    const fractional = [...prefix, "player.row = -1.25", "result% = player.row"].join("\n");
+    const input = [...prefix, "input player.row", "result% = player.row"].join("\n");
+    expect(compileSource(whole, { filename: "whole-scalar-field.mbas", target, readability: 2 })).not.toMatch(/\bINT\b/u);
+    for (const source of [fractional, input]) expect(compileSource(source, { filename: "fractional-scalar-field.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+  it.each(targets)("recognizes numeric struct array fields with only integral writes on %s", (target) => {
+    const source = ["struct Monster", "speed", "end struct", "dim monsters as Monster(2)", "monsters(0).speed = 2", "result% = monsters(0).speed"].join("\n");
+    expect(compileSource(source, { filename: "whole-field.mbas", target, readability: 2 })).not.toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("keeps coercion for numeric struct fields with a fractional write on %s", (target) => {
+    const source = ["struct Monster", "speed", "end struct", "dim monsters as Monster(2)", "monsters(0).speed = 2", "monsters(1).speed = -1.25", "result% = monsters(0).speed"].join("\n");
+    expect(compileSource(source, { filename: "fractional-field.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("keeps coercion for numeric struct fields loaded from files on %s", (target) => {
+    const source = ["struct Monster", "speed", "end struct", "dim monsters as Monster(2)", 'load_file "SAVE", monsters', "result% = monsters(0).speed"].join("\n");
+    expect(compileSource(source, { filename: "loaded-field.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("keeps coercion for numeric struct fields populated by insertion on %s", (target) => {
+    const source = ["struct Monster", "speed", "end struct", "dim monsters as Monster(2)", "dim newMonster as Monster", "newMonster.speed = -1.25", "insert_element(monsters, 0, newMonster)", "result% = monsters(0).speed"].join("\n");
+    expect(compileSource(source, { filename: "inserted-field.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+  it.each(targets)("recognizes integer function results through calls and branches on %s", (target) => {
+    const source = [
+      "result% = Forward(1)", "function Choice(flag)", "if flag then", "return -1", "else", "return 2", "end if", "end function",
+      "function Forward(flag)", "return Choice(flag) + 1", "end function"
+    ].join("\n");
+    expect(compileSource(source, { filename: "integer-return.mbas", target, readability: 2 })).not.toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("keeps coercion when a return branch is fractional on %s", (target) => {
+    const source = ["result% = Choice(1)", "function Choice(flag)", "if flag then", "return -1.25", "end if", "return 2", "end function"].join("\n");
+    expect(compileSource(source, { filename: "fractional-return.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("keeps coercion when a function can fall through without returning a value on %s", (target) => {
+    const source = ["result% = Choice(1)", "function Choice(flag)", "if flag then", "return 2", "end if", "end function"].join("\n");
+    expect(compileSource(source, { filename: "fallthrough-return.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
+
+  it.each(targets)("retains coercion when a function returns a fractional input parameter on %s", (target) => {
+    const source = ["result% = Identity(-1.25)", "function Identity(value%)", "return value%", "end function"].join("\n");
+    expect(compileSource(source, { filename: "fractional-parameter-return.mbas", target, readability: 2 })).toMatch(/\bINT\b/u);
+  });
   it.each(targets)("simplifies initialized counters and integer struct field reads on %s", (target) => {
     const source = [
       "struct Box", "left%", "right%", "end struct", "dim boxes as Box(2)",

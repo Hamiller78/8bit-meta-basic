@@ -77,7 +77,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
   };
   const analyzed = analyzeProgram(resolveTextResources(ast, textOptions), environment, { testMode: options.testMode });
   const reservedNames = new Set(collectSourceAliases(analyzed.statements).keys());
-  let lowered = lowerProgram(optimizeIntegerParameters(layoutText(analyzed, options.target, textOptions)), {
+  let lowered = lowerProgram(optimizeIntegerParameters(layoutText(analyzed, options.target, textOptions), { inlineIntegerResultIsExact: options.target !== "agon" }), {
     testMode: options.testMode,
     testScreenOutput: options.testScreenOutput,
     testPrinterOutput: options.testPrinterOutput,

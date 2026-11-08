@@ -3,8 +3,54 @@ uses "../source/functions.mbas"
 struct IntegerBounds
     left%
     right%
+    speed
+    fraction
 end struct
 dim integerBounds as IntegerBounds(2)
+dim scalarBounds as IntegerBounds
+
+function IntegerLoopValue(value)
+    local result%
+    result% = value
+    return result%
+end function
+
+function IntegerLoopTotal()
+    local i, result%
+    result% = 0
+    for i = 1 to 3
+        result% = result% + IntegerLoopValue(i)
+    next i
+    return result%
+end function
+
+function FractionalLoopValue()
+    local i, result%
+    for i = -1.25 to -1.25
+        result% = i
+    next i
+    return result%
+end function
+
+function ModifiedNumericParameter(value)
+    local result%
+    value = -1.25
+    result% = value
+    return result%
+end function
+
+test IntegerLoopsAndNumericFields()
+    local result%
+    assert_eq 6, IntegerLoopTotal()
+    assert_eq -2, FractionalLoopValue()
+    assert_eq -2, ModifiedNumericParameter(1)
+    scalarBounds.speed = 3
+    scalarBounds.fraction = -1.25
+    result% = scalarBounds.speed
+    assert_eq 3, result%
+    result% = scalarBounds.fraction
+    assert_eq -2, result%
+end test
 
 function IntegerBoundsCounter()
     local count%
@@ -15,11 +61,47 @@ function IntegerBoundsCounter()
     return count%
 end function
 
+function WholeChoice(flag)
+    if flag then
+        return -1
+    else
+        return 2
+    end if
+end function
+
+function ForwardWholeChoice(flag)
+    return WholeChoice(flag) + 1
+end function
+
+function FractionalChoice(flag)
+    if flag then
+        return -1.25
+    end if
+    return 2
+end function
+
+test IntegerFunctionResults()
+    local result%
+    result% = ForwardWholeChoice(true)
+    assert_eq 0, result%
+    result% = ForwardWholeChoice(false)
+    assert_eq 3, result%
+    result% = FractionalChoice(true)
+    assert_eq -2, result%
+end test
+
 test IntegerBoundsAndCounter()
+    local result%
     integerBounds(0).left% = 2
     integerBounds(0).right% = 3
     assert_eq 5, integerBounds(0).left% + integerBounds(0).right%
     assert_eq 0, IntegerBoundsCounter()
+    integerBounds(0).speed = 2
+    integerBounds(0).fraction = -1.25
+    result% = integerBounds(0).speed
+    assert_eq 2, result%
+    result% = integerBounds(0).fraction
+    assert_eq -2, result%
 end test
 
 test FunctionCallWithVariable()
