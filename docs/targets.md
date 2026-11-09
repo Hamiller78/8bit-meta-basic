@@ -232,6 +232,7 @@ listed per machine below.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` accept string literals only and use `basicParser`'s inverse-string notation. The tokenized program contains inverse ATASCII bytes directly; no runtime `CHR$` construction or screen-memory inversion pass is generated.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
+- A one-character `MID$` slice uses the same start and end position. Fractional positions near rounding boundaries can therefore differ from older generated listings that evaluated cancelling arithmetic first.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - In `AND` and `OR`, comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.

@@ -316,6 +316,19 @@ describe("Atari 800XL compiler", () => {
     );
   });
 
+  it("uses the same start and end for one-character MID$ slices", () => {
+    const output = compileSource('text$ = "ABC"\nprint mid$(text$, position, 1); mid$(text$, position + 1, 1); mid$(text$, position, amount)\n', { filename: "single-character-slices.mbas", target: "atari800xl" });
+    expect(output).toContain("TEXT$(POSITION,POSITION)");
+    expect(output).toContain("TEXT$(POSITION + 1,POSITION + 1)");
+    expect(output).toContain("TEXT$(POSITION,POSITION + AMOUNT - 1)");
+  });
+
+  it("omits multiplication by one for packed single-character string arrays", () => {
+    const output = compileSource('dim letters$(3, 1)\nletters$(index) = "A"\nprint letters$(index)\n', { filename: "single-character-array.mbas", target: "atari800xl" });
+    expect(output).toContain('LETTERS$(INDEX + 1,INDEX + 1)="A"');
+    expect(output).not.toMatch(/\* 1\b/u);
+  });
+
   it("preserves computed string slice sources before Atari substring rendering", () => {
     expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "atari800xl" })).toBe(
       ["10 DIM MBTEMP$(255)", "20 MBTEMP$=STR$(DEFCON)", "30 PRINT MBTEMP$(LEN(MBTEMP$) - 1 + 1,LEN(MBTEMP$))", ""].join("\n")

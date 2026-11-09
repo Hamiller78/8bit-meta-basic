@@ -697,7 +697,7 @@ function rewriteAtariStringArrayReads(
           expression: {
             kind: "binary",
             operator: "+",
-            left: {
+            left: definition.width === 1 ? index : {
               kind: "binary",
               operator: "*",
               left: index,
@@ -1011,6 +1011,7 @@ function renderAtariStringArrayStart(
     return (index.value * width + 1).toString();
   }
 
+  if (width === 1) return `${renderExpressionWithParens(index, options)} + 1`;
   return `${renderExpressionWithParens(index, options)} * ${width} + 1`;
 }
 
@@ -1023,6 +1024,7 @@ function renderAtariStringArrayEnd(
     return ((index.value + 1) * width).toString();
   }
 
+  if (width === 1) return `${renderExpressionWithParens(index, options)} + 1`;
   return `(${renderExpression(index, options)} + 1) * ${width}`;
 }
 
@@ -1465,12 +1467,18 @@ function renderAtariMid(expression: FunctionCallExpression, options: { readonly 
     const elementStart = renderAtariStringArrayStart(source.indices[0], width, options);
     const elementEnd = renderAtariStringArrayEnd(source.indices[0], width, options);
     const sliceStart = renderAtariStringArrayOffset(elementStart, [start], -1, options);
-    const sliceEnd = length ? renderAtariStringArrayOffset(elementStart, [start, length], -2, options) : elementEnd;
+    const sliceEnd = length?.kind === "number" && length.value === 1
+      ? sliceStart
+      : length ? renderAtariStringArrayOffset(elementStart, [start, length], -2, options) : elementEnd;
     return `${renderedName}(${sliceStart},${sliceEnd})`;
   }
   const renderedSource = renderExpression(source, options);
   if (!length) {
     return `${renderedSource}(${renderExpression(start, options)},LEN(${renderedSource}))`;
+  }
+  if (length.kind === "number" && length.value === 1) {
+    const position = renderExpression(start, options);
+    return `${renderedSource}(${position},${position})`;
   }
   return `${renderedSource}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
 }

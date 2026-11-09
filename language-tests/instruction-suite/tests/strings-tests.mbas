@@ -1,4 +1,26 @@
 dim BoundedSliceRows$(3, 3)
+dim SingleCharacterItems$(3, 1)
+
+test SingleCharacterSlicesAndArrays()
+    local position, text$
+    text$ = "ABC"
+    position = 1
+    assert_eq "A", mid$(text$, position, 1)
+    assert_eq "B", mid$(text$, position + 1, 1)
+    position = 3
+    assert_eq "C", mid$(text$, position, 1)
+    position = 1.25
+    assert_eq 1, len(mid$(text$, position, 1))
+    position = 2.75
+    assert_eq 1, len(mid$(text$, position, 1))
+    position = 0
+    SingleCharacterItems$(position) = "A"
+    SingleCharacterItems$(position + 1) = "B"
+    SingleCharacterItems$(2) = "C"
+    assert_eq "A", SingleCharacterItems$(position)
+    assert_eq "B", SingleCharacterItems$(position + 1)
+    assert_eq "C", SingleCharacterItems$(2)
+end test
 
 test SpectrumFractionalSingleCharacterSlice()
     local unit, position, text$
