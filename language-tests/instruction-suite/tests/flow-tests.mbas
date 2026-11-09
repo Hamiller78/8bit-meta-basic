@@ -152,6 +152,14 @@ test FixedStepsWithEarlyExit()
         total = total + index
     next index
     assert_eq 8, total
+    total = 0
+    for index = 0.5 to 1.5 step 0.5
+        total = total + 1
+        if index = 1.5 then
+            exit for
+        end if
+    next index
+    assert_eq 3, total
 end test
 
 test DynamicStepAndLimitAreCaptured()
@@ -162,6 +170,30 @@ test DynamicStepAndLimitAreCaptured()
     for index = 1 to limit step stride
         total = total + index
         limit = 0
+        stride = -1
+        if index = 5 then
+            exit for
+        end if
+    next index
+    assert_eq 9, total
+end test
+
+test MixedFixedAndDynamicForBounds()
+    local index, limit, stride, total
+    limit = 5
+    total = 0
+    for index = 1 to limit step 2
+        total = total + index
+        limit = 1
+        if index = 5 then
+            exit for
+        end if
+    next index
+    assert_eq 9, total
+    stride = 2
+    total = 0
+    for index = 1 to 5 step stride
+        total = total + index
         stride = -1
         if index = 5 then
             exit for

@@ -125,10 +125,9 @@ describe("Agon Light BBC BASIC lowering", () => {
   it("uses stack-free loops when EXIT FOR bypasses BBC BASIC's NEXT", () => {
     const source = "for index = 1 to 5\nif index = 3 then\nexit for\nend if\nnext index\n";
     const output = compileSource(source, { filename: "flow.mbas", target: "agon" });
-    expect(output).toMatch(/MBFORLIMIT=5/u);
-    expect(output).toContain("MBFORSTEP=1");
-    expect(output).toMatch(/INDEX=INDEX \+ MBFORSTEP/u);
-    expect(output).toMatch(/IF INDEX <= MBFORLIMIT THEN GOTO \d+/u);
+    expect(output).not.toMatch(/MBFORLIMIT|MBFORSTEP/u);
+    expect(output).toMatch(/INDEX=INDEX \+ 1/u);
+    expect(output).toMatch(/IF INDEX <= 5 THEN GOTO \d+/u);
     expect(output).not.toContain("NEXT INDEX");
     expect(output).toMatch(/GOTO \d+/u);
     expect(output).not.toContain("EXIT FOR");
@@ -136,25 +135,32 @@ describe("Agon Light BBC BASIC lowering", () => {
 
   it("specializes fixed negative and zero steps while retaining dynamic-step handling", () => {
     const negative = compileSource("for index = 5 to 1 step -2\nif index = 3 then\nexit for\nend if\nnext index\n", { filename: "negative-step.mbas", target: "agon" });
-    expect(negative).toContain("MBFORSTEP=-2");
-    expect(negative).toMatch(/INDEX=INDEX \+ MBFORSTEP/u);
-    expect(negative).toMatch(/IF INDEX >= MBFORLIMIT THEN GOTO \d+/u);
+    expect(negative).not.toMatch(/MBFORLIMIT|MBFORSTEP/u);
+    expect(negative).toMatch(/INDEX=INDEX - 2/u);
+    expect(negative).toMatch(/IF INDEX >= 1 THEN GOTO \d+/u);
 
     const zero = compileSource("for index = 0 to 1 step 0\nexit for\nnext index\n", { filename: "zero-step.mbas", target: "agon" });
-    expect(zero).toContain("MBFORSTEP=0");
-    expect(zero).toMatch(/INDEX=INDEX \+ MBFORSTEP/u);
-    expect(zero).toMatch(/IF INDEX <= MBFORLIMIT THEN GOTO \d+/u);
+    expect(zero).not.toMatch(/MBFORLIMIT|MBFORSTEP/u);
+    expect(zero).toMatch(/INDEX=INDEX \+ 0/u);
+    expect(zero).toMatch(/IF INDEX <= 1 THEN GOTO \d+/u);
 
     const dynamic = compileSource("stride = -2\nfor index = 5 to 1 step stride\nif index = 3 then\nexit for\nend if\nnext index\n", { filename: "dynamic-step.mbas", target: "agon" });
     expect(dynamic).toContain("MBFORSTEP=V_STRIDE");
     expect(dynamic).toContain("MBFORSTEP >= 0");
     expect(dynamic).toContain("MBFORSTEP < 0");
+    expect(dynamic).not.toContain("MBFORLIMIT");
+
+    const dynamicLimit = compileSource("limit = 5\nfor index = 1 to limit step 2\nlimit = 1\nexit for\nnext index\n", { filename: "dynamic-limit.mbas", target: "agon" });
+    expect(dynamicLimit).toContain("MBFORLIMIT=LIMIT");
+    expect(dynamicLimit).not.toContain("MBFORSTEP");
+    expect(dynamicLimit).toMatch(/INDEX=INDEX \+ 2/u);
+    expect(dynamicLimit).toMatch(/IF INDEX <= MBFORLIMIT THEN GOTO \d+/u);
   });
 
   it("uses stack-free loops when a function can return from the loop body", () => {
     const source = "function Find()\nfor index = 0 to 3\nif index = 2 then\nreturn index\nend if\nnext index\nreturn -1\nend function\nresult = Find()\n";
     const output = compileSource(source, { filename: "return-loop.mbas", target: "agon" });
-    expect(output).toContain("MBFORLIMIT=3");
+    expect(output).not.toMatch(/MBFORLIMIT|MBFORSTEP/u);
     expect(output).not.toMatch(/FOR INDEX|NEXT INDEX/u);
   });
 });

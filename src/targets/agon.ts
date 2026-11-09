@@ -227,8 +227,8 @@ interface AgonUnsafeForContext {
   readonly start: Expression;
   readonly limit: Expression;
   readonly step: Expression;
-  readonly limitName: string;
-  readonly stepName: string;
+  readonly limitName?: string;
+  readonly stepName?: string;
 }
 
 function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
@@ -265,6 +265,7 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
         loopLabel = candidate;
       }
     }
+    const step = opened.instruction.step ?? numberExpression(1, opened.instruction.location);
     contexts.push({
       forIndex: opened.index,
       nextIndex: index,
@@ -272,9 +273,9 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
       variable: opened.instruction.variable,
       start: opened.instruction.start,
       limit: opened.instruction.limit,
-      step: opened.instruction.step ?? numberExpression(1, opened.instruction.location),
-      limitName: allocateLimitName(),
-      stepName: allocateStepName()
+      step,
+      ...(opened.instruction.limit.kind === "number" ? {} : { limitName: allocateLimitName() }),
+      ...(step.kind === "number" ? {} : { stepName: allocateStepName() })
     });
   }
 
@@ -287,13 +288,8 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
     const instruction = instructions[index];
     const forContext = byForIndex.get(index);
     if (instruction.kind === "for" && forContext) {
-      lowered.push({ kind: "let", name: forContext.limitName, expression: forContext.limit, location: instruction.location });
-      lowered.push({
-        kind: "let",
-        name: forContext.stepName,
-        expression: forContext.step,
-        location: instruction.location
-      });
+      if (forContext.limitName) lowered.push({ kind: "let", name: forContext.limitName, expression: forContext.limit, location: instruction.location });
+      if (forContext.stepName) lowered.push({ kind: "let", name: forContext.stepName, expression: forContext.step, location: instruction.location });
       lowered.push({ kind: "let", name: forContext.variable, expression: forContext.start, location: instruction.location });
       lowered.push({ kind: "label", name: forContext.loopLabel, internal: true, location: instruction.location });
       continue;
@@ -303,12 +299,14 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
     if (instruction.kind === "next" && nextContext) {
       const variable = identifierExpression(nextContext.variable, instruction.location);
       const fixedStep = nextContext.step.kind === "number" ? nextContext.step.value : undefined;
-      const step = identifierExpression(nextContext.stepName, instruction.location);
-      const limit = identifierExpression(nextContext.limitName, instruction.location);
+      const step = nextContext.stepName ? identifierExpression(nextContext.stepName, instruction.location) : nextContext.step;
+      const limit = nextContext.limitName ? identifierExpression(nextContext.limitName, instruction.location) : nextContext.limit;
       lowered.push({
         kind: "let",
         name: nextContext.variable,
-        expression: binaryExpression("+", variable, step, instruction.location),
+        expression: fixedStep !== undefined && fixedStep < 0
+          ? binaryExpression("-", variable, numberExpression(-fixedStep, instruction.location), instruction.location)
+          : binaryExpression("+", variable, step, instruction.location),
         location: instruction.location
       });
       lowered.push({
