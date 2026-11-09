@@ -511,11 +511,20 @@ describe("Spectrum compiler", () => {
     expect(output).toContain("(R$(I,1 TO M(I)))(I TO I)");
   });
 
-  it("simplifies dynamic indexes outside loops while retaining other offsets", () => {
+  it("combines constant offsets in dynamic string-array indexes", () => {
     const source = ["dim rows$(3,4)", "print mid$(rows$((position - 1)), position, 1)", "print rows$(position - 2)"].join("\n");
     const output = compileSource(source, { filename: "dynamic-slices.mbas", target: "spectrum", readability: 2 });
     expect(output).toContain("(R$(POSITION,1 TO M(POSITION)))(POSITION TO POSITION)");
-    expect(output).toContain("POSITION - 2 + 1");
+    expect(output).toContain("POSITION - 1");
+    expect(output).not.toContain("POSITION - 2 + 1");
+  });
+
+  it("combines constant index offsets without changing operator grouping", () => {
+    const source = ["dim values(10)", "dim flags as byte(10)", "print values(position - 2); values(position + 2); values(position - 1); values(position + 0)", "print values((position + other) - 2); values(position * 2)", "print flags(position - 2)"].join("\n");
+    const output = compileSource(source, { filename: "index-offsets.mbas", target: "spectrum", readability: 2 });
+    expect(output).toContain("V(POSITION - 1);V(POSITION + 3);V(POSITION);V(POSITION + 1)");
+    expect(output).toContain("V((POSITION + OTHER) - 1);V(POSITION * 2 + 1)");
+    expect(output).toContain("F$(POSITION - 1)");
   });
 
   it("renders LEN as a Spectrum string length expression", () => {

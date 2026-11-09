@@ -485,8 +485,19 @@ function renderSpectrumArrayIndex(expression: Expression, options: SpectrumRende
 
   let index: Expression = expression;
   while (index.kind === "parenthesized") index = index.expression;
-  if (index.kind === "binary" && index.operator === "-" && index.right.kind === "number" && index.right.value === 1) {
-    return renderExpression(index.left, options);
+  if (index.kind === "binary" && (index.operator === "+" || index.operator === "-") && index.right.kind === "number" && Number.isSafeInteger(index.right.value)) {
+    const offset = (index.operator === "+" ? index.right.value : -index.right.value) + 1;
+    if (Number.isSafeInteger(offset)) {
+      if (offset === 0) return renderExpression(index.left, options);
+      const magnitude = Math.abs(offset);
+      return renderExpression({
+        kind: "binary",
+        operator: offset < 0 ? "-" : "+",
+        left: index.left,
+        right: { kind: "number", value: magnitude, raw: String(magnitude), location: index.right.location },
+        location: index.location
+      }, options);
+    }
   }
 
   return `${renderExpression(expression, options)} + 1`;

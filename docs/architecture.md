@@ -160,9 +160,9 @@ Shared lowering prefers fall-through control flow. A block without `ELSE` invert
 
 After target lowering and before line numbering, a cleanup pass removes an unconditional jump when its destination is among the immediately following labels. The labels remain available to other branches. The pass runs on each line-length relief attempt so target-generated jumps are covered as well.
 
-Spectrum rendering folds exact constant substring endpoints, uses the starting position directly for a one-character slice, and cancels the zero-to-one-based adjustment for an index written as `position - 1`. This avoids spurious rounding from generated arithmetic; fractional positions may consequently behave differently from older generated listings.
+Spectrum rendering folds exact constant substring endpoints, uses the starting position directly for a one-character slice, and combines integer offsets with the zero-to-one-based array adjustment.
 
-Atari rendering uses the same start and end for a one-character `MID$` slice and avoids multiplication by one in packed string-array offsets. As on Spectrum, removing cancelling substring arithmetic can change behavior at fractional rounding boundaries.
+Atari rendering uses the same start and end for a one-character `MID$` slice and avoids multiplication by one in packed string-array offsets.
 
 Consecutive terminal equality branches over the same value are recognized as a computed dispatch after constants and enum members have been folded. Zero-based enums are shifted to the one-based native dispatch index. Atari BASIC and C64 BASIC V2 render the result as `ON expression GOTO ...`; Spectrum expands it to a straight sequence of `IF expression = n THEN GO TO ...` statements. Equality branches that each make one subroutine or side-effect function call similarly lower to `ON expression GOSUB ...`, with Spectrum receiving an `IF ... THEN GO SUB ...` sequence. Atari rewrites the native index as a compact sum of equality matches with a dedicated no-match entry, using Atari comparison results directly as zero or one. The result is always within the `ON` label range, avoiding Atari error 3 without a separate guard line and without retaining gaps between sparse values such as Atari key codes.
 

@@ -31,6 +31,21 @@ test NumericArrays()
     assert_eq 6, Values(2)
 end test
 
+test ArrayConstantOffsets()
+    dim OffsetValues(4)
+    dim OffsetFlags as byte(4)
+    local position
+    position = 2
+    OffsetValues(position - 2) = 11
+    OffsetValues(position + 1) = 44
+    OffsetFlags(position - 2) = 3
+    OffsetFlags(position + 1) = 7
+    assert_eq 11, OffsetValues(position - 2)
+    assert_eq 44, OffsetValues(position + 1)
+    assert_eq 3, OffsetFlags(position - 2)
+    assert_eq 7, OffsetFlags(position + 1)
+end test
+
 test IntegerArrays()
     dim Counts%(2)
     local result%

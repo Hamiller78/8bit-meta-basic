@@ -43,6 +43,9 @@ test BoundedArraySlices()
     next i
     assert_eq "AEI", result$
     assert_eq "I", right$(BoundedSliceRows$(2), 1)
+    i = 2
+    assert_eq "ABC", BoundedSliceRows$(i - 2)
+    assert_eq "GHI", BoundedSliceRows$(i + 0)
 end test
 
 test StringAssignmentAndConcat()
