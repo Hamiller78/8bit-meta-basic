@@ -43,7 +43,6 @@ export const spectrumTarget: TargetBackend = {
     const keyStringTempName = allocateKeyStringTempName(expanded.instructions);
     const stringArrayTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAY", "$");
     const stringArrayIndexTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAYINDEX");
-    const stringArrayLengthTempName = allocateGeneratedVariableName(expanded.instructions, "MBARRAYLENGTH");
     const allocateReadIndexTempName = createGeneratedVariableNameAllocator(expanded.instructions, "MBREADINDEX");
     const readIndexTempNames: string[] = [];
     const readIndexTempNameAt = (index: number): string => {
@@ -96,7 +95,6 @@ export const spectrumTarget: TargetBackend = {
             definition,
             stringArrayTempName,
             stringArrayIndexTempName,
-            stringArrayLengthTempName,
             allocateInternalLabel
           )
         );
@@ -666,7 +664,6 @@ function expandSpectrumStringArrayAssignment(
   definition: StringArrayStorage,
   stringTempName: string,
   indexTempName: string,
-  lengthTempName: string,
   allocateInternalLabel: () => string
 ): readonly Instruction[] {
   const instructions: Instruction[] = [];
@@ -689,26 +686,9 @@ function expandSpectrumStringArrayAssignment(
     return instructions;
   }
 
-  let storedExpression = instruction.expression;
-  let storedLength: Expression;
-  if (expressionMayChangeBetweenEvaluations(instruction.expression)) {
-    instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
-    storedExpression = { kind: "identifier", name: stringTempName, location: instruction.location };
-    storedLength = {
-      kind: "function-call",
-      name: builtinFunctions.len,
-      args: [storedExpression],
-      location: instruction.location
-    };
-  } else {
-    instructions.push({
-      kind: "let",
-      name: lengthTempName,
-      expression: { kind: "function-call", name: builtinFunctions.len, args: [instruction.expression], location: instruction.location },
-      location: instruction.location
-    });
-    storedLength = { kind: "identifier", name: lengthTempName, location: instruction.location };
-  }
+  instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
+  const storedExpression: Expression = { kind: "identifier", name: stringTempName, location: instruction.location };
+  const storedLength: Expression = { kind: "function-call", name: builtinFunctions.len, args: [storedExpression], location: instruction.location };
   instructions.push({ ...instruction, indices: [index], expression: storedExpression });
   const length = logicalLengthAccess(definition, index);
   instructions.push({

@@ -660,14 +660,31 @@ describe("Spectrum compiler", () => {
       "10 DIM M$(10,8)",
       "20 DIM M(10)",
       "30 PRINT (M$(I + 1,1 TO M(I + 1)))( TO 1)",
-      "40 LET MBARRAYLENGTH=LEN ((M$(I + 1,1 TO M(I + 1)))(2 TO ))",
-      "50 LET M$(I + 1,1 TO 8)=(M$(I + 1,1 TO M(I + 1)))(2 TO )",
-      "60 LET M(I + 1)=MBARRAYLENGTH",
+      "40 LET A$=(M$(I + 1,1 TO M(I + 1)))(2 TO )",
+      "50 LET M$(I + 1,1 TO 8)=A$",
+      "60 LET M(I + 1)=LEN A$",
       "70 IF M(I + 1) <= 8 THEN GO TO 90",
       "80 LET M(I + 1)=8",
       "90 REM __MB_KEY_1:",
       ""
     ].join("\n"));
+  });
+
+  it("evaluates a nonliteral string-array assignment once before storing it", () => {
+    const source = 'dim rows$(2, 8)\nrows$(index) = left$(rows$(index), 2) + "!"\n';
+    const output = compileSource(source, { filename: "string-array-evaluate-once.mbas", target: "spectrum", readability: 2 });
+    expect(output).toMatch(/LET [A-Z]\$=\(R\$\(INDEX \+ 1,1 TO M\(INDEX \+ 1\)\)\)\( TO 2\) \+ "!"/u);
+    expect(output).toMatch(/LET R\$\(INDEX \+ 1,1 TO 8\)=[A-Z]\$/u);
+    expect(output).toMatch(/LET M\(INDEX \+ 1\)=LEN [A-Z]\$/u);
+    expect(output.match(/\(R\$\(INDEX \+ 1,1 TO M\(INDEX \+ 1\)\)\)\( TO 2\)/gu)).toHaveLength(1);
+  });
+
+  it("evaluates a computed destination and volatile string value once each", () => {
+    const source = 'dim rows$(2, 8)\nrows$(int(rnd() * 2)) = chr$(65 + int(rnd() * 2))\n';
+    const output = compileSource(source, { filename: "volatile-string-array-write.mbas", target: "spectrum", readability: 2 });
+    expect(output.match(/\bRND\b/gu)).toHaveLength(2);
+    expect(output).toMatch(/LET [A-Z]\$=CHR\$ \(65 \+ INT \(RND \* 2\)\)/u);
+    expect(output).toMatch(/LET R\$\(MBARRAYINDEX \+ 1,1 TO 8\)=[A-Z]\$/u);
   });
 
   it("keeps Spectrum scalar string variables distinct from string array names", () => {
