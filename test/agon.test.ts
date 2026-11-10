@@ -141,7 +141,7 @@ describe("Agon Light BBC BASIC lowering", () => {
 
     const zero = compileSource("for index = 0 to 1 step 0\nexit for\nnext index\n", { filename: "zero-step.mbas", target: "agon" });
     expect(zero).not.toMatch(/MBFORLIMIT|MBFORSTEP/u);
-    expect(zero).toMatch(/INDEX=INDEX \+ 0/u);
+    expect(zero).not.toMatch(/INDEX=INDEX/u);
     expect(zero).toMatch(/IF INDEX <= 1 THEN GOTO \d+/u);
 
     const dynamic = compileSource("stride = -2\nfor index = 5 to 1 step stride\nif index = 3 then\nexit for\nend if\nnext index\n", { filename: "dynamic-step.mbas", target: "agon" });

@@ -301,7 +301,7 @@ function lowerAgonForExits(program: LoweredProgram): LoweredProgram {
       const fixedStep = nextContext.step.kind === "number" ? nextContext.step.value : undefined;
       const step = nextContext.stepName ? identifierExpression(nextContext.stepName, instruction.location) : nextContext.step;
       const limit = nextContext.limitName ? identifierExpression(nextContext.limitName, instruction.location) : nextContext.limit;
-      lowered.push({
+      if (fixedStep !== 0) lowered.push({
         kind: "let",
         name: nextContext.variable,
         expression: fixedStep !== undefined && fixedStep < 0

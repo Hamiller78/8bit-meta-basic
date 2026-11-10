@@ -26,6 +26,16 @@ test RandomCallsAreConsumedOnceInSourceOrder()
     assert_eq 0.25, RandomInline()
 end test
 
+test RandomCallsSurviveArithmeticSimplification()
+    local value
+    set_rnd(0.25, 0.5, 0.75)
+    value = rnd() * 1 + 0
+    assert_eq 0.25, value
+    value = rnd() * 0
+    assert_eq 0, value
+    assert_eq 0.75, rnd()
+end test
+
 test RandomSequenceCanBeReplaced()
     local nextValue
     set_rnd(0.125, 0.875)

@@ -10,6 +10,7 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions, mapInstructionExpressions } from "./instruction-expressions.js";
+import { generatedBinary, generatedNumber, simplifyGeneratedExpression } from "./expression-simplification.js";
 import {
   allocateGeneratedVariableName,
   attachStringArrayLengthDimension,
@@ -370,9 +371,8 @@ function renderSpectrumMid(expression: FunctionCallExpression, options: Spectrum
     return `${renderSpectrumSliceSource(source, options)}(${renderExpression(start, options)} TO )`;
   }
   const renderedStart = renderExpression(start, options);
-  let end = `${renderedStart} + ${renderExpression(length, options)} - 1`;
-  if (start.kind === "number" && length.kind === "number" && Number.isInteger(start.value) && Number.isInteger(length.value) && Math.abs(start.value) <= 32767 && Math.abs(length.value) <= 32767) end = String(start.value + length.value - 1);
-  else if (length.kind === "number" && length.value === 1) end = renderedStart;
+  const endExpression = generatedBinary("-", generatedBinary("+", start, length, expression.location), generatedNumber(1, expression.location), expression.location);
+  const end = renderExpression(simplifyGeneratedExpression(endExpression), options);
   return `${renderSpectrumSliceSource(source, options)}(${renderedStart} TO ${end})`;
 }
 
@@ -384,12 +384,9 @@ function renderSpectrumLeft(expression: FunctionCallExpression, options: { reado
 function renderSpectrumRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
   const renderedSource = renderSpectrumSliceSource(source, options);
-  const sourceLength = source.kind === "array-access" && isStringVariableName(source.name)
-    ? renderSpectrumStringArrayLength(source, options as SpectrumRenderOptions)
-    : `LEN ${renderSpectrumLenArgument(source, options)}`;
-  return length.kind === "number" && length.value === 1
-    ? `${renderedSource}(${sourceLength} TO )`
-    : `${renderedSource}(${sourceLength} - ${renderExpression(length, options)} + 1 TO )`;
+  const sourceLength: Expression = { kind: "function-call", name: builtinFunctions.len, args: [source], location: expression.location };
+  const start = generatedBinary("+", generatedBinary("-", sourceLength, length, expression.location), generatedNumber(1, expression.location), expression.location);
+  return `${renderedSource}(${renderExpression(simplifyGeneratedExpression(start), { ...options, functionRenderer: renderSpectrumFunction })} TO )`;
 }
 
 interface SpectrumRenderOptions {
@@ -483,24 +480,7 @@ function renderSpectrumArrayIndex(expression: Expression, options: SpectrumRende
     return (expression.value + 1).toString();
   }
 
-  let index: Expression = expression;
-  while (index.kind === "parenthesized") index = index.expression;
-  if (index.kind === "binary" && (index.operator === "+" || index.operator === "-") && index.right.kind === "number" && Number.isSafeInteger(index.right.value)) {
-    const offset = (index.operator === "+" ? index.right.value : -index.right.value) + 1;
-    if (Number.isSafeInteger(offset)) {
-      if (offset === 0) return renderExpression(index.left, options);
-      const magnitude = Math.abs(offset);
-      return renderExpression({
-        kind: "binary",
-        operator: offset < 0 ? "-" : "+",
-        left: index.left,
-        right: { kind: "number", value: magnitude, raw: String(magnitude), location: index.right.location },
-        location: index.location
-      }, options);
-    }
-  }
-
-  return `${renderExpression(expression, options)} + 1`;
+  return renderExpression(simplifyGeneratedExpression(generatedBinary("+", expression, generatedNumber(1, expression.location), expression.location)), options);
 }
 
 function buildSpectrumStringArrayWidths(instructions: readonly Instruction[]): ReadonlyMap<string, number> {

@@ -232,12 +232,12 @@ listed per machine below.
 - `PRINT_INVERT` and `PRINT_INVERT_AT` accept string literals only and use `basicParser`'s inverse-string notation. The tokenized program contains inverse ATASCII bytes directly; no runtime `CHR$` construction or screen-memory inversion pass is generated.
 - String variables receive `DIM NAME$(255)` before their first assignment.
 - String concatenation is lowered into Atari substring assignments where necessary.
-- A one-character `MID$` slice uses the same start and end position. Fractional positions near rounding boundaries can therefore differ from older generated listings that evaluated cancelling arithmetic first.
+- Constant arithmetic in generated substring endpoints is simplified. A one-character `MID$` slice uses the same start and end position.
 - Integer `%` variables are rendered as regular numeric variables and assignment is coerced with `INT`.
 - In `AND` and `OR`, comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
 - Numeric and integer arrays render as native Atari arrays with the declared count lowered to a zero-based upper bound.
 - Experimental `BYTE` arrays and fields use packed string storage at one character per value. Writes use `CHR$`; reads use `ASC` on a one-character slice.
-- Fixed-width string arrays render as one packed Atari backing string plus a hidden numeric array holding each element's logical length. In readable output, `dim messages$(3,12)` reserves `DIM MESSAGES$(36)` for character storage. Reads copy only the recorded number of characters from the corresponding slice, preserving deliberate trailing spaces without exposing unused padding. Empty elements use a guarded read because Atari BASIC rejects an end position before the start position.
+- Fixed-width string arrays render as one packed Atari backing string plus a hidden numeric array holding each element's logical length. In readable output, `dim messages$(3,12)` reserves `DIM MESSAGES$(36)` for character storage. Reads copy only the recorded number of characters from the corresponding slice, preserving deliberate trailing spaces without exposing unused padding. Empty elements use a guarded read because Atari BASIC rejects an end position before the start position. Repeated stable reads of the same element within one expression share the copied string.
 - `CLS` uses `PRINT CHR$(125);`.
 - Global colours use `SETCOLOR`; cell colours have no effect in `GRAPHICS 0`.
 - `SUPPRESS_SCROLL_PROMPT` has no effect.

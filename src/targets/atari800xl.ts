@@ -10,6 +10,7 @@ import { normalizeLabel } from "../lowering.js";
 import { baseVariableName, isIntegerVariableName, isStringVariableName } from "../variables.js";
 import { createFunctionRenderer, type FunctionCallExpression } from "./function-rendering.js";
 import { instructionExpressions } from "./instruction-expressions.js";
+import { generatedBinary, generatedNumber, simplifyGeneratedExpression } from "./expression-simplification.js";
 import {
   allocateGeneratedVariableName,
   attachStringArrayLengthDimension,
@@ -514,7 +515,8 @@ function materializeAtariStringArrayReads(
       readIndexTempName,
       readLengthTempName,
       readStartTempName,
-      allocateInternalLabel
+      allocateInternalLabel,
+      isStableAtariReadExpression(expression) ? new Map() : undefined
     );
 
   switch (instruction.kind) {
@@ -629,7 +631,8 @@ function rewriteAtariStringArrayReads(
   readIndexTempName: string,
   readLengthTempName: string,
   readStartTempName: string,
-  allocateInternalLabel: () => string
+  allocateInternalLabel: () => string,
+  cachedReads: Map<string, string> | undefined
 ): Expression {
   const rewrite = (child: Expression): Expression =>
     rewriteAtariStringArrayReads(
@@ -640,7 +643,8 @@ function rewriteAtariStringArrayReads(
       readIndexTempName,
       readLengthTempName,
       readStartTempName,
-      allocateInternalLabel
+      allocateInternalLabel,
+      cachedReads
     );
 
   switch (expression.kind) {
@@ -670,10 +674,15 @@ function rewriteAtariStringArrayReads(
       }
       const definition = stringArrayStorageFor(expression.name, storage);
       if (!definition) throw new Error(`Internal error: missing Atari logical length array for ${expression.name}.`);
+      const indexKey = stableAtariReadIndexKey(expression.indices[0]);
+      const cacheKey = indexKey === undefined ? undefined : `${expression.name.toLowerCase()}:${indexKey}`;
+      const existing = cacheKey === undefined ? undefined : cachedReads?.get(cacheKey);
+      if (existing) return { kind: "identifier", name: existing, location: expression.location };
       const index: Expression = { kind: "identifier", name: readIndexTempName, location: expression.location };
       const length: Expression = { kind: "identifier", name: readLengthTempName, location: expression.location };
       const start: Expression = { kind: "identifier", name: readStartTempName, location: expression.location };
       const tempName = allocateReadTempName();
+      if (cacheKey !== undefined) cachedReads?.set(cacheKey, tempName);
       const doneLabel = allocateInternalLabel();
       prefix.push(
         { kind: "let", name: readIndexTempName, expression: indices[0], location: expression.location },
@@ -697,7 +706,7 @@ function rewriteAtariStringArrayReads(
           expression: {
             kind: "binary",
             operator: "+",
-            left: definition.width === 1 ? index : {
+            left: {
               kind: "binary",
               operator: "*",
               left: index,
@@ -733,6 +742,45 @@ function rewriteAtariStringArrayReads(
     case "boolean":
     case "color":
       return expression;
+  }
+}
+
+const stableAtariReadFunctions: ReadonlySet<string> = new Set([
+  builtinFunctions.abs, builtinFunctions.asc, builtinFunctions.atn, builtinFunctions.chr, builtinFunctions.code,
+  builtinFunctions.cos, builtinFunctions.exp, builtinFunctions.int, builtinFunctions.left, builtinFunctions.len,
+  builtinFunctions.mid, builtinFunctions.right, builtinFunctions.sgn, builtinFunctions.sin, builtinFunctions.sqr,
+  builtinFunctions.str, builtinFunctions.val
+]);
+
+function isStableAtariReadExpression(expression: Expression): boolean {
+  switch (expression.kind) {
+    case "number": case "string": case "boolean": case "color": case "identifier": return true;
+    case "function-call": return stableAtariReadFunctions.has(expression.name.toUpperCase()) && expression.args.every(isStableAtariReadExpression);
+    case "array-access": return expression.indices.every(isStableAtariReadExpression)
+      && (!expression.fixedWidthStorageStart || isStableAtariReadExpression(expression.fixedWidthStorageStart))
+      && (!expression.fixedWidthStorageLength || isStableAtariReadExpression(expression.fixedWidthStorageLength));
+    case "struct-field-access": return expression.indices.every(isStableAtariReadExpression);
+    case "parenthesized": return isStableAtariReadExpression(expression.expression);
+    case "unary": return isStableAtariReadExpression(expression.operand);
+    case "binary": return isStableAtariReadExpression(expression.left) && isStableAtariReadExpression(expression.right);
+  }
+}
+
+function stableAtariReadIndexKey(expression: Expression): string | undefined {
+  switch (expression.kind) {
+    case "number": return JSON.stringify(["number", expression.value]);
+    case "identifier": return JSON.stringify(["identifier", expression.name.toLowerCase()]);
+    case "parenthesized": return stableAtariReadIndexKey(expression.expression);
+    case "unary": {
+      const operand = stableAtariReadIndexKey(expression.operand);
+      return operand === undefined ? undefined : JSON.stringify(["unary", expression.operator, operand]);
+    }
+    case "binary": {
+      const left = stableAtariReadIndexKey(expression.left);
+      const right = stableAtariReadIndexKey(expression.right);
+      return left === undefined || right === undefined ? undefined : JSON.stringify(["binary", expression.operator, left, right]);
+    }
+    default: return undefined;
   }
 }
 
@@ -1011,8 +1059,11 @@ function renderAtariStringArrayStart(
     return (index.value * width + 1).toString();
   }
 
-  if (width === 1) return `${renderExpressionWithParens(index, options)} + 1`;
-  return `${renderExpressionWithParens(index, options)} * ${width} + 1`;
+  return renderExpression(simplifyGeneratedExpression(atariStringArrayStartExpression(index, width)), options);
+}
+
+function atariStringArrayStartExpression(index: Expression, width: number): Expression {
+  return generatedBinary("+", generatedBinary("*", index, generatedNumber(width, index.location), index.location), generatedNumber(1, index.location), index.location);
 }
 
 function renderAtariStringArrayEnd(
@@ -1024,8 +1075,8 @@ function renderAtariStringArrayEnd(
     return ((index.value + 1) * width).toString();
   }
 
-  if (width === 1) return `${renderExpressionWithParens(index, options)} + 1`;
-  return `(${renderExpression(index, options)} + 1) * ${width}`;
+  const next = generatedBinary("+", index, generatedNumber(1, index.location), index.location);
+  return renderExpression(simplifyGeneratedExpression(generatedBinary("*", next, generatedNumber(width, index.location), index.location)), options);
 }
 
 function renderAtariStringArrayOffset(
@@ -1039,13 +1090,6 @@ function renderAtariStringArrayOffset(
     terms.push(constantOffset.toString());
   }
   return terms.join(" + ").replaceAll("+ -", "- ");
-}
-
-function renderExpressionWithParens(
-  expression: Expression,
-  options: { readonly variableMap?: ReadonlyMap<string, string>; readonly functionRenderer?: typeof renderAtariFunction; readonly arrayRenderer?: typeof renderAtariArrayAccess }
-): string {
-  return expression.kind === "number" || expression.kind === "identifier" ? renderExpression(expression, options) : `(${renderExpression(expression, options)})`;
 }
 
 function stringSelfAppendRight(name: string, expression: Expression): Expression | undefined {
@@ -1464,23 +1508,19 @@ function renderAtariMid(expression: FunctionCallExpression, options: { readonly 
   if (source.kind === "array-access" && isStringVariableName(source.name)) {
     const width = atariStringArrayWidth(source.name);
     const renderedName = renderAtariArrayName(source.name, options.variableMap ?? new Map());
-    const elementStart = renderAtariStringArrayStart(source.indices[0], width, options);
+    const elementStart = atariStringArrayStartExpression(source.indices[0], width);
     const elementEnd = renderAtariStringArrayEnd(source.indices[0], width, options);
-    const sliceStart = renderAtariStringArrayOffset(elementStart, [start], -1, options);
-    const sliceEnd = length?.kind === "number" && length.value === 1
-      ? sliceStart
-      : length ? renderAtariStringArrayOffset(elementStart, [start, length], -2, options) : elementEnd;
+    const startOffset = generatedBinary("+", elementStart, start, expression.location);
+    const sliceStart = renderExpression(simplifyGeneratedExpression(generatedBinary("-", startOffset, generatedNumber(1, expression.location), expression.location)), options);
+    const sliceEnd = length ? renderExpression(simplifyGeneratedExpression(generatedBinary("-", generatedBinary("+", startOffset, length, expression.location), generatedNumber(2, expression.location), expression.location)), options) : elementEnd;
     return `${renderedName}(${sliceStart},${sliceEnd})`;
   }
   const renderedSource = renderExpression(source, options);
   if (!length) {
     return `${renderedSource}(${renderExpression(start, options)},LEN(${renderedSource}))`;
   }
-  if (length.kind === "number" && length.value === 1) {
-    const position = renderExpression(start, options);
-    return `${renderedSource}(${position},${position})`;
-  }
-  return `${renderedSource}(${renderExpression(start, options)},${renderExpression(start, options)} + ${renderExpression(length, options)} - 1)`;
+  const end = generatedBinary("-", generatedBinary("+", start, length, expression.location), generatedNumber(1, expression.location), expression.location);
+  return `${renderedSource}(${renderExpression(start, options)},${renderExpression(simplifyGeneratedExpression(end), options)})`;
 }
 
 function renderAtariLeft(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
@@ -1498,7 +1538,9 @@ function renderAtariLeft(expression: FunctionCallExpression, options: { readonly
 function renderAtariRight(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [source, length] = expression.args;
   const renderedSource = renderExpression(source, options);
-  return `${renderedSource}(LEN(${renderedSource}) - ${renderExpression(length, options)} + 1,LEN(${renderedSource}))`;
+  const sourceLength: Expression = { kind: "function-call", name: builtinFunctions.len, args: [source], location: expression.location };
+  const start = generatedBinary("+", generatedBinary("-", sourceLength, length, expression.location), generatedNumber(1, expression.location), expression.location);
+  return `${renderedSource}(${renderExpression(simplifyGeneratedExpression(start), { ...options, functionRenderer: renderAtariFunction })},LEN(${renderedSource}))`;
 }
 
 function buildAtariVariableMap(instructions: readonly Instruction[], readability: ReadabilityLevel): ReadonlyMap<string, string> {

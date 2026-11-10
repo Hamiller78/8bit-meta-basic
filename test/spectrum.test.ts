@@ -553,8 +553,13 @@ describe("Spectrum compiler", () => {
 
   it("renders LEFT$ and RIGHT$ as Spectrum string slicing", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "spectrum" })).toBe(
-      ['10 LET A$="HELLO WORLD"', "20 PRINT A$( TO 5);A$(LEN A$ - 5 + 1 TO )", ""].join("\n")
+      ['10 LET A$="HELLO WORLD"', "20 PRINT A$( TO 5);A$(LEN A$ - 4 TO )", ""].join("\n")
     );
+  });
+
+  it("keeps a computed RIGHT$ length grouped in its generated start", () => {
+    const output = compileSource('text$ = "ABCDE"\nprint right$(text$, amount + 1)\n', { filename: "right-length-expression.mbas", target: "spectrum" });
+    expect(output).toContain("A$(LEN A$ - (AMOUNT + 1) + 1 TO )");
   });
 
   it("parenthesizes Spectrum string slices of function-call results", () => {

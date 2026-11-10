@@ -1,5 +1,25 @@
 dim BoundedSliceRows$(3, 3)
 dim SingleCharacterItems$(3, 1)
+dim RepeatedReadRows$(3, 8)
+
+test RepeatedStringArrayReads()
+    local index, result$
+    RepeatedReadRows$(0) = "ABCD"
+    RepeatedReadRows$(1) = "EF"
+    RepeatedReadRows$(2) = ""
+    index = 0
+    result$ = left$(RepeatedReadRows$(index), 2) + right$(RepeatedReadRows$(index), 2)
+    assert_eq "ABCD", result$
+    RepeatedReadRows$(index) = "WXYZ"
+    result$ = left$(RepeatedReadRows$(index), 2) + right$(RepeatedReadRows$(index), 2)
+    assert_eq "WXYZ", result$
+    index = 2
+    result$ = RepeatedReadRows$(index) + RepeatedReadRows$(index)
+    assert_eq "", result$
+    set_rnd(0, 0.75)
+    result$ = RepeatedReadRows$(int(rnd() * 2)) + RepeatedReadRows$(int(rnd() * 2))
+    assert_eq "WXYZEF", result$
+end test
 
 test SingleCharacterSlicesAndArrays()
     local position, text$
@@ -46,6 +66,8 @@ test BoundedArraySlices()
     i = 2
     assert_eq "ABC", BoundedSliceRows$(i - 2)
     assert_eq "GHI", BoundedSliceRows$(i + 0)
+    i = 1
+    assert_eq "HI", right$(BoundedSliceRows$(i + 1), i + 1)
 end test
 
 test StringAssignmentAndConcat()
@@ -55,10 +77,15 @@ test StringAssignmentAndConcat()
 end test
 
 test StringSlices()
+    local extra
     T$ = "ABCDEFG"
     assert_eq "BCD", mid$(T$, 2, 3)
+    assert_eq "BCDEF", mid$(T$, 2, 5)
     assert_eq "ABC", left$(T$, 3)
     assert_eq "EFG", right$(T$, 3)
+    assert_eq "G", right$(T$, 1)
+    extra = 2
+    assert_eq "EFG", right$(T$, extra + 1)
 end test
 
 test StringLengthAndCodes()

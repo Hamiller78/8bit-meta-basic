@@ -224,7 +224,7 @@ describe("Meta-BASIC functions", () => {
       "END FUNCTION"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "inline.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET SCORE=3 * 2", "20 PRINT SCORE", ""].join("\n"));
+    expect(compileSource(source, { filename: "inline.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET SCORE=6", "20 PRINT SCORE", ""].join("\n"));
   });
 
   it("allows INLINE FUNCTION bodies to use locals", () => {
@@ -237,7 +237,7 @@ describe("Meta-BASIC functions", () => {
       "END FUNCTION"
     ].join("\n");
 
-    expect(compileSource(source, { filename: "inline-local.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET MBF1L1=2 + 1", "20 PRINT MBF1L1", ""].join("\n"));
+    expect(compileSource(source, { filename: "inline-local.mbas", target: "spectrum", readability: 0 })).toBe(["10 LET MBF1L1=3", "20 PRINT MBF1L1", ""].join("\n"));
   });
 
   it("rejects inline functions with unsafe control flow or parameter mutation", () => {

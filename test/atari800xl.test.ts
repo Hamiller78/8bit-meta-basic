@@ -288,7 +288,7 @@ describe("Atari 800XL compiler", () => {
 
   it("renders MID$ as Atari string slicing", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint mid$(tickerText$, 2, 5); mid$(tickerText$, 7)\n', { filename: "mid.mbas", target: "atari800xl" })).toBe(
-      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(2,2 + 5 - 1);TICKERTEXT$(7,LEN(TICKERTEXT$))", ""].join("\n")
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(2,6);TICKERTEXT$(7,LEN(TICKERTEXT$))", ""].join("\n")
     );
   });
 
@@ -312,8 +312,13 @@ describe("Atari 800XL compiler", () => {
 
   it("renders LEFT$ and RIGHT$ as Atari substring ranges", () => {
     expect(compileSource('tickerText$ = "HELLO WORLD"\nprint left$(tickerText$, 5); right$(tickerText$, 5)\n', { filename: "sides.mbas", target: "atari800xl" })).toBe(
-      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(1,5);TICKERTEXT$(LEN(TICKERTEXT$) - 5 + 1,LEN(TICKERTEXT$))", ""].join("\n")
+      ['10 DIM TICKERTEXT$(255)', '20 TICKERTEXT$="HELLO WORLD"', "30 PRINT TICKERTEXT$(1,5);TICKERTEXT$(LEN(TICKERTEXT$) - 4,LEN(TICKERTEXT$))", ""].join("\n")
     );
+  });
+
+  it("keeps a computed RIGHT$ length grouped in its generated start", () => {
+    const output = compileSource('text$ = "ABCDE"\nprint right$(text$, count + 1)\n', { filename: "right-length-expression.mbas", target: "atari800xl" });
+    expect(output).toContain("TEXT$(LEN(TEXT$) - (COUNT + 1) + 1,LEN(TEXT$))");
   });
 
   it("uses the same start and end for one-character MID$ slices", () => {
@@ -331,7 +336,7 @@ describe("Atari 800XL compiler", () => {
 
   it("preserves computed string slice sources before Atari substring rendering", () => {
     expect(compileSource("print right$(str$(defcon), 1)\n", { filename: "slice-function-result.mbas", target: "atari800xl" })).toBe(
-      ["10 DIM MBTEMP$(255)", "20 MBTEMP$=STR$(DEFCON)", "30 PRINT MBTEMP$(LEN(MBTEMP$) - 1 + 1,LEN(MBTEMP$))", ""].join("\n")
+      ["10 DIM MBTEMP$(255)", "20 MBTEMP$=STR$(DEFCON)", "30 PRINT MBTEMP$(LEN(MBTEMP$),LEN(MBTEMP$))", ""].join("\n")
     );
   });
 
@@ -443,6 +448,33 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain('MBTEMP$(LEN(MBTEMP$)+1)="!"');
     expect(output).toContain('MBTEMP1$(LEN(MBTEMP1$)+1)="!"');
     expect(output).toContain('MBTEMP2$(LEN(MBTEMP2$)+1)="!"');
+  });
+
+  it("reuses stable repeated packed-string reads within one expression", () => {
+    const source = 'dim rows$(2, 8)\nresult$ = left$(rows$(i), 2) + right$(rows$(i), 2)\n';
+    const output = compileSource(source, { filename: "repeated-string-read.mbas", target: "atari800xl" });
+    expect(output).toContain('MBREAD$=ROWS$(MBRS,MBRS + MBRL - 1)');
+    expect(output).not.toContain('MBREAD1$');
+    expect(output).toContain('MBREAD$(1,2)');
+    expect(output).toContain('MBREAD$(LEN(MBREAD$) - 1,LEN(MBREAD$))');
+    const computed = compileSource('dim rows$(3, 8)\nresult$ = rows$(i + 1) + rows$((i + 1))\n', { filename: "repeated-computed-index.mbas", target: "atari800xl" });
+    expect(computed).not.toContain('MBREAD1$');
+  });
+
+  it("keeps volatile or separately evaluated string-array reads distinct", () => {
+    const volatile = compileSource('dim rows$(2, 8)\nresult$ = rows$(int(rnd() * 2)) + rows$(int(rnd() * 2))\n', { filename: "volatile-string-reads.mbas", target: "atari800xl" });
+    expect(volatile.match(/RND\(0\)/g)).toHaveLength(2);
+    expect(volatile).toContain('MBREAD1$');
+    const different = compileSource('dim rows$(2, 8)\nresult$ = rows$(i) + rows$(j)\n', { filename: "different-string-reads.mbas", target: "atari800xl" });
+    expect(different).toContain('MBREAD1$');
+    const differentArrays = compileSource('dim rows$(2, 8)\ndim other$(2, 8)\nresult$ = rows$(i) + other$(i)\n', { filename: "different-string-arrays.mbas", target: "atari800xl" });
+    expect(differentArrays).toContain('MBREAD1$');
+    const separateItems = compileSource('dim rows$(2, 8)\nprint rows$(i); rows$(i)\n', { filename: "separate-print-items.mbas", target: "atari800xl" });
+    expect(separateItems).toContain('MBREAD1$');
+    const interveningCall = compileSource('dim rows$(2, 8)\nresult$ = rows$(i) + chr$(int(rnd() * 10) + 65) + rows$(i)\n', { filename: "intervening-call.mbas", target: "atari800xl" });
+    expect(interveningCall).toContain('MBREAD1$');
+    const separate = compileSource('dim rows$(2, 8)\nfirst$ = rows$(i)\nrows$(i) = "NEW"\nsecond$ = rows$(i)\n', { filename: "separate-string-reads.mbas", target: "atari800xl" });
+    expect(separate.match(/MBREAD\$=ROWS\$\(MBRS,MBRS \+ MBRL - 1\)/g)).toHaveLength(2);
   });
 
   it("sanitizes generated struct string field names for Atari BASIC", () => {

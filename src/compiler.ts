@@ -15,6 +15,7 @@ import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions, mapInstructionExpressions } from "./targets/instruction-expressions.js";
+import { simplifyGeneratedExpression } from "./targets/expression-simplification.js";
 import { rebuildLabels, renderCheckedLine, validateGeneratedLineLength, type TargetBackend } from "./targets/target.js";
 import { analyzeBasicOutput, type OutputStats } from "./output-stats.js";
 import { DiagnosticError } from "./diagnostics.js";
@@ -167,7 +168,9 @@ function renderProgramWithLineLengthRelief(target: TargetBackend, program: Lower
     const reused = removeRedundantCopies(reuseTemporaryStorage(current, reservedNames));
     const nativeIntegers = isCommodoreBasicV2(target.id) || target.id === "agon";
     const prepared = nativeIntegers ? simplifyNativeIntegerCoercions(reused) : reused;
-    const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(target.lower(prepared, readability), includeSourceComments)), readability));
+    const targetExpanded = target.lower(prepared, readability);
+    const simplified = rebuildLabels(targetExpanded, targetExpanded.instructions.map((instruction) => mapInstructionExpressions(instruction, simplifyGeneratedExpression)));
+    const targetPrepared = removeFallthroughJumps(insertModuleBoundaryComments(compactGeneratedHousekeepingLets(filterSourceComments(simplified, includeSourceComments)), readability));
     setRenderProgram(target.id, targetPrepared.instructions);
     const targetLowered = readability === 0 ? fuseSimpleConditionalBodies(targetPrepared, conditionalInliningBreaks) : targetPrepared;
     const numbered = assignLineNumbers(targetLowered, readability, {

@@ -160,9 +160,11 @@ Shared lowering prefers fall-through control flow. A block without `ELSE` invert
 
 After target lowering and before line numbering, a cleanup pass removes an unconditional jump when its destination is among the immediately following labels. The labels remain available to other branches. The pass runs on each line-length relief attempt so target-generated jumps are covered as well.
 
-Spectrum rendering folds exact constant substring endpoints, uses the starting position directly for a one-character slice, and combines integer offsets with the zero-to-one-based array adjustment.
+After target lowering, a shared bottom-up expression simplifier folds safe integer constants, combines adjacent integer offsets, and removes additive zero and multiplicative one. It retains evaluation of nonconstant operands, including calls; it does not discard an operand multiplied by zero. The pass runs before line numbering on each line-length relief attempt. Backends can also use the same simplifier while building expression trees for arithmetic introduced during rendering.
 
-Atari rendering uses the same start and end for a one-character `MID$` slice and avoids multiplication by one in packed string-array offsets.
+Spectrum rendering uses this helper for its zero-to-one-based array adjustment. Atari uses it when constructing substring endpoints and packed string-array offsets; target-specific string representations and rendering remain in their backends.
+
+Atari materializes packed string-array elements before using them in expressions. Within one stable expression, repeated reads of the same element with the same stable index share a materialized string. Calls outside a conservative pure-function set or indexes that cannot be identified as stable prevent reuse; separate expressions never share the captured value.
 
 Consecutive terminal equality branches over the same value are recognized as a computed dispatch after constants and enum members have been folded. Zero-based enums are shifted to the one-based native dispatch index. Atari BASIC and C64 BASIC V2 render the result as `ON expression GOTO ...`; Spectrum expands it to a straight sequence of `IF expression = n THEN GO TO ...` statements. Equality branches that each make one subroutine or side-effect function call similarly lower to `ON expression GOSUB ...`, with Spectrum receiving an `IF ... THEN GO SUB ...` sequence. Atari rewrites the native index as a compact sum of equality matches with a dedicated no-match entry, using Atari comparison results directly as zero or one. The result is always within the `ON` label range, avoiding Atari error 3 without a separate guard line and without retaining gaps between sparse values such as Atari key codes.
 
