@@ -243,6 +243,8 @@ npm run benchmark:string-arrays:c64 -- --restart
 
 The [benchmark README](../performance-tests/string-arrays/README.md) owns measured
 operations and interpretation. `package.json` also defines `benchmark:byte-arrays:*`.
+The [branch-layout benchmark](../performance-tests/branch-layout/README.md) compares
+early and late control flow in generated listings.
 
 ## Local tool configuration
 
