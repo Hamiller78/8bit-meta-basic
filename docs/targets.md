@@ -183,6 +183,18 @@ by the [toolchain reference](toolchain.md#generated-artifacts).
 | C64/VIC-20 | Printer devices use device 4; RS-232 uses device 2. No shared-drive support. |
 | Agon Light | Device handles become SD-card files. Text output uses `BPUT#` rather than typed binary `PRINT#` records. |
 
+On C64, RS-232 uses the KERNAL directly with two 256-byte buffers at
+`$C000`–`$C1FF` for serial operations. Native BASIC `OPEN` and `CLOSE` on
+device 2 clear variables when they change the BASIC memory boundary; the
+generated sequence preserves BASIC state without consuming BASIC's string/array
+space. While the channel is open, the KERNAL memory-top pointer is temporarily
+reduced by two pages so that closing the channel restores it normally. External
+machine code and cartridges must avoid the serial buffers and must not use the
+KERNAL memory-top pointer to allocate memory while the channel is open. As with
+native C64 RS-232, use only one serial channel at a time. VIC-20 retains its
+native serial mapping; its device-2 `OPEN` can clear
+existing variables and arrays, so open the channel before initializing them.
+
 `DEVICE_AVAILABLE` is best-effort. Atari probes through a trapped `OPEN` where practical; Commodore printers can be probed through the status channel. Commodore serial availability currently reports
 true because probing the connection can disturb it. Working host captures and
 manual device mappings are described in the

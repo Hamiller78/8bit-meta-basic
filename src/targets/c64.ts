@@ -61,9 +61,10 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
     ]);
     const withScreenControls = expandScreenControls(expanded, configuration);
     const withDeviceChecks = expandDeviceAvailabilityChecks(withScreenControls, configuration);
-    const withSafeTestRs232Open = hoistTestRs232Open(withDeviceChecks);
+    const withSafeTestRs232Open = configuration.id === "vic20" ? hoistTestRs232Open(withDeviceChecks) : withDeviceChecks;
     const withRs232Flush = expandRs232CloseFlush(withSafeTestRs232Open);
-    const withKeyboardInput = expandKeyboardInput(withRs232Flush);
+    const withSafeRs232 = configuration.id === "c64" ? preserveC64Rs232State(withRs232Flush) : withRs232Flush;
+    const withKeyboardInput = expandKeyboardInput(withSafeRs232);
     const withCompactNumericOutput = preserveCompoundC64PrintItems(withKeyboardInput);
     const safeDispatchInstructions = withCompactNumericOutput.instructions.flatMap((instruction) =>
       instruction.kind === "on-goto" || instruction.kind === "on-gosub"
@@ -106,13 +107,15 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
           return `${lineNumber} OPEN 15,4,15`;
         }
         if (instruction.device === "rs232") {
-          return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},2,0,CHR$(10)`;
+          return configuration.id === "c64" ? `${lineNumber} SYS 65472` : `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},2,0,CHR$(10)`;
         }
         return `${lineNumber} OPEN ${c64LogicalFileNumber(instruction.handle)},4`;
       case "print-device":
         return `${lineNumber} PRINT#${c64LogicalFileNumber(instruction.handle)},${renderPrintItems(instruction.items, instruction.trailingSemicolon, renderOptions)}`;
       case "close-device":
-        return `${lineNumber} CLOSE ${c64LogicalFileNumber(instruction.handle)}`;
+        return configuration.id === "c64" && c64IsRs232Handle(instruction.handle) ? `${lineNumber} SYS 65475` : `${lineNumber} CLOSE ${c64LogicalFileNumber(instruction.handle)}`;
+      case "check-c64-rs232":
+        return `${lineNumber} IF (PEEK(783) AND 1) AND PEEK(780)<>240 THEN SYS 57593`;
       case "check-device":
         rejectC64SharedDrive(instruction.device, instruction.location);
         return instruction.device === "rs232" || (configuration.id === "vic20" && (instruction.device === "printer" || instruction.device === "text-printer"))
@@ -306,6 +309,76 @@ function hoistTestRs232Open(program: LoweredProgram): LoweredProgram {
   return rebuildLabels(program, instructions);
 }
 
+function preserveC64Rs232State(program: LoweredProgram): LoweredProgram {
+  const serialOpens = program.instructions.filter((instruction): instruction is Extract<Instruction, { kind: "open-device" }> => instruction.kind === "open-device" && instruction.device === "rs232");
+  if (serialOpens.length === 0) return program;
+
+  const handles: string[] = [];
+  for (const instruction of program.instructions) {
+    if (instruction.kind !== "open-device" || instruction.handle === "__mb_probe") continue;
+    const key = instruction.handle.toLowerCase();
+    if (!handles.includes(key)) handles.push(key);
+  }
+  const serialHandles = new Set(serialOpens.map((instruction) => instruction.handle.toLowerCase()));
+  const instructions: Instruction[] = [];
+  const allocateLabel = createInternalLabelAllocator(program);
+
+  for (const instruction of program.instructions) {
+    const location = instruction.location;
+    const number = (value: number): Expression => ({ kind: "number", value, raw: String(value), location });
+    const peek = (address: number): Expression => ({ kind: "function-call", name: "__CBM_PEEK", args: [number(address)], location });
+    const poke = (address: number | Expression, value: Expression): Instruction => ({ kind: "poke", address, value, location });
+    const binary = (operator: "=" | "<>" | "-" | "AND" | "OR", left: Expression, right: Expression): Expression => ({ kind: "binary", operator, left, right, location });
+    const skip = (condition: Expression, label: string): Instruction => ({ kind: "if-goto", condition, label, location });
+    const label = (name: string): Instruction => ({ kind: "label", name, internal: true, location });
+    if (instruction.kind === "open-device" && instruction.device === "rs232") {
+      const logicalFile = handles.indexOf(instruction.handle.toLowerCase()) + 1;
+      const inputChecked = allocateLabel();
+      const outputChecked = allocateLabel();
+      const cleanupSkipped = allocateLabel();
+      const adjustSkipped = allocateLabel();
+      // The KERNAL uses the two pages at $C000 and $C100 instead of changing
+      // BASIC's memory boundary. The first receive byte holds the SETNAM value
+      // until OPEN has read it. SYS bypasses BASIC's automatic CLR on device 2.
+      instructions.push(
+        // Remember whether a previous RUN left these exact buffers allocated.
+        poke(49662, number(0)),
+        skip(binary("OR", binary("<>", peek(247), number(0)), binary("<>", peek(248), number(192))), inputChecked),
+        poke(49662, number(1)), label(inputChecked),
+        skip(binary("AND", binary("=", peek(249), number(0)), binary("=", peek(250), number(193))), outputChecked),
+        poke(49662, number(0)), label(outputChecked),
+        poke(247, number(0)), poke(248, number(192)), poke(249, number(0)), poke(250, number(193)),
+        poke(780, number(logicalFile)), poke(781, number(2)), poke(782, number(0)),
+        { kind: "sys", address: 65466, location }, // SETLFS
+        poke(49152, number(10)),
+        poke(780, number(1)), poke(781, number(0)), poke(782, number(192)),
+        { kind: "sys", address: 65469, location }, // SETNAM
+        instruction,
+        // On a failed first open, undo the pointer setup before raising the
+        // ordinary BASIC error. The SYS result remains in $030C/$030F.
+        skip(binary("<>", peek(49662), number(0)), cleanupSkipped),
+        skip(binary("=", peek(780), number(240)), cleanupSkipped),
+        skip(binary("=", { kind: "function-call", name: "__CBM_BITAND", args: [peek(783), number(1)], location }, number(0)), cleanupSkipped),
+        poke(248, number(0)), poke(250, number(0)), label(cleanupSkipped),
+        { kind: "check-c64-rs232", location },
+        // KERNAL CLOSE reclaims two pages. Lower its memory-top pointer only
+        // on the first open so native CLOSE also restores it after an error or RUN.
+        skip(binary("<>", peek(49662), number(0)), adjustSkipped),
+        poke(644, binary("-", peek(644), number(2))), label(adjustSkipped)
+      );
+    } else if (instruction.kind === "close-device" && serialHandles.has(instruction.handle.toLowerCase())) {
+      instructions.push(
+        poke(780, number(handles.indexOf(instruction.handle.toLowerCase()) + 1)),
+        instruction,
+        { kind: "check-c64-rs232", location }
+      );
+    } else {
+      instructions.push(instruction);
+    }
+  }
+  return rebuildLabels(program, instructions);
+}
+
 let currentProgramInstructions: readonly Instruction[] = [];
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
@@ -339,6 +412,10 @@ function c64LogicalFileNumber(handle: string): number {
     return 15;
   }
   return 1 + deviceHandleIndex(handle);
+}
+
+function c64IsRs232Handle(handle: string): boolean {
+  return currentProgramInstructions.some((instruction) => instruction.kind === "open-device" && instruction.device === "rs232" && instruction.handle.toLowerCase() === handle.toLowerCase());
 }
 
 function deviceHandleIndex(handle: string): number {
@@ -375,11 +452,13 @@ function expandDeviceAvailabilityChecks(program: LoweredProgram, configuration: 
 
 function expandRs232CloseFlush(program: LoweredProgram): LoweredProgram {
   const openDevices = new Map<string, DeviceKind>();
+  for (const instruction of program.instructions) {
+    if (instruction.kind === "open-device") openDevices.set(instruction.handle.toLowerCase(), instruction.device);
+  }
   const instructions: Instruction[] = [];
 
   for (const instruction of program.instructions) {
     if (instruction.kind === "open-device") {
-      openDevices.set(instruction.handle.toLowerCase(), instruction.device);
       instructions.push(instruction);
       continue;
     }

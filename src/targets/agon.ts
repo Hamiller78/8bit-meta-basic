@@ -207,6 +207,7 @@ export const agonTarget: TargetBackend = {
       case "print-chr":
       case "trap":
       case "wait-rs232-transmit":
+      case "check-c64-rs232":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Agon Light.`);
     }

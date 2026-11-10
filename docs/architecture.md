@@ -172,6 +172,12 @@ After target lowering, a shared bottom-up expression simplifier folds safe integ
 
 Spectrum rendering uses this helper for its zero-to-one-based array adjustment. Atari uses it when constructing substring endpoints and packed string-array offsets; target-specific string representations and rendering remain in their backends.
 
+C64 RS-232 device operations use KERNAL `SETLFS`, `SETNAM`, `OPEN`, and `CLOSE`
+with fixed buffers in high RAM. They bypass BASIC's device-2 memory-boundary
+reset, preserve variables and control stacks, and forward genuine KERNAL errors
+to BASIC's error handler. The buffers and native limitations are documented in
+the [target guide](targets.md#device-mappings).
+
 For nonliteral Spectrum string-array assignments, lowering saves the assigned expression once in a reusable scalar string before updating the element and its logical length. This preserves the original value for self-referential assignments and avoids evaluating complex expressions twice, at the cost of temporary string memory.
 
 Atari materializes packed string-array elements before using them in expressions. Within one stable expression, repeated reads of the same element with the same stable index share a materialized string. Calls outside a conservative pure-function set or indexes that cannot be identified as stable prevent reuse; separate expressions never share the captured value. A packed string-array assignment uses a distinct scalar string source directly for both the write and its length; computed sources are captured first.

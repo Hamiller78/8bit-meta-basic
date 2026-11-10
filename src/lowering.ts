@@ -71,6 +71,7 @@ export type Instruction =
   | CheckDeviceInstruction
   | TrapInstruction
   | WaitRs232TransmitInstruction
+  | CheckC64Rs232Instruction
   | DataInstruction
   | ReadInstruction
   | InputInstruction
@@ -115,6 +116,12 @@ export interface LabelInstruction {
   readonly kind: "label";
   readonly name: string;
   readonly internal: boolean;
+  readonly location: SourceLocation;
+}
+
+/** C64 target-only check for a KERNAL RS-232 call. */
+export interface CheckC64Rs232Instruction {
+  readonly kind: "check-c64-rs232";
   readonly location: SourceLocation;
 }
 

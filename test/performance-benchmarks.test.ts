@@ -35,7 +35,7 @@ describe("performance benchmarks", () => {
     const configuration = await loadBuildConfiguration(configPath);
     const output = await build(configuration, { configPath, target: "c64", readability: 0 });
 
-    expect(output).toContain("open 1,2,0,chr$(10)");
+    expect(output).toContain("sys 65472");
     expect(output).toContain('print#1,"BYTE ARRAY PERFORMANCE"');
     expect(output).not.toContain("open 1,4");
   });

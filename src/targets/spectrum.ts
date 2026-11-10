@@ -228,6 +228,7 @@ export const spectrumTarget: TargetBackend = {
       case "read-key":
       case "trap":
       case "wait-rs232-transmit":
+      case "check-c64-rs232":
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Spectrum.`);
     }
@@ -1019,6 +1020,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "close-device":
     case "trap":
     case "wait-rs232-transmit":
+    case "check-c64-rs232":
     case "data":
     case "restore":
     case "dim-array":

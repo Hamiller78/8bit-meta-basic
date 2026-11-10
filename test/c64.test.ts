@@ -113,13 +113,51 @@ describe("C64 compiler", () => {
   });
 
   it("renders RS232 device output through C64 device 2", () => {
-    expect(
-      compileSource('open_device SerialLog, RS232\nprint_device SerialLog; "RESULT: "; score\nclose_device SerialLog\n', {
+    const output = compileSource('score=12\nopen_device SerialLog, RS232\nprint_device SerialLog; "RESULT: "; score\nclose_device SerialLog\n', {
         filename: "rs232.mbas",
         target: "c64",
         readability: 2
-      })
-    ).toBe(['10 OPEN 1,2,0,CHR$(10)', '20 PRINT#1,"RESULT: ";MID$(STR$(SC),1-(SC>=0))', "30 IF (PEEK(673) AND 1) THEN GOTO 30", "40 CLOSE 1", ""].join("\n"));
+      });
+    expect(output.indexOf("SC=12")).toBeLessThan(output.indexOf("POKE 248,192"));
+    expect(output).toContain("POKE 247,0");
+    expect(output).toContain("POKE 248,192");
+    expect(output).toContain("POKE 250,193");
+    expect(output).toContain("SYS 65466");
+    expect(output).toContain("SYS 65469");
+    expect(output).toContain("SYS 65472");
+    expect(output).toContain("IF (PEEK(783) AND 1) AND PEEK(780)<>240 THEN SYS 57593");
+    expect(output).toContain('PRINT#1,"RESULT: ";MID$(STR$(SC),1-(SC>=0))');
+    expect(output.indexOf("IF (PEEK(673) AND 1) THEN GOTO")).toBeLessThan(output.indexOf("SYS 65475"));
+    expect(output).toContain("POKE 644,PEEK(644) - 2");
+    expect(output).toContain("SYS 65475");
+    expect(output).not.toContain("CLR");
+  });
+
+  it("uses distinct logical file numbers when reopening RS232", () => {
+    const output = compileSource('open_device First, RS232\nclose_device First\nopen_device Second, RS232\nclose_device Second\n', {
+      filename: "rs232-reopen.mbas", target: "c64", readability: 2
+    });
+    expect(output.match(/SYS 65472/g)).toHaveLength(2);
+    expect(output.match(/SYS 65475/g)).toHaveLength(2);
+    expect(output).toContain("POKE 780,2");
+    expect(output.match(/POKE 644,PEEK\(644\) - 2/g)).toHaveLength(2);
+    expect(output).not.toContain("CLR");
+  });
+
+  it("keeps a conditional RS232 open inside its branch", () => {
+    const output = compileSource('if flag then\nopen_device SerialLog, RS232\nclose_device SerialLog\nend if\n', {
+      filename: "conditional-rs232.mbas", target: "c64", readability: 2
+    });
+    expect(output.indexOf("IF ")).toBeLessThan(output.indexOf("POKE 248,192"));
+    expect(output.indexOf("POKE 248,192")).toBeLessThan(output.indexOf("SYS 65472"));
+    expect(output).not.toContain("CLR");
+  });
+
+  it("flushes RS232 when a close routine is listed before its open routine", () => {
+    const source = 'function CloseSerial()\nclose_device SerialLog\nend function\nfunction OpenSerial()\nopen_device SerialLog, RS232\nend function\nOpenSerial()\nCloseSerial()\n';
+    const output = compileSource(source, { filename: "serial-order.mbas", target: "c64", readability: 2 });
+    expect(output.indexOf("IF (PEEK(673) AND 1) THEN GOTO")).toBeLessThan(output.indexOf("SYS 65475"));
+    expect(output.indexOf("SYS 65475")).toBeLessThan(output.indexOf("SYS 65472"));
   });
 
   it("lowers C64 printer availability checks through ST", () => {
@@ -163,12 +201,12 @@ describe("C64 compiler", () => {
 
     expect(output).toContain("MB=1");
     expect(output).not.toContain("OPEN 15,4,15");
-    expect(output).toContain("OPEN 1,2,0,CHR$(10)");
-    expect(output.indexOf("OPEN 1,2,0,CHR$(10)")).toBeLessThan(output.search(/\bDIM /));
+    expect(output).toContain("SYS 65472");
+    expect(output).not.toContain("CLR");
     expect(output).toContain("IF (PEEK(673) AND 1) THEN GOTO");
     expect(output).toContain('MB$="RUNNING SMOKE..."');
     expect(output).toContain("PRINT#1,MB$;");
-    expect(output).toContain("CLOSE 1");
+    expect(output).toContain("SYS 65475");
     expect(output).not.toMatch(/MBTJIF|MBTKC|MBTKP|MBTJX|MBTJY|MBTJF/);
   });
 

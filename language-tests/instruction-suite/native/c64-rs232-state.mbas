@@ -1,0 +1,31 @@
+' C64 native test: preserve state across first open, close, reopen, and RETURN.
+dim values(3)
+score = 12
+values(1) = 34
+message$ = "ALPHA"
+data 7, 8
+read firstValue
+gosub SerialCycles
+open_device result, RS232
+if score = 12 and values(1) = 34 and message$ = "ALPHA" and firstValue = 7 and secondValue = 8 then
+    print_device result; "AFTER RETURN PASSED"
+else
+    print_device result; "AFTER RETURN FAILED"
+end if
+close_device result
+end
+
+SerialCycles:
+for iteration = 1 to 2
+    open_device serial, RS232
+    if iteration = 1 then
+        read secondValue
+    end if
+    if score = 12 and values(1) = 34 and message$ = "ALPHA" and firstValue = 7 and secondValue = 8 then
+        print_device serial; "CYCLE PASSED"
+    else
+        print_device serial; "CYCLE FAILED"
+    end if
+    close_device serial
+next iteration
+return

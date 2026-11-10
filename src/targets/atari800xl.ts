@@ -341,6 +341,7 @@ export const atari800xlTarget: TargetBackend = {
       case "trap":
         return instruction.label ? `${lineNumber} TRAP ${resolveLabel(labelLines, instruction.label)}` : `${lineNumber} TRAP 40000`;
       case "wait-rs232-transmit":
+      case "check-c64-rs232":
         throw new Error("Internal error: unexpected wait-rs232-transmit instruction for Atari 800XL.");
     }
   }
@@ -624,6 +625,7 @@ function materializeAtariStringArrayReads(
     case "sys":
     case "trap":
     case "wait-rs232-transmit":
+    case "check-c64-rs232":
       return { prefix, instruction };
   }
 }
@@ -1682,6 +1684,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "close-device":
     case "trap":
     case "wait-rs232-transmit":
+    case "check-c64-rs232":
     case "data":
     case "restore":
     case "randomize":

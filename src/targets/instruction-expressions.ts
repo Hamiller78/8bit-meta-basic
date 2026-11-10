@@ -45,6 +45,7 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
     case "check-device":
     case "trap":
     case "wait-rs232-transmit":
+    case "check-c64-rs232":
     case "open-device":
     case "open-data-file":
     case "close-data-file":

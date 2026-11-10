@@ -29,7 +29,8 @@ This page records external material used to understand target dialects, file for
 ## Commodore 64
 
 - VICE `petcat`: add a direct link to the documentation for the exact VICE release used locally.
-- Commodore BASIC V2 and KERNAL references: add the primary manual or programmer's reference used to validate generated commands and ROM entry points.
+- Commodore, *Commodore 64 Programmer's Reference Guide*, chapter 6: [RS-232 interface](https://www.devili.iki.fi/Computers/Commodore/C64/Programmers_Reference/Chapter_6/page_349.html) and [BASIC `OPEN` note](https://www.devili.iki.fi/Computers/Commodore/C64/Programmers_Reference/Chapter_6/page_352.html). Documents the serial buffers and BASIC variable reset.
+- [Commodore 64 BASIC and KERNAL ROM disassembly](https://www.pagetable.com/c64ref/c64disasm/). Used to inspect device-2 buffer allocation, open/close status, and BASIC error handling; the generated behavior is verified separately in VICE.
 
 ## Agon Light
 
