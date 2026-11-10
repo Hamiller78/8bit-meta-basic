@@ -588,6 +588,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const globalsStatements = statements.filter((statement): statement is Extract<Statement, { kind: "globals" }> => statement.kind === "globals");
   const mainLayout = partitionTopLevelStatementsForInitialization(mainStatements);
   const multiModule = (program.sourceFiles?.length ?? 0) > 1;
+  const hotModules = new Set(statements.filter((statement) => statement.kind === "hot-module").map((statement) => statement.location.filename));
   let functionsEmitted = false;
 
   if (options.testMode) {
@@ -608,6 +609,8 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     lowerStatements([...mainLayout.declarations, ...mainLayout.initializers, ...mainLayout.body], instructions, generator, context);
   } else {
     const moduleOrder = orderedModuleFiles(program, statements);
+    const layoutOrder = [...moduleOrder.filter((filename) => hotModules.has(filename)), ...moduleOrder.filter((filename) => !hotModules.has(filename))];
+    const layoutChanged = layoutOrder.some((filename, index) => filename !== moduleOrder[index]);
     const entryFilename = moduleOrder[0];
     const runtimeByModule = new Map<string, Instruction[]>();
     const initializationByModule = new Map<string, Instruction[]>();
@@ -648,26 +651,38 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     const runtimeLabels = new Map<string, string>();
     const runtimeRoutes = new Map<string, string>();
     let endLabel: string | undefined;
-    for (const [runtimeIndex, current] of runtimeModuleIndexes.entries()) {
-      const next = runtimeModuleIndexes[runtimeIndex + 1];
-      const sectionEnd = next?.index ?? moduleOrder.length;
-      const mustSkipPrivateSections = moduleOrder.slice(current.index, sectionEnd).some((filename) =>
-        initializationByModule.has(filename) || functionStatements.some((statement) => statement.location.filename === filename)
-      );
-      if (!mustSkipPrivateSections) {
-        continue;
+    if (layoutChanged) {
+      for (const { filename } of runtimeModuleIndexes) runtimeLabels.set(filename, generator());
+      endLabel = generator();
+      for (const [index, current] of runtimeModuleIndexes.entries()) {
+        const next = runtimeModuleIndexes[index + 1];
+        runtimeRoutes.set(current.filename, next ? runtimeLabels.get(next.filename)! : endLabel);
       }
-      if (next) {
-        const label = runtimeLabels.get(next.filename) ?? generator();
-        runtimeLabels.set(next.filename, label);
-        runtimeRoutes.set(current.filename, label);
-      } else {
-        endLabel ??= generator();
-        runtimeRoutes.set(current.filename, endLabel);
+      if (layoutOrder[0] !== entryFilename) {
+        instructions.push({ kind: "goto", label: runtimeLabels.get(entryFilename)!, location: entryLocation });
+      }
+    } else {
+      for (const [runtimeIndex, current] of runtimeModuleIndexes.entries()) {
+        const next = runtimeModuleIndexes[runtimeIndex + 1];
+        const sectionEnd = next?.index ?? moduleOrder.length;
+        const mustSkipPrivateSections = moduleOrder.slice(current.index, sectionEnd).some((filename) =>
+          initializationByModule.has(filename) || functionStatements.some((statement) => statement.location.filename === filename)
+        );
+        if (!mustSkipPrivateSections) {
+          continue;
+        }
+        if (next) {
+          const label = runtimeLabels.get(next.filename) ?? generator();
+          runtimeLabels.set(next.filename, label);
+          runtimeRoutes.set(current.filename, label);
+        } else {
+          endLabel ??= generator();
+          runtimeRoutes.set(current.filename, endLabel);
+        }
       }
     }
 
-    for (const filename of moduleOrder) {
+    for (const filename of layoutOrder) {
       const runtimeLabel = runtimeLabels.get(filename);
       if (runtimeLabel) {
         instructions.push({ kind: "label", name: runtimeLabel, internal: true, location: runtimeByModule.get(filename)?.[0]?.location ?? entryLocation });
@@ -724,7 +739,10 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
     if (!options.testMode) {
       instructions.push({ kind: "goto", label: endLabel, location: functionStatements[0].location });
     }
-    for (const statement of functionStatements) {
+    const orderedFunctions = hotModules.size > 0 && options.testMode
+      ? [...functionStatements.filter((statement) => hotModules.has(statement.location.filename)), ...functionStatements.filter((statement) => !hotModules.has(statement.location.filename))]
+      : functionStatements;
+    for (const statement of orderedFunctions) {
       lowerFunctionStatement(statement, instructions, generator, context, options.testMode === true, options.testScreenOutput === true);
     }
     if (!options.testMode) {
@@ -847,7 +865,7 @@ function isTopLevelInitializer(statement: Statement): boolean {
 }
 
 function isTopLevelCompileTimeDeclaration(statement: Statement): boolean {
-  return statement.kind === "comment" || statement.kind === "const" || statement.kind === "enum" || statement.kind === "struct" || statement.kind === "local";
+  return statement.kind === "comment" || statement.kind === "hot-module" || statement.kind === "const" || statement.kind === "enum" || statement.kind === "struct" || statement.kind === "local";
 }
 
 function splitSourceComment(text: string): readonly string[] {
@@ -956,6 +974,7 @@ function lowerStatements(
         }
         break;
       case "const":
+      case "hot-module":
       case "local":
       case "enum":
       case "function":
@@ -1952,6 +1971,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "comment":
       return statement;
     case "uses":
+    case "hot-module":
       return statement;
     case "label":
     case "open-device":

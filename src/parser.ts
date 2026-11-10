@@ -7,6 +7,7 @@ type StatementParser = (parser: Parser, location: SourceLocation) => Statement |
 
 const statementParsers = new Map<string, StatementParser>([
   ["USES", (parser, location) => parser.parseUses(location)],
+  ["HOT_MODULE", (parser, location) => parser.parseHotModule(location)],
   ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseScreenBackgroundColor(location)],
@@ -112,6 +113,11 @@ class Parser {
     this.advance();
     this.expectLineEnd();
     return { kind: "uses", path: path.value, location };
+  }
+
+  parseHotModule(location: SourceLocation): Statement {
+    this.expectLineEnd();
+    return { kind: "hot-module", location };
   }
 
   parseConst(location: SourceLocation): Statement {

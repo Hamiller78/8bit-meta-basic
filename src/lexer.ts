@@ -35,6 +35,7 @@ export const keywords = new Set([
   "GLOBALS",
   "GOSUB",
   "GOTO",
+  "HOT_MODULE",
   "IF",
   "INLINE",
   "INPUT",

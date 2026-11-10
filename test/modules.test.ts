@@ -4,6 +4,8 @@ import { compileProgram, compileSource } from "../src/compiler.js";
 import { parseSource } from "../src/parser.js";
 import { validateModuleAccess } from "../src/module-semantics.js";
 import { targetEnvironments } from "../src/targets/environment.js";
+import { analyzeProgram } from "../src/semantic.js";
+import { lowerProgram } from "../src/lowering.js";
 import type { Program } from "../src/ast.js";
 
 function program(files: Record<string, string>): Program {
@@ -16,6 +18,82 @@ function program(files: Record<string, string>): Program {
 function validate(files: Record<string, string>): void {
   validateModuleAccess(program(files), targetEnvironments.c64);
 }
+
+describe("HOT_MODULE layout hint", () => {
+  it("parses a case-insensitive standalone directive", () => {
+    expect(parseSource("hot_module\n", "main.mbas").statements[0]).toMatchObject({ kind: "hot-module" });
+    expect(() => parseSource("hot_module 1\n", "main.mbas")).toThrow();
+  });
+
+  it("rejects duplicate and nested hints", () => {
+    expect(() => validate({ "main.mbas": "hot_module\nhot_module\n" })).toThrow(/only once per module/);
+    expect(() => validate({ "main.mbas": "if true then\nhot_module\nend if\n" })).toThrow(/only allowed at module level/);
+    expect(() => validate({ "main.mbas": "function F()\nhot_module\nend function\n" })).toThrow(/only allowed at module level/);
+  });
+
+  it("leaves a single-module program unchanged", () => {
+    const options = { filename: "main.mbas", target: "c64" as const, readability: 0 as const };
+    expect(compileSource('hot_module\nprint "HELLO"\n', options)).toBe(compileSource('print "HELLO"\n', options));
+  });
+
+  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("orders hot modules before cold modules on %s", (target) => {
+    const ast = program({
+      "main.mbas": 'print "ENTRY"\n',
+      "cold.mbas": 'print "COLD RUN"\nfunction Cold()\nprint "COLD FN"\nend function\n',
+      "hot.mbas": 'hot_module\nprint "HOT RUN"\nfunction Hot()\nprint "HOT FN"\nend function\n',
+      "hot2.mbas": 'hot_module\nfunction Hot2()\nprint "HOT TWO"\nend function\n'
+    });
+    const output = compileProgram(ast, { filename: "main.mbas", target, readability: 0 });
+    expect(output.indexOf('"HOT RUN"')).toBeLessThan(output.indexOf('"ENTRY"'));
+    expect(output.indexOf('"HOT FN"')).toBeLessThan(output.indexOf('"HOT TWO"'));
+    expect(output.indexOf('"HOT TWO"')).toBeLessThan(output.indexOf('"COLD FN"'));
+    expect(output).toMatch(/(?:GO TO|GOTO) \d+/);
+    expect(output).not.toContain("HOT_MODULE");
+  });
+
+  it("preserves initialization, entry and executable module order when the entry is moved", () => {
+    const ast = program({
+      "main.mbas": 'print "ENTRY"\ndata "A"\n',
+      "cold-init.mbas": 'trace=1\n',
+      "cold-run.mbas": 'print "COLD"\ndata "B"\n',
+      "hot-init.mbas": 'uses "cold-init.mbas"\nhot_module\ntrace=trace*10+2\n',
+      "hot-run.mbas": 'hot_module\nprint "HOT"\n'
+    });
+    const lowered = lowerProgram(analyzeProgram(ast, targetEnvironments.c64));
+    const instructions = lowered.instructions;
+    const destination = (label: string): number => {
+      const index = instructions.findIndex((instruction) => instruction.kind === "label" && instruction.name === label);
+      expect(index).toBeGreaterThanOrEqual(0);
+      return index;
+    };
+    const first = instructions[0];
+    const second = instructions[1];
+    const entry = instructions[2];
+    expect(first.kind).toBe("gosub");
+    expect(second.kind).toBe("gosub");
+    expect(entry.kind).toBe("goto");
+    if (first.kind !== "gosub" || second.kind !== "gosub" || entry.kind !== "goto") throw new Error("Missing startup routes");
+    expect(instructions[destination(first.label) + 1].location.filename).toContain("cold-init.mbas");
+    expect(instructions[destination(second.label) + 1].location.filename).toContain("hot-init.mbas");
+    expect(instructions[destination(entry.label) + 1].location.filename).toContain("main.mbas");
+    const runtimePrints = instructions.flatMap((instruction, index) => instruction.kind === "print" ? [{ instruction, index }] : []);
+    const byModule = (name: string) => runtimePrints.find(({ instruction }) => instruction.location.filename.endsWith(name))!;
+    const cold = byModule("cold-run.mbas");
+    const main = byModule("main.mbas");
+    const hot = byModule("hot-run.mbas");
+    expect(hot.index).toBeLessThan(main.index);
+    expect(main.index).toBeLessThan(cold.index);
+    const afterMain = instructions[main.index + 1];
+    const afterCold = instructions[cold.index + 1];
+    expect(afterMain.kind).toBe("goto");
+    expect(afterCold.kind).toBe("goto");
+    if (afterMain.kind !== "goto" || afterCold.kind !== "goto") throw new Error("Missing runtime routes");
+    expect(destination(afterMain.label)).toBe(cold.index - 1);
+    expect(destination(afterCold.label)).toBe(hot.index - 1);
+    const data = instructions.filter((instruction) => instruction.kind === "data");
+    expect(data.map((instruction) => instruction.location.filename.split(/[\\/]/).pop())).toEqual(["main.mbas", "cold-run.mbas"]);
+  });
+});
 
 describe("USES module dependencies", () => {
   it("parses a case-insensitive declaration and preserves its location", () => {

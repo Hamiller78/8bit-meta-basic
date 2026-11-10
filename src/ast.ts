@@ -14,6 +14,7 @@ export interface Program {
 
 export type Statement =
   | UsesStatement
+  | HotModuleStatement
   | CommentStatement
   | ConstStatement
   | DimStatement
@@ -66,6 +67,11 @@ export type Statement =
 export interface UsesStatement {
   readonly kind: "uses";
   readonly path: string;
+  readonly location: SourceLocation;
+}
+
+export interface HotModuleStatement {
+  readonly kind: "hot-module";
   readonly location: SourceLocation;
 }
 

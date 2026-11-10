@@ -43,6 +43,14 @@ export function validateModuleAccess(program: Program, environment: TargetEnviro
     modules.set(key, new Map());
   }
   const entries = collectEntries(program.statements);
+  const hotModules = new Set<string>();
+  for (const { statement, nested } of entries) {
+    if (statement.kind !== "hot-module") continue;
+    if (nested) throw new DiagnosticError(statement.location, "HOT_MODULE is only allowed at module level.");
+    const source = moduleKey(statement.location.filename);
+    if (hotModules.has(source)) throw new DiagnosticError(statement.location, "HOT_MODULE can appear only once per module.");
+    hotModules.add(source);
+  }
   for (const { statement, nested } of entries) {
     if (statement.kind !== "uses") continue;
     if (nested) throw new DiagnosticError(statement.location, "USES is only allowed at module level.");

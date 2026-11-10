@@ -1,6 +1,8 @@
 uses "dungeon.mbas"
 uses "characters.mbas"
 
+hot_module
+
 program_mode
 screen_border_color BLACK
 screen_background_color BLACK

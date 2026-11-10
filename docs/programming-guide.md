@@ -479,3 +479,17 @@ Keep runtime strings within the portable 255-character limit. `PRINT` uses semic
 For normal application work, consult this guide, the language reference, and the examples before relying on generated output or compiler implementation details. If accepted compiler behavior is missing from the reference, treat that as a documentation gap and update the reference with the code change.
 
 The compiler's portable language conformance tests live separately in [`language-tests/instruction-suite`](../language-tests/instruction-suite). They are regression tests for language and target behavior rather than programming examples.
+
+## Performance-sensitive module layout
+
+For targets where branches search from the beginning of the BASIC listing,
+`HOT_MODULE` can move a module containing frequently executed code earlier:
+
+```basic
+hot_module
+```
+
+The hint does not change startup or execution order. See the
+[language reference](language-reference.md#declaration-and-initialization-order)
+for its scope and the [branch-layout benchmark](../performance-tests/branch-layout/README.md)
+for measurements.

@@ -4,6 +4,7 @@
   "files": [
     "source/main.mbas",
     "source/dungeon.mbas",
+    "source/dungeon-movement.mbas",
     "source/characters.mbas",
     "source/combat.mbas"
   ],

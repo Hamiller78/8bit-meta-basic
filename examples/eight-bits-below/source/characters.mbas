@@ -1,5 +1,8 @@
 uses "dungeon.mbas"
+uses "dungeon-movement.mbas"
 uses "combat.mbas"
+
+hot_module
 
 const numMonsters = numRooms
 const attackLogRow = dungeonHeight + 1

@@ -93,6 +93,17 @@ Tests normally use paths such as `uses "../source/math.mbas"`; source modules sh
 
 ### Declaration and initialization order
 
+`HOT_MODULE` is an optional, standalone module-level directive that asks the
+compiler to place that module's generated code before unmarked modules. It can
+appear once per module, including the entry module. Mark modules containing code
+that runs frequently; moving one module earlier can move another later. Marked
+modules retain their configured relative order, as do unmarked modules. With no
+directive, the existing physical layout is unchanged. The directive does not
+change dependency checking, entry point, initialization order, executable
+statement order, constant resolution, or `DATA` order. It is a layout hint, not
+a guarantee of a particular speedup. In test mode it orders function bodies;
+the test runner and test execution order remain unchanged.
+
 Top-level enum members, struct types, and `DIM` storage are available across the selected compilation unit before executable statements are checked, subject to direct `USES` access. They can be declared in a later configured module. Constant declarations still evaluate in source/build order and can reference only earlier constants. Storage setup and module-global initialization run before entry-module code. Module order is defined by the selected build input; see the [toolchain reference](toolchain.md#program-inputs-and-project-configuration).
 
 ## Constants

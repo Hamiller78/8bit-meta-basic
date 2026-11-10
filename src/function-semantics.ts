@@ -653,6 +653,7 @@ export function statementExpressions(statement: Statement): readonly Expression[
       return [statement.condition];
     case "label":
     case "uses":
+    case "hot-module":
     case "comment":
     case "goto":
     case "gosub":

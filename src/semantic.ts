@@ -148,6 +148,9 @@ function analyzeStatements(
     switch (statement.kind) {
       case "uses":
         break;
+      case "hot-module":
+        analyzed.push(statement);
+        break;
       case "comment":
         analyzed.push(statement);
         break;

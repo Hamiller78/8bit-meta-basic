@@ -101,6 +101,14 @@ All `DATA` statements are collected in source order into a final data section.
 This separates execution of initialization from the physical listing order;
 modules are not independently compiled or linked.
 
+`HOT_MODULE` requests a stable partition of the physical module sections: marked
+modules precede unmarked modules, with configured order preserved within each
+group. Startup initialization calls and executable module flow retain configured
+order; explicit branches bridge any reordered sections, including an initial
+branch when the entry module moves. `DATA` remains in source order. Programs
+without a layout change retain the existing lowering. In test mode the hint only
+orders function bodies, leaving test execution and fixture setup unchanged.
+
 ## Test Mode
 
 Test-runner lowering is an alternate startup path selected by the compiler's test

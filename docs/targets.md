@@ -22,6 +22,10 @@ output, not additional Meta-BASIC source syntax.
 | Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
 | Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
 
+`HOT_MODULE` influences physical layout on all targets; its performance effect
+depends on the native interpreter and the program's branch and call patterns. See
+the [branch-layout measurements](../performance-tests/branch-layout/README.md).
+
 ## Environment constants
 
 `TEXT_ROWS`, `TEXT_COLUMNS`, and `JIFFIES_PER_SECOND` have the per-target values

@@ -2,6 +2,11 @@ uses "../source/functions.mbas"
 
 CopyOptimizationInput = 0
 
+test HotModuleFunctionCalls()
+    assert_eq 11, NestedBonus(4)
+    assert_eq 7, AddValues(3, 4)
+end test
+
 inline function InlineBranchResult(flag)
     local answer%
     if flag then
