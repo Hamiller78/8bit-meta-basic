@@ -42,6 +42,8 @@ Read the relevant repository skill before starting the workflow:
   instruction suite for language conformance, with host regression coverage.
 - [Run MetaBASIC emulator tests](skills/run-metabasic-tests/SKILL.md): build runners,
   launch configured computers, receive fresh captures, and verify results.
+- [Run MetaBASIC benchmarks](skills/run-metabasic-benchmarks/SKILL.md): measure
+  generated-code performance and compare compiler versions on target emulators.
 
 Keep procedures in these skills and specifications in their owning documents.
 Link to them rather than maintaining duplicate instructions here.
