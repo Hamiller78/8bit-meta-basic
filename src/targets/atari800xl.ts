@@ -456,14 +456,19 @@ function expandAtariStringArrayAssignment(
     return instructions;
   }
 
-  instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
-  instructions.push({ ...instruction, indices: [index], expression: { kind: "identifier", name: stringTempName, location: instruction.location } });
+  const source = instruction.expression.kind === "identifier" && instruction.expression.name.toLowerCase() !== instruction.name.toLowerCase()
+    ? instruction.expression
+    : { kind: "identifier", name: stringTempName, location: instruction.location } satisfies Expression;
+  if (source !== instruction.expression) {
+    instructions.push({ kind: "let", name: stringTempName, expression: instruction.expression, location: instruction.location });
+  }
+  instructions.push({ ...instruction, indices: [index], expression: source });
   const length = logicalLengthAccess(definition, index);
   instructions.push({
     kind: "array-let",
     name: definition.lengthArrayName,
     indices: [index],
-    expression: { kind: "function-call", name: builtinFunctions.len, args: [{ kind: "identifier", name: stringTempName, location: instruction.location }], location: instruction.location },
+    expression: { kind: "function-call", name: builtinFunctions.len, args: [source], location: instruction.location },
     location: instruction.location
   });
   const doneLabel = allocateInternalLabel();

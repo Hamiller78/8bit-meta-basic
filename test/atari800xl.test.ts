@@ -434,6 +434,24 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("PRINT MBREAD$;MBREAD1$");
   });
 
+  it("uses a scalar string directly when assigning a packed string-array element", () => {
+    const output = compileSource('dim rows$(2, 8)\nsource$="VALUE "\nrows$(i + 1)=source$\n', {
+      filename: "string-array-scalar-source.mbas", target: "atari800xl"
+    });
+    expect(output).toContain('MBARRAYINDEX=I + 1');
+    expect(output).toContain(')=SOURCE$');
+    expect(output).toContain('=LEN(SOURCE$)');
+    expect(output).not.toContain('MBARRAY$=SOURCE$');
+  });
+
+  it("still snapshots computed packed string-array values", () => {
+    const output = compileSource('dim rows$(2, 8)\nrows$(i)=chr$(int(rnd() * 2) + 65) + "!"\n', {
+      filename: "string-array-computed-source.mbas", target: "atari800xl"
+    });
+    expect(output.match(/RND\(0\)/g)).toHaveLength(1);
+    expect(output).toContain('=LEN(MBARRAY$)');
+  });
+
   it("preserves logical string-array lengths in concatenation", () => {
     const output = compileSource('dim names$(3, 8)\nnames$(0)="Pablo"\nnames$(1)="Pablo "\nnames$(2)=""\nprint len(names$(0)); names$(0)+"!"\nprint len(names$(1)); names$(1)+"!"\nprint len(names$(2)); names$(2)+"!"\n', {
       filename: "logical-string-lengths.mbas",

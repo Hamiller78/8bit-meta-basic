@@ -108,6 +108,11 @@ test StringArrayAssignmentSnapshot()
     assert_eq 5, len(SnapshotRows$(index))
     SnapshotRows$(index) = mid$(SnapshotRows$(index), 2)
     assert_eq "B CD", SnapshotRows$(index)
+    input$ = "XYZ "
+    SnapshotRows$(index + 1) = input$
+    assert_eq "XYZ ", SnapshotRows$(1)
+    assert_eq 4, len(SnapshotRows$(1))
+    assert_eq "XYZ ", input$
     if TEXT_COLUMNS = 32 then
         input$ = "123456789"
         SnapshotRows$(index) = input$
