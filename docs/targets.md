@@ -137,6 +137,23 @@ When a C64 numeric `PRINT` or `PRINT_DEVICE` item follows a string item on the s
 VIC-20 shares the Commodore numeric formatting path. Other targets retain their
 native BASIC numeric spelling and spacing.
 
+## Sound
+
+`BEEP` uses native `BEEP` on Spectrum. Other targets calculate a hardware pitch
+setting from the portable semitone value, precomputing constant pitches: C64 uses
+SID voice 1, VIC-20 uses its middle tone generator, Atari uses POKEY voice 1, and
+Agon uses BBC BASIC `SOUND` channel 1. C64 and VIC-20 pitch conversion uses PAL
+clock values. The generated code waits using the target's jiffy clock and stops
+the voice before continuing. C64 and VIC-20 `BEEP` timing uses the native `TI`
+clock's 60 ticks per second; the existing portable `JIFFIES_PER_SECOND` constant
+is 50 for these targets. Agon divides long tones into finite `SOUND` segments and
+waits for the final segment to finish. Spectrum's native beeper disables
+interrupts, so its `FRAMES`-based `JIFFIES()` does not advance during the tone.
+The VIC-20 volume update preserves the register's
+upper colour bits. Hardware pitch resolution and interpreter overhead affect the
+actual pitch and timing. See the [language reference](language-reference.md#sound)
+for the portable range and sound-hardware ownership.
+
 ## Runtime function mappings
 
 `CODE`/`ASC` render as native `CODE` on Spectrum and `ASC` on Atari, Commodore,

@@ -33,6 +33,7 @@ export type Statement =
   | PrintStatement
   | SetPositionStatement
   | SetColumnStatement
+  | BeepStatement
   | DataStatement
   | ReadStatement
   | InputStatement
@@ -131,6 +132,13 @@ export interface TextBinding {
 export interface ClsStatement {
   readonly kind: "cls";
   readonly color?: Expression;
+  readonly location: SourceLocation;
+}
+
+export interface BeepStatement {
+  readonly kind: "beep";
+  readonly duration: Expression;
+  readonly pitch: Expression;
   readonly location: SourceLocation;
 }
 
@@ -461,6 +469,7 @@ export type AssertKind =
   | "assert-ne"
   | "assert-print"
   | "assert-printat"
+  | "assert-beep"
   | "assert-screen-border-color"
   | "assert-screen-background-color"
   | "assert-screen-text-color"

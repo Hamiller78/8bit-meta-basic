@@ -680,6 +680,22 @@ function analyzeStatements(
           condition: foldExpression(statement.condition, constants, inConstantExpression, arrays, functions, scope, structValues)
         });
         break;
+      case "beep": {
+        const duration = requireNumericExpression(foldExpression(statement.duration, constants, inConstantExpression, arrays, functions, scope, structValues), "BEEP duration");
+        const pitch = requireNumericExpression(foldExpression(statement.pitch, constants, inConstantExpression, arrays, functions, scope, structValues), "BEEP pitch");
+        if (duration.kind === "number" && duration.value < 0) throw new DiagnosticError(duration.location, "BEEP duration must be non-negative.");
+        if (pitch.kind === "number" && (pitch.value < -12 || pitch.value > 24)) throw new DiagnosticError(pitch.location, "BEEP pitch must be between -12 and 24 semitones.");
+        analyzed.push({ ...statement, duration, pitch });
+        break;
+      }
+      case "assert-beep": {
+        if (!testMode || scope?.kind !== "test") throw new DiagnosticError(statement.location, "ASSERT_BEEP can only be used inside a TEST when testMode is enabled.");
+        if (!statement.expected) throw new DiagnosticError(statement.location, "ASSERT_BEEP requires duration and pitch.");
+        const expected = requireNumericExpression(foldExpression(statement.expected, constants, inConstantExpression, arrays, functions, scope, structValues), "ASSERT_BEEP duration");
+        const actual = requireNumericExpression(foldExpression(statement.actual, constants, inConstantExpression, arrays, functions, scope, structValues), "ASSERT_BEEP pitch");
+        analyzed.push({ ...statement, expected, actual });
+        break;
+      }
       case "randomize": {
         if (!statement.seed) {
           analyzed.push(statement);

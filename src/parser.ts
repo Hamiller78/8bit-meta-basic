@@ -9,6 +9,8 @@ const statementParsers = new Map<string, StatementParser>([
   ["USES", (parser, location) => parser.parseUses(location)],
   ["HOT_MODULE", (parser, location) => parser.parseHotModule(location)],
   ["BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
+  ["BEEP", (parser, location) => parser.parseBeep(location)],
+  ["ASSERT_BEEP", (parser, location) => parser.parseAssertBeep(location)],
   ["SCREEN_BORDER_COLOR", (parser, location) => parser.parseBorderColor(location)],
   ["SCREEN_BACKGROUND_COLOR", (parser, location) => parser.parseScreenBackgroundColor(location)],
   ["SCREEN_TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
@@ -281,6 +283,22 @@ class Parser {
     const column = this.parseExpressionUntilLine();
     this.expectLineEnd();
     return { kind: "set-position", row, column, location };
+  }
+
+  parseBeep(location: SourceLocation): Statement {
+    const duration = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "BEEP requires duration, pitch.");
+    const pitch = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "beep", duration, pitch, location };
+  }
+
+  parseAssertBeep(location: SourceLocation): Statement {
+    const expected = this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd());
+    this.expectPunctuation(",", "ASSERT_BEEP requires duration, pitch.");
+    const actual = this.parseExpressionUntilLine();
+    this.expectLineEnd();
+    return { kind: "assert-beep", expected, actual, location };
   }
 
   parseSetColumn(location: SourceLocation): Statement {

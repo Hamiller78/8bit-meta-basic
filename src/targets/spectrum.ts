@@ -149,6 +149,8 @@ export const spectrumTarget: TargetBackend = {
         return `${lineNumber} INVERSE ${instruction.enabled ? 1 : 0}`;
       case "set-column":
         return `${lineNumber} PRINT AT 24-PEEK 23689,${renderExpression(instruction.column, renderOptions)};`;
+      case "beep":
+        return `${lineNumber} BEEP ${renderExpression(instruction.duration, renderOptions)},${renderExpression(instruction.pitch, renderOptions)}`;
       case "set-position":
         throw new Error("Internal error: unexpected set-position instruction for Spectrum.");
       case "open-device":
@@ -1007,6 +1009,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "print":
     case "set-position":
     case "set-column":
+    case "beep":
     case "open-device":
     case "open-data-file":
     case "close-data-file":

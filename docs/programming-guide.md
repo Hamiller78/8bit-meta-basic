@@ -333,6 +333,11 @@ Keep the same resource keys in each selected language. The [layout and resource 
 
 ## Input, time, and random numbers
 
+For a blocking sound cue, `beep 0.25, NOTE_C4` requests a quarter-second middle
+C. Named notes and the portable range are described in the
+[sound reference](language-reference.md#sound). In test mode, use
+`assert_beep 0.25, NOTE_C4` to check the request without playing it.
+
 Use `INPUT` when the program should stop and let the user enter a complete numeric or string value:
 
 ```basic
@@ -472,6 +477,7 @@ Keep runtime strings within the portable 255-character limit. `PRINT` uses semic
 | Struct-array file I/O | [`examples/computer-records`](../examples/computer-records) |
 | File deletion | [`examples/file-delete.mbas`](../examples/file-delete.mbas) |
 | Joystick input | [`examples/joystick.mbas`](../examples/joystick.mbas) |
+| Sound listening demo | [`examples/beep-demo.mbas`](../examples/beep-demo.mbas) |
 | Data streams | [`examples/data-demo.mbas`](../examples/data-demo.mbas) |
 | Multi-file program | [`examples/multifile`](../examples/multifile) |
 | Localization and a larger project | [`examples/san-golpe`](../examples/san-golpe) |

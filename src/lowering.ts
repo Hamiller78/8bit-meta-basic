@@ -65,6 +65,7 @@ export type Instruction =
   | InverseTextInstruction
   | SetPositionInstruction
   | SetColumnInstruction
+  | BeepInstruction
   | OpenDeviceInstruction
   | PrintDeviceInstruction
   | CloseDeviceInstruction
@@ -116,6 +117,13 @@ export interface LabelInstruction {
   readonly kind: "label";
   readonly name: string;
   readonly internal: boolean;
+  readonly location: SourceLocation;
+}
+
+export interface BeepInstruction {
+  readonly kind: "beep";
+  readonly duration: Expression;
+  readonly pitch: Expression;
   readonly location: SourceLocation;
 }
 
@@ -574,10 +582,20 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const functions = collectFunctionImplementations(statements);
   const inlineFunctions = collectInlineFunctionImplementations(statements);
   const testRandom = options.testMode ? createTestRandomRuntime(statements, generator) : undefined;
+  const reservedBeepNames = new Set(options.reservedNames ?? []);
+  const allocateBeepName = (stem: string): string => {
+    let candidate = stem;
+    let suffix = 1;
+    while (reservedBeepNames.has(candidate.toLowerCase())) candidate = `${stem}${suffix++}`;
+    reservedBeepNames.add(candidate.toLowerCase());
+    return candidate;
+  };
+  const beepState = { duration: allocateBeepName("MBBDUR"), pitch: allocateBeepName("MBBPIT"), present: allocateBeepName("MBBSET") };
   const context: FunctionCallLoweringContext = {
     functions,
     inlineFunctions,
     nextTempId: 1,
+    beepState,
     reservedNames: options.reservedNames,
     ...(options.testMode ? { transformExpandedExpression: replaceTestRuntimeFunctionCalls } : {}),
     ...(testRandom ? {
@@ -601,15 +619,16 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   if (options.testMode) {
     const globalResetInstructions: Instruction[] = [];
     instructions.push(...(testRandom?.initialization ?? []));
-    lowerStatements([...mainLayout.declarations, ...mainLayout.initializers], instructions, generator, context);
+    lowerStatements([...mainLayout.declarations, ...mainLayout.initializers], instructions, generator, context, undefined, { suppressBeep: true });
     for (const statement of globalsStatements) {
-      lowerStatements(statement.body, globalResetInstructions, generator, context);
+      lowerStatements(statement.body, globalResetInstructions, generator, context, undefined, { suppressBeep: true });
     }
     lowerTestRunner(testStatements, instructions, generator, {
       printerOutput: options.testPrinterOutput === true,
       outputDevice: options.testOutputDevice ?? "printer",
       uppercaseNames: options.testRunnerUppercaseNames === true,
       globalResetInstructions,
+      beepState,
       runtimeResetInstructions: testRandom?.reset
     });
   } else if (!multiModule) {
@@ -897,6 +916,7 @@ function splitSourceComment(text: string): readonly string[] {
 
 interface LowerStatementOptions {
   readonly testMode?: boolean;
+  readonly suppressBeep?: boolean;
   readonly currentTestName?: string;
   readonly capturePrints?: boolean;
   readonly emitTestScreenOutput?: boolean;
@@ -1155,6 +1175,52 @@ function lowerStatements(
           location: statement.location
         });
         break;
+      case "beep": {
+        const duration = lowerExpression(statement.duration, instructions, context, options);
+        let savedDuration = duration;
+        if (duration.kind !== "number") {
+          const durationName = nextTempName(context, "");
+          instructions.push({ kind: "let", name: durationName, expression: duration, location: statement.location });
+          savedDuration = identifierExpression(durationName, statement.location);
+        }
+        const pitch = lowerExpression(statement.pitch, instructions, context, options);
+        if (options.testMode || options.suppressBeep) {
+          const state = context.beepState!;
+          instructions.push({ kind: "let", name: state.duration, expression: savedDuration, location: statement.location });
+          instructions.push({ kind: "let", name: state.pitch, expression: pitch, location: statement.location });
+          instructions.push({ kind: "let", name: state.present, expression: numberExpression(1, statement.location), location: statement.location });
+        } else {
+          if (savedDuration.kind === "number" && savedDuration.value > 0) {
+            instructions.push({ kind: "beep", duration: savedDuration, pitch, location: statement.location });
+          } else {
+            let savedPitch = pitch;
+            if (pitch.kind !== "number") {
+              const pitchName = nextTempName(context, "");
+              instructions.push({ kind: "let", name: pitchName, expression: pitch, location: statement.location });
+              savedPitch = identifierExpression(pitchName, statement.location);
+            }
+            if (savedDuration.kind !== "number") {
+              const done = nextInternalLabel();
+              instructions.push({ kind: "if-goto", condition: binaryExpression("<=", savedDuration, numberExpression(0, statement.location), statement.location), label: done, location: statement.location });
+              instructions.push({ kind: "beep", duration: savedDuration, pitch: savedPitch, location: statement.location });
+              instructions.push({ kind: "label", name: done, internal: true, location: statement.location });
+            }
+          }
+        }
+        break;
+      }
+      case "assert-beep": {
+        if (!statement.expected) throw new DiagnosticError(statement.location, "Internal error: ASSERT_BEEP missing duration.");
+        const duration = lowerExpression(statement.expected, instructions, context, options);
+        const durationName = nextTempName(context, "");
+        instructions.push({ kind: "let", name: durationName, expression: duration, location: statement.location });
+        const pitch = lowerExpression(statement.actual, instructions, context, options);
+        const loc = statement.location;
+        const state = context.beepState!;
+        const condition = binaryExpression("AND", identifierExpression(state.present, loc), binaryExpression("AND", binaryExpression("=", identifierExpression(durationName, loc), identifierExpression(state.duration, loc), loc), binaryExpression("=", pitch, identifierExpression(state.pitch, loc), loc), loc), loc);
+        lowerAssertBoolean(condition, true, options.currentTestName, instructions, nextInternalLabel, context, loc);
+        break;
+      }
       case "open-device":
         if (!options.capturePrints) {
           instructions.push({ kind: "open-device", handle: statement.handle, device: statement.device, location: statement.location });
@@ -1903,6 +1969,8 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
       };
     case "set-column":
       return { ...statement, column: substituteInlineExpression(statement.column, parameters) };
+    case "beep":
+      return { ...statement, duration: substituteInlineExpression(statement.duration, parameters), pitch: substituteInlineExpression(statement.pitch, parameters) };
     case "set-position":
       return {
         ...statement,
@@ -2003,6 +2071,7 @@ function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap
     case "assert-ne":
     case "assert-print":
     case "assert-printat":
+    case "assert-beep":
     case "assert-screen-border-color":
     case "assert-screen-background-color":
     case "assert-screen-text-color":

@@ -1,0 +1,23 @@
+' First ten notes of the Rule Britannia chorus, in D major.
+' Rule, Britannia! Britannia, rule the waves.
+print "RULE BRITANNIA - BEEP DEMO"
+beep 0.6, NOTE_FS5
+Rest()
+beep 0.3, NOTE_FS5
+beep 0.3, NOTE_G5
+beep 0.3, NOTE_G5
+Rest()
+beep 0.3, NOTE_FS5
+beep 0.45, NOTE_G5
+beep 0.15, NOTE_FS5
+beep 0.45, NOTE_E5
+beep 0.15, NOTE_D5
+beep 1.2, NOTE_CS5
+print "DONE"
+
+function Rest()
+    local StartTime
+    StartTime = jiffies()
+    while jiffies() - StartTime < JIFFIES_PER_SECOND * 0.3
+    wend
+end function

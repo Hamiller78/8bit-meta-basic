@@ -15,6 +15,7 @@ import { lowerByteStorage } from "./byte-storage.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { c64ColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, markInvertedPrintRuns, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerSequentialFileIo } from "./file-io.js";
+import { lowerTargetBeeps } from "./beep.js";
 
 export type CommodoreBasicV2Machine = "c64" | "vic20";
 
@@ -41,7 +42,7 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
   maxLineNumber: 63999,
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
-    const fileIo = expandC64FileExistenceChecks(lowerSequentialFileIo(program));
+    const fileIo = expandC64FileExistenceChecks(lowerSequentialFileIo(lowerTargetBeeps(program, configuration.id)));
     const vicScreenSafe = configuration.id === "vic20" ? expandVic20ScreenReads(fileIo) : fileIo;
     const joystickSafe = configuration.id === "vic20" ? expandVic20JoystickReads(vicScreenSafe) : vicScreenSafe;
     const byteLowered = lowerByteStorage(markInvertedPrintRuns(joystickSafe), "c64");
@@ -78,6 +79,8 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
     const renderOptions = { variableMap, functionRenderer, arrayRenderer: renderC64ArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
+      case "beep":
+        throw new DiagnosticError(instruction.location, "BEEP is not yet supported for this target.");
       case "label":
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":

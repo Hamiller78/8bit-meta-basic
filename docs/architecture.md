@@ -59,6 +59,7 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, and Agon Light.
+- `src/targets/beep.ts` expands non-Spectrum beeps into sound-register operations and blocking clock waits; constant pitches are converted during compilation.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.
 - `src/compiler.ts` coordinates final rendering and may retry with generated temporaries when complex generated code would exceed a target line-length limit.

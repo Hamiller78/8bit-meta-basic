@@ -197,6 +197,12 @@ function buildEnvironment(
     constants.set(color.toLowerCase(), { kind: "color", color });
   }
 
+  const notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"];
+  for (let pitch = -12; pitch <= 24; pitch += 1) {
+    const octave = 4 + Math.floor(pitch / 12);
+    constants.set(`note_${notes[((pitch % 12) + 12) % 12]}${octave}`, pitch);
+  }
+
   for (const [name, value] of Object.entries(keyCodes)) {
     constants.set(name.toLowerCase(), value);
   }

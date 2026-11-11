@@ -308,7 +308,7 @@ function visitStatements(statements: readonly Statement[], visit: (statement: St
 
 function expressionsInStatement(statement: Statement): readonly Expression[] {
   switch (statement.kind) {
-    case "assert-true": case "assert-false": case "assert-eq": case "assert-ne": case "assert-print": case "assert-printat":
+    case "assert-true": case "assert-false": case "assert-eq": case "assert-ne": case "assert-print": case "assert-printat": case "assert-beep":
     case "assert-screen-border-color": case "assert-screen-background-color": case "assert-screen-text-color":
     case "assert-cell-text-color": case "assert-cell-background-color":
       return [statement.actual, ...(statement.expected ? [statement.expected] : []), ...(statement.row ? [statement.row] : []), ...(statement.column ? [statement.column] : [])];

@@ -23,6 +23,7 @@ import {
 import { atariColorCodes, expandPositionedPrints, expandSetColumns, expandSetPositions, rebuildLabels, renderExpression, renderInlineInstructionBodies, renderPrintItems, type TargetBackend } from "./target.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { lowerSequentialFileIo } from "./file-io.js";
+import { lowerTargetBeeps } from "./beep.js";
 
 export const atari800xlTarget: TargetBackend = {
   id: "atari800xl",
@@ -31,7 +32,7 @@ export const atari800xlTarget: TargetBackend = {
   maxLineNumber: 32767,
   variableMap: buildAtariVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
-    const fileIo = lowerAtariFileArrayReads(lowerSequentialFileIo(program));
+    const fileIo = lowerAtariFileArrayReads(lowerSequentialFileIo(lowerTargetBeeps(program, "atari800xl")));
     const byteLowered = lowerByteStorage(fileIo, "atari800xl");
     const positions = expandSetPositions(byteLowered, "Atari 800XL", 23, 39, (instruction) => [
       { kind: "position", row: instruction.row, column: instruction.column, location: instruction.location }
@@ -229,6 +230,8 @@ export const atari800xlTarget: TargetBackend = {
     const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
+      case "beep":
+        throw new DiagnosticError(instruction.location, "BEEP is not yet supported for this target.");
       case "label":
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":
@@ -526,6 +529,8 @@ function materializeAtariStringArrayReads(
     );
 
   switch (instruction.kind) {
+    case "beep":
+      return { prefix, instruction: { ...instruction, duration: rewrite(instruction.duration), pitch: rewrite(instruction.pitch) } };
     case "print":
       return {
         prefix,
@@ -1636,6 +1641,8 @@ function buildCompactAtariVariableMap(instructions: readonly Instruction[]): Rea
 
 function instructionVariableNames(instruction: Instruction): readonly string[] {
   switch (instruction.kind) {
+    case "beep":
+      return [];
     case "let":
     case "array-let":
     case "dim-array":

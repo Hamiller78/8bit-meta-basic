@@ -7,6 +7,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [...instruction.items, ...(instruction.at ? [instruction.at.row, instruction.at.column] : [])];
     case "set-column":
       return [instruction.column];
+    case "beep":
+      return [instruction.duration, instruction.pitch];
     case "set-position":
       return [instruction.row, instruction.column];
     case "print-device":
@@ -98,6 +100,8 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
       };
     case "set-column":
       return { ...instruction, column: map(instruction.column) };
+    case "beep":
+      return { ...instruction, duration: map(instruction.duration), pitch: map(instruction.pitch) };
     case "set-position":
       return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "print-device":

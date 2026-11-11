@@ -46,6 +46,7 @@ const runnerPrintLineLabel = "__mb_runner_print_line";
 const runnerPrintInlineLabel = "__mb_runner_print_inline";
 
 export interface TestRunnerLowerOptions {
+  readonly beepState?: { readonly duration: string; readonly pitch: string; readonly present: string };
   readonly printerOutput?: boolean;
   readonly outputDevice?: DeviceKind;
   readonly uppercaseNames?: boolean;
@@ -84,6 +85,7 @@ export function lowerTestRunner(
     const passedLabel = nextInternalLabel();
     const afterLabel = nextInternalLabel();
     instructions.push(...testRuntimeResetLets(test.location));
+    if (assertionHelpers.assertBeep) instructions.push({ kind: "let", name: options.beepState?.present ?? "MBBSET", expression: numberExpression(0, test.location), location: test.location });
     instructions.push(...cloneInstructions(options.runtimeResetInstructions ?? []));
     instructions.push(...testCaptureResetLets(test));
     instructions.push(...cloneInstructions(options.globalResetInstructions ?? []));
@@ -486,6 +488,7 @@ interface AssertedCaptureState {
 }
 
 interface AssertionHelperRequirements {
+  assertBeep: boolean;
   assertTrue: boolean;
   assertFalse: boolean;
   assertEqNumber: boolean;
@@ -507,6 +510,10 @@ function collectStatementAssertionHelperRequirements(statements: readonly Statem
   for (const statement of statements) {
     switch (statement.kind) {
       case "assert-true":
+        requirements.assertTrue = true;
+        break;
+      case "assert-beep":
+        requirements.assertBeep = true;
         requirements.assertTrue = true;
         break;
       case "assert-false":
@@ -561,6 +568,7 @@ function collectStatementAssertionHelperRequirements(statements: readonly Statem
 
 function emptyAssertionHelperRequirements(): AssertionHelperRequirements {
   return {
+    assertBeep: false,
     assertTrue: false,
     assertFalse: false,
     assertEqNumber: false,

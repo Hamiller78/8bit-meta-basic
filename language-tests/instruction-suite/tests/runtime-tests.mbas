@@ -13,6 +13,28 @@ test JoystickFakes()
     assert_eq 0, get_joystick(JOY_FIRE1)
 end test
 
+test BeepCapture()
+    beep 0.25, NOTE_C4
+    assert_beep 0.25, NOTE_C4
+    PlayTestBeep()
+    assert_beep 0.5, NOTE_G4
+end test
+
+test BeepCapturePreservesUserNames()
+    MBBDUR = 42
+    MBBPIT = 43
+    MBBSET = 44
+    beep 0.25, NOTE_C4
+    assert_beep 0.25, NOTE_C4
+    assert_eq 42, MBBDUR
+    assert_eq 43, MBBPIT
+    assert_eq 44, MBBSET
+end test
+
+function PlayTestBeep()
+    beep 0.5, NOTE_G4
+end function
+
 test JoystickFakesReset()
     assert_eq 0, get_joystick(JOY_X)
     assert_eq 0, get_joystick(JOY_Y)

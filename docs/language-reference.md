@@ -48,6 +48,7 @@ Meta-BASIC is case-insensitive for keywords and symbol lookup. Identifiers may c
 | Program termination | `end` |
 | Keyboard input | `input variable [, variable ...]` |
 | Output | `print`, `print items`, `print_at row, column, items`, `print_invert items`, `print_invert_at row, column, items` |
+| Sound | `beep duration, pitch` |
 | Cursor | `set_pos row, column`, `set_column column` |
 | Compile-time layout | `print_wrap text`, `print_centered text`, `print_text "key"` |
 | Data stream | `data values`, `read variables`, `restore` |
@@ -464,6 +465,33 @@ Inline functions are intentionally limited to predictable expansion. They cannot
 
 ## Output
 
+### Sound
+
+`BEEP duration, pitch` plays one blocking tone. Duration is in seconds; pitch is
+the number of semitones above middle C, with negative and fractional values
+allowed. The portable pitch range is -12 through 24. Duration must be
+non-negative. Out-of-range constants are rejected; programs must keep dynamic
+values within these ranges. A zero duration produces no audible tone.
+The duration and pitch expressions are evaluated once, in that order, even when
+the duration is zero.
+
+The portable note constants use scientific octave numbers: `NOTE_C4` is middle C,
+`NOTE_A4` is concert A, and `NOTE_C5` is the next C. Sharps use `S`, for example
+`NOTE_FS4`. Constants cover the chromatic notes from `NOTE_C3` through `NOTE_C6`.
+Adding 12 transposes an octave. Pitch, volume, timbre, and timing are approximate
+and depend on the target hardware. `BEEP` owns the machine's sound hardware;
+programs using it must not depend on other sound output remaining active.
+
+```basic
+beep 0.25, NOTE_C4
+beep 0.5, NOTE_G4
+```
+
+Test mode captures a beep instead of sounding or waiting for it. See
+[Assertions](#assertions) for checking the last captured tone.
+
+### Text output
+
 `PRINT` accepts semicolon-separated expressions. A trailing semicolon suppresses the newline:
 
 ```basic
@@ -680,6 +708,7 @@ assert_eq expected, actual
 assert_ne expected, actual
 assert_print expectedText$
 assert_printat row, column, expectedText$
+assert_beep duration, pitch
 assert_screen_border_color colour
 assert_screen_background_color colour
 assert_screen_text_color colour
@@ -695,6 +724,11 @@ Runner progress and summaries can be mirrored to an external device. This mirror
 For portable text assertions, prefer strings. Numeric formatting follows target BASIC conventions; see [numeric output formatting](targets.md#numeric-output-formatting).
 
 `ASSERT_PRINTAT row, column, text$` compares against the most recent logical `PRINT_AT` output captured in test mode. It checks the portable 1-based row, column, and semicolon-concatenated text. It does not inspect emulator screen memory; use `testScreenOutput` together with `SCREEN_CODE` when the actual rendered screen is what matters.
+
+`ASSERT_BEEP duration, pitch` compares both values with the most recent `BEEP`
+captured during the current test, including calls from functions. It fails if no
+beep has been captured since the test began. This checks the requested values,
+not the resulting sound. Capture remains silent even with `testScreenOutput`.
 
 Colour assertions compare the latest portable colour command state captured in test mode. `CLS colour` counts as setting the screen background colour. Colour assertion values use portable colour names such as `BLUE` and `WHITE`, not target-specific numeric colour codes.
 

@@ -374,6 +374,7 @@ function formatNames(names: readonly string[]): string {
 const ignoredIdentifiers = new Set([
   "AND",
   "AT",
+  "BEEP",
   "BORDER",
   "BPUT",
   "CHR",
@@ -410,6 +411,7 @@ const ignoredIdentifiers = new Set([
   "RESTORE",
   "RETURN",
   "SETCOLOR",
+  "SOUND",
   "STEP",
   "ST",
   "STOP",
@@ -456,6 +458,9 @@ const variableNamePattern = /\b[A-Z][A-Z0-9_]*(?:[%$])?(?![A-Z0-9_])/gi;
 
 const testRuntimeVariables = new Set([
   ...testJoystickNames,
+  "MBBDUR",
+  "MBBPIT",
+  "MBBSET",
   "MBTOUT$",
   "MBTPOUT$",
   "MBTPROW",

@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { analyzeBasicOutput, formatOutputStats } from "../src/output-stats.js";
 
 describe("BASIC output statistics", () => {
+  it("does not count native sound commands as variables", () => {
+    expect(analyzeBasicOutput(["10 BEEP 1,0"], "spectrum").numericVariables).toEqual([]);
+    expect(analyzeBasicOutput(["10 SOUND 1,-15,53,-1"], "agon").numericVariables).toEqual([]);
+  });
   it("does not count Spectrum INVERSE as a variable", () => {
     const stats = analyzeBasicOutput(['10 INVERSE 1', '20 PRINT "SELECTED"', '30 INVERSE 0'], "spectrum");
 

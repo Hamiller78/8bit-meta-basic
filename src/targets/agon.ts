@@ -25,6 +25,7 @@ import {
   type TargetBackend
 } from "./target.js";
 import { lowerSequentialFileIo } from "./file-io.js";
+import { lowerTargetBeeps } from "./beep.js";
 
 /** BBC BASIC ADL 1.03: the BBC BASIC 3/4-compatible Z80 interpreter converted to 24-bit ADL mode. */
 export const agonTarget: TargetBackend = {
@@ -35,7 +36,7 @@ export const agonTarget: TargetBackend = {
   variableMap: buildAgonVariableMap,
   lower(program: LoweredProgram, _readability: ReadabilityLevel): LoweredProgram {
     const firstLocation = program.instructions[0]?.location ?? { filename: "<generated>", line: 1 };
-    const groupedInverse = groupInvertedPrints(lowerSequentialFileIo(program));
+    const groupedInverse = groupInvertedPrints(lowerSequentialFileIo(lowerTargetBeeps(program, "agon")));
     const withMode = rebuildLabels(groupedInverse, [
       { kind: "graphics-mode", mode: 3, location: firstLocation },
       ...groupedInverse.instructions
@@ -96,6 +97,10 @@ export const agonTarget: TargetBackend = {
     const variableMap = buildAgonVariableMap(currentProgramInstructions, readability);
     const renderOptions = { variableMap, functionRenderer: renderAgonFunction, arrayRenderer: renderAgonArrayAccess, nativeComparisonTruth: true };
     switch (instruction.kind) {
+      case "beep":
+        return instruction.duration.kind === "number" && instruction.duration.value === 0
+          ? `${lineNumber} SOUND 1,0,0,0`
+          : `${lineNumber} SOUND 1,-15,${renderExpression(instruction.pitch, renderOptions)},${renderExpression(instruction.duration, renderOptions)}`;
       case "label":
         return `${lineNumber} REM ${instruction.name.toUpperCase()}:`;
       case "rem":

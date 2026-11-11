@@ -6,6 +6,7 @@ import type { Instruction } from "./lowering.js";
 import { normalizeName } from "./symbols.js";
 
 export interface FunctionCallLoweringContext {
+  readonly beepState?: { readonly duration: string; readonly pitch: string; readonly present: string };
   readonly functions: ReadonlyMap<string, FunctionImplementation>;
   readonly inlineFunctions?: ReadonlyMap<string, InlineFunctionImplementation>;
   readonly expandInlineFunctionCall?: (

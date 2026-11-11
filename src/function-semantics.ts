@@ -621,6 +621,8 @@ export function statementExpressions(statement: Statement): readonly Expression[
       ];
     case "set-column":
       return [statement.column];
+    case "beep":
+      return [statement.duration, statement.pitch];
     case "set-position":
       return [statement.row, statement.column];
     case "print-device":
@@ -679,6 +681,7 @@ export function statementExpressions(statement: Statement): readonly Expression[
     case "assert-ne":
     case "assert-print":
     case "assert-printat":
+    case "assert-beep":
     case "assert-screen-border-color":
     case "assert-screen-background-color":
     case "assert-screen-text-color":
