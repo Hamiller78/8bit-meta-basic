@@ -10,6 +10,11 @@ Implemented so far:
 - Turns compiler errors in `file:line:column: message` format into VS Code Problems diagnostics.
 - Includes the compiled MetaBASIC compiler and helper scripts when packaged as a `.vsix`.
 
+After installing or updating a VSIX, run **Developer: Reload Window** in VS Code
+to activate its language grammar and bundled tools. Highlighting covers the
+language's keywords, built-in functions, constants, comments, strings, and numeric
+literals. Completion suggestions and hover documentation are not implemented yet.
+
 Current commands:
 
 - `MetaBASIC: Build Project`
