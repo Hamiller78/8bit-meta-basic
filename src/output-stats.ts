@@ -104,7 +104,7 @@ export function analyzeBasicOutput(
     stringVariables: sorted(stringVariables),
     numericArrays: sorted(numericArrays),
     stringArrays: sorted(stringArrays),
-    variableRoles: classifyVariableRoles(allVariables),
+    variableRoles: classifyVariableRoles(allVariables, target),
     estimatedCodeBytes,
     modules: analyzeModules(lines, lineSourceFiles, sourceFiles),
   };
@@ -207,7 +207,7 @@ function formatModuleStats(modules: readonly ModuleOutputStats[], totalBytes: nu
   ];
 }
 
-function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
+function classifyVariableRoles(names: ReadonlySet<string>, target?: string): VariableRoleStats {
   const roles = {
     userVisible: new Set<string>(),
     functionParameters: new Set<string>(),
@@ -220,7 +220,7 @@ function classifyVariableRoles(names: ReadonlySet<string>): VariableRoleStats {
   };
 
   for (const name of names) {
-    const base = baseName(name);
+    const base = baseName(target === "cpc" ? name.replace(/^V\./u, "") : name);
     if (/^MBF\d+P\d+$/i.test(base)) {
       roles.functionParameters.add(name);
     } else if (/^MBF\d+L\d+$/i.test(base)) {
@@ -268,7 +268,7 @@ function collectVariables(
     return;
   }
 
-  for (const match of code.matchAll(variableNamePattern)) {
+  for (const match of code.matchAll(target === "cpc" ? cpcVariableNamePattern : variableNamePattern)) {
     const name = match[0].toUpperCase();
     if (ignoredIdentifiers.has(name) || ignoredCallNames.has(baseName(name))) {
       continue;
@@ -294,7 +294,7 @@ function collectDimmedVariables(
     return;
   }
 
-  for (const match of dimMatch[1].matchAll(variableNamePattern)) {
+  for (const match of dimMatch[1].matchAll(target === "cpc" ? cpcVariableNamePattern : variableNamePattern)) {
     const name = match[0].toUpperCase();
     if (target === "atari800xl" && name.endsWith("$")) {
       stringVariables.add(name);
@@ -455,6 +455,7 @@ const ignoredCallNames = new Set([
 ]);
 
 const variableNamePattern = /\b[A-Z][A-Z0-9_]*(?:[%$])?(?![A-Z0-9_])/gi;
+const cpcVariableNamePattern = /\bV\.[A-Z0-9.]+(?:[%$])?/gi;
 
 const testRuntimeVariables = new Set([
   ...testJoystickNames,

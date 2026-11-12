@@ -59,9 +59,17 @@
     },
     "agon": {
       "tools": []
+    },
+    "cpc": {
+      "tools": []
     }
   },
   "targetConfigurations": {
+    "cpc": {
+      "compilerTarget": "cpc",
+      "computer": { "model": "Amstrad CPC 6128", "ramKib": 128, "basic": "Locomotive BASIC 1.1" },
+      "emulator": { "type": "caprice32", "name": "Caprice32", "path": "", "testOutputDevice": "text-printer" }
+    },
     "spectrum48": {
       "compilerTarget": "spectrum",
       "computer": {

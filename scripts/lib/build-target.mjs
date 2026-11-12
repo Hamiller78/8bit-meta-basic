@@ -6,8 +6,9 @@ import { deviceKindUsage, parseDeviceKind } from "../device-options.mjs";
 import { toolOutputReportsFailure } from "../tool-output.mjs";
 import { compilerTargetConfiguration } from "../target-configurations.mjs";
 import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
+import { createCpcDataDisk, writeCpcDiskImage } from "./cpc-disk.mjs";
 
-export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
+export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon", "cpc"];
 export const profiles = {
   debug: 2,
   balanced: 1,
@@ -22,7 +23,8 @@ const defaultTestOutputDevices = {
   atari800xl: "shared-drive",
   c64: "rs232",
   vic20: "text-printer",
-  agon: "shared-drive"
+  agon: "shared-drive",
+  cpc: "text-printer"
 };
 
 export async function buildProject({ cwd = process.cwd() } = {}) {
@@ -117,6 +119,13 @@ export async function buildTarget(options) {
     await writeFile(tokenizedPath, tokenizeAgonBasic(sourceText));
     artifacts.agonTokenized = tokenizedPath;
     console.log(`created ${relativeToCwd(cwd, tokenizedPath)}`);
+  }
+
+  if (target === "cpc") {
+    const diskPath = outputPathFor(cwd, outDir, profile, target, program.name, ".dsk");
+    await writeCpcDiskImage(diskPath, createCpcDataDisk("MAIN.BAS", await readFile(basicPath, "utf8")));
+    artifacts.cpcDisk = diskPath;
+    console.log(`created ${relativeToCwd(cwd, diskPath)}`);
   }
 
   if (runTools) {
@@ -665,7 +674,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|agon> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|vic20|agon|cpc> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;

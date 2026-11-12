@@ -115,11 +115,20 @@ const agonKeyCodes = {
   KEY_F8: 136
 } as const;
 
+const cpcKeyCodes = {
+  KEY_NONE: 0, KEY_UP: 240, KEY_DOWN: 241, KEY_LEFT: 242, KEY_RIGHT: 243,
+  GAME_UP: 240, GAME_DOWN: 241, GAME_LEFT: 242, GAME_RIGHT: 243,
+  GAME_FIRE: 32, KEY_SPACE: 32, KEY_ENTER: 13, KEY_ESCAPE: 27,
+  KEY_F1: 49, KEY_F2: 50, KEY_F3: 51, KEY_F4: 52,
+  KEY_F5: 53, KEY_F6: 54, KEY_F7: 55, KEY_F8: 56
+} as const;
+
 const letterKeyCodes = {
   spectrum: alphabetCodes(97),
   c64: alphabetCodes(65),
   vic20: alphabetCodes(65),
   agon: alphabetCodes(65),
+  cpc: alphabetCodes(65),
   atari800xl: {
     A: 63,
     B: 21,
@@ -155,6 +164,7 @@ const digitKeyCodes = {
   c64: digitCodes(48),
   vic20: digitCodes(48),
   agon: digitCodes(48),
+  cpc: digitCodes(48),
   atari800xl: {
     "0": 50,
     "1": 31,
@@ -174,7 +184,8 @@ export const targetEnvironments: Readonly<Record<TargetId, TargetEnvironment>> =
   atari800xl: buildEnvironment("atari800xl", 24, 40, 50, atariKeyCodes),
   c64: buildEnvironment("c64", 25, 40, 50, c64KeyCodes),
   vic20: buildEnvironment("vic20", 23, 22, 50, c64KeyCodes),
-  agon: buildEnvironment("agon", 30, 80, 100, agonKeyCodes)
+  agon: buildEnvironment("agon", 30, 80, 100, agonKeyCodes),
+  cpc: buildEnvironment("cpc", 25, 40, 300, cpcKeyCodes)
 };
 
 function buildEnvironment(

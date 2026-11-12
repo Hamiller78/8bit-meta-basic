@@ -13,6 +13,7 @@ import { setCommodoreRenderProgram } from "./targets/c64.js";
 import { setAtariDataDriveSpec, setAtariRenderProgram, setAtariSharedDriveSpec } from "./targets/atari800xl.js";
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
+import { setCpcRenderProgram } from "./targets/cpc.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions, mapInstructionExpressions } from "./targets/instruction-expressions.js";
 import { simplifyGeneratedExpression } from "./targets/expression-simplification.js";
@@ -394,6 +395,8 @@ function setRenderProgram(target: TargetId, instructions: readonly Instruction[]
     setAtariRenderProgram(instructions);
   } else if (isCommodoreBasicV2(target)) {
     setCommodoreRenderProgram(instructions);
+  } else if (target === "cpc") {
+    setCpcRenderProgram(instructions);
   } else {
     setAgonRenderProgram(instructions);
   }
@@ -726,6 +729,8 @@ function targetDisplayName(target: TargetId): string {
       return "VIC-20";
     case "agon":
       return "Agon Light";
+    case "cpc":
+      return "Amstrad CPC";
   }
 }
 

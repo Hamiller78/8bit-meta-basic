@@ -53,7 +53,7 @@ export function lowerSequentialFileIo(program: LoweredProgram, storage: FileStor
     instruction.arrays.forEach((array, fieldIndex) => {
       output.push(...lowerArray(array, writing, serial, fieldIndex, instruction.location));
     });
-    output.push({ kind: "close-data-file", location: instruction.location });
+    output.push({ kind: "close-data-file", mode: writing ? "write" : "read", location: instruction.location });
   }
   return rebuildLabels(program, output);
 }

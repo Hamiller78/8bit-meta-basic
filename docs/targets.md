@@ -9,18 +9,18 @@ output, not additional Meta-BASIC source syntax.
 
 ## Overview
 
-| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | VIC-20 | Agon Light |
-| --- | --- | --- | --- | --- | --- |
-| `TEXT_ROWS` × `TEXT_COLUMNS` | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) |
-| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 50 | 100 |
-| Maximum line number | 9999 | 32767 | 63999 | 63999 | 65279 |
-| Practical generated-line limit | 640 | 120 | 80 | 80 | 251 |
-| Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` | `X=1` |
-| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` |
-| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` |
-| Jump | `GO TO` | `GOTO` | `GOTO` | `GOTO` | `GOTO` |
-| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` |
-| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` |
+| Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | VIC-20 | Agon Light | Amstrad CPC |
+| --- | --- | --- | --- | --- | --- | --- |
+| `TEXT_ROWS` × `TEXT_COLUMNS` | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) | 25 × 40 (mode 1) |
+| `JIFFIES_PER_SECOND` | 50 | 50 | 50 | 50 | 100 | 300 |
+| Maximum line number | 9999 | 32767 | 63999 | 63999 | 65279 | 65535 |
+| Practical generated-line limit | 640 | 120 | 80 | 80 | 251 | 255 |
+| Assignment | `LET X=1` | `X=1` | `X=1` | `X=1` | `X=1` | `V.X=1` |
+| `dim values(3)` | `DIM V(3)`, indexes shift to `1..3` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM VALUES(2)`, indexes stay `0..2` | `DIM V.VALUES(2)`, indexes stay `0..2` |
+| `dim messages$(3,12)` | `DIM M$(3,12)`, indexes shift to `1..3` | one backing `DIM MESSAGES$(36)` string | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` | `DIM MESSAGES$(2)` | `DIM V.MESSAGES$(2)` |
+| Jump | `GO TO` | `GOTO` | `GOTO` | `GOTO` | `GOTO` | `GOTO` |
+| Positioned output | Native `PRINT AT` | `POSITION` + `PRINT #6` | POKE/ROM-call macro + `PRINT` | POKE/ROM-call macro + `PRINT` | Native `PRINT TAB(column,row)` | `LOCATE column,row` + `PRINT` |
+| Column-only cursor move | Current row + native `PRINT AT` | Column POKE | Column POKE | Column POKE | `PRINT TAB(column,VPOS)` | `LOCATE column,VPOS(#0)` |
 
 `HOT_MODULE` influences physical layout on all targets; its performance effect
 depends on the native interpreter and the program's branch and call patterns. See
@@ -88,7 +88,9 @@ Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atar
 
 Unsupported target keys resolve to `-1`; key constants are native codes, not an
 ASCII guarantee. `GAME_UP/DOWN/LEFT/RIGHT` map to Q/A/O/P on Spectrum and cursor
-keys on Atari, Commodore, and Agon; `GAME_FIRE` maps to Space. These event codes
+keys on Atari, Commodore, Agon, and CPC; `GAME_FIRE` maps to Space. CPC caches a
+polled character so `KEY_PRESSED()` does not consume it before `KEY_CODE()`.
+These event codes
 are separate from the held controls described under [Joystick mappings](#joystick-mappings).
 
 ## Joystick mappings
@@ -100,6 +102,7 @@ are separate from the held controls described under [Joystick mappings](#joystic
 | C64 | Port 2 through `PEEK(56320)` and native masks. |
 | VIC-20 | Control port through VIA registers; the right-direction bit is exposed during the read. |
 | Agon | Cursor keys and Space through held-key polling; native scan selectors are listed under [Agon Light](#agon-light). |
+| Amstrad CPC | First joystick through `JOY(0)`; the primary fire button uses bit 4. Physical joystick input has not yet been verified. |
 
 Normalized selector/value semantics and independent polling are defined in
 [Joystick input](language-reference.md#joystick-input).
@@ -112,10 +115,11 @@ Normalized selector/value semantics and independent polling are defined in
 | Atari 800XL | Disk | Tape; emulator host-drive overrides |
 | C64/VIC-20 | Disk | Tape |
 | Agon Light | SD-card filesystem | None |
+| Amstrad CPC | Disk | Tape data-file operations are not implemented. |
 
 Select the medium using the [toolchain configuration](toolchain.md#program-inputs-and-project-configuration).
 
-Portable `SAVE_FILE`/`LOAD_FILE` use sequential files on C64/VIC-20 (`OPEN` device 8 for disk or device 1 for cassette), Atari (`D:` or `C:`), and Agon (`OPENOUT`/`OPENIN` on SD). Numeric records and length-prefixed character-code records make string data independent of delimiters. A plain Atari compilation retains `D:` for a DOS-equipped machine; host-drive overrides are described in the [running guide](running-programs.md#atari-800xl-with-atari800-7x).
+Portable `SAVE_FILE`/`LOAD_FILE` use sequential files on C64/VIC-20 (`OPEN` device 8 for disk or device 1 for cassette), Atari (`D:` or `C:`), Agon (`OPENOUT`/`OPENIN` on SD), and CPC (`OPENOUT`/`OPENIN` on disk). Numeric records and length-prefixed character-code records make string data independent of delimiters. A plain Atari compilation retains `D:` for a DOS-equipped machine; host-drive overrides are described in the [running guide](running-programs.md#atari-800xl-with-atari800-7x).
 
 Sequential-file targets serialize struct arrays field by field through their existing
 backing arrays rather than allocating a duplicate record array. Strings are stored
@@ -140,14 +144,16 @@ native BASIC numeric spelling and spacing.
 ## Sound
 
 `BEEP` uses native `BEEP` on Spectrum. Other targets calculate a hardware pitch
-setting from the portable semitone value, precomputing constant pitches: C64 uses
-SID voice 1, VIC-20 uses its middle tone generator, Atari uses POKEY voice 1, and
-Agon uses BBC BASIC `SOUND` channel 1. C64 and VIC-20 pitch conversion uses PAL
+setting from the portable semitone value: C64 uses SID voice 1, VIC-20 uses its
+middle tone generator, Atari uses POKEY voice 1, and Agon uses BBC BASIC `SOUND`
+channel 1. C64, VIC-20, Atari, and Agon precompute constant pitches. C64 and VIC-20 pitch conversion uses PAL
 clock values. The generated code waits using the target's jiffy clock and stops
 the voice before continuing. C64 and VIC-20 `BEEP` timing uses the native `TI`
 clock's 60 ticks per second; the existing portable `JIFFIES_PER_SECOND` constant
-is 50 for these targets. Agon divides long tones into finite `SOUND` segments and
-waits for the final segment to finish. Spectrum's native beeper disables
+is 50 for these targets. Agon and CPC divide long tones into finite `SOUND`
+segments and wait for the final segment to finish. CPC uses the AY sound chip
+and its 300 Hz `TIME` clock; audible output still needs interactive verification.
+Spectrum's native beeper disables
 interrupts, so its `FRAMES`-based `JIFFIES()` does not advance during the tone.
 The VIC-20 volume update preserves the register's
 upper colour bits. Hardware pitch resolution and interpreter overhead affect the
@@ -157,7 +163,7 @@ for the portable range and sound-hardware ownership.
 ## Runtime function mappings
 
 `CODE`/`ASC` render as native `CODE` on Spectrum and `ASC` on Atari, Commodore,
-and Agon. `STR$`/`VAL` use Spectrum's operator-style spelling and parenthesized
+Agon, and CPC. `STR$`/`VAL` use Spectrum's operator-style spelling and parenthesized
 forms on the other dialects. Spectrum can evaluate a string expression through
 native `VAL`; portable source should use plain numeric strings.
 
@@ -173,8 +179,8 @@ Atari positioned `PRINT #6` and C64 output scroll immediately when a character i
 written into the bottom-right cell, even with a trailing semicolon. Spectrum
 `PRINT AT` leaves that cell in place. Portable layouts that must not scroll should
 leave it unused; the rest of the bottom row and right edge remain usable. Agon
-edge behavior needs further verification; its character-recognition caveats are
-listed under [Agon Light](#agon-light).
+and CPC bottom-right behavior needs further verification; character-recognition
+caveats are listed under [Agon Light](#agon-light) and [Amstrad CPC](#amstrad-cpc).
 
 ## Character sets
 
@@ -199,6 +205,7 @@ by the [toolchain reference](toolchain.md#generated-artifacts).
 | Atari 800XL | Printer devices use `P:`, serial uses `R:`, and the shared-drive default is `H6:MCP.TXT`; the Atari800 adapter selects `H1:MCP.TXT`. |
 | C64/VIC-20 | Printer devices use device 4; RS-232 uses device 2. No shared-drive support. |
 | Agon Light | Device handles become SD-card files. Text output uses `BPUT#` rather than typed binary `PRINT#` records. |
+| Amstrad CPC | `PRINTER` and `TEXT_PRINTER` use stream `#8`; serial and shared-drive devices are unsupported. Printer availability is assumed. |
 
 On C64, RS-232 uses the KERNAL directly with two 256-byte buffers at
 `$C000`–`$C1FF` for serial operations. Native BASIC `OPEN` and `CLOSE` on
@@ -341,6 +348,25 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - `PROGRAM_MODE` hides the text cursor with a VDU command. `SUPPRESS_SCROLL_PROMPT` has no effect.
 - `KEY_CODE()` uses ADL BASIC `INKEY(0)`. Agon MOS cursor codes are Up `11`, Down `10`, Left `8`, and Right `21`; `KEY_UP/DOWN/LEFT/RIGHT` and `GAME_UP/DOWN/LEFT/RIGHT` use these values. These were checked with physical key presses in Fab Agon 1.2.5 and BBC BASIC ADL 1.03; the classic BBC Micro codes `139/138/136/137` do not match this runtime.
 - `GET_JOYSTICK` uses cursor keys and Space as keyboard-backed controls, including on Agon Light models without Console8 joystick ports. It checks held-key state with ADL BASIC `INKEY(-n)`: Left `-26`, Right `-122`, Up `-58`, Down `-42`, and Space `-99`. These scan selectors differ from the event codes returned by `KEY_CODE()`. Opposite directions cancel, diagonals are supported, and fire can be held with movement.
+
+## Amstrad CPC
+
+The CPC target currently selects Locomotive BASIC 1.1 on a CPC 6128 in MODE 1
+(40 columns by 25 rows). It uses `LOCATE` for positioned text, `TIME` at 300
+ticks per second, zero-based native arrays, and `COPYCHR$(#0)` for screen reads.
+The latter requires BASIC 1.1 and can only recognise characters whose current
+screen pixels match the character font. Native variable names are deterministic,
+case-insensitive, at most 40 characters, and retain type suffixes.
+
+The CPC instruction suite has been exercised on Caprice32 using text-printer
+capture. Screen-colour assertions record logical operations; they do not prove the
+physical colour rendering. Mode 1 has four pens, and changes to an ink affect
+all existing cells using that ink. Keyboard, joystick, and audible sound behavior
+need interactive verification. `SAVE_FILE`, `LOAD_FILE`, and `DELETE_FILE` use
+disk files; `FILE_EXISTS` and tape data files are not yet implemented. A rebuild
+refuses to overwrite a generated disk image changed since its last build; preserve
+or move the image before rebuilding. Printer and text-printer use stream 8. The disk packager
+currently accepts ASCII listings only. CPC 464 BASIC 1.0 is not yet supported.
 
 ## Readability
 

@@ -50,6 +50,17 @@ language semantics or test-runtime behavior.
    Add or adapt instruction-suite cases for platform-specific risks without removing
    portable coverage or masking failures on existing targets.
 
+Use the instruction suite to drive implementation: build and run focused modules,
+classify failures, fix the responsible compiler or tooling behavior, and repeat until
+the complete suite passes on the new target. Treat its coverage as a strong guide,
+not proof of every platform feature; inspect or report behavior it cannot verify.
+Keep working through independent failures and required integration without asking
+the user to review intermediate steps. Give concise progress updates, and request
+user input only when a necessary choice, unavailable resource, or external blocker
+cannot be resolved from the available information. A difficult or lengthy task is
+not by itself a reason to stop. When user inspection is needed, make the specific
+feature and evidence ready for review and continue independent work in the meantime.
+
 ## Verify and document
 
 Run `npm test` and `npm run build`. Build the complete instruction suite for the

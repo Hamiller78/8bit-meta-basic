@@ -4,7 +4,7 @@ import type { ReadabilityLevel } from "../line-numbering.js";
 import { type Instruction, type LabelDefinition, type LoweredProgram, normalizeLabel } from "../lowering.js";
 import type { PortableColor } from "./environment.js";
 
-export type TargetId = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon";
+export type TargetId = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon" | "cpc";
 export type GotoSpelling = "GO TO" | "GOTO";
 
 export interface TargetBackend {
@@ -281,7 +281,7 @@ function lowerPositionedPrintCoordinate(expression: Expression): Expression {
   };
 }
 
-function validateConstantCoordinate(
+export function validateConstantCoordinate(
   expression: Expression,
   axis: "row" | "column",
   max: number,
@@ -325,6 +325,8 @@ function targetDisplayName(target: TargetId): string {
       return "VIC-20";
     case "agon":
       return "Agon Light";
+    case "cpc":
+      return "Amstrad CPC";
   }
 }
 

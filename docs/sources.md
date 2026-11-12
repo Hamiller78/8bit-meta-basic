@@ -38,6 +38,13 @@ This page records external material used to understand target dialects, file for
 - R.T. Russell, [BBC BASIC (Z80) manual](https://www.bbcbasic.co.uk/bbcbasic/mancpm/). Documents the BBC BASIC 3/4-compatible language inherited by the ADL port, including 255-character strings, 32-bit integers, five-byte real numbers, variable naming, arrays, and memory management.
 - Agon Platform community, [BBC BASIC for Agon](https://agonplatform.github.io/agon-docs/BBC-BASIC-for-Agon/). Records the available Agon interpreter families and Agon-specific MOS/VDP integration. The page mixes generations of the interpreter, so version-specific claims are checked against the selected ADL 1.03 source and runtime.
 
+## Amstrad CPC
+
+- Amstrad, [CPC 664 User Instructions](https://www.cpcmania.com/Docs/Manuals/CPC664%20User%20Instructions.pdf). Documents the machine's BASIC commands, screen streams, and devices. Consult the relevant machine and BASIC version when implementing a target.
+- Amstrad, [AMSDOS firmware specification](https://www.cpcwiki.eu/imgs/b/bc/S968se09.pdf). Describes CPC disk formats and file handling.
+- CPC Tech, [standard DSK image format](https://www.cpctech.cpcwiki.de/docs/dsk.html). Describes the disk and track headers used by the built-in image packager.
+- Colin Pitrat and contributors, [Caprice32](https://github.com/ColinPitrat/caprice32), GPL-2.0. The emulator's documentation and configuration describe supported CPC models, disk images, and printer output; these are leads for integration, not evidence of a successful Meta-BASIC run.
+
 ## Source-recording policy
 
 When adding a source:

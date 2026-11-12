@@ -11,7 +11,8 @@ const targetChoices = [
   { label: "ZX Spectrum", value: "spectrum", launchScript: "scripts/launch-spectrum.mjs" },
   { label: "Atari 800XL", value: "atari800xl", launchScript: "scripts/launch-atari.mjs" },
   { label: "Commodore 64", value: "c64", launchScript: "scripts/launch-c64.mjs" },
-  { label: "VIC-20", value: "vic20", launchScript: "scripts/launch-target.mjs", launchTarget: "vic20" }
+  { label: "VIC-20", value: "vic20", launchScript: "scripts/launch-target.mjs", launchTarget: "vic20" },
+  { label: "Amstrad CPC", value: "cpc", launchScript: "scripts/launch-target.mjs", launchTarget: "cpc" }
 ];
 
 function activate(context) {

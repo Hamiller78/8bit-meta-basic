@@ -30,6 +30,26 @@ or request `--restart` when switching programs; check the actual result if an
 existing instance interferes. General launcher options are documented in
 [Emulator launch commands](toolchain.md#emulator-launch-commands).
 
+## Amstrad CPC / Caprice32
+
+Configure a `cpc` target configuration using `scripts/tools.example.json` and set
+`emulator.path` to Caprice32's executable. The installation needs its `cap32.cfg`,
+ROMs, and resources beside the executable. `npm run launch:cpc -- --project <path>`
+builds a CPC DATA disk and starts `MAIN.BAS`; the configuration file used for a run
+is staged under `build/.caprice32/` and does not modify the installed configuration.
+The emulator's selected model must be a CPC 6128 with BASIC 1.1.
+Caprice32 may require saving a modified disk image through its interface. Preserve
+the saved image separately before rebuilding: the build refuses to overwrite an
+image changed since it was generated. Close a previously launched CPC session
+before rebuilding its disk; `--restart` terminates matching emulator processes.
+
+`npm run test:language:cpc` runs all instruction modules sequentially, visibly by
+default. Use `-- --config <path>` for a nondefault tool configuration or `-- --hidden`
+for hidden runs. Captures are saved under `build/printer/release/cpc/` per module.
+The launcher adds a test-only error report and printer padding to flush Caprice32's
+buffer; ordinary program disks are not instrumented. Caprice32 on Windows has been
+used to run the instruction modules; verify the current captures for current results.
+
 ## Complete emulator test workflow
 
 Follow [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md) for
@@ -53,6 +73,7 @@ Configured path overrides take precedence; resolve the actual path before a run.
 | `atari1` | Altirra H: shared directory, `H6:MCP.TXT` | `build/altirra_drive/MCP.TXT` |
 | `atari2` | Atari800 H: shared directory, `H1:MCP.TXT` | `build/atari800_drive/MCP.TXT` |
 | `agon` | File on the virtual SD card | `<sdcardPath>/MCP.DAT`; runtime errors in `<sdcardPath>/MCP.ERR` |
+| `cpc` | Caprice32 printer | `build/printer/release/cpc/<name>.txt`; the instruction orchestrator saves each module separately. |
 
 The historical `--printer-output` launch flag enables the selected transport.
 Capture fields and placeholders are defined in the

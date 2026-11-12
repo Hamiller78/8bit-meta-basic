@@ -34,6 +34,9 @@ npm run build:all-targets -- --project <workspace-folder> --profile <profile> --
 
 `MetaBASIC: Deploy Project` runs the same build without `--no-tools`, so configured tools such as `bas2tap`, `petcat`, or the Atari tokenizer can create emulator/device artifacts. VIC-20 deployment produces both the tokenized `.prg` and its same-named THEVIC20 `.cjm` memory/joystick configuration.
 
+The Amstrad CPC target builds a `.dsk` image and can launch a configured Caprice32
+installation. CPC device and language limitations are described in [targets](../docs/targets.md#amstrad-cpc).
+
 Build artifacts are written below the open project folder, for example:
 
 ```text

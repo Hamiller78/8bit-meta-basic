@@ -7,7 +7,7 @@ the core and its shells. Source contracts belong in the [language reference](lan
 native mappings in [targets](targets.md), build configuration in the
 [toolchain reference](toolchain.md), and emulator setup in the [running guide](running-programs.md).
 
-The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `STRUCT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do Spectrum, Atari, C64, VIC-20, and Agon lowering choose the native spelling.
+The important design rule is that target-independent meaning is decided before target rendering. A construct such as `PRINT_AT`, `STRUCT`, `FUNCTION`, `ASSERT_EQ`, or `DEVICE_AVAILABLE` has one Meta-BASIC meaning first; only after that do target backends choose the native spelling.
 
 ## Pipeline
 
@@ -58,7 +58,7 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
-- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, and Agon Light.
+- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, Agon Light, and Amstrad CPC.
 - `src/targets/beep.ts` expands non-Spectrum beeps into sound-register operations and blocking clock waits; constant pitches are converted during compilation.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.

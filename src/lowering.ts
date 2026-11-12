@@ -353,6 +353,7 @@ export interface ReadDataFileInstruction {
 
 export interface CloseDataFileInstruction {
   readonly kind: "close-data-file";
+  readonly mode?: "read" | "write";
   readonly location: SourceLocation;
 }
 

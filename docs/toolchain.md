@@ -16,7 +16,7 @@ commands do not need that separator.
 | Command | Purpose |
 | --- | --- |
 | `npm run build` | Compile the TypeScript compiler with `tsc`. |
-| `npm run build:spectrum`, `build:atari`, `build:c64`, `build:vic20`, `build:agon` | Build one dialect; the `atari` alias selects `atari800xl`. |
+| `npm run build:spectrum`, `build:atari`, `build:c64`, `build:vic20`, `build:agon`, `build:cpc` | Build one dialect; the `atari` alias selects `atari800xl`. |
 | `npm run build:all-targets` | Build the selected input for every compiler target. |
 | `npm run build:all-profiles` | Build all targets and profiles. |
 | `npm run build:directory` | Build direct `.mbas` files in a directory, non-recursively. |
@@ -28,7 +28,7 @@ npm run build:c64 -- --build-config examples/multifile/metabasic.json --no-tools
 npm run build:directory -- --source-dir examples --target c64 --profile debug
 ```
 
-Compiler targets are `spectrum`, `atari800xl`, `c64`, `vic20`, and `agon`.
+Compiler targets are `spectrum`, `atari800xl`, `c64`, `vic20`, `agon`, and `cpc`.
 Directory builds accept repeated `--target` options. Build helpers also support
 `--all-profiles`. All-target builds still enforce each project's screen requirements;
 a project requiring 32 columns cannot compile for the 22-column VIC-20.
@@ -144,6 +144,7 @@ its parent directory's name. Selecting a test module does not change the base na
 | C64/VIC-20 `<name>.prg` | Configured `petcat` runs. |
 | VIC-20 `<name>.cjm` | Packaging produces a PRG; deployment configuration is written beside it. |
 | Agon `<name>.bbc` | Every Agon build, including `--no-tools`; built-in tokenization. |
+| CPC `<name>.dsk` | Every CPC build, including `--no-tools`; a DATA disk containing an ASCII `MAIN.BAS` listing. The adjacent `.dsk.sha256` records the generated image so later builds can protect modified disks. |
 
 Missing optional tools do not prevent BASIC generation. A configured tool failure
 fails the build. Loading and copying these artifacts is described in the
@@ -220,6 +221,7 @@ entry points are:
 | `npm run test:language:atari` | Launch on `atari1` with capture. |
 | `npm run test:language:c64` | Launch on `c64` with capture. |
 | `npm run test:language:agon` | Launch on `agon` with capture. |
+| `npm run test:language:cpc` | Run CPC modules sequentially with visible Caprice32 windows and separate captures. |
 | `npm run test:language:vic20` | VIC-20 module orchestrator; waits for captures and reports totals. |
 
 Individual launch aliases accept options such as `--module strings`, `--restart`,
@@ -229,6 +231,9 @@ them. It does not forward arbitrary launch options. Other named configurations c
 the generic launcher with the suite's `--project`. Required development coverage
 is owned by [Add a MetaBASIC feature](../skills/add-metabasic-feature/SKILL.md), and
 execution by [Run MetaBASIC emulator tests](../skills/run-metabasic-tests/SKILL.md).
+The CPC orchestrator discovers instruction modules, preserves a capture for each,
+and shows emulator windows unless `--hidden` is supplied. For one module, use
+`npm run launch:cpc -- --project language-tests/instruction-suite --run-tests --module strings --printer-output`.
 
 ## Performance benchmarks
 
@@ -254,11 +259,11 @@ contains complete example configurations; the tables below define the fields.
 
 | Section | Responsibility |
 | --- | --- |
-| `targets.<compiler-target>` | Packaging tools shared by a dialect: `spectrum`, `atari800xl`, `c64`, `vic20`, `agon`. |
+| `targets.<compiler-target>` | Packaging tools shared by a dialect: `spectrum`, `atari800xl`, `c64`, `vic20`, `agon`, `cpc`. |
 | `targetConfigurations.<name>` | A freely named computer, compiler target, and emulator. |
 
 Named configurations require `compilerTarget` and `emulator.type`. Adapter types
-are `fuse`, `altirra`, `atari800`, `vice`, and `fab-agon`. Optional `computer`
+are `fuse`, `altirra`, `atari800`, `vice`, `fab-agon`, and `caprice32`. Optional `computer`
 metadata describes model, memory, video standard, BASIC, ROMs, and screen assumptions;
 emulator arguments enforce the actual setup. Multiple named computers may share
 a compiler target.
@@ -289,6 +294,7 @@ Tools under `targets.<target>.tools` run in array order:
 | `rs232OutputPath`, `rs232Args`, `rs232CapturePort` | Serial capture filename/arguments and optional fixed VICE helper port; default port zero is dynamic. |
 | `sharedDriveSpec`, `sharedDrivePath`, `sharedDriveOutputPath`, `sharedDriveArgs` | Atari device specification, host directory, captured file, extra arguments. |
 | `workingDirectory`, `sdcardPath`, `basicBinary`, `cardProgramName` | Fab Agon working directory, card, interpreter path on the card (default `bin/bbcbasic24.bin`), staged program name (normalized to `.bbc`). |
+| `configPath` | Optional Caprice32 configuration template; defaults to `cap32.cfg` beside the executable. A run-specific copy is written under the build directory. |
 
 Configured relative host paths resolve against the repository working directory.
 Manual setup such as Altirra's host-device mapping is described in the running
