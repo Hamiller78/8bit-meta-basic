@@ -40,6 +40,8 @@ Read the relevant repository skill before starting the workflow:
 - [Add a MetaBASIC feature](skills/add-metabasic-feature/SKILL.md): change syntax,
   built-ins, semantics, shared/target lowering, or test-runtime behavior. Use the
   instruction suite for language conformance, with host regression coverage.
+- [Add a MetaBASIC target](skills/add-metabasic-target/SKILL.md): add a platform or
+  BASIC dialect, its tooling, and native instruction-suite coverage.
 - [Run MetaBASIC emulator tests](skills/run-metabasic-tests/SKILL.md): build runners,
   launch configured computers, receive fresh captures, and verify results.
 - [Run MetaBASIC benchmarks](skills/run-metabasic-benchmarks/SKILL.md): measure
