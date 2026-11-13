@@ -43,9 +43,13 @@ the saved image separately before rebuilding: the build refuses to overwrite an
 image changed since it was generated. Close a previously launched CPC session
 before rebuilding its disk; `--restart` terminates matching emulator processes.
 
-`npm run test:language:cpc` runs all instruction modules sequentially, visibly by
-default. Use `-- --config <path>` for a nondefault tool configuration or `-- --hidden`
-for hidden runs. Captures are saved under `build/printer/release/cpc/` per module.
+`npm run test:language:cpc` runs all instruction modules sequentially and requests
+visible windows by default. Actual visibility depends on the launching environment
+and emulator settings. Use `-- --config <path>` for a nondefault tool configuration. On Windows,
+`-- --hidden` sets Node's `windowsHide` option, which suppresses a subprocess
+console window but does not guarantee that the emulator's graphical window is
+hidden. Other platforms currently reject the option.
+Captures are saved under `build/printer/release/cpc/` per module.
 The launcher adds a test-only error report and printer padding to flush Caprice32's
 buffer; ordinary program disks are not instrumented. Caprice32 on Windows has been
 used to run the instruction modules; verify the current captures for current results.

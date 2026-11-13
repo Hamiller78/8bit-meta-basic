@@ -7,6 +7,7 @@ import { createCpcDataDisk } from "./cpc-disk.mjs";
 import { loadToolConfiguration, resolveTargetConfiguration } from "../target-configurations.mjs";
 
 export async function launchCpc(options) {
+  const spawnOptions = capriceSpawnOptions(options.hidden);
   const cwd = options.cwd ?? process.cwd();
   const config = await loadToolConfiguration(cwd, options.configPath);
   const target = resolveTargetConfiguration(config, options.targetConfiguration, { compilerTarget: "cpc", emulatorType: "caprice32" });
@@ -46,7 +47,7 @@ export async function launchCpc(options) {
     await writeFile(diskPath, createCpcDataDisk("MAIN.BAS", listing));
     await rm(capture, { force: true });
   }
-  const child = spawn(emulatorPath, capriceLaunchArguments(isolatedConfig, diskPath), { windowsHide: options.hidden, stdio: "ignore" });
+  const child = spawn(emulatorPath, capriceLaunchArguments(isolatedConfig, diskPath), spawnOptions);
   await new Promise((resolveStart, rejectStart) => {
     child.once("spawn", resolveStart);
     child.once("error", rejectStart);
@@ -78,6 +79,13 @@ export async function launchCpc(options) {
     }
     await rm(pidPath, { force: true });
   }
+}
+
+export function capriceSpawnOptions(hidden, platform = process.platform) {
+  if (hidden && platform !== "win32") {
+    throw new Error("The --hidden option is currently available only on Windows; omit it to launch visibly.");
+  }
+  return { stdio: "ignore", ...(platform === "win32" ? { windowsHide: hidden === true } : {}) };
 }
 
 async function waitForCapture(path, child, timeoutMs) {

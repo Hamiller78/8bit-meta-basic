@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { capriceConfiguration, capriceLaunchArguments, instrumentCpcTestListing } from "../scripts/lib/caprice32.mjs";
-import { parseCpcArgs } from "../scripts/lib/launch-cpc.mjs";
+import { capriceSpawnOptions, parseCpcArgs } from "../scripts/lib/launch-cpc.mjs";
 
 describe("Caprice32 launch preparation", () => {
   it("creates a separate configuration with printer capture and installation resources", () => {
@@ -38,5 +38,14 @@ describe("Caprice32 launch preparation", () => {
     expect(options).toMatchObject({ projectPath: "project", testMode: true, moduleName: "storage", testPrinterOutput: true, restart: true, hidden: false });
     expect(() => parseCpcArgs(["--module", "storage"])).toThrow(/requires/);
     expect(() => parseCpcArgs(["--test-output-device", "rs232"])).toThrow(/printer/);
+  });
+
+  it("applies window hiding only on Windows and reports unsupported hidden launches", () => {
+    expect(capriceSpawnOptions(true, "win32")).toEqual({ stdio: "ignore", windowsHide: true });
+    expect(capriceSpawnOptions(false, "win32")).toEqual({ stdio: "ignore", windowsHide: false });
+    expect(capriceSpawnOptions(false, "linux")).toEqual({ stdio: "ignore" });
+    expect(capriceSpawnOptions(false, "darwin")).toEqual({ stdio: "ignore" });
+    expect(() => capriceSpawnOptions(true, "linux")).toThrow(/only on Windows/);
+    expect(() => capriceSpawnOptions(true, "darwin")).toThrow(/only on Windows/);
   });
 });

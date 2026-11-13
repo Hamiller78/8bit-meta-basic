@@ -2,7 +2,7 @@
 import { copyFile, readdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { buildProject } from "./lib/build-target.mjs";
-import { launchCpc } from "./lib/launch-cpc.mjs";
+import { capriceSpawnOptions, launchCpc } from "./lib/launch-cpc.mjs";
 
 const argv = process.argv.slice(2);
 let configPath = "scripts/tools.local.json";
@@ -14,6 +14,7 @@ for (let index = 0; index < argv.length; index += 1) {
   else if (argv[index] === "--skip-build") runBuild = false;
   else throw new Error(`Unknown or incomplete option: ${argv[index]}`);
 }
+capriceSpawnOptions(hidden);
 if (runBuild) await buildProject();
 const projectPath = "language-tests/instruction-suite";
 const modules = (await readdir(resolve(projectPath, "tests"))).filter((name) => name.endsWith("-tests.mbas")).sort();
