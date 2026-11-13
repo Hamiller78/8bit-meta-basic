@@ -10,6 +10,7 @@ export interface SourceLocation {
 export interface Program {
   readonly statements: readonly Statement[];
   readonly sourceFiles?: readonly string[];
+  readonly penColors?: readonly import("./targets/environment.js").PortableColor[];
 }
 
 export type Statement =
@@ -17,6 +18,7 @@ export type Statement =
   | HotModuleStatement
   | CommentStatement
   | ConstStatement
+  | PenColorsStatement
   | DimStatement
   | LabelStatement
   | ClsStatement
@@ -73,6 +75,12 @@ export interface UsesStatement {
 
 export interface HotModuleStatement {
   readonly kind: "hot-module";
+  readonly location: SourceLocation;
+}
+
+export interface PenColorsStatement {
+  readonly kind: "pen-colors";
+  readonly colors: readonly Expression[];
   readonly location: SourceLocation;
 }
 

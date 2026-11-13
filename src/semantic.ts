@@ -70,15 +70,30 @@ export function analyzeProgram(program: Program, environment: TargetEnvironment,
   const structs = new Map<string, StructDefinition>();
   const structValues = new Map<string, StructValueDefinition>();
   const scalarNames = new Set<string>();
-  const statements = options.testMode ? attachTestImplementations(program.statements) : program.statements;
+  let declaration: Extract<Statement, { kind: "pen-colors" }> | undefined;
+  const extract = (items: readonly Statement[]): Statement[] => items.flatMap((statement): Statement[] => {
+    if (statement.kind === "pen-colors") {
+      if (declaration) throw new DiagnosticError(statement.location, "Only one PEN_COLORS declaration is allowed per program.");
+      declaration = statement;
+      return [];
+    }
+    if (statement.kind === "if") return [{ ...statement, thenBranch: extract(statement.thenBranch), elseBranch: extract(statement.elseBranch) }];
+    if (statement.kind === "for" || statement.kind === "while" || statement.kind === "repeat-until" || statement.kind === "function" || statement.kind === "test" || statement.kind === "globals") return [{ ...statement, body: extract(statement.body) }];
+    return [statement];
+  });
+  const extracted = extract(program.statements);
+  const statements = options.testMode ? attachTestImplementations(extracted) : extracted;
   predeclareTopLevelSymbols(statements, constants, arrays, structs, structValues, scalarNames);
   const functions = collectFunctionDefinitions(statements);
+  const penColors = declaration?.colors.map((color) => analyzeColorExpression(color, constants, "PEN_COLORS", arrays, functions).color);
+  if (penColors && new Set(penColors).size !== penColors.length) throw new DiagnosticError(declaration!.location, "PEN_COLORS cannot contain duplicate colours.");
   const devices = collectOpenDevices(statements);
   validateFunctionRecursion(functions);
   validateControlFlowBoundaries(statements);
 
   return {
     ...program,
+    ...(penColors ? { penColors } : {}),
     statements: analyzeStatements(statements, constants, false, arrays, structs, structValues, scalarNames, functions, devices, undefined, options.testMode === true)
   };
 }
@@ -313,6 +328,7 @@ function analyzeStatements(
         analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "CLS", arrays, functions, scope) });
         break;
       }
+      case "pen-colors": throw new DiagnosticError(statement.location, "PEN_COLORS must be resolved at program scope.");
       case "border-color": {
         analyzed.push({ ...statement, color: analyzeColorExpression(statement.color, constants, "BORDER_COLOR", arrays, functions, scope) });
         break;

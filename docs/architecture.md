@@ -51,6 +51,7 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/lexer.ts` tokenizes source text and owns the centralized keyword set. Built-in function names remain identifiers.
 - `src/parser.ts` turns tokens into statements and expressions. It should make syntax decisions from tokens, not whole-line regular expressions.
 - `src/semantic.ts` checks language rules, resolves constants, validates labels, functions, structs, arrays, test-only constructs, devices, and built-in calls. Struct values are erased here into generated backing scalar and array names.
+- Program-wide `PEN_COLORS` declarations are extracted and resolved during semantic analysis; their priority metadata passes through shared lowering to targets that allocate shared pens.
 - `src/functions.ts` is the central list of portable built-in functions.
 - `src/devices.ts` is the central list of portable device constants.
 - `src/function-semantics.ts` analyzes user functions, local variables, parameters, and recursion.

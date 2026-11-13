@@ -295,6 +295,7 @@ program_mode
 screen_border_color BLUE
 screen_background_color BLACK
 screen_text_color WHITE
+pen_colors RED, YELLOW, BLUE, GREEN
 cls
 ```
 

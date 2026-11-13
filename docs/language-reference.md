@@ -830,6 +830,19 @@ program_mode
 
 Cell colours may have no effect on targets without the corresponding per-cell feature. This is deliberate rather than an attempt to simulate the feature with a large runtime.
 
+`PEN_COLORS RED, YELLOW, BLUE` declares a program-wide priority order for extra
+colours on targets with a limited shared palette. It may appear anywhere in the
+program, but only once, and requires at least one distinct compile-time portable
+colour. Duplicate colours or declarations are errors. Unlisted colours follow in
+the default order `WHITE, YELLOW, RED, GREEN, CYAN, BLUE, MAGENTA, BLACK`; that
+order is also used when the declaration is absent. Targets without this palette
+constraint accept the declaration without restricting their colours.
+
+Available extra pens are assigned in order, even for colours that are unused or
+match a screen colour. Unallocated cell text and background colours fall back to
+the current screen text and background pens respectively. Screen colour changes
+avoid a screen-wide redraw, so their effects on existing output depend on the target.
+
 `SUPPRESS_SCROLL_PROMPT` requests uninterrupted long output on targets with an interactive scroll prompt. Other targets may ignore it; native effects are documented in [targets](targets.md).
 
 `PROGRAM_MODE` requests best-effort setup for running a finished program. Effects differ by machine, including cursor/margin changes and break-key handling; see [targets](targets.md) for native effects and any reserved memory. It does not prevent native scrolling from output at the screen boundary.

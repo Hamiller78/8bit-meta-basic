@@ -16,6 +16,7 @@ const statementParsers = new Map<string, StatementParser>([
   ["SCREEN_TEXT_COLOR", (parser, location) => parser.parseTextColor(location)],
   ["CELL_TEXT_COLOR", (parser, location) => parser.parseCellTextColor(location)],
   ["CELL_BACKGROUND_COLOR", (parser, location) => parser.parseCellBackgroundColor(location)],
+  ["PEN_COLORS", (parser, location) => parser.parsePenColors(location)],
   ["CONST", (parser, location) => parser.parseConst(location)],
   ["CONTINUE", (parser, location) => parser.parseContinue(location)],
   ["DATA", (parser, location) => parser.parseData(location)],
@@ -163,6 +164,19 @@ class Parser {
 
     this.expectLineEnd();
     return { kind: "data", values, location };
+  }
+
+  parsePenColors(location: SourceLocation): Statement {
+    const colors: Expression[] = [];
+    if (this.isLineEnd()) throw new DiagnosticError(this.current().location, "PEN_COLORS requires at least one colour.");
+    while (true) {
+      colors.push(this.parseExpression(() => this.matchPunctuation(",") || this.isLineEnd()));
+      if (!this.matchPunctuation(",")) break;
+      this.advance();
+      if (this.isLineEnd()) throw new DiagnosticError(this.current().location, "PEN_COLORS requires a colour after comma.");
+    }
+    this.expectLineEnd();
+    return { kind: "pen-colors", colors, location };
   }
 
   parseFile(kind: "save-file" | "load-file", location: SourceLocation): Statement {

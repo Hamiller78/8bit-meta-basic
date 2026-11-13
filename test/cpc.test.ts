@@ -3,6 +3,31 @@ import { compileSource } from "../src/compiler.js";
 import { analyzeBasicOutput } from "../src/output-stats.js";
 
 describe("Amstrad CPC BASIC rendering", () => {
+  it("assigns stable priority pens and falls back independently for text and background", () => {
+    const output = compileSource('const alert = RED\nscreen_text_color WHITE\npen_colors alert, YELLOW, BLUE, GREEN\ncell_text_color RED\nprint "R"\ncell_background_color YELLOW\nprint "Y"\ncell_text_color BLUE\ncell_background_color GREEN\nscreen_text_color BLUE\n', { filename: "pens.mbas", target: "cpc" });
+    expect(output).toContain("MODE 1:INK 2,6:INK 3,24");
+    expect(output).toMatch(/PEN 2\n\d+ PRINT "R"/u);
+    expect(output).toMatch(/PAPER 3\n\d+ PRINT "Y"/u);
+    expect(output).toMatch(/PEN 1\n\d+ PAPER 0\n\d+ INK 1,1:PEN 1/u);
+    expect(compileSource('cell_text_color WHITE\ncell_text_color YELLOW\ncell_text_color RED\n', { filename: "default.mbas", target: "cpc" })).toMatch(/MODE 1:INK 2,26:INK 3,24[\s\S]*PEN 2[\s\S]*PEN 3[\s\S]*PEN 1/u);
+    expect(compileSource('pen_colors RED\ncell_text_color WHITE\n', { filename: "spare.mbas", target: "cpc" })).toContain("MODE 1:INK 2,6:INK 3,26");
+    expect(compileSource('screen_text_color WHITE\npen_colors WHITE, RED\ncell_text_color WHITE\n', { filename: "shared.mbas", target: "cpc" })).toMatch(/MODE 1:INK 2,26:INK 3,6[\s\S]*INK 1,26:PEN 1[\s\S]*PEN 2/u);
+  });
+
+  it("validates program-wide pen priorities on every target", () => {
+    for (const target of ["cpc", "spectrum", "atari800xl", "c64", "vic20", "agon"] as const) {
+      expect(() => compileSource('pen_colors RED, RED\n', { filename: "pens.mbas", target })).toThrow(/pens\.mbas:1.*duplicate colours/);
+      expect(() => compileSource('pen_colors RED\npen_colors BLUE\n', { filename: "pens.mbas", target })).toThrow(/pens\.mbas:2.*one PEN_COLORS/);
+      expect(() => compileSource('pen_colors 3\n', { filename: "pens.mbas", target })).toThrow(/compile-time portable colour/);
+      expect(() => compileSource('pen_colors\n', { filename: "pens.mbas", target })).toThrow(/requires at least one colour/);
+      expect(() => compileSource('if 1 then\npen_colors RED, YELLOW\nend if\nprint "OK"\n', { filename: "pens.mbas", target })).not.toThrow();
+      if (target !== "cpc") {
+        const options = { filename: "pens.mbas", target };
+        expect(compileSource('pen_colors RED, YELLOW\ncell_text_color BLUE\nprint "X"\n', options))
+          .toBe(compileSource('cell_text_color BLUE\nprint "X"\n', options));
+      }
+    }
+  });
   it("emits readable names, zero-based arrays, and CPC screen positioning", () => {
     const output = compileSource('dim score_values(3)\nscore_values(0)=42\nprint_at 3, 4, score_values(0)\n', { filename: "cpc.mbas", target: "cpc" });
     expect(output).toContain("MODE 1");

@@ -250,7 +250,7 @@ export function rebuildLabels(program: LoweredProgram, instructions: readonly In
     });
   });
 
-  return { instructions, labels };
+  return { ...program, instructions, labels };
 }
 
 function lowerPositionedPrintCoordinates(instruction: Extract<Instruction, { kind: "print" }>): Extract<Instruction, { kind: "print" }> {

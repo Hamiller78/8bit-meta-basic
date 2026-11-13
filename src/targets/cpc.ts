@@ -16,6 +16,7 @@ import { groupInvertedPrints, rebuildLabels, renderDataValues, renderExpression,
 let currentInstructions: readonly Instruction[] = [];
 export function setCpcRenderProgram(instructions: readonly Instruction[]): void { currentInstructions = instructions; }
 const colors = { BLACK: 0, BLUE: 1, RED: 6, MAGENTA: 7, GREEN: 18, CYAN: 19, YELLOW: 24, WHITE: 26 } as const;
+const defaultPenColors = ["WHITE", "YELLOW", "RED", "GREEN", "CYAN", "BLUE", "MAGENTA", "BLACK"] as const;
 
 function renderArgs(expression: FunctionCallExpression, options: ExpressionRenderOptions): string {
   return `${expression.name.toUpperCase()}(${expression.args.map((arg) => renderExpression(arg, options)).join(",")})`;
@@ -45,6 +46,11 @@ export const cpcTarget: TargetBackend = {
   maxLineNumber: 65535,
   variableMap: cpcVariableMap,
   lower(program: LoweredProgram): LoweredProgram {
+    const priority = [...(program.penColors ?? []), ...defaultPenColors.filter((color) => !program.penColors?.includes(color))].slice(0, 2);
+    const colorPen = (color: keyof typeof colors, fallback: number): number => {
+      const index = priority.indexOf(color);
+      return index < 0 ? fallback : index + 2;
+    };
     const validateText = (expression: Expression): Expression => {
       switch (expression.kind) {
         case "string":
@@ -93,9 +99,15 @@ export const cpcTarget: TargetBackend = {
         });
       }
     }
-    const lowered = rebuildLabels(grouped, instructions);
+    const mapPens = (instruction: Instruction): Instruction => {
+      if (instruction.kind === "cell-text-color") return { ...instruction, cpcPen: colorPen(instruction.color.color, 1) };
+      if (instruction.kind === "cell-background-color") return { ...instruction, cpcPen: colorPen(instruction.color.color, 0) };
+      if (instruction.kind === "if-then") return { ...instruction, body: instruction.body.map(mapPens) };
+      return instruction;
+    };
+    const lowered = rebuildLabels(grouped, instructions.map(mapPens));
     const location = lowered.instructions[0]?.location ?? { filename: "<generated>", line: 1 };
-    return rebuildLabels(lowered, [{ kind: "graphics-mode", mode: 1, location }, ...lowered.instructions]);
+    return rebuildLabels(lowered, [{ kind: "graphics-mode", mode: 1, cpcInks: priority.map((color) => colors[color]), location }, ...lowered.instructions]);
   },
   renderLine(lineNumber, instruction, labelLines, readability): string {
     const map = cpcVariableMap(currentInstructions);
@@ -115,11 +127,13 @@ export const cpcTarget: TargetBackend = {
     switch (instruction.kind) {
       case "label": return `${prefix}REM ${instruction.name.toUpperCase()}:`;
       case "rem": return `${prefix}REM ${instruction.text}`;
-      case "graphics-mode": return `${prefix}MODE ${instruction.mode}`;
+      case "graphics-mode": return `${prefix}MODE ${instruction.mode}${instruction.cpcInks?.map((ink, index) => `:INK ${index + 2},${ink}`).join("") ?? ""}`;
       case "cls": return `${prefix}${instruction.color ? `INK 0,${colors[instruction.color.color]}:PAPER 0:` : ""}CLS`;
       case "border-color": return `${prefix}BORDER ${colors[instruction.color.color]}`;
-      case "text-color": case "cell-text-color": return `${prefix}INK 1,${colors[instruction.color.color]}:PEN 1`;
-      case "screen-background-color": case "cell-background-color": case "paper": return `${prefix}INK 0,${colors[instruction.color.color]}:PAPER 0`;
+      case "text-color": return `${prefix}INK 1,${colors[instruction.color.color]}:PEN 1`;
+      case "cell-text-color": return `${prefix}PEN ${instruction.cpcPen ?? 1}`;
+      case "screen-background-color": case "paper": return `${prefix}INK 0,${colors[instruction.color.color]}:PAPER 0`;
+      case "cell-background-color": return `${prefix}PAPER ${instruction.cpcPen ?? 0}`;
       case "program-mode": case "suppress-scroll-prompt": return `${prefix}PRINT "";`;
       case "inverse-text": return `${prefix}PRINT CHR$(24);`;
       case "print": return `${prefix}${instruction.at ? `LOCATE ${expr(instruction.at.column)},${expr(instruction.at.row)}:` : ""}PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, options)}`;

@@ -47,6 +47,7 @@ export const keywords = new Set([
   "MOD",
   "NOT",
   "OR",
+  "PEN_COLORS",
   "PROGRAM_MODE",
   "PRINT",
   "PRINT_AT",

@@ -1,3 +1,5 @@
+pen_colors RED, YELLOW, BLUE, GREEN
+
 test ScreenColours()
     cls BLUE
     screen_border_color RED

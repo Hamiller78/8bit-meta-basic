@@ -596,6 +596,7 @@ function collectFunctionCallsFromStatements(
 
 export function statementExpressions(statement: Statement): readonly Expression[] {
   switch (statement.kind) {
+    case "pen-colors": return statement.colors;
     case "const":
       return [statement.expression];
     case "dim":

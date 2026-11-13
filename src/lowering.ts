@@ -40,6 +40,7 @@ import {
 export interface LoweredProgram {
   readonly instructions: readonly Instruction[];
   readonly labels: ReadonlyMap<string, LabelDefinition>;
+  readonly penColors?: Program["penColors"];
 }
 
 export interface LabelDefinition {
@@ -166,12 +167,14 @@ export interface ScreenBackgroundColorInstruction {
 
 export interface CellTextColorInstruction {
   readonly kind: "cell-text-color";
+  readonly cpcPen?: number;
   readonly color: Extract<Expression, { kind: "color" }>;
   readonly location: SourceLocation;
 }
 
 export interface CellBackgroundColorInstruction {
   readonly kind: "cell-background-color";
+  readonly cpcPen?: number;
   readonly color: Extract<Expression, { kind: "color" }>;
   readonly location: SourceLocation;
 }
@@ -517,6 +520,7 @@ export interface PositionInstruction {
 export interface GraphicsModeInstruction {
   readonly kind: "graphics-mode";
   readonly mode: number;
+  readonly cpcInks?: readonly number[];
   readonly location: SourceLocation;
 }
 
@@ -783,7 +787,7 @@ export function lowerProgram(program: Program, options: LowerOptions = {}): Lowe
   const labels = buildLabelMap(instructions);
   validateReferences(instructions, labels);
 
-  return { instructions, labels };
+  return { instructions, labels, ...(program.penColors ? { penColors: program.penColors } : {}) };
 }
 
 function lowerFunctionStatement(
@@ -1942,6 +1946,7 @@ function substituteInlineStatements(statements: readonly Statement[], parameters
 
 function substituteInlineStatement(statement: Statement, parameters: ReadonlyMap<string, Expression>): Statement {
   switch (statement.kind) {
+    case "pen-colors": return statement;
     case "const":
       return { ...statement, expression: substituteInlineExpression(statement.expression, parameters) };
     case "dim":

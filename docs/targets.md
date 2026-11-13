@@ -361,7 +361,11 @@ case-insensitive, at most 40 characters, and retain type suffixes.
 The CPC instruction suite has been exercised on Caprice32 using text-printer
 capture. Screen-colour assertions record logical operations; they do not prove the
 physical colour rendering. Mode 1 has four pens, and changes to an ink affect
-all existing cells using that ink. Keyboard, joystick, and audible sound behavior
+all existing pixels using that ink. Pens 0 and 1 are reserved for screen background
+and text; pens 2 and 3 use the `PEN_COLORS` priority order. Cell colours select an
+allocated pen, falling back to pen 1 for text and pen 0 for background. Changing a
+screen colour changes the ink of its reserved pen and therefore affects existing
+pixels using that pen, without changing the two priority pens. Keyboard, joystick, and audible sound behavior
 need interactive verification. `SAVE_FILE`, `LOAD_FILE`, and `DELETE_FILE` use
 disk files; `FILE_EXISTS` and tape data files are not yet implemented. A rebuild
 refuses to overwrite a generated disk image changed since its last build; preserve
