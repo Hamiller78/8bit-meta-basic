@@ -7,7 +7,7 @@ import { createCpcDataDisk } from "./cpc-disk.mjs";
 import { loadToolConfiguration, resolveTargetConfiguration } from "../target-configurations.mjs";
 
 export async function launchCpc(options) {
-  const spawnOptions = capriceSpawnOptions(options.hidden);
+  const spawnOptions = capriceSpawnOptions(options.hidden, process.platform, !(options.testMode && options.testPrinterOutput));
   const cwd = options.cwd ?? process.cwd();
   const config = await loadToolConfiguration(cwd, options.configPath);
   const target = resolveTargetConfiguration(config, options.targetConfiguration, { compilerTarget: "cpc", emulatorType: "caprice32" });
@@ -15,7 +15,6 @@ export async function launchCpc(options) {
   if (!emulator.path) throw new Error(`No Caprice32 path configured for "${options.targetConfiguration}".`);
   const emulatorPath = resolve(cwd, emulator.path);
   const staging = resolve(cwd, options.outDir, ".caprice32", options.targetConfiguration);
-  const pidPath = resolve(staging, "active.pid");
   await mkdir(staging, { recursive: true });
   if (options.restart && process.platform === "win32") {
     await new Promise((resolveStop) => {
@@ -23,14 +22,6 @@ export async function launchCpc(options) {
       processStop.on("error", resolveStop);
       processStop.on("exit", resolveStop);
     });
-  }
-  let previousPid;
-  try { previousPid = Number((await readFile(pidPath, "utf8")).trim()); } catch (error) { if (error.code !== "ENOENT") throw error; }
-  if (Number.isInteger(previousPid) && previousPid > 0) {
-    let active = true;
-    try { process.kill(previousPid, 0); } catch (error) { if (error.code === "ESRCH") active = false; else if (error.code !== "EPERM") throw error; }
-    if (active) throw new Error(`A previous CPC emulator session (${previousPid}) is still running; close it before rebuilding its disk.`);
-    await rm(pidPath, { force: true });
   }
   await buildTarget({ ...options, target: "cpc", testPrinterOutput: options.testMode && options.testPrinterOutput, runTools: true });
   const program = programIdentity(cwd, options.source, options.buildConfigPath, options.projectPath);
@@ -52,8 +43,6 @@ export async function launchCpc(options) {
     child.once("spawn", resolveStart);
     child.once("error", rejectStart);
   });
-  try { await writeFile(pidPath, `${child.pid}\n`, "utf8"); }
-  catch (error) { child.kill(); throw error; }
   console.log(`launched ${options.targetConfiguration} with ${diskPath}`);
   if (!options.testMode || !options.testPrinterOutput) {
     child.unref();
@@ -77,15 +66,14 @@ export async function launchCpc(options) {
       child.kill();
       await exited;
     }
-    await rm(pidPath, { force: true });
   }
 }
 
-export function capriceSpawnOptions(hidden, platform = process.platform) {
+export function capriceSpawnOptions(hidden, platform = process.platform, detached = false) {
   if (hidden && platform !== "win32") {
     throw new Error("The --hidden option is currently available only on Windows; omit it to launch visibly.");
   }
-  return { stdio: "ignore", ...(platform === "win32" ? { windowsHide: hidden === true } : {}) };
+  return { stdio: "ignore", ...(detached ? { detached: true } : {}), ...(platform === "win32" ? { windowsHide: hidden === true } : {}) };
 }
 
 async function waitForCapture(path, child, timeoutMs) {

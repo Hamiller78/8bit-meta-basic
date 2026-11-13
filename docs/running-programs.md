@@ -38,10 +38,16 @@ ROMs, and resources beside the executable. `npm run launch:cpc -- --project <pat
 builds a CPC DATA disk and starts `MAIN.BAS`; the configuration file used for a run
 is staged under `build/.caprice32/` and does not modify the installed configuration.
 The emulator's selected model must be a CPC 6128 with BASIC 1.1.
+Interactive launches detach the emulator so it can continue after the launcher
+exits. The launching environment must provide access to the interactive desktop
+and allow detached processes to continue; a successful spawn alone does not
+establish that the window is visible.
 Caprice32 may require saving a modified disk image through its interface. Preserve
 the saved image separately before rebuilding: the build refuses to overwrite an
-image changed since it was generated. Close a previously launched CPC session
-before rebuilding its disk; `--restart` terminates matching emulator processes.
+image changed since it was generated. CPC sessions may run concurrently, but
+rebuilding a disk used by another session or sharing a test capture can interfere
+with that session. Run captured tests sequentially. On Windows, `--restart`
+terminates matching emulator processes.
 
 `npm run test:language:cpc` runs all instruction modules sequentially and requests
 visible windows by default. Actual visibility depends on the launching environment

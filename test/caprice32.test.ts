@@ -45,6 +45,8 @@ describe("Caprice32 launch preparation", () => {
     expect(capriceSpawnOptions(false, "win32")).toEqual({ stdio: "ignore", windowsHide: false });
     expect(capriceSpawnOptions(false, "linux")).toEqual({ stdio: "ignore" });
     expect(capriceSpawnOptions(false, "darwin")).toEqual({ stdio: "ignore" });
+    expect(capriceSpawnOptions(false, "win32", true)).toEqual({ stdio: "ignore", detached: true, windowsHide: false });
+    expect(capriceSpawnOptions(false, "linux", true)).toEqual({ stdio: "ignore", detached: true });
     expect(() => capriceSpawnOptions(true, "linux")).toThrow(/only on Windows/);
     expect(() => capriceSpawnOptions(true, "darwin")).toThrow(/only on Windows/);
   });
