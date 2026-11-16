@@ -45,6 +45,12 @@ This page records external material used to understand target dialects, file for
 - CPC Tech, [standard DSK image format](https://www.cpctech.cpcwiki.de/docs/dsk.html). Describes the disk and track headers used by the built-in image packager.
 - Colin Pitrat and contributors, [Caprice32](https://github.com/ColinPitrat/caprice32), GPL-2.0. The emulator's documentation and configuration describe supported CPC models, disk images, and printer output; these are leads for integration, not evidence of a successful Meta-BASIC run.
 
+## KC 85/3 and KC 85/4
+
+- VEB Mikroelektronik Mühlhausen, [KC 85/3 BASIC manual](https://mathematikalpha.de/wp-content/uploads/2023/05/KC_85_3_BASIC.pdf) (1988) and [KC 85/4 BASIC manual](https://www.mpm-kc85.de/dokupack/D001_BASIC_HB.pdf) (1989). Document HC-BASIC syntax, screen operations, variable naming, memory, and peripherals. The latter describes both models but identifies machine-dependent memory and display details.
+- VEB Mikroelektronik Mühlhausen, [KC 85/3 supplementary description](https://www.sax.de/~zander/kc85/doku/kc853erg.pdf). Documents extensions to the KC 85/2 BASIC and CAOS, including peripheral channels.
+- Jens Müller, [JKCEMU KC 85 emulation](https://www.jens-mueller.org/jkcemu/kc85.html). Describes emulated machine models and expansion modules, including the M003 serial/printer interface. Emulator documentation is not evidence of a successful Meta-BASIC run.
+
 ## Source-recording policy
 
 When adding a source:
