@@ -42,7 +42,9 @@ By default the profile selects KC 85/3, starts BASIC, loads a
 tokenized `.sss` file with JKCEMU AutoLoad, and enters `RUN`. Use `--type-in`
 to enter the listing through AutoInput instead; this can take several minutes.
 `--fast-load` explicitly selects the default loader. Neither path alters the
-user's saved JKCEMU profile. The launcher reports process startup only.
+user's saved JKCEMU profile. The isolated profile includes an M011 RAM module
+in slot 08 and activates it with `SWITCH 8 43` before starting BASIC. The launcher
+reports process startup only.
 A user observed the generated release `struct-demo.mbas` run through AutoInput
 on JKCEMU 0.9.9.1 with KC 85/3 on Windows. The user also reported that the
 single `data` instruction-suite test passed in an interactive run. Captured
@@ -56,10 +58,12 @@ this uses JKCEMU's screen-text API, not a printer. It needs a JDK with Java sour
 file execution and saves each fresh capture in its isolated `build/.jkcemu/`
 run directory. `npm run test:language:kc85 -- --hidden` runs all instruction
 modules sequentially; failures and unverified modules are reported separately.
-On Windows with JKCEMU 0.9.9.1, eleven modules passed in separate runs with 91
+On Windows with JKCEMU 0.9.9.1 and an M011 in slot 08, all eleven modules passed
+in a sequential run with 91
 tests and 276 assertions. Colour assertions track requested values and do not
-inspect the rendered colours. The random module finished with only 94 bytes free in
-that configuration, so larger programs may require additional memory.
+inspect the rendered colours. Without expansion, the random module finished with
+only 94 bytes free; with the launcher's M011 configuration and unsigned memory
+reporting, it passed with 42,187 bytes free.
 
 ## Amstrad CPC / Caprice32
 

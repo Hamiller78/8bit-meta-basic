@@ -38,7 +38,8 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       if (functionName === "__KC85_COLUMN") return "(VPEEK(14240)+1)";
       if (functionName === "__KC85_SCREEN") return "ASC(VGET$)";
       if (functionName === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
-      if (functionName === builtinFunctions.freeMemory) return "FRE(0)";
+      // HC-BASIC returns a signed 16-bit result for memory above 32767 bytes.
+      if (functionName === builtinFunctions.freeMemory) return "(FRE(0)-65536*(FRE(0)<0))";
       if (functionName === builtinFunctions.rnd) return "RND(1)";
       if (nativeFunctions.has(functionName)) return `${functionName}(${value.args.map((arg) => renderExpression(arg, opts)).join(",")})`;
       throw new DiagnosticError(value.location, `KC 85 support for ${value.name} is not implemented.`);

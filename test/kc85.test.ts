@@ -36,6 +36,11 @@ describe("KC 85/3 compiler", () => {
     expect(output).toContain("RND(1)");
   });
 
+  it("converts signed free-memory results to an unsigned byte count", () => {
+    const output = compileSource('value=free_memory()\n', { filename: "memory.mbas", target: "kc85" });
+    expect(output).toContain("FRE(0)-65536*(FRE(0)<0)");
+  });
+
   it("accepts a border colour request between other statements", () => {
     const output = compileSource('print "BEFORE";\nscreen_border_color RED\nprint "AFTER"\n', { filename: "border.mbas", target: "kc85" });
     expect(output).toContain('PRINT "BEFORE";');

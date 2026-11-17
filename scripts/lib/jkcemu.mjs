@@ -14,7 +14,7 @@ export function kc85AutoInputProfile(listing, version = "0.9.9.1") {
     previous = number;
   }
   const inputs = [
-    { wait: 5000, text: "BASIC\r" },
+    { wait: 5000, text: "SWITCH 8 43\rBASIC\r" },
     { wait: 3000, text: "\r" },
     { wait: 1000, text: `${lines.join("\r")}\r` },
     { wait: 1000, text: "RUN\r" }
@@ -26,7 +26,7 @@ export function kc85AutoInputProfile(listing, version = "0.9.9.1") {
 export function kc85AutoLoadProfile(file, version = "0.9.9.1") {
   if (!file || /[\r\n]/u.test(file)) throw new Error("A valid KC 85 BASIC file path is required.");
   return profileXml([
-    { wait: 5000, text: "BASIC\r" },
+    { wait: 5000, text: "SWITCH 8 43\rBASIC\r" },
     { wait: 3000, text: "\r" },
     { wait: 12000, text: "RUN\r" }
   ], [["jkcemu.kc85_3.autoload.count", "1"],
@@ -37,7 +37,8 @@ export function kc85AutoLoadProfile(file, version = "0.9.9.1") {
 function profileXml(inputs, extraEntries, version) {
   if (version !== "0.9.9.1") throw new Error(`JKCEMU ${version} is not supported by this profile; expected 0.9.9.1.`);
   const entries = [
-    ["jkcemu.version", version], ["jkcemu.system", "KC85_3"], ...extraEntries,
+    ["jkcemu.version", version], ["jkcemu.system", "KC85_3"],
+    ["jkcemu.kc85_3.module.count", "1"], ["jkcemu.kc85_3.module.08.name", "M011"], ...extraEntries,
     ["jkcemu.kc85_3.autoinput.count", String(inputs.length)],
     ...inputs.flatMap((input, index) => [
       [`jkcemu.kc85_3.autoinput.${index}.wait.millis`, String(input.wait)],

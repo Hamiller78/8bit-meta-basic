@@ -66,6 +66,8 @@ default-window positions in a separate user-run manual check.
 Seeded `RANDOMIZE` initializes HC-BASIC's generator with a negative `RND` argument.
 `BYTE` values use ordinary numeric storage rather than a compact native byte;
 the storage instruction-suite module passed in JKCEMU.
+`FREE_MEMORY()` converts HC-BASIC's signed 16-bit result to an unsigned count,
+including when an M011 provides more than 32767 free bytes.
 `SCREEN_CODE` uses `VGET$` after temporarily moving the cursor, and restores the
 previous position using the CAOS cursor work area; the screen instruction-suite
 module passed in JKCEMU.
