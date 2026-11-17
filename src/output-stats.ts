@@ -270,7 +270,7 @@ function collectVariables(
 
   for (const match of code.matchAll(target === "cpc" ? cpcVariableNamePattern : variableNamePattern)) {
     const name = match[0].toUpperCase();
-    if (ignoredIdentifiers.has(name) || ignoredCallNames.has(baseName(name))) {
+    if (ignoredIdentifiers.has(name) || ignoredCallNames.has(baseName(name)) || (target === "kc85" && !/^[A-Z]\d\$?$/u.test(name))) {
       continue;
     }
     if (isDeclaredArray(name, numericArrays, stringArrays)) {
@@ -296,6 +296,7 @@ function collectDimmedVariables(
 
   for (const match of dimMatch[1].matchAll(target === "cpc" ? cpcVariableNamePattern : variableNamePattern)) {
     const name = match[0].toUpperCase();
+    if (target === "kc85" && !/^[A-Z]\d\$?$/u.test(name)) continue;
     if (target === "atari800xl" && name.endsWith("$")) {
       stringVariables.add(name);
     } else {

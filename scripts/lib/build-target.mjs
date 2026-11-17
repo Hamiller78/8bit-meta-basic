@@ -7,8 +7,10 @@ import { toolOutputReportsFailure } from "../tool-output.mjs";
 import { compilerTargetConfiguration } from "../target-configurations.mjs";
 import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
 import { createCpcDataDisk, writeCpcDiskImage } from "./cpc-disk.mjs";
+import { tokenizeKc85Basic } from "./kc85-basic-tokenizer.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon", "cpc"];
+export const experimentalTargets = ["kc85"];
 export const profiles = {
   debug: 2,
   balanced: 1,
@@ -52,8 +54,8 @@ export async function buildTarget(options) {
   const atariDataDriveSpec = options.atariDataDriveSpec;
   const fileStorage = options.fileStorage;
 
-  if (!targets.includes(target)) {
-    throw new Error(`Unknown target "${target}". Expected one of: ${targets.join(", ")}.`);
+  if (![...targets, ...experimentalTargets].includes(target)) {
+    throw new Error(`Unknown target "${target}". Expected one of: ${[...targets, ...experimentalTargets].join(", ")}.`);
   }
   if (!Object.hasOwn(profiles, profile)) {
     throw new Error(`Unknown profile "${profile}". Expected one of: ${Object.keys(profiles).join(", ")}.`);
@@ -118,6 +120,13 @@ export async function buildTarget(options) {
     const sourceText = await readFile(basicPath, "utf8");
     await writeFile(tokenizedPath, tokenizeAgonBasic(sourceText));
     artifacts.agonTokenized = tokenizedPath;
+    console.log(`created ${relativeToCwd(cwd, tokenizedPath)}`);
+  }
+
+  if (target === "kc85") {
+    const tokenizedPath = outputPathFor(cwd, outDir, profile, target, program.name, ".sss");
+    await writeFile(tokenizedPath, tokenizeKc85Basic(await readFile(basicPath, "utf8")));
+    artifacts.kc85Tokenized = tokenizedPath;
     console.log(`created ${relativeToCwd(cwd, tokenizedPath)}`);
   }
 
@@ -674,7 +683,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|vic20|agon|cpc> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|vic20|agon|cpc|kc85> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;

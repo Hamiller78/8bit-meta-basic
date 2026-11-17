@@ -30,6 +30,37 @@ or request `--restart` when switching programs; check the actual result if an
 existing instance interferes. General launcher options are documented in
 [Emulator launch commands](toolchain.md#emulator-launch-commands).
 
+## KC 85/3 / JKCEMU
+
+The experimental Windows launcher supports JKCEMU 0.9.9.1. Configure a `kc85`
+entry as shown in `scripts/tools.example.json`, with `emulator.path` pointing to
+the installed JAR and, if needed, `emulator.javaPath` pointing to `javaw.exe`.
+For example, `npm run launch:kc85 -- --source examples/struct-demo.mbas --profile release`
+builds the listing and starts JKCEMU with an isolated profile under
+`build/.jkcemu/`. The struct demo is also the default source when none is given.
+By default the profile selects KC 85/3, starts BASIC, loads a
+tokenized `.sss` file with JKCEMU AutoLoad, and enters `RUN`. Use `--type-in`
+to enter the listing through AutoInput instead; this can take several minutes.
+`--fast-load` explicitly selects the default loader. Neither path alters the
+user's saved JKCEMU profile. The launcher reports process startup only.
+A user observed the generated release `struct-demo.mbas` run through AutoInput
+on JKCEMU 0.9.9.1 with KC 85/3 on Windows. The user also reported that the
+single `data` instruction-suite test passed in an interactive run. Captured
+instruction-suite results are described below. The typed-input fallback rejects
+characters outside JKCEMU's documented AutoInput character set. A module that
+compiles can be run interactively with
+`npm run launch:kc85 -- --project language-tests/instruction-suite --run-tests --module data --profile release`;
+inspect the on-screen result. Add `--printer-output --hidden` to use the fast
+loader and capture the final screen instead. Despite the historical option name,
+this uses JKCEMU's screen-text API, not a printer. It needs a JDK with Java source
+file execution and saves each fresh capture in its isolated `build/.jkcemu/`
+run directory. `npm run test:language:kc85 -- --hidden` runs all instruction
+modules sequentially; failures and unverified modules are reported separately.
+On Windows with JKCEMU 0.9.9.1, eleven modules passed in separate runs with 91
+tests and 276 assertions. Colour assertions track requested values and do not
+inspect the rendered colours. The random module finished with only 94 bytes free in
+that configuration, so larger programs may require additional memory.
+
 ## Amstrad CPC / Caprice32
 
 Configure a `cpc` target configuration using `scripts/tools.example.json` and set
@@ -84,6 +115,7 @@ Configured path overrides take precedence; resolve the actual path before a run.
 | `atari2` | Atari800 H: shared directory, `H1:MCP.TXT` | `build/atari800_drive/MCP.TXT` |
 | `agon` | File on the virtual SD card | `<sdcardPath>/MCP.DAT`; runtime errors in `<sdcardPath>/MCP.ERR` |
 | `cpc` | Caprice32 printer | `build/printer/release/cpc/<name>.txt`; the instruction orchestrator saves each module separately. |
+| `kc85` | JKCEMU screen-text API | `build/.jkcemu/launch-<unique>/screen.txt`; the instruction orchestrator uses separate module output directories. |
 
 The historical `--printer-output` launch flag enables the selected transport.
 Capture fields and placeholders are defined in the

@@ -59,7 +59,8 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
-- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, Agon Light, and Amstrad CPC.
+- `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, Agon Light, Amstrad CPC, and the experimental KC 85/3 backend.
+- `src/targets/inkey-lowering.ts` buffers nonblocking keyboard reads for dialects using `INKEY$`; `safe-dispatch.ts` expands computed dispatch where out-of-range native selectors are unsafe.
 - `src/targets/beep.ts` expands non-Spectrum beeps into sound-register operations and blocking clock waits; constant pitches are converted during compilation.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.
@@ -119,6 +120,8 @@ logical output-capture storage, progress messages, and a final summary. Normal
 builds omit this runtime. Test syntax and observable behavior are specified in the
 [language reference](language-reference.md#test-mode); enabling runner options is
 covered by the [toolchain reference](toolchain.md#test-build-and-capture-options).
+Its visual failure-border instruction is marked as optional so a target without a
+usable border can omit it without treating source border-colour requests as no-ops.
 
 Timer, keyboard, and joystick fakes use generated per-test storage. `SET_RND`
 sequences use a shared queue; each queued result is consumed once before target

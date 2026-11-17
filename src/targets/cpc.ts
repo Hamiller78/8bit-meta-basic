@@ -6,6 +6,8 @@ import { resolveLabel } from "../line-numbering.js";
 import { normalizeLabel, type Instruction, type LoweredProgram } from "../lowering.js";
 import { isStringVariableName } from "../variables.js";
 import { cpcVariableMap } from "./cpc-variables.js";
+import { lowerInkeyReads } from "./inkey-lowering.js";
+import { lowerSafeDispatch } from "./safe-dispatch.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { lowerSequentialFileIo } from "./file-io.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
@@ -77,35 +79,15 @@ export const cpcTarget: TargetBackend = {
       } else if (instruction.kind === "if-then") instruction.body.forEach(validate);
     };
     program.instructions.forEach((instruction) => { validate(instruction); mapInstructionExpressions(instruction, validateText); });
-    const grouped = groupInvertedPrints(lowerCpcScreenReads(lowerCpcKeyboardReads(lowerCpcBeeps(lowerByteStorage(lowerSequentialFileIo(program), "cpc")))));
-    const allocate = createGeneratedVariableNameAllocator(grouped.instructions, "MBCPCDISPATCH");
-    const instructions: Instruction[] = [];
-    for (const instruction of grouped.instructions) {
-      if (instruction.kind !== "on-goto" && instruction.kind !== "on-gosub") {
-        instructions.push(instruction);
-        continue;
-      }
-      const temporary = allocate();
-      instructions.push({ kind: "let", name: temporary, expression: instruction.expression, location: instruction.location });
-      for (const [index, label] of instruction.labels.entries()) {
-        instructions.push({
-          kind: instruction.kind === "on-goto" ? "if-goto" : "if-gosub",
-          condition: {
-            kind: "binary", operator: "=", location: instruction.location,
-            left: { kind: "identifier", name: temporary, location: instruction.location },
-            right: { kind: "number", value: index + 1, raw: String(index + 1), location: instruction.location }
-          },
-          label, location: instruction.location
-        });
-      }
-    }
+    const grouped = groupInvertedPrints(lowerCpcScreenReads(lowerInkeyReads(lowerCpcBeeps(lowerByteStorage(lowerSequentialFileIo(program), "cpc")), "MBCPCKEY")));
+    const dispatch = lowerSafeDispatch(grouped, "MBCPCDISPATCH");
     const mapPens = (instruction: Instruction): Instruction => {
       if (instruction.kind === "cell-text-color") return { ...instruction, cpcPen: colorPen(instruction.color.color, 1) };
       if (instruction.kind === "cell-background-color") return { ...instruction, cpcPen: colorPen(instruction.color.color, 0) };
       if (instruction.kind === "if-then") return { ...instruction, body: instruction.body.map(mapPens) };
       return instruction;
     };
-    const lowered = rebuildLabels(grouped, instructions.map(mapPens));
+    const lowered = rebuildLabels(dispatch, dispatch.instructions.map(mapPens));
     const location = lowered.instructions[0]?.location ?? { filename: "<generated>", line: 1 };
     return rebuildLabels(lowered, [{ kind: "graphics-mode", mode: 1, cpcInks: priority.map((color) => colors[color]), location }, ...lowered.instructions]);
   },
@@ -222,50 +204,6 @@ function lowerCpcBeeps(program: LoweredProgram): LoweredProgram {
     );
   }
   return rebuildLabels(program, lowered);
-}
-
-function lowerCpcKeyboardReads(program: LoweredProgram): LoweredProgram {
-  const allocate = createGeneratedVariableNameAllocator(program.instructions, "MBCPCKEY", "$");
-  const key = allocate();
-  const lower = (instruction: Instruction): { instruction: Instruction; prefix: Instruction[]; suffix: Instruction[] } => {
-    const prefix: Instruction[] = [], suffix: Instruction[] = [];
-    const location = instruction.location;
-    const keyExpr = (): Expression => ({ kind: "identifier", name: key, valueType: "string", location });
-    const empty = (): Expression => ({ kind: "string", value: "", location });
-    const condition = (operator: "=" | "<>"): Expression => ({ kind: "binary", operator, left: keyExpr(), right: empty(), location });
-    const poll = (): void => { prefix.push({ kind: "if-then", condition: condition("="), body: [{ kind: "read-key", name: key, location }], originalSkipLabel: "", location }); };
-    const rewrite = (expression: Expression): Expression => {
-      switch (expression.kind) {
-        case "function-call":
-          if (expression.name === builtinFunctions.keyPressed) { poll(); return condition("<>"); }
-          return { ...expression, args: expression.args.map(rewrite) };
-        case "array-access": return { ...expression, indices: expression.indices.map(rewrite) };
-        case "struct-field-access": return { ...expression, indices: expression.indices.map(rewrite) };
-        case "parenthesized": return { ...expression, expression: rewrite(expression.expression) };
-        case "unary": return { ...expression, operand: rewrite(expression.operand) };
-        case "binary": return { ...expression, left: rewrite(expression.left), right: rewrite(expression.right) };
-        default: return expression;
-      }
-    };
-    if (instruction.kind === "let" && instruction.expression.kind === "function-call" && instruction.expression.name === builtinFunctions.keyCode) {
-      poll();
-      const zero: Expression = { kind: "number", value: 0, raw: "0", location };
-      const asc: Expression = { kind: "function-call", name: builtinFunctions.asc, args: [keyExpr()], valueType: "number", location };
-      suffix.push({ kind: "if-then", condition: condition("<>"), body: [{ ...instruction, expression: asc }], originalSkipLabel: "", location });
-      suffix.push({ kind: "let", name: key, expression: empty(), location });
-      return { instruction: { ...instruction, expression: zero }, prefix, suffix };
-    }
-    if (instruction.kind === "if-then") {
-      const conditionValue = rewrite(instruction.condition);
-      const body = instruction.body.flatMap((item) => { const result = lower(item); return [...result.prefix, result.instruction, ...result.suffix]; });
-      return { instruction: { ...instruction, condition: conditionValue, body }, prefix, suffix };
-    }
-    return { instruction: mapInstructionExpressions(instruction, rewrite), prefix, suffix };
-  };
-  return rebuildLabels(program, program.instructions.flatMap((instruction) => {
-    const result = lower(instruction);
-    return [...result.prefix, result.instruction, ...result.suffix];
-  }));
 }
 
 function lowerCpcScreenReads(program: LoweredProgram): LoweredProgram {

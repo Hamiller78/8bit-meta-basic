@@ -33,6 +33,14 @@ describe("BYTE storage", () => {
     expect(output).toContain("PRINT VA%(1)");
   });
 
+  it("uses ordinary numeric storage and integer coercion on KC 85/3", () => {
+    const output = compileSource(arraySource, { filename: "byte.mbas", target: "kc85", readability: 2 });
+    expect(output).toContain("DIM A0(3)");
+    expect(output).toContain("A0(0)=INT(65)");
+    expect(output).toContain("A0(1)=INT(A0(0) + 1)");
+    expect(output).toContain("PRINT A0(1)");
+  });
+
   it("uses compact BYTE backing storage in scalar structs and struct arrays", () => {
     const source = [
       "struct Item",

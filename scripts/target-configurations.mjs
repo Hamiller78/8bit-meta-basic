@@ -8,7 +8,8 @@ const launcherScripts = {
   atari800: "scripts/launch-atari800.mjs",
   vice: "scripts/launch-c64.mjs",
   "fab-agon": "scripts/launch-agon.mjs",
-  caprice32: "scripts/launch-cpc.mjs"
+  caprice32: "scripts/launch-cpc.mjs",
+  jkcemu: "scripts/launch-kc85.mjs"
 };
 
 export async function loadToolConfiguration(cwd, configPath) {

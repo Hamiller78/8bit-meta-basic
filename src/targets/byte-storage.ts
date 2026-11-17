@@ -5,11 +5,11 @@ import { rebuildLabels } from "./target.js";
 import { mapInstructionExpressions } from "./instruction-expressions.js";
 import { allocateGeneratedVariableName } from "./string-array-lengths.js";
 
-export type ByteStorageTarget = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon" | "cpc";
+export type ByteStorageTarget = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon" | "cpc" | "kc85";
 
 /** Select compact target storage while keeping BYTE expressions numerically typed. */
 export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTarget): LoweredProgram {
-  const suffix = target === "c64" || target === "vic20" || target === "agon" || target === "cpc" ? "%" : "$";
+  const suffix = target === "c64" || target === "vic20" || target === "agon" || target === "cpc" || target === "kc85" ? "%" : "$";
   const byteNames = collectByteStorageNames(program.instructions);
   if (byteNames.size === 0) return program;
 
@@ -49,7 +49,7 @@ export function lowerByteStorage(program: LoweredProgram, target: ByteStorageTar
     }
   });
 
-  if (target === "c64" || target === "vic20" || target === "agon" || target === "cpc") return rebuildLabels(program, rewritten);
+  if (target === "c64" || target === "vic20" || target === "agon" || target === "cpc" || target === "kc85") return rebuildLabels(program, rewritten);
 
   const initializationLoopName = allocateGeneratedVariableName(rewritten, "MBBYTEINIT");
   const initialized: Instruction[] = [];

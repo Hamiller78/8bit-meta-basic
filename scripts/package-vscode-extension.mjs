@@ -13,7 +13,7 @@ async function main() {
   await mkdir(join(toolsRoot, "scripts"), { recursive: true });
 
   await copyDirectory(join(root, "dist"), join(toolsRoot, "dist"), (name) => name.endsWith(".js"));
-  await copyDirectoryFiles(join(root, "scripts"), join(toolsRoot, "scripts"), (name) => name.endsWith(".mjs") || name === "tools.example.json");
+  await copyDirectoryFiles(join(root, "scripts"), join(toolsRoot, "scripts"), (name) => name.endsWith(".mjs") || name === "JkcScreenCapture.java" || name === "tools.example.json");
   await copyDirectory(join(root, "scripts", "lib"), join(toolsRoot, "scripts", "lib"), (name) => name.endsWith(".mjs"));
   await writeFile(join(toolsRoot, "package.json"), `${JSON.stringify({ type: "module" }, null, 2)}\n`, "utf8");
   console.log(`prepared ${relative(toolsRoot)}`);

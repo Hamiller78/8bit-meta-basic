@@ -4,7 +4,7 @@ import type { ReadabilityLevel } from "../line-numbering.js";
 import { type Instruction, type LabelDefinition, type LoweredProgram, normalizeLabel } from "../lowering.js";
 import type { PortableColor } from "./environment.js";
 
-export type TargetId = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon" | "cpc";
+export type TargetId = "spectrum" | "atari800xl" | "c64" | "vic20" | "agon" | "cpc" | "kc85";
 export type GotoSpelling = "GO TO" | "GOTO";
 
 export interface TargetBackend {
@@ -327,6 +327,8 @@ function targetDisplayName(target: TargetId): string {
       return "Agon Light";
     case "cpc":
       return "Amstrad CPC";
+    case "kc85":
+      return "KC 85/3";
   }
 }
 

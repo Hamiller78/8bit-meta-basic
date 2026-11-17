@@ -77,6 +77,12 @@ describe("control-flow optimization", () => {
     expect(output.match(/IF STATE \+ 1 = [123] THEN GO TO/g)).toHaveLength(3);
   });
 
+  it.each(["cpc", "kc85"] as const)("guards out-of-range dispatch on %s", (target) => {
+    const output = compileSource(enumDispatchSource, { filename: "enum-dispatch.mbas", target, readability: 0 });
+    expect(output).not.toMatch(/\bON\b.*\bGOTO\b/u);
+    expect(output.match(/IF .+ = [123] THEN \d+/gu)).toHaveLength(3);
+  });
+
   it("inlines a short conditional body after THEN", () => {
     const output = compileSource('if ready then\nprint "READY"\nend if\n', { filename: "branch.mbas", target: "spectrum", readability: 0 });
     expect(output).toBe('10 IF READY <> 0 THEN PRINT "READY"\n');

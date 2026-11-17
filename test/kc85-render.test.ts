@@ -21,9 +21,27 @@ describe("KC 85 HC-BASIC rendering", () => {
       .toBe("10 LOCATE CSRLIN(1),3");
   });
 
-  it("reports unsupported operations instead of emitting another dialect", () => {
-    expect(() => renderKc85Line(10, { kind: "suppress-scroll-prompt", location }, new Map(), new Map()))
-      .toThrow(/KC 85 support for suppress-scroll-prompt is not implemented/);
+  it("uses HC-BASIC foreground and background codes", () => {
+    const color = { kind: "color" as const, color: "WHITE" as const, location };
+    expect(renderKc85Line(10, { kind: "cls", color, location }, new Map(), new Map())).toBe("10 PAPER 7:CLS");
+    expect(renderKc85Line(10, { kind: "cell-text-color", color, location }, new Map(), new Map())).toBe("10 INK 7");
+    expect(renderKc85Line(10, { kind: "cell-background-color", color, location }, new Map(), new Map())).toBe("10 PAPER 7");
+  });
+
+  it("does not consume subsequent statements when scalar string storage is packed", () => {
+    expect(renderKc85Line(10, { kind: "dim-string", name: "message$", length: 20, location }, new Map(), new Map()))
+      .toBe('10 PRINT "";');
+  });
+
+  it("ignores border colour requests without consuming packed statements", () => {
+    const color = { kind: "color" as const, color: "RED" as const, location };
+    expect(renderKc85Line(10, { kind: "border-color", color, location }, new Map(), new Map()))
+      .toBe('10 PRINT "";');
+  });
+
+  it("selects scrolling output without a prompt", () => {
+    expect(renderKc85Line(10, { kind: "suppress-scroll-prompt", location }, new Map(), new Map()))
+      .toBe("10 PRINT CHR$(18);");
   });
 
   it("rejects seeded RANDOMIZE, which is not in the documented KC 85 syntax", () => {

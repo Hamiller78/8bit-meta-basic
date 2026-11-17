@@ -9,6 +9,10 @@ output, not additional Meta-BASIC source syntax.
 
 ## Overview
 
+An experimental `kc85` compiler backend is also available for KC 85/3 HC-BASIC.
+It is incomplete and has limited emulator verification; see
+[KC 85/3](#kc-853-experimental).
+
 | Behaviour | ZX Spectrum | Atari 800XL | Commodore 64 | VIC-20 | Agon Light | Amstrad CPC |
 | --- | --- | --- | --- | --- | --- | --- |
 | `TEXT_ROWS` × `TEXT_COLUMNS` | 22 × 32 | 24 × 40 | 25 × 40 | 23 × 22 | 30 × 80 (mode 3) | 25 × 40 (mode 1) |
@@ -33,6 +37,41 @@ in the overview. Coordinates span 1 through the corresponding text dimension.
 `PI` and `E`, portable colour names, key names, and game-control names are described
 by the [language reference](language-reference.md#constants); their hardware
 interpretation remains target-specific.
+
+## KC 85/3 (experimental)
+
+The direct compiler accepts `--target kc85` for a preliminary HC-BASIC listing.
+The default window is 30 rows by 40 columns; `LOCATE` uses zero-based coordinates
+relative to that window. The backend enforces 72 characters per generated line and
+line numbers no greater than 65529. Numeric and string variables use separately
+allocated letter-digit names; `INK` and `PAPER` use the HC-BASIC colour codes,
+where background white is approximated by grey. Keyboard polling uses a buffered
+`INKEY$`; special key codes have not yet been confirmed. The environment reserves
+50 ticks per second for the planned timer mapping, but `JIFFIES()` itself is not
+implemented.
+
+Unsupported operations produce diagnostics. These include timer, joystick,
+sound, data-file and device operations, and inverted output. Border-colour
+requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
+portable transliteration. An experimental JKCEMU launcher has run the generated release
+struct demo in a user-observed JKCEMU 0.9.9.1 KC 85/3 session on Windows. The
+generated `.sss` file for the data test matched a file saved by that emulator
+byte for byte. Automated fast loading and screen capture passed the colours, data,
+expressions, flow, functions, random, runtime, screen, storage, strings, and text
+instruction-suite modules on JKCEMU 0.9.9.1 on Windows. Colour assertions track
+requested values in the test runner; they do not verify rendered colours.
+In the same emulator configuration,
+`LOCATE 0,0`, `LOCATE 5,5`, and `LOCATE 29,0` placed text in the expected
+default-window positions in a separate user-run manual check.
+Seeded `RANDOMIZE` initializes HC-BASIC's generator with a negative `RND` argument.
+`BYTE` values use ordinary numeric storage rather than a compact native byte;
+the storage instruction-suite module passed in JKCEMU.
+`SCREEN_CODE` uses `VGET$` after temporarily moving the cursor, and restores the
+previous position using the CAOS cursor work area; the screen instruction-suite
+module passed in JKCEMU.
+Long single-literal `PRINT` statements are split into consecutive non-advancing
+prints when needed to stay within the line limit. The test runner's optional red
+border failure indicator is also ignored.
 
 ## Line limits and numbering
 

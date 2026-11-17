@@ -62,9 +62,17 @@
     },
     "cpc": {
       "tools": []
+    },
+    "kc85": {
+      "tools": []
     }
   },
   "targetConfigurations": {
+    "kc85": {
+      "compilerTarget": "kc85",
+      "computer": { "model": "KC 85/3", "basic": "HC-BASIC" },
+      "emulator": { "type": "jkcemu", "name": "JKCEMU", "path": "", "javaPath": "" }
+    },
     "cpc": {
       "compilerTarget": "cpc",
       "computer": { "model": "Amstrad CPC 6128", "ramKib": 128, "basic": "Locomotive BASIC 1.1" },

@@ -5,6 +5,12 @@ import { resolveLabel } from "../line-numbering.js";
 import type { Instruction } from "../lowering.js";
 import { isStringVariableName } from "../variables.js";
 import { renderDataValues, renderExpression, renderPrintItems, validateConstantCoordinate, type ExpressionRenderOptions } from "./target.js";
+import type { PortableColor } from "./environment.js";
+
+// HC-BASIC's background code 7 is grey, the closest available to white.
+const colors: Readonly<Record<PortableColor, number>> = {
+  BLACK: 0, BLUE: 1, RED: 2, MAGENTA: 3, GREEN: 4, CYAN: 5, YELLOW: 6, WHITE: 7
+};
 
 const nativeFunctions = new Set<string>([
   builtinFunctions.abs, builtinFunctions.asc, builtinFunctions.atn, builtinFunctions.chr,
@@ -26,6 +32,11 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     arrayRenderer: (value, opts) => `${name(value.name)}(${value.indices.map((index) => renderExpression(index, opts)).join(",")})`,
     functionRenderer: (value, opts) => {
       const functionName = value.name.toUpperCase();
+      if (functionName === "__KC85_SEED_RND") return `RND(-ABS(${renderExpression(value.args[0], opts)})-1)`;
+      if (functionName === "__KC85_ROW") return "(CSRLIN(1)+1)";
+      // CAOS CURSO at B7A0 is at offset 14240 in the video-memory window.
+      if (functionName === "__KC85_COLUMN") return "(VPEEK(14240)+1)";
+      if (functionName === "__KC85_SCREEN") return "ASC(VGET$)";
       if (functionName === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
       if (functionName === builtinFunctions.freeMemory) return "FRE(0)";
       if (functionName === builtinFunctions.rnd) return "RND(1)";
@@ -45,8 +56,12 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     case "label": return `${prefix}REM ${instruction.name.toUpperCase()}:`;
     case "rem": return `${prefix}REM ${instruction.text}`;
     case "cls":
-      if (instruction.color) throw new DiagnosticError(instruction.location, "KC 85 coloured CLS is not implemented.");
-      return `${prefix}CLS`;
+      return `${prefix}${instruction.color ? `PAPER ${colors[instruction.color.color]}:` : ""}CLS`;
+    case "text-color": case "cell-text-color": return `${prefix}INK ${colors[instruction.color.color]}`;
+    case "screen-background-color": case "cell-background-color": case "paper":
+      return `${prefix}PAPER ${colors[instruction.color.color]}`;
+    case "border-color": return `${prefix}PRINT "";`;
+    case "suppress-scroll-prompt": case "program-mode": return `${prefix}PRINT CHR$(18);`;
     case "print":
       if (instruction.inverted) throw new DiagnosticError(instruction.location, "KC 85 inverted output is not implemented.");
       return `${prefix}${instruction.at ? `LOCATE ${coordinate(instruction.at.row, "row")},${coordinate(instruction.at.column, "column")}:` : ""}PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, options)}`;
@@ -55,7 +70,9 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     case "let": return `${prefix}${name(instruction.name)}=${expr(instruction.expression)}`;
     case "multi-let": return `${prefix}${instruction.assignments.map((item) => `${name(item.name)}=${expr(item.expression)}`).join(":")}`;
     case "dim-array": return `${prefix}DIM ${name(instruction.name)}(${(isStringVariableName(instruction.name) ? instruction.dimensions.slice(0, -1) : instruction.dimensions).map((size) => size - 1).join(",")})`;
-    case "dim-string": return `${prefix}REM STRING STORAGE`;
+    // REM consumes the rest of a packed BASIC line. An empty non-advancing
+    // PRINT is safe when other instructions share the line.
+    case "dim-string": return `${prefix}PRINT "";`;
     case "array-let": return `${prefix}${name(instruction.name)}(${instruction.indices.map(expr).join(",")})=${expr(instruction.expression)}`;
     case "data": return `${prefix}DATA ${renderDataValues(instruction.values, options)}`;
     case "read": return `${prefix}READ ${instruction.targets.map(name).join(",")}`;

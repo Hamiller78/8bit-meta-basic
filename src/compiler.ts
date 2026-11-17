@@ -14,6 +14,7 @@ import { setAtariDataDriveSpec, setAtariRenderProgram, setAtariSharedDriveSpec }
 import { setSpectrumRenderProgram } from "./targets/spectrum.js";
 import { setAgonRenderProgram } from "./targets/agon.js";
 import { setCpcRenderProgram } from "./targets/cpc.js";
+import { setKc85RenderProgram } from "./targets/kc85.js";
 import { targetEnvironments } from "./targets/environment.js";
 import { instructionExpressions, mapInstructionExpressions } from "./targets/instruction-expressions.js";
 import { simplifyGeneratedExpression } from "./targets/expression-simplification.js";
@@ -397,6 +398,8 @@ function setRenderProgram(target: TargetId, instructions: readonly Instruction[]
     setCommodoreRenderProgram(instructions);
   } else if (target === "cpc") {
     setCpcRenderProgram(instructions);
+  } else if (target === "kc85") {
+    setKc85RenderProgram(instructions);
   } else {
     setAgonRenderProgram(instructions);
   }
@@ -731,6 +734,8 @@ function targetDisplayName(target: TargetId): string {
       return "Agon Light";
     case "cpc":
       return "Amstrad CPC";
+    case "kc85":
+      return "KC 85/3";
   }
 }
 

@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { buildProject, buildTarget, profiles, targets } from "./build-target.mjs";
+import { buildProject, buildTarget, experimentalTargets, profiles, targets } from "./build-target.mjs";
 import { parseDeviceKind } from "../device-options.mjs";
 
 const defaultSourceDir = "examples";
@@ -33,8 +33,8 @@ export async function buildDirectory(options) {
     }
   }
   for (const target of selectedTargets) {
-    if (!targets.includes(target)) {
-      throw new Error(`Unknown target "${target}". Expected one of: ${targets.join(", ")}.`);
+    if (![...targets, ...experimentalTargets].includes(target)) {
+      throw new Error(`Unknown target "${target}". Expected one of: ${[...targets, ...experimentalTargets].join(", ")}.`);
     }
   }
 

@@ -29,6 +29,12 @@ npm run build:directory -- --source-dir examples --target c64 --profile debug
 ```
 
 Compiler targets are `spectrum`, `atari800xl`, `c64`, `vic20`, `agon`, and `cpc`.
+The experimental `kc85` target can also be selected with `npm run build:kc85` or
+`build:directory -- --target kc85`; these produce a BASIC listing and tokenized
+`.sss` file. It is not included in all-target builds. The experimental
+`launch:kc85` helper supports interactive runs and screen-captured tests on JKCEMU.
+Its restrictions are listed under
+[KC 85/3](targets.md#kc-853-experimental).
 Directory builds accept repeated `--target` options. Build helpers also support
 `--all-profiles`. All-target builds still enforce each project's screen requirements;
 a project requiring 32 columns cannot compile for the 22-column VIC-20.
@@ -144,6 +150,7 @@ its parent directory's name. Selecting a test module does not change the base na
 | C64/VIC-20 `<name>.prg` | Configured `petcat` runs. |
 | VIC-20 `<name>.cjm` | Packaging produces a PRG; deployment configuration is written beside it. |
 | Agon `<name>.bbc` | Every Agon build, including `--no-tools`; built-in tokenization. |
+| KC 85 `<name>.sss` | Every KC 85 build, including `--no-tools`; tokenized HC-BASIC. |
 | CPC `<name>.dsk` | Every CPC build, including `--no-tools`; a DATA disk containing an ASCII `MAIN.BAS` listing. The adjacent `.dsk.sha256` records the generated image so later builds can protect modified disks. |
 
 Missing optional tools do not prevent BASIC generation. A configured tool failure
@@ -222,6 +229,7 @@ entry points are:
 | `npm run test:language:c64` | Launch on `c64` with capture. |
 | `npm run test:language:agon` | Launch on `agon` with capture. |
 | `npm run test:language:cpc` | Run CPC modules sequentially with visible Caprice32 windows and separate captures. |
+| `npm run test:language:kc85` | Run KC 85 modules sequentially with screen captures; incomplete modules are reported. |
 | `npm run test:language:vic20` | VIC-20 module orchestrator; waits for captures and reports totals. |
 
 Individual launch aliases accept options such as `--module strings`, `--restart`,
@@ -263,7 +271,7 @@ contains complete example configurations; the tables below define the fields.
 | `targetConfigurations.<name>` | A freely named computer, compiler target, and emulator. |
 
 Named configurations require `compilerTarget` and `emulator.type`. Adapter types
-are `fuse`, `altirra`, `atari800`, `vice`, `fab-agon`, and `caprice32`. Optional `computer`
+are `fuse`, `altirra`, `atari800`, `vice`, `fab-agon`, `caprice32`, and `jkcemu`. Optional `computer`
 metadata describes model, memory, video standard, BASIC, ROMs, and screen assumptions;
 emulator arguments enforce the actual setup. Multiple named computers may share
 a compiler target.
@@ -295,6 +303,7 @@ Tools under `targets.<target>.tools` run in array order:
 | `sharedDriveSpec`, `sharedDrivePath`, `sharedDriveOutputPath`, `sharedDriveArgs` | Atari device specification, host directory, captured file, extra arguments. |
 | `workingDirectory`, `sdcardPath`, `basicBinary`, `cardProgramName` | Fab Agon working directory, card, interpreter path on the card (default `bin/bbcbasic24.bin`), staged program name (normalized to `.bbc`). |
 | `configPath` | Optional Caprice32 configuration template; defaults to `cap32.cfg` beside the executable. A run-specific copy is written under the build directory. |
+| `javaPath` | Optional Java executable for JKCEMU; defaults to `javaw` on PATH. Its `path` field specifies the JKCEMU JAR. |
 
 Configured relative host paths resolve against the repository working directory.
 Manual setup such as Altirra's host-device mapping is described in the running
@@ -346,15 +355,17 @@ npm run launch -- vic20 --project examples/eight-bits-below --restart
 ```
 
 Aliases are `launch:spectrum` (`spectrum48`), `launch:atari` (`atari1`),
-`launch:atari800` (`atari2`), `launch:c64`, `launch:vic20`, and `launch:agon`.
+`launch:atari800` (`atari2`), `launch:c64`, `launch:vic20`, `launch:agon`,
+`launch:cpc`, and `launch:kc85`.
 They default to `release`; common input, test, profile, language/font, configuration,
 output-directory, and `--skip-build` options apply.
 
 | Launch option | Scope and effect |
 | --- | --- |
 | `--restart` | Request termination of existing emulator processes. Windows handling is best-effort. |
-| `--hidden` | Request a hidden emulator window on Windows; intended for captured automated runs. Agon uses SDL's dummy video driver and software renderer. Other platforms do not hide the window. |
+| `--hidden` | Request a hidden emulator window on Windows; intended for captured automated runs. Agon uses SDL's dummy video driver and software renderer. Visibility of other emulator windows depends on the host. |
 | `--fast` | Individual Spectrum/VICE launchers append `testArgs`, as test mode does. Agon accepts it without a speed change. |
+| `--fast-load` / `--type-in` | KC 85: select tokenized AutoLoad (the default) or slower AutoInput. Captured runs always use AutoLoad. |
 | `--artifact tokenized-bas\|lst\|atr\|disk-directory` | Individual Atari launchers; default `tokenized-bas`. Atari800 also accepts `basic`. |
 | `--file-storage disk\|tape` | Individual Commodore/Atari launchers support this override. |
 

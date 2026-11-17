@@ -4,6 +4,7 @@ import { spectrumTarget } from "./spectrum.js";
 import { agonTarget } from "./agon.js";
 import { vic20Target } from "./vic20.js";
 import { cpcTarget } from "./cpc.js";
+import { kc85Target } from "./kc85.js";
 import type { TargetBackend, TargetId } from "./target.js";
 
 const targets: Record<TargetId, TargetBackend> = {
@@ -12,7 +13,8 @@ const targets: Record<TargetId, TargetBackend> = {
   c64: c64Target,
   vic20: vic20Target,
   agon: agonTarget,
-  cpc: cpcTarget
+  cpc: cpcTarget,
+  kc85: kc85Target
 };
 
 export type { TargetId };
@@ -22,5 +24,5 @@ export function getTarget(id: TargetId): TargetBackend {
 }
 
 export function isTargetId(value: string): value is TargetId {
-  return value === "spectrum" || value === "atari800xl" || value === "c64" || value === "vic20" || value === "agon" || value === "cpc";
+  return value === "spectrum" || value === "atari800xl" || value === "c64" || value === "vic20" || value === "agon" || value === "cpc" || value === "kc85";
 }
