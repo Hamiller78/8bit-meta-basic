@@ -46,12 +46,17 @@ relative to that window. The backend enforces 72 characters per generated line a
 line numbers no greater than 65529. Numeric and string variables use separately
 allocated letter-digit names; `INK` and `PAPER` use the HC-BASIC colour codes,
 where background white is approximated by grey. Keyboard polling uses a buffered
-`INKEY$`; special key codes have not yet been confirmed. The environment reserves
-50 ticks per second for the planned timer mapping, but `JIFFIES()` itself is not
-implemented.
+`INKEY$`; special key codes have not yet been confirmed. `JIFFIES()` installs a
+roughly 50 Hz interrupt counter and returns ticks since program startup. It wraps
+at 65536 ticks (about 22 minutes). It reserves CTC channel 2 and addresses
+`01D4`–`01E1` and `01EC`–`01ED` hexadecimal; these must not be used by other
+code while the program runs. Normal program exit stops the timer and restores the
+interrupt vector; reset the computer to restore the normal blink timing, and after
+an interrupted program to release the channel. `BEEP` uses the other CTC sound
+channel while the clock continues to run.
 
-Unsupported operations produce diagnostics. These include timer, joystick,
-sound, data-file and device operations, and inverted output. Border-colour
+Unsupported operations produce diagnostics. These include joystick,
+data-file and device operations, and inverted output. Border-colour
 requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
 portable transliteration. An experimental JKCEMU launcher has run the generated release
 struct demo in a user-observed JKCEMU 0.9.9.1 KC 85/3 session on Windows. The
@@ -68,6 +73,11 @@ Seeded `RANDOMIZE` initializes HC-BASIC's generator with a negative `RND` argume
 the storage instruction-suite module passed in JKCEMU.
 `FREE_MEMORY()` converts HC-BASIC's signed 16-bit result to an unsigned count,
 including when an M011 provides more than 32767 free bytes.
+`BEEP` uses one sound channel, with 20 ms duration units and a timer divisor
+selected for the requested pitch. With `JIFFIES()` it programs that channel
+directly while waiting on the clock; otherwise it waits for native `SOUND`.
+Long tones are split into segments.
+The scale demo was heard in JKCEMU 0.9.9.1 on Windows after enabling audio.
 `SCREEN_CODE` uses `VGET$` after temporarily moving the cursor, and restores the
 previous position using the CAOS cursor work area; the screen instruction-suite
 module passed in JKCEMU.

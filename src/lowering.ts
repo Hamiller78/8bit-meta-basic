@@ -109,6 +109,7 @@ export type Instruction =
   | GraphicsModeInstruction
   | SetColorInstruction
   | PokeInstruction
+  | PortOutInstruction
   | PrintChrInstruction
   | VduInstruction
   | DimStringInstruction
@@ -535,6 +536,14 @@ export interface SetColorInstruction {
 export interface PokeInstruction {
   readonly kind: "poke";
   readonly address: number | Expression;
+  readonly value: Expression;
+  readonly location: SourceLocation;
+}
+
+/** Target-generated output to a machine I/O port. */
+export interface PortOutInstruction {
+  readonly kind: "port-out";
+  readonly port: number;
   readonly value: Expression;
   readonly location: SourceLocation;
 }

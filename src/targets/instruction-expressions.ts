@@ -39,6 +39,8 @@ export function instructionExpressions(instruction: Instruction): readonly Expre
       return [instruction.row, instruction.column];
     case "poke":
       return [...(typeof instruction.address === "number" ? [] : [instruction.address]), instruction.value];
+    case "port-out":
+      return [instruction.value];
     case "vdu":
       return instruction.items.map((item) => item.expression);
     case "randomize":
@@ -132,6 +134,8 @@ export function mapInstructionExpressions(instruction: Instruction, map: (expres
       return { ...instruction, row: map(instruction.row), column: map(instruction.column) };
     case "poke":
       return { ...instruction, address: typeof instruction.address === "number" ? instruction.address : map(instruction.address), value: map(instruction.value) };
+    case "port-out":
+      return { ...instruction, value: map(instruction.value) };
     case "randomize":
       return instruction.seed ? { ...instruction, seed: map(instruction.seed) } : instruction;
     case "vdu":

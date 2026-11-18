@@ -37,6 +37,12 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       // CAOS CURSO at B7A0 is at offset 14240 in the video-memory window.
       if (functionName === "__KC85_COLUMN") return "(VPEEK(14240)+1)";
       if (functionName === "__KC85_SCREEN") return "ASC(VGET$)";
+      if (functionName === "__KC85_TONE_ACTIVE") return "((PEEK(504) AND 2)<>0)";
+      if (functionName === "__KC85_CLOCK_HIGH") return "PEEK(481)";
+      if (functionName === "__KC85_CLOCK_LOW") return "PEEK(480)";
+      if (functionName === "__KC85_IRQ_LOW") return "PEEK(492)";
+      if (functionName === "__KC85_IRQ_HIGH") return "PEEK(493)";
+      if (functionName === "__KC85_MAX_VOLUME") return "(INP(137) AND 224)";
       if (functionName === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
       // HC-BASIC returns a signed 16-bit result for memory above 32767 bytes.
       if (functionName === builtinFunctions.freeMemory) return "(FRE(0)-65536*(FRE(0)<0))";
@@ -68,6 +74,11 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       return `${prefix}${instruction.at ? `LOCATE ${coordinate(instruction.at.row, "row")},${coordinate(instruction.at.column, "column")}:` : ""}PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, options)}`;
     case "set-position": return `${prefix}LOCATE ${coordinate(instruction.row, "row")},${coordinate(instruction.column, "column")}`;
     case "set-column": return `${prefix}LOCATE CSRLIN(1),${coordinate(instruction.column, "column")}`;
+    case "beep": {
+      const counter = instruction.pitch.kind === "number" ? String(Math.abs(instruction.pitch.value)) : `ABS(${expr(instruction.pitch)})`;
+      const prescaler = instruction.pitch.kind === "number" ? (instruction.pitch.value < 0 ? "1" : "0") : `ABS(${expr(instruction.pitch)}<0)`;
+      return `${prefix}SOUND ${counter},${prescaler},0,0,31,${expr(instruction.duration)}`;
+    }
     case "let": return `${prefix}${name(instruction.name)}=${expr(instruction.expression)}`;
     case "multi-let": return `${prefix}${instruction.assignments.map((item) => `${name(item.name)}=${expr(item.expression)}`).join(":")}`;
     case "dim-array": return `${prefix}DIM ${name(instruction.name)}(${(isStringVariableName(instruction.name) ? instruction.dimensions.slice(0, -1) : instruction.dimensions).map((size) => size - 1).join(",")})`;
@@ -94,6 +105,7 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       return `${prefix}RANDOMIZE`;
     case "read-key": return `${prefix}${name(instruction.name)}=INKEY$`;
     case "poke": return `${prefix}POKE ${typeof instruction.address === "number" ? instruction.address : expr(instruction.address)},${expr(instruction.value)}`;
+    case "port-out": return `${prefix}OUT ${instruction.port},${expr(instruction.value)}`;
     case "print-chr": return `${prefix}PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
     default: throw new DiagnosticError(instruction.location, `KC 85 support for ${instruction.kind} is not implemented.`);
   }

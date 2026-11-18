@@ -192,6 +192,8 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
         throw new Error("Internal error: unexpected graphics-mode instruction for C64.");
       case "poke":
         return `${lineNumber} POKE ${typeof instruction.address === "number" ? instruction.address : renderExpression(instruction.address, renderOptions)},${renderExpression(instruction.value, renderOptions)}`;
+      case "port-out":
+        throw new Error("Internal error: unexpected port-out instruction for C64.");
       case "print-chr":
         return `${lineNumber} PRINT CHR$(${instruction.code})${instruction.trailingSemicolon ? ";" : ""}`;
       case "vdu":

@@ -339,6 +339,8 @@ export const atari800xlTarget: TargetBackend = {
         throw new Error("Internal error: unexpected vdu instruction for Atari 800XL.");
       case "poke":
         return `${lineNumber} POKE ${typeof instruction.address === "number" ? instruction.address : renderExpression(instruction.address, renderOptions)},${renderExpression(instruction.value, renderOptions)}`;
+      case "port-out":
+        throw new Error("Internal error: unexpected port-out instruction for Atari 800XL.");
       case "sys":
         throw new Error(`Internal error: unexpected ${instruction.kind} instruction for Atari 800XL.`);
       case "trap":
@@ -572,6 +574,8 @@ function materializeAtariStringArrayReads(
       return { prefix, instruction };
     case "position":
       return { prefix, instruction: { ...instruction, row: rewrite(instruction.row), column: rewrite(instruction.column) } };
+    case "port-out":
+      return { prefix, instruction: { ...instruction, value: rewrite(instruction.value) } };
     case "poke":
       return {
         prefix,
@@ -1708,6 +1712,7 @@ function instructionVariableNames(instruction: Instruction): readonly string[] {
     case "graphics-mode":
     case "setcolor":
     case "poke":
+    case "port-out":
     case "print-chr":
     case "vdu":
     case "sys":

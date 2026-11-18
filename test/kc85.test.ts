@@ -16,12 +16,33 @@ describe("KC 85/3 compiler", () => {
   });
 
   it("diagnoses unsupported operations and text at their source", () => {
-    expect(() => compileSource('value=jiffies()\n', { filename: "kc.mbas", target: "kc85" }))
-      .toThrow(/kc\.mbas:1.*JIFFIES.*not implemented/);
     expect(() => compileSource('print "é"\n', { filename: "kc.mbas", target: "kc85" }))
       .toThrow(/kc\.mbas:1.*Unsupported text character/);
     expect(() => compileSource('print "OK"\n', { filename: "kc.mbas", target: "kc85", fileStorage: "disk" }))
       .toThrow(/tape storage only/);
+  });
+
+  it("installs and reads a stable KC 85 interrupt clock", () => {
+    const output = compileSource('start=jiffies()\nvalue=jiffies()-start\n', { filename: "clock.mbas", target: "kc85" });
+    expect(output).toContain("OUT 142,165");
+    expect(output).toContain("OUT 142,137");
+    expect(output).toContain("PEEK(481)");
+    expect(output).toContain("PEEK(480)");
+    expect(output).toContain("POKE 492,212");
+  });
+
+  it("keeps the clock running during a blocking beep", () => {
+    const output = compileSource('start=jiffies()\nbeep 1, NOTE_C4\nfinish=jiffies()\n', { filename: "clock-beep.mbas", target: "kc85" });
+    expect(output.match(/OUT 142,165/gu)).toHaveLength(1);
+    expect(output).toContain("OUT 140,3");
+    expect(output).toContain("65536");
+    expect(output.trimEnd()).toMatch(/POKE 493,[A-Z]\d$/u);
+  });
+
+  it("keeps a six-second clocked beep in a single sound segment", () => {
+    const output = compileSource('start=jiffies()\nbeep 6, NOTE_C4\n', { filename: "clock-long-beep.mbas", target: "kc85" });
+    expect(output).toContain("< 300");
+    expect(output.match(/OUT 140,3/gu)).toHaveLength(1);
   });
 
   it("preserves a polled key until KEY_CODE consumes it", () => {
@@ -34,6 +55,14 @@ describe("KC 85/3 compiler", () => {
     const output = compileSource('randomize 5\nvalue=rnd()\n', { filename: "random.mbas", target: "kc85" });
     expect(output).toContain("RND(-ABS(5)-1)");
     expect(output).toContain("RND(1)");
+  });
+
+  it("lowers tones to timed KC 85 SOUND commands", () => {
+    const output = compileSource('beep 0.25, NOTE_C4\nbeep 6, -12\n', { filename: "sound.mbas", target: "kc85" });
+    expect(output).toContain("SOUND 209,0,0,0,31,13");
+    expect(output).toContain("255");
+    expect(output).toContain("PEEK(504) AND 2");
+    expect(output.trimEnd().split("\n").every((line) => line.length <= 72)).toBe(true);
   });
 
   it("converts signed free-memory results to an unsigned byte count", () => {

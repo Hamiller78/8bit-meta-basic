@@ -209,6 +209,7 @@ export const agonTarget: TargetBackend = {
         return `${lineNumber} MODE ${instruction.mode}`;
       case "setcolor":
       case "poke":
+      case "port-out":
       case "print-chr":
       case "trap":
       case "wait-rs232-transmit":

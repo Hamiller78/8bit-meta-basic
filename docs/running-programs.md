@@ -45,6 +45,11 @@ to enter the listing through AutoInput instead; this can take several minutes.
 user's saved JKCEMU profile. The isolated profile includes an M011 RAM module
 in slot 08 and activates it with `SWITCH 8 43` before starting BASIC. The launcher
 reports process startup only.
+For audible `BEEP` output, enable sound in JKCEMU's audio settings. The user
+heard `examples/kc85-beep-demo.mbas` with audio enabled in JKCEMU 0.9.9.1 on Windows.
+The native `kc85-clock.mbas` regression also passed in JKCEMU 0.9.9.1 on
+Windows with and without the M011; it exercises real clock reads and sound.
+The user heard `examples/beep-demo.mbas` using the clock and confirmed its sound.
 A user observed the generated release `struct-demo.mbas` run through AutoInput
 on JKCEMU 0.9.9.1 with KC 85/3 on Windows. The user also reported that the
 single `data` instruction-suite test passed in an interactive run. Captured

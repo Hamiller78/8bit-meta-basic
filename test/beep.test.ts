@@ -25,7 +25,7 @@ describe("BEEP", () => {
     expect(() => compileSource('beep "long", 0\n', { filename: "bad-beep.mbas", target: "spectrum" })).toThrow(/BEEP.*numeric/i);
   });
 
-  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon"] as const)("compiles a constant and a variable pitch for %s", (target) => {
+  it.each(["spectrum", "atari800xl", "c64", "vic20", "agon", "kc85"] as const)("compiles a constant and a variable pitch for %s", (target) => {
     const output = compileSource("pitch = NOTE_E4\nbeep 0.25, NOTE_C4\nbeep 0.25, pitch\n", { filename: "beep.mbas", target });
     expect(output.length).toBeGreaterThan(0);
     if (target === "c64") expect(output).toContain("4455");
@@ -64,6 +64,12 @@ describe("BEEP", () => {
     const output = compileSource("beep 0, rnd()\n", { filename: "beep-zero.mbas", target: "spectrum" });
     expect(output).toContain("RND");
     expect(output).not.toMatch(/\bBEEP\b/);
+  });
+
+  it("preserves the pitch evaluation for a zero-duration KC 85 beep", () => {
+    const output = compileSource("beep 0, rnd()\n", { filename: "beep-zero.mbas", target: "kc85" });
+    expect(output).toContain("RND(1)");
+    expect(output).not.toContain("SOUND ");
   });
 
   it("precomputes a constant pitch even with a variable duration", () => {

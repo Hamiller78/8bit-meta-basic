@@ -49,6 +49,7 @@ This page records external material used to understand target dialects, file for
 
 - VEB Mikroelektronik Mühlhausen, [KC 85/3 BASIC manual](https://mathematikalpha.de/wp-content/uploads/2023/05/KC_85_3_BASIC.pdf) (1988) and [KC 85/4 BASIC manual](https://www.mpm-kc85.de/dokupack/D001_BASIC_HB.pdf) (1989). Document HC-BASIC syntax, screen operations, variable naming, memory, and peripherals. The latter describes both models but identifies machine-dependent memory and display details.
 - VEB Mikroelektronik Mühlhausen, [KC 85/3 supplementary description](https://www.sax.de/~zander/kc85/doku/kc853erg.pdf). Documents extensions to the KC 85/2 BASIC and CAOS, including peripheral channels.
+- VEB Mikroelektronik Mühlhausen, [KC 85/3 service manual](https://www.sax.de/~zander/kc85/doku/kc853serv.pdf). Documents the CTC and PIO hardware and their port addresses.
 - Jens Müller, [JKCEMU KC 85 emulation](https://www.jens-mueller.org/jkcemu/kc85.html). Describes emulated machine models and expansion modules, including the M003 serial/printer interface. Emulator documentation is not evidence of a successful Meta-BASIC run.
 - Jens Müller, JKCEMU 0.9.9.1 bundled help, `help/fileformats.htm` and `help/loadsavebasic.htm`. Describes the KC-BASIC `.sss` length header, padding, and BASIC-aware loading. A user-saved data-test file was compared byte for byte with this project's generated file.
 

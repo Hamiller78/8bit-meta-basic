@@ -1,0 +1,13 @@
+' A short ascending and descending scale for the KC 85/3.
+print "KC 85 BEEP DEMO"
+beep 0.3, NOTE_C4
+beep 0.3, NOTE_D4
+beep 0.3, NOTE_E4
+beep 0.3, NOTE_F4
+beep 0.3, NOTE_G4
+beep 0.3, NOTE_A4
+beep 0.3, NOTE_B4
+beep 0.6, NOTE_C5
+beep 0.3, NOTE_G4
+beep 0.6, NOTE_C4
+print "DONE"

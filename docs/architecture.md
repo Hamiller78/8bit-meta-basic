@@ -61,6 +61,7 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, Agon Light, Amstrad CPC, and the experimental KC 85/3 backend.
 - `src/targets/inkey-lowering.ts` buffers nonblocking keyboard reads for dialects using `INKEY$`; `safe-dispatch.ts` expands computed dispatch where out-of-range native selectors are unsafe.
+- The KC 85 backend installs a CTC interrupt counter only for programs that read `JIFFIES()` and snapshots it consistently; blocking beeps in those programs use the separate sound channel.
 - `src/targets/beep.ts` expands non-Spectrum beeps into sound-register operations and blocking clock waits; constant pitches are converted during compilation.
 - `src/targets/function-rendering.ts` maps portable built-in functions to target BASIC spellings.
 - `src/line-numbering.ts` assigns BASIC line numbers and enforces target maximums.

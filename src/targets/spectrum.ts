@@ -224,6 +224,7 @@ export const spectrumTarget: TargetBackend = {
       case "graphics-mode":
       case "setcolor":
       case "poke":
+      case "port-out":
       case "print-chr":
       case "vdu":
       case "dim-string":
@@ -1043,6 +1044,7 @@ function spectrumInstructionNames(instruction: Instruction): readonly string[] {
     case "graphics-mode":
     case "setcolor":
     case "poke":
+    case "port-out":
     case "print-chr":
     case "vdu":
     case "sys":

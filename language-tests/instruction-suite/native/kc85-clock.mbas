@@ -1,0 +1,38 @@
+' This program runs outside test mode so JIFFIES and BEEP use real hardware.
+print "KC 85 BEEP DEMO"
+start = jiffies()
+beep 1, NOTE_C4
+finish = jiffies()
+elapsed = finish - start
+print "BEEP TICKS "; elapsed
+if elapsed >= 45 and elapsed <= 100 then
+    print "BEEP PASSED"
+else
+    print "BEEP FAILED"
+end if
+
+start = jiffies()
+toneDuration = 5.2
+tonePitch = NOTE_C3
+beep toneDuration, tonePitch
+finish = jiffies()
+elapsed = finish - start
+print "LONG BEEP TICKS "; elapsed
+if elapsed >= 250 and elapsed <= 320 then
+    print "LONG BEEP PASSED"
+else
+    print "LONG BEEP FAILED"
+end if
+
+start = jiffies()
+while jiffies() - start < 300
+wend
+finish = jiffies()
+elapsed = finish - start
+print "WAIT TICKS "; elapsed
+if elapsed >= 300 and elapsed <= 325 then
+    print "CLOCK PASSED"
+else
+    print "CLOCK FAILED"
+end if
+print "DONE"
