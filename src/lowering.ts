@@ -216,6 +216,7 @@ export interface PrintInstruction {
 export interface InverseTextInstruction {
   readonly kind: "inverse-text";
   readonly enabled: boolean;
+  readonly storage?: string;
   readonly location: SourceLocation;
 }
 

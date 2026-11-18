@@ -17,6 +17,15 @@ test PositionedOutputReachesScreen()
     assert_eq code("8"), screen_code(3, 5)
 end test
 
+test InvertedOutputWritesCharacters()
+    cls
+    print_invert_at 3, 4, "AB";
+    assert_printat 3, 4, "AB"
+    print_invert "C";
+    print "D";
+    assert_eq code("D"), screen_code(3, 7)
+end test
+
 test RightEdgeDoesNotScroll()
     cls
     print_at 1, 1, "1";

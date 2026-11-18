@@ -56,7 +56,7 @@ an interrupted program to release the channel. `BEEP` uses the other CTC sound
 channel while the clock continues to run.
 
 Unsupported operations produce diagnostics. These include
-data-file and device operations, and inverted output. Border-colour
+  data-file and device operations. Border-colour
 requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
 portable transliteration. An experimental JKCEMU launcher has run the generated release
 struct demo in a user-observed JKCEMU 0.9.9.1 KC 85/3 session on Windows. The
@@ -81,6 +81,11 @@ The scale demo was heard in JKCEMU 0.9.9.1 on Windows after enabling audio.
 `SCREEN_CODE` uses `VGET$` after temporarily moving the cursor, and restores the
 previous position using the CAOS cursor work area; the screen instruction-suite
 module passed in JKCEMU.
+`PRINT_INVERT` and `PRINT_INVERT_AT` swap the foreground and background fields of
+the CAOS text-colour byte at `B7A3` for each adjacent run, then restore them.
+The KC's foreground and background palettes differ in brightness, so the
+swapped colours are approximations: an inverted character need not match the
+exact colours of normal text. JKCEMU 0.9.9.1 confirms the swap and restoration.
 Long single-literal `PRINT` statements are split into consecutive non-advancing
 prints when needed to stay within the line limit. The test runner's optional red
 border failure indicator is also ignored.

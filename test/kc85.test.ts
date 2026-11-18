@@ -3,6 +3,17 @@ import { compileSource, compileSourceDetailed } from "../src/compiler.js";
 import { isTargetId } from "../src/targets/index.js";
 
 describe("KC 85/3 compiler", () => {
+  it("swaps and restores current colours around adjacent inverted prints", () => {
+    const output = compileSource('print_invert "FIRST";\nprint_invert_at 2,3,"SECOND"\nprint "NORMAL"\n', { filename: "inverse.mbas", target: "kc85" });
+    expect(output.match(/VPEEK\(14243\)/gu)).toHaveLength(2);
+    expect(output.match(/VPOKE 14243,/gu)).toHaveLength(2);
+    expect(output).toContain('LOCATE 1,2:PRINT "SECOND"');
+    expect(output.indexOf('PRINT "NORMAL"')).toBeGreaterThan(output.lastIndexOf("VPOKE 14243,"));
+    expect(output.trimEnd().split("\n").every(line => line.length <= 72)).toBe(true);
+    const longOutput = compileSource(`print_invert "${"X".repeat(70)}"\n`, { filename: "inverse.mbas", target: "kc85" });
+    expect(longOutput.match(/VPOKE 14243,/gu)).toHaveLength(2);
+    expect(longOutput).toContain(`PRINT "${"X".repeat(50)}";`);
+  });
   it("registers the target and emits indexed arrays and window-relative coordinates", () => {
     expect(isTargetId("kc85")).toBe(true);
     const source = 'dim score(3)\nscore(0)=42\nprint_at 3,4,score(0)\n';

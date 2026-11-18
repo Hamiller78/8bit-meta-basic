@@ -45,6 +45,7 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       if (functionName === "__KC85_MAX_VOLUME") return "(INP(137) AND 224)";
       if (functionName === "__KC85_JOY_RAW") return "INP(144)";
       if (functionName === "__KC85_JOY_BIT") return `(${renderExpression(value.args[0], opts)} AND ${renderExpression(value.args[1], opts)})`;
+      if (functionName === "__KC85_COLOR") return "VPEEK(14243)";
       if (functionName === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
       // HC-BASIC returns a signed 16-bit result for memory above 32767 bytes.
       if (functionName === builtinFunctions.freeMemory) return "(FRE(0)-65536*(FRE(0)<0))";
@@ -70,6 +71,11 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     case "screen-background-color": case "cell-background-color": case "paper":
       return `${prefix}PAPER ${colors[instruction.color.color]}`;
     case "border-color": return `${prefix}PRINT "";`;
+    case "inverse-text": {
+      if (!instruction.storage) throw new Error("KC 85 inverse text requires saved colour storage.");
+      const color = name(instruction.storage);
+      return `${prefix}VPOKE 14243,(${color} AND 192)+(${color} AND 7)*8+(INT(${color}/8) AND 7)`;
+    }
     case "suppress-scroll-prompt": case "program-mode": return `${prefix}PRINT CHR$(18);`;
     case "print":
       if (instruction.inverted) throw new DiagnosticError(instruction.location, "KC 85 inverted output is not implemented.");

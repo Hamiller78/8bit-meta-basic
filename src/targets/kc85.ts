@@ -9,7 +9,7 @@ import { lowerByteStorage } from "./byte-storage.js";
 import { lowerInkeyReads } from "./inkey-lowering.js";
 import { lowerSafeDispatch } from "./safe-dispatch.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
-import { rebuildLabels, validateConstantCoordinate, type TargetBackend } from "./target.js";
+import { groupInvertedPrints, rebuildLabels, validateConstantCoordinate, type TargetBackend } from "./target.js";
 
 let currentInstructions: readonly Instruction[] = [];
 
@@ -61,7 +61,7 @@ export const kc85Target: TargetBackend = {
     const seeded = rebuildLabels(byteProgram, byteProgram.instructions.map(seedRandom));
     // Keep long literal-only output editable without changing its visible text.
     const splitLongPrint = (instruction: Instruction): Instruction[] => {
-      if (instruction.kind !== "print" || instruction.inverted || instruction.items.length !== 1 || instruction.items[0].kind !== "string" || instruction.items[0].value.length <= 50) return [instruction];
+      if (instruction.kind !== "print" || instruction.items.length !== 1 || instruction.items[0].kind !== "string" || instruction.items[0].value.length <= 50) return [instruction];
       const literal = instruction.items[0];
       const chunks = literal.value.match(/[\s\S]{1,50}/gu) ?? [];
       return chunks.map((value, index) => ({
@@ -73,7 +73,7 @@ export const kc85Target: TargetBackend = {
     };
     const split = rebuildLabels(seeded, seeded.instructions.flatMap(splitLongPrint));
     const clock = lowerKc85Clock(split);
-    return lowerSafeDispatch(lowerKc85Joystick(lowerKc85ScreenReads(lowerInkeyReads(lowerKc85Beeps(clock.program, clock.vector), "MBKC85KEY"))), "MBKC85DISPATCH");
+    return lowerSafeDispatch(lowerKc85Inverse(groupInvertedPrints(lowerKc85Joystick(lowerKc85ScreenReads(lowerInkeyReads(lowerKc85Beeps(clock.program, clock.vector), "MBKC85KEY"))))), "MBKC85DISPATCH");
   },
   renderLine(lineNumber, instruction, labelLines): string {
     return renderKc85Line(lineNumber, instruction, labelLines, kc85VariableMap(currentInstructions));
@@ -147,6 +147,19 @@ function lowerKc85Clock(program: LoweredProgram): { program: LoweredProgram; vec
   };
   const stopped = rewritten.flatMap(stopAtEnd);
   return { program: rebuildLabels(program, [...setup, ...stopped, ...restore]), vector };
+}
+
+function lowerKc85Inverse(program: LoweredProgram): LoweredProgram {
+  if (!program.instructions.some(instruction => instruction.kind === "inverse-text")) return program;
+  const storage = createGeneratedVariableNameAllocator(program.instructions, "MBKC85INVERSE")();
+  return rebuildLabels(program, program.instructions.flatMap((instruction): Instruction[] => {
+    if (instruction.kind !== "inverse-text") return [instruction];
+    const location = instruction.location;
+    return [
+      { kind: "let", name: storage, expression: { kind: "function-call", name: "__KC85_COLOR", args: [], valueType: "number", location }, location },
+      { ...instruction, storage }
+    ];
+  }));
 }
 
 /** Read joystick 1 from the M008/M021 PIO, sampling once per call. */
