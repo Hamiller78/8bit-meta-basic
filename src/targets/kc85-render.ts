@@ -43,6 +43,8 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
       if (functionName === "__KC85_IRQ_LOW") return "PEEK(492)";
       if (functionName === "__KC85_IRQ_HIGH") return "PEEK(493)";
       if (functionName === "__KC85_MAX_VOLUME") return "(INP(137) AND 224)";
+      if (functionName === "__KC85_JOY_RAW") return "INP(144)";
+      if (functionName === "__KC85_JOY_BIT") return `(${renderExpression(value.args[0], opts)} AND ${renderExpression(value.args[1], opts)})`;
       if (functionName === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
       // HC-BASIC returns a signed 16-bit result for memory above 32767 bytes.
       if (functionName === builtinFunctions.freeMemory) return "(FRE(0)-65536*(FRE(0)<0))";

@@ -43,8 +43,15 @@ tokenized `.sss` file with JKCEMU AutoLoad, and enters `RUN`. Use `--type-in`
 to enter the listing through AutoInput instead; this can take several minutes.
 `--fast-load` explicitly selects the default loader. Neither path alters the
 user's saved JKCEMU profile. The isolated profile includes an M011 RAM module
-in slot 08 and activates it with `SWITCH 8 43` before starting BASIC. The launcher
+in slot 08 and activates it with `SWITCH 8 43` before starting BASIC. It also
+includes an M008 joystick module in slot 0C. In JKCEMU, use Alt and the arrow
+keys for joystick 1, and Alt+Enter or Alt+F1 for fire; alternatively open
+Extra → Spielhebel to use the on-screen controls. The launcher
 reports process startup only.
+In JKCEMU 0.9.9.1 on Windows, `examples/joystick.mbas` was checked with
+programmatically injected joystick input, including directions, fire, a
+diagonal with fire, and opposing directions. Physical controls have not been
+verified.
 For audible `BEEP` output, enable sound in JKCEMU's audio settings. The user
 heard `examples/kc85-beep-demo.mbas` with audio enabled in JKCEMU 0.9.9.1 on Windows.
 The native `kc85-clock.mbas` regression also passed in JKCEMU 0.9.9.1 on

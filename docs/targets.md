@@ -55,7 +55,7 @@ interrupt vector; reset the computer to restore the normal blink timing, and aft
 an interrupted program to release the channel. `BEEP` uses the other CTC sound
 channel while the clock continues to run.
 
-Unsupported operations produce diagnostics. These include joystick,
+Unsupported operations produce diagnostics. These include
 data-file and device operations, and inverted output. Border-colour
 requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
 portable transliteration. An experimental JKCEMU launcher has run the generated release
@@ -154,6 +154,7 @@ are separate from the held controls described under [Joystick mappings](#joystic
 | VIC-20 | Control port through VIA registers; the right-direction bit is exposed during the read. |
 | Agon | Cursor keys and Space through held-key polling; native scan selectors are listed under [Agon Light](#agon-light). |
 | Amstrad CPC | First joystick through `JOY(0)`; the primary fire button uses bit 4. Physical joystick input has not yet been verified. |
+| KC 85/3 | First joystick on an M008 or M021 module, through PIO port 144. The module is required; physical hardware has not been verified. |
 
 Normalized selector/value semantics and independent polling are defined in
 [Joystick input](language-reference.md#joystick-input).

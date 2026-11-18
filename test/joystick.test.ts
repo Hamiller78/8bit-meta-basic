@@ -3,7 +3,7 @@ import { compileSource } from "../src/compiler.js";
 import { compileSourceDetailed } from "../src/compiler.js";
 import type { TargetId } from "../src/targets/target.js";
 
-const targets: TargetId[] = ["spectrum", "atari800xl", "c64", "vic20", "agon"];
+const targets: TargetId[] = ["spectrum", "atari800xl", "c64", "vic20", "agon", "kc85"];
 const hardwareDecodedTargets: TargetId[] = ["spectrum", "atari800xl", "c64"];
 const source = "x = get_joystick(JOY_X)\ny = get_joystick(JOY_Y)\nf = get_joystick(JOY_FIRE1)\n";
 
@@ -54,6 +54,18 @@ describe("joystick input", () => {
     expect(output).toContain("-INKEY(-99)");
   });
 
+  it("initializes the KC joystick PIO and samples once per selector", () => {
+    const output = compileSource(source, { filename: "input.mbas", target: "kc85", readability: 2 });
+    expect(output).toContain("OUT 146,79");
+    expect(output.match(/INP\(144\)/g)).toHaveLength(3);
+    expect(output).toMatch(/AND 4/);
+    expect(output).toMatch(/AND 8/);
+    expect(output).toMatch(/AND 1/);
+    expect(output).toMatch(/AND 2/);
+    expect(output).toMatch(/AND 32/);
+    expect(compileSource("print 1", { filename: "input.mbas", target: "kc85" })).not.toContain("OUT 146,79");
+  });
+
   it("normalizes every Agon cursor/Space combination, including opposite directions", () => {
     const output = compileSource(source, { filename: "input.mbas", target: "agon", readability: 2 });
     const expressions = [...output.matchAll(/^\d+ \w+=(.*)$/gm)]
@@ -86,6 +98,7 @@ describe("joystick input", () => {
       "test Second()", "assert_eq 0, get_joystick(JOY_X)", "assert_eq 0, get_joystick(JOY_Y)", "assert_eq 0, get_joystick(JOY_FIRE1)", "end test"
     ].join("\n"), { filename: "input.mbas", target, testMode: true, readability: 2 });
     expect(output).not.toMatch(/PEEK\(56320\)|PEEK\(37137\)|STICK\(|STRIG\(|IN 57342/);
+    if (target === "kc85") expect(output).not.toMatch(/INP\(144\)|OUT 146,79/);
     if (target === "spectrum") {
       for (const name of ["MBTJX", "MBTJY", "MBTJF"]) {
         expect(output.split("LET " + name + "=0").length - 1).toBe(2);

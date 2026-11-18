@@ -1,4 +1,5 @@
 import { DiagnosticError } from "../diagnostics.js";
+import { joystickControl } from "../joystick.js";
 import type { Expression } from "../ast.js";
 import { normalizeLabel, type Instruction, type LoweredProgram } from "../lowering.js";
 import { mapInstructionExpressions } from "./instruction-expressions.js";
@@ -72,7 +73,7 @@ export const kc85Target: TargetBackend = {
     };
     const split = rebuildLabels(seeded, seeded.instructions.flatMap(splitLongPrint));
     const clock = lowerKc85Clock(split);
-    return lowerSafeDispatch(lowerKc85ScreenReads(lowerInkeyReads(lowerKc85Beeps(clock.program, clock.vector), "MBKC85KEY")), "MBKC85DISPATCH");
+    return lowerSafeDispatch(lowerKc85Joystick(lowerKc85ScreenReads(lowerInkeyReads(lowerKc85Beeps(clock.program, clock.vector), "MBKC85KEY"))), "MBKC85DISPATCH");
   },
   renderLine(lineNumber, instruction, labelLines): string {
     return renderKc85Line(lineNumber, instruction, labelLines, kc85VariableMap(currentInstructions));
@@ -146,6 +147,47 @@ function lowerKc85Clock(program: LoweredProgram): { program: LoweredProgram; vec
   };
   const stopped = rewritten.flatMap(stopAtEnd);
   return { program: rebuildLabels(program, [...setup, ...stopped, ...restore]), vector };
+}
+
+/** Read joystick 1 from the M008/M021 PIO, sampling once per call. */
+function lowerKc85Joystick(program: LoweredProgram): LoweredProgram {
+  const allocate = createGeneratedVariableNameAllocator(program.instructions, "MBKC85JOY");
+  let used = false;
+  const lower = (instruction: Instruction): { instruction: Instruction; prefix: Instruction[] } => {
+    const prefix: Instruction[] = [];
+    const rewrite = (expression: Expression): Expression => {
+      if (expression.kind === "function-call") {
+        const args = expression.args.map(rewrite);
+        if (expression.name.toUpperCase() !== "GET_JOYSTICK") return { ...expression, args };
+        used = true;
+        const control = joystickControl(args[0]), location = expression.location, raw = allocate();
+        const num = (value: number): Expression => ({ kind: "number", value, raw: String(value), location });
+        const op = (operator: Extract<Expression, { kind: "binary" }>["operator"], left: Expression, right: Expression): Expression => ({ kind: "binary", operator, left, right, location });
+        const pressed = (mask: number): Expression => op("=", { kind: "function-call", name: "__KC85_JOY_BIT", args: [{ kind: "identifier", name: raw, location }, num(mask)], valueType: "number", location }, num(0));
+        prefix.push({ kind: "let", name: raw, expression: { kind: "function-call", name: "__KC85_JOY_RAW", args: [], valueType: "number", location }, location });
+        const result = allocate();
+        const id = (): Expression => ({ kind: "identifier", name: result, location });
+        prefix.push({ kind: "let", name: result, expression: control === 2 ? op("-", num(0), pressed(32)) : pressed(control === 0 ? 4 : 1), location });
+        if (control !== 2) prefix.push({ kind: "let", name: result, expression: op("-", id(), pressed(control === 0 ? 8 : 2)), location });
+        return id();
+      }
+      if (expression.kind === "array-access" || expression.kind === "struct-field-access") return { ...expression, indices: expression.indices.map(rewrite) };
+      if (expression.kind === "parenthesized") return { ...expression, expression: rewrite(expression.expression) };
+      if (expression.kind === "unary") return { ...expression, operand: rewrite(expression.operand) };
+      if (expression.kind === "binary") return { ...expression, left: rewrite(expression.left), right: rewrite(expression.right) };
+      return expression;
+    };
+    if (instruction.kind === "if-then") {
+      const condition = rewrite(instruction.condition);
+      const body = instruction.body.flatMap(item => { const result = lower(item); return [...result.prefix, result.instruction]; });
+      return { instruction: { ...instruction, condition, body }, prefix };
+    }
+    return { instruction: mapInstructionExpressions(instruction, rewrite), prefix };
+  };
+  const instructions = program.instructions.flatMap(item => { const result = lower(item); return [...result.prefix, result.instruction]; });
+  if (!used) return program;
+  const location = program.instructions[0].location;
+  return rebuildLabels(program, [{ kind: "port-out", port: 146, value: { kind: "number", value: 79, raw: "79", location }, location }, ...instructions]);
 }
 
 function lowerKc85Beeps(program: LoweredProgram, vector?: { low: string; high: string }): LoweredProgram {

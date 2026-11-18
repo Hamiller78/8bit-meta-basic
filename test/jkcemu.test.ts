@@ -26,7 +26,8 @@ describe("JKCEMU KC 85/3 AutoInput profile", () => {
   it("creates an isolated binary-load profile with an escaped path", () => {
     const profile = kc85AutoLoadProfile('C:\\Build & Test\\demo.sss');
     expect(profile).toContain('C:\\Build &amp; Test\\demo.sss');
-    expect(profile).toContain('<entry key="jkcemu.kc85_3.module.count">1</entry>');
+    expect(profile).toContain('<entry key="jkcemu.kc85_3.module.count">2</entry>');
+    expect(profile).toContain('<entry key="jkcemu.kc85_3.module.0C.name">M008</entry>');
     expect(profile).toContain('SWITCH%208%2043%0DBASIC%0D');
     expect(profile).toContain('<entry key="jkcemu.kc85_3.autoload.0.wait.millis">15000</entry>');
     expect(profile).toContain("RUN%0D");
