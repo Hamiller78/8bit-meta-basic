@@ -62,6 +62,12 @@ describe("KC 85/3 compiler", () => {
     expect(output).toMatch(/ASC\([A-Z]\d\$\)/u);
   });
 
+  it("exposes the KC 85 cursor-key event codes", () => {
+    const output = compileSource('print KEY_UP;KEY_DOWN;KEY_LEFT;KEY_RIGHT;KEY_ENTER;KEY_SPACE\nprint KEY_F1;KEY_F8;KEY_ESCAPE\n', { filename: "keys.mbas", target: "kc85" });
+    expect(output).toContain("PRINT 11;10;8;9;13;32");
+    expect(output).toContain("PRINT -1;-1;-1");
+  });
+
   it("uses a negative HC-BASIC RND argument for seeded randomization", () => {
     const output = compileSource('randomize 5\nvalue=rnd()\n', { filename: "random.mbas", target: "kc85" });
     expect(output).toContain("RND(-ABS(5)-1)");

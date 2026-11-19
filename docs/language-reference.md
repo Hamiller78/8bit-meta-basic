@@ -410,7 +410,7 @@ end if
 load_file "SAVE1", gameState
 ```
 
-Tape operations continue from the current physical position. Loading an earlier save requires rewinding or cueing first. File-not-found and media errors remain native BASIC errors; there is no portable recovery/status API. Machine-specific prompts and tape naming are described in [targets](targets.md#file-storage).
+Tape operations continue from the current physical position. Loading an earlier save requires rewinding or cueing first. On KC 85/3, `SAVE_FILE` prompts for Enter after the recorder is started. File-not-found and media errors remain native BASIC errors; there is no portable recovery/status API. Machine-specific prompts and tape naming are described in [targets](targets.md#file-storage).
 
 `SAVE_FILE` replaces an existing file on rewritable storage; a preceding `DELETE_FILE` is unnecessary. Replacement is not a portable transactional or crash-recovery guarantee.
 

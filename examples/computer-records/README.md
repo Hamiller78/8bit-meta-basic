@@ -1,18 +1,31 @@
 # Computer records
 
-This small program demonstrates polled keys, `INPUT`, struct arrays, and whole-record file I/O. It has room for ten records, starts with records for the four currently supported Meta-BASIC computers, and leaves six slots empty. You can replace any record and save or load the complete array with one statement. Menu commands and `PRESS ENTER` prompts use `KEY_CODE()`; `INPUT` is reserved for entering record data.
+This small program demonstrates polled keys, `INPUT`, struct arrays, and whole-record file I/O. It has room for ten records, starts with four computer records, and leaves six slots empty. You can replace any record and save or load the complete array with one statement. Menu commands and `PRESS ENTER` prompts use `KEY_CODE()`; `INPUT` is reserved for entering record data.
 
 Build it for the default medium of a target:
 
 ```text
-npm run build:target -- c64 --build-config examples/computer-records/metabasic.json
+npm run build:target -- c64 --project examples/computer-records
 ```
 
-C64 and Atari default to disk, Spectrum to tape, and Agon to its SD card. To make a C64 or Atari cassette version, add:
+C64, Atari and CPC default to disk, Spectrum and KC 85/3 to tape, and Agon to its SD card. To make a C64 or Atari cassette version, add:
 
 ```text
 --file-storage tape
 ```
+
+To try the program in the KC 85/3 or CPC emulator:
+
+```text
+npm run launch:kc85 -- --project examples/computer-records --profile release
+npm run launch:cpc -- --project examples/computer-records --profile release
+```
+
+The KC 85/3 uses cassette audio. Enable recording in JKCEMU when prompted,
+press Enter, answer its `VERIFY ?(Y):` prompt, and save the recording; select the
+recording as cassette input before choosing LOAD. The CPC writes to its disk
+image. Save the modified image in Caprice32 and preserve it before rebuilding;
+see the [running guide](../../docs/running-programs.md#amstrad-cpc--caprice32).
 
 On cassette, the program prints a cueing message before the target ROM takes over. C64 and Spectrum search forward for their generated names. Atari reads the next cassette file, so cue it with the recorder counter before choosing LOAD.
 

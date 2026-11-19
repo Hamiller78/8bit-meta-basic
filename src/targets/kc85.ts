@@ -6,6 +6,7 @@ import { mapInstructionExpressions } from "./instruction-expressions.js";
 import { renderKc85Line } from "./kc85-render.js";
 import { kc85VariableMap } from "./kc85-variables.js";
 import { lowerByteStorage } from "./byte-storage.js";
+import { lowerSequentialFileIo } from "./file-io.js";
 import { lowerInkeyReads } from "./inkey-lowering.js";
 import { lowerSafeDispatch } from "./safe-dispatch.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
@@ -46,7 +47,7 @@ export const kc85Target: TargetBackend = {
       mapInstructionExpressions(instruction, validateExpression);
     };
     program.instructions.forEach(validate);
-    const byteProgram = lowerByteStorage(program, "kc85");
+    const byteProgram = lowerByteStorage(lowerKc85TapeSavePrompt(lowerSequentialFileIo(program, "tape")), "kc85");
     const allocate = createGeneratedVariableNameAllocator(byteProgram.instructions, "MBKC85SEED");
     let seedStorage: string | undefined;
     const seedRandom = (instruction: Instruction): Instruction => {
@@ -79,6 +80,40 @@ export const kc85Target: TargetBackend = {
     return renderKc85Line(lineNumber, instruction, labelLines, kc85VariableMap(currentInstructions));
   }
 };
+
+/** Give the user time to start the cassette recorder before output begins. */
+function lowerKc85TapeSavePrompt(program: LoweredProgram): LoweredProgram {
+  const allocate = createGeneratedVariableNameAllocator(program.instructions, "MBKC85TAPE", "$");
+  const labels = new Set([...program.labels.keys()].map(normalizeLabel));
+  let next = 0;
+  let key: string | undefined;
+  const instructions = program.instructions.flatMap((instruction): Instruction[] => {
+    if (instruction.kind !== "open-data-file" || instruction.mode !== "write") return [instruction];
+    key ??= allocate();
+    let label: string;
+    do { label = `__mb_kc85_tape_${next++}`; } while (labels.has(normalizeLabel(label)));
+    labels.add(normalizeLabel(label));
+    const location = instruction.location;
+    return [
+      { kind: "print", items: [{ kind: "string", value: "START TAPE, PRESS ENTER", location }], trailingSemicolon: false, location },
+      { kind: "label", name: label, internal: true, location },
+      { kind: "read-key", name: key, location },
+      {
+        kind: "if-goto", label, location,
+        condition: {
+          kind: "binary", operator: "<>", location,
+          left: { kind: "identifier", name: key, valueType: "string", location },
+          right: {
+            kind: "function-call", name: "CHR$", valueType: "string", location,
+            args: [{ kind: "number", value: 13, raw: "13", location }]
+          }
+        }
+      },
+      instruction
+    ];
+  });
+  return rebuildLabels(program, instructions);
+}
 
 /** Install a 16-bit 50 Hz interrupt counter in CAOS's user interrupt area. */
 function lowerKc85Clock(program: LoweredProgram): { program: LoweredProgram; vector?: { low: string; high: string } } {

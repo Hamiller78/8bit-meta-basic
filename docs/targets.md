@@ -46,7 +46,11 @@ relative to that window. The backend enforces 72 characters per generated line a
 line numbers no greater than 65529. Numeric and string variables use separately
 allocated letter-digit names; `INK` and `PAPER` use the HC-BASIC colour codes,
 where background white is approximated by grey. Keyboard polling uses a buffered
-`INKEY$`; special key codes have not yet been confirmed. `JIFFIES()` installs a
+`INKEY$`; cursor events use Up `11`, Down `10`, Left `8`, and Right `9`. These,
+Enter `13`, and Space `32` were checked with interactive key presses in JKCEMU
+0.9.9.1 on Windows. Function keys can invoke configurable functions rather than
+produce ordinary BASIC key events, so their constants remain unsupported.
+`JIFFIES()` installs a
 roughly 50 Hz interrupt counter and returns ticks since program startup. It wraps
 at 65536 ticks (about 22 minutes). It reserves CTC channel 2 and addresses
 `01D4`–`01E1` and `01EC`–`01ED` hexadecimal; these must not be used by other
@@ -55,8 +59,8 @@ interrupt vector; reset the computer to restore the normal blink timing, and aft
 an interrupted program to release the channel. `BEEP` uses the other CTC sound
 channel while the clock continues to run.
 
-Unsupported operations produce diagnostics. These include
-  data-file and device operations. Border-colour
+Unsupported operations produce diagnostics. These include device operations.
+Border-colour
 requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
 portable transliteration. An experimental JKCEMU launcher has run the generated release
 struct demo in a user-observed JKCEMU 0.9.9.1 KC 85/3 session on Windows. The
@@ -144,7 +148,8 @@ Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atar
 
 Unsupported target keys resolve to `-1`; key constants are native codes, not an
 ASCII guarantee. `GAME_UP/DOWN/LEFT/RIGHT` map to Q/A/O/P on Spectrum and cursor
-keys on Atari, Commodore, Agon, and CPC; `GAME_FIRE` maps to Space. CPC caches a
+keys on Atari, Commodore, Agon, and CPC. KC 85/3 uses Q/A/O/P for those game
+events; `GAME_FIRE` maps to Space. CPC caches a
 polled character so `KEY_PRESSED()` does not consume it before `KEY_CODE()`.
 These event codes
 are separate from the held controls described under [Joystick mappings](#joystick-mappings).
@@ -173,10 +178,19 @@ Normalized selector/value semantics and independent polling are defined in
 | C64/VIC-20 | Disk | Tape |
 | Agon Light | SD-card filesystem | None |
 | Amstrad CPC | Disk | Tape data-file operations are not implemented. |
+| KC 85/3 | Tape | None |
 
 Select the medium using the [toolchain configuration](toolchain.md#program-inputs-and-project-configuration).
 
 Portable `SAVE_FILE`/`LOAD_FILE` use sequential files on C64/VIC-20 (`OPEN` device 8 for disk or device 1 for cassette), Atari (`D:` or `C:`), Agon (`OPENOUT`/`OPENIN` on SD), and CPC (`OPENOUT`/`OPENIN` on disk). Numeric records and length-prefixed character-code records make string data independent of delimiters. A plain Atari compilation retains `D:` for a DOS-equipped machine; host-drive overrides are described in the [running guide](running-programs.md#atari-800xl-with-atari800-7x).
+
+KC 85/3 also writes sequential numeric records to cassette channel 1 using
+`OPEN O#1`, `PRINT#1` and `CLOSE O#1`; before each save, the generated program
+asks the user to start the recorder and press Enter. Loading uses `OPEN I#1`,
+`INPUT#1` and `CLOSE I#1`. String elements are stored as a length followed by character
+codes. The native cassette routines display their own prompts and may echo
+records during loading. A structured-array round trip was verified with tape
+audio in JKCEMU 0.9.9.1; physical cassette hardware has not been tested.
 
 Sequential-file targets serialize struct arrays field by field through their existing
 backing arrays rather than allocating a duplicate record array. Strings are stored

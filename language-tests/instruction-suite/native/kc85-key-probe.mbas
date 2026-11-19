@@ -1,0 +1,15 @@
+' Interactive KC 85/3 keyboard probe. Keep the last nonzero event visible.
+cls
+print_at 1, 1, "KC 85 KEYBOARD PROBE";
+print_at 3, 1, "PRESS A KEY";
+print_at 4, 1, "LAST CODE: NONE";
+print_at 6, 1, "TRY ARROWS, ENTER, SPACE, F1-F8";
+
+poll:
+    ready = key_pressed()
+    if ready then
+        key = key_code()
+        print_at 4, 1, "LAST CODE:            ";
+        print_at 4, 12, key;
+    end if
+    goto poll

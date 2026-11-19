@@ -12,7 +12,37 @@ load_file "SAVE1", people
 `;
 
 describe("array file I/O", () => {
-  it.each(["c64", "atari800xl", "spectrum", "agon"] as const)("compiles struct arrays for %s", (target) => {
+  it("uses the KC 85 cassette channel for complete arrays", () => {
+    const output = compileSource(source, { filename: "file-io.mbas", target: "kc85", readability: 2 });
+    expect(output).toContain('OPEN O#1 "SAVE1"');
+    expect(output).toContain('OPEN I#1 "SAVE1"');
+    expect(output).toContain("PRINT#1 ");
+    expect(output).toContain("INPUT#1 ");
+    expect(output).toContain("CLOSE O#1");
+    expect(output).toContain("CLOSE I#1");
+  });
+  it("waits for Enter before each KC cassette save, but not before loading", () => {
+    const output = compileSource('dim a(2)\nsave_file "ONE", a\nload_file "ONE", a\nsave_file "TWO", a\n', { filename: "tape.mbas", target: "kc85", readability: 2 });
+    const lines = output.split(/\r?\n/u);
+    const saves = lines.map((line, index) => line.includes('OPEN O#1') ? index : -1).filter(index => index >= 0);
+    expect(saves).toHaveLength(2);
+    for (const index of saves) {
+      expect(lines.slice(index - 4, index).join("\n")).toMatch(/START TAPE, PRESS ENTER[\s\S]*INKEY\$[\s\S]*CHR\$\(13\)/u);
+    }
+    expect(output.match(/START TAPE, PRESS ENTER/gu)).toHaveLength(2);
+    expect(output.indexOf('OPEN I#1 "ONE"')).toBeGreaterThan(output.indexOf('OPEN O#1 "ONE"'));
+  });
+  it.each([
+    "dim a(2)\nsave_file \"TEST\", a\nload_file \"TEST\", a",
+    "dim a%(2)\nsave_file \"TEST\", a%\nload_file \"TEST\", a%",
+    "dim a as byte(2)\nsave_file \"TEST\", a\nload_file \"TEST\", a",
+    "dim a$(2, 8)\nsave_file \"TEST\", a$\nload_file \"TEST\", a$"
+  ])("compiles KC cassette I/O for standalone array types", program => {
+    const output = compileSource(program, { filename: "tape.mbas", target: "kc85" });
+    expect(output).toContain('OPEN O#1 "TEST"');
+    expect(output).toContain('OPEN I#1 "TEST"');
+  });
+  it.each(["c64", "atari800xl", "spectrum", "agon", "kc85"] as const)("compiles struct arrays for %s", (target) => {
     expect(() => compileSource(source, { filename: "file-io.mbas", target, readability: 2 })).not.toThrow();
   });
 
@@ -49,6 +79,7 @@ describe("array file I/O", () => {
     expect(() => compileSource(program, { filename: "file-io.mbas", target: "spectrum" })).toThrow(/tape has no file directory/);
     expect(() => compileSource(program, { filename: "file-io.mbas", target: "c64", fileStorage: "tape" })).toThrow(/tape has no file directory/);
     expect(() => compileSource(program, { filename: "file-io.mbas", target: "atari800xl", fileStorage: "tape" })).toThrow(/tape has no file directory/);
+    expect(() => compileSource(program, { filename: "file-io.mbas", target: "kc85" })).toThrow(/tape has no file directory/);
   });
 
   it("allows shared source to guard DELETE_FILE with FILE_STORAGE_DISK", () => {
@@ -58,6 +89,9 @@ describe("array file I/O", () => {
     expect(spectrum).not.toContain("DELETE");
     expect(spectrum).toContain('PRINT "READY"');
     expect(c64).toContain('OPEN 15,8,15,"S0:SAVE1":CLOSE 15');
+    const kc85 = compileSource(program, { filename: "file-io.mbas", target: "kc85", readability: 2 });
+    expect(kc85).not.toContain("DELETE");
+    expect(kc85).toContain('PRINT "READY"');
   });
 
   it("checks whether a named data file exists on rewritable storage", () => {
@@ -84,9 +118,12 @@ describe("array file I/O", () => {
     const guarded = 'if FILE_STORAGE_DISK then\nexists = file_exists("SAVE1")\nend if\nprint "READY"\n';
     expect(() => compileSource(unguarded, { filename: "file-io.mbas", target: "spectrum" })).toThrow(/tape has no file directory/);
     expect(() => compileSource(unguarded, { filename: "file-io.mbas", target: "c64", fileStorage: "tape" })).toThrow(/tape has no file directory/);
+    expect(() => compileSource(unguarded, { filename: "file-io.mbas", target: "kc85" })).toThrow(/tape has no file directory/);
     const spectrum = compileSource(guarded, { filename: "file-io.mbas", target: "spectrum", readability: 2 });
     expect(spectrum).not.toContain("OPENIN");
     expect(spectrum).toContain('PRINT "READY"');
+    const kc85 = compileSource(guarded, { filename: "file-io.mbas", target: "kc85", readability: 2 });
+    expect(kc85).toContain('PRINT "READY"');
   });
 
   it("validates FILE_EXISTS filenames and its deliberately narrow expression form", () => {

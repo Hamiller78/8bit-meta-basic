@@ -57,6 +57,17 @@ heard `examples/kc85-beep-demo.mbas` with audio enabled in JKCEMU 0.9.9.1 on Win
 The native `kc85-clock.mbas` regression also passed in JKCEMU 0.9.9.1 on
 Windows with and without the M011; it exercises real clock reads and sound.
 The user heard `examples/beep-demo.mbas` using the clock and confirmed its sound.
+For an interactive keyboard check, run `npm run launch:kc85 -- --source
+language-tests/instruction-suite/native/kc85-key-probe.mbas`; the probe retains
+the last nonzero key code on screen. With JKCEMU 0.9.9.1 on Windows, interactive
+arrow, Enter and Space presses matched the codes in [Keyboard input](targets.md#keyboard-input).
+Function keys did not arrive as ordinary BASIC key events in that check.
+The native `kc85-tape-probe.mbas` fixture tests a cassette save and load. In
+JKCEMU's Extra → Audio/Kassette window, record cassette output before starting
+the save, answer `N` to the native `VERIFY ?(Y):` prompt, save the recording,
+then select it as cassette input before loading. An automated JKCEMU 0.9.9.1
+round trip on Windows passed with numeric, integer, byte and string struct
+fields; physical cassette hardware remains unverified.
 A user observed the generated release `struct-demo.mbas` run through AutoInput
 on JKCEMU 0.9.9.1 with KC 85/3 on Windows. The user also reported that the
 single `data` instruction-suite test passed in an interactive run. Captured

@@ -97,6 +97,10 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     case "data": return `${prefix}DATA ${renderDataValues(instruction.values, options)}`;
     case "read": return `${prefix}READ ${instruction.targets.map(name).join(",")}`;
     case "input": return `${prefix}INPUT ${instruction.targets.map(name).join(",")}`;
+    case "open-data-file": return `${prefix}OPEN ${instruction.mode === "write" ? "O" : "I"}#1 "${instruction.filename}"`;
+    case "write-data-file": return `${prefix}PRINT#1 ${expr(instruction.expression)}`;
+    case "read-data-file": return `${prefix}INPUT#1 ${expr(instruction.target)}`;
+    case "close-data-file": return `${prefix}CLOSE ${instruction.mode === "write" ? "O" : "I"}#1`;
     case "restore": return `${prefix}RESTORE`;
     case "goto": return `${prefix}GOTO ${resolveLabel(labels, instruction.label)}`;
     case "gosub": return `${prefix}GOSUB ${resolveLabel(labels, instruction.label)}`;

@@ -126,7 +126,7 @@ const cpcKeyCodes = {
 // INKEY$ yields a character, while no-key is represented by an empty string.
 // Unconfirmed special keys remain unavailable until their codes are verified.
 const kc85KeyCodes = {
-  KEY_NONE: 0, KEY_UP: -1, KEY_DOWN: -1, KEY_LEFT: -1, KEY_RIGHT: -1,
+  KEY_NONE: 0, KEY_UP: 11, KEY_DOWN: 10, KEY_LEFT: 8, KEY_RIGHT: 9,
   GAME_UP: 81, GAME_DOWN: 65, GAME_LEFT: 79, GAME_RIGHT: 80,
   GAME_FIRE: 32, KEY_SPACE: 32, KEY_ENTER: 13, KEY_ESCAPE: -1,
   KEY_F1: -1, KEY_F2: -1, KEY_F3: -1, KEY_F4: -1,

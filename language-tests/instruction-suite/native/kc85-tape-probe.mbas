@@ -1,0 +1,50 @@
+' Manual cassette round trip. Record the tape output before the first input,
+' then save that recording and select it as tape input before the second.
+struct TapeRecord
+    label$(8)
+    value
+    count%
+    flags as byte
+end struct
+
+dim records as TapeRecord(3)
+records(0).label$ = "A,B"
+records(0).value = -12.5
+records(0).count% = -7
+records(0).flags = 0
+records(1).label$ = ""
+records(1).value = 42
+records(1).count% = 0
+records(1).flags = 1
+records(2).label$ = "X" + chr$(34) + " "
+records(2).value = 7.5
+records(2).count% = 19
+records(2).flags = 255
+
+cls
+print "START RECORDING, THEN ENTER 1"
+input ready
+save_file "KC85TEST", records
+print "SAVE DONE"
+records(0).label$ = "BAD"
+records(0).value = 0
+records(1).label$ = "BAD"
+records(1).value = 0
+records(0).count% = 0
+records(0).flags = 9
+records(1).count% = 9
+records(1).flags = 9
+records(2).label$ = "BAD"
+records(2).value = 0
+records(2).count% = 0
+records(2).flags = 0
+print "SELECT RECORDING FOR INPUT"
+print "THEN ENTER 1"
+input ready
+load_file "KC85TEST", records
+if records(0).label$ = "A,B" and records(0).value = -12.5 and records(0).count% = -7 and records(0).flags = 0 and records(1).label$ = "" and records(1).value = 42 and records(1).count% = 0 and records(1).flags = 1 and records(2).label$ = "X" + chr$(34) + " " and records(2).value = 7.5 and records(2).count% = 19 and records(2).flags = 255 then
+    print "TAPE ROUND TRIP PASSED"
+else
+    print "TAPE ROUND TRIP FAILED"
+end if
+end
