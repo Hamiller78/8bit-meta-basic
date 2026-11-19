@@ -1,0 +1,13 @@
+' Run in test mode. The middle test intentionally fails to exercise the
+' per-test result output and the final list of failing test names.
+test SuccessfulCase()
+    assert_eq 3, 3
+end test
+
+test FailingCase()
+    assert_eq 3, 4
+end test
+
+test SuccessfulAgain()
+    assert_true 1
+end test

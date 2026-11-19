@@ -6,6 +6,20 @@ import { compileBuildConfiguration } from "../src/build-configuration.js";
 import { compileSource } from "../src/compiler.js";
 
 describe("Meta-BASIC test mode", () => {
+  it("shares result reporting and preserves user variables named like a potential index", () => {
+    const source = ["MBTINDEX=17", "test First()", "assert_eq 17, MBTINDEX", "end test", "test Second()", "assert_eq 17, MBTINDEX", "end test"].join("\n");
+    for (const testPrinterOutput of [false, true]) {
+      const output = compileSource(source, { filename: "runner.mbas", target: "spectrum", readability: 0, testMode: true, testPrinterOutput });
+      expect(count(output, '"PASSED"')).toBe(1);
+      expect(count(output, '"FAILED"')).toBe(1);
+      expect(output).not.toContain("MBTINDEX1");
+      expect(output).toContain("MBTINDEX=17");
+      expect(output).toContain('"RUNNING First..."');
+      expect(output).toContain('"RUNNING Second..."');
+      expect(output).toContain('"First"');
+      expect(output).toContain('"Second"');
+    }
+  });
   it("retains top-level DATA for tests that READ through helper functions", () => {
     const output = compileSource(
       [

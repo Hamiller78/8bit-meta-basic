@@ -44,6 +44,7 @@ const assertNeStringLabel = "__mb_assert_ne_str";
 const assertPrintAtLabel = "__mb_assert_printat";
 const runnerPrintLineLabel = "__mb_runner_print_line";
 const runnerPrintInlineLabel = "__mb_runner_print_inline";
+const runnerResultLabel = "__mb_runner_result";
 
 export interface TestRunnerLowerOptions {
   readonly beepState?: { readonly duration: string; readonly pitch: string; readonly present: string };
@@ -78,12 +79,10 @@ export function lowerTestRunner(
     instructions.push({ kind: "dim-array", name: failedTestFlagsName, dimensions: [testStatements.length], location });
   }
 
-  for (const [index, test] of testStatements.entries()) {
+  for (const test of testStatements) {
     if (!test.implementation) {
       throw new DiagnosticError(test.location, `Internal error: TEST ${test.name} was not analyzed before lowering.`);
     }
-    const passedLabel = nextInternalLabel();
-    const afterLabel = nextInternalLabel();
     instructions.push(...testRuntimeResetLets(test.location));
     if (assertionHelpers.assertBeep) instructions.push({ kind: "let", name: options.beepState?.present ?? "MBBSET", expression: numberExpression(0, test.location), location: test.location });
     instructions.push(...cloneInstructions(options.runtimeResetInstructions ?? []));
@@ -92,36 +91,7 @@ export function lowerTestRunner(
     instructions.push({ kind: "let", name: testStartFailuresName, expression: identifierExpression(assertionFailedName, test.location), location: test.location });
     emitRunnerPrint(instructions, nextInternalLabel, [stringExpression(`RUNNING ${displayTestName(test.name, options)}...`, test.location)], true, test.location, options);
     instructions.push({ kind: "gosub", label: test.implementation.entryLabel, location: test.location });
-    instructions.push({
-      kind: "let",
-      name: testCountName,
-      expression: binaryExpression("+", identifierExpression(testCountName, test.location), numberExpression(1, test.location), test.location),
-      location: test.location
-    });
-    instructions.push({
-      kind: "if-goto",
-      condition: binaryExpression("=", identifierExpression(assertionFailedName, test.location), identifierExpression(testStartFailuresName, test.location), test.location),
-      label: passedLabel,
-      location: test.location
-    });
-    instructions.push({
-      kind: "let",
-      name: testFailedName,
-      expression: binaryExpression("+", identifierExpression(testFailedName, test.location), numberExpression(1, test.location), test.location),
-      location: test.location
-    });
-    instructions.push({ kind: "array-let", name: failedTestFlagsName, indices: [numberExpression(index, test.location)], expression: numberExpression(1, test.location), location: test.location });
-    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED", test.location)], false, test.location, options);
-    instructions.push({ kind: "goto", label: afterLabel, location: test.location });
-    instructions.push({ kind: "label", name: passedLabel, internal: true, location: test.location });
-    emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("PASSED", test.location)], false, test.location, options);
-    instructions.push({
-      kind: "let",
-      name: testPassedName,
-      expression: binaryExpression("+", identifierExpression(testPassedName, test.location), numberExpression(1, test.location), test.location),
-      location: test.location
-    });
-    instructions.push({ kind: "label", name: afterLabel, internal: true, location: test.location });
+    instructions.push({ kind: "gosub", label: runnerResultLabel, location: test.location });
   }
 
   emitFailureBorder(instructions, nextInternalLabel, location);
@@ -133,12 +103,27 @@ export function lowerTestRunner(
   emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILURES: ", location), identifierExpression(assertionFailedName, location)], false, location, options);
   emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FREE MEMORY: ", location), freeMemoryExpression(location)], false, location, options);
   emitFailedTestSummary(testStatements, instructions, nextInternalLabel, location, options);
+  if (testStatements.length > 0) emitRunnerResultHelper(instructions, nextInternalLabel, location, options);
   if (options.printerOutput) {
     closeTestDevice(instructions, nextInternalLabel, location);
     emitRunnerPrintHelpers(instructions, nextInternalLabel, location);
   }
   emitAssertionHelpers(instructions, location, assertionHelpers);
   instructions.push({ kind: "end", location });
+}
+
+function emitRunnerResultHelper(instructions: Instruction[], nextInternalLabel: () => string, location: SourceLocation, options: TestRunnerLowerOptions): void {
+  const after = nextInternalLabel(), passed = nextInternalLabel();
+  const increment = (name: string): Instruction => ({ kind: "let", name, expression: binaryExpression("+", identifierExpression(name, location), numberExpression(1, location), location), location });
+  instructions.push({ kind: "goto", label: after, location }, { kind: "label", name: runnerResultLabel, internal: true, location });
+  instructions.push(increment(testCountName));
+  instructions.push({ kind: "if-goto", condition: binaryExpression("=", identifierExpression(assertionFailedName, location), identifierExpression(testStartFailuresName, location), location), label: passed, location });
+  instructions.push(increment(testFailedName));
+  instructions.push({ kind: "array-let", name: failedTestFlagsName, indices: [binaryExpression("-", identifierExpression(testCountName, location), numberExpression(1, location), location)], expression: numberExpression(1, location), location });
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("FAILED", location)], false, location, options);
+  instructions.push({ kind: "return", location }, { kind: "label", name: passed, internal: true, location });
+  emitRunnerPrint(instructions, nextInternalLabel, [stringExpression("PASSED", location)], false, location, options);
+  instructions.push(increment(testPassedName), { kind: "return", location }, { kind: "label", name: after, internal: true, location });
 }
 
 function cloneInstructions(instructions: readonly Instruction[]): Instruction[] {

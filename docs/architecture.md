@@ -59,6 +59,8 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
+  Per-test result accounting and pass/fail reporting share one routine; its test
+  counter identifies failures for the final summary.
 - `src/targets/*.ts` render and lower target-specific details for Spectrum, Atari 800XL, C64, VIC-20, Agon Light, Amstrad CPC, and the experimental KC 85/3 backend.
 - `src/targets/inkey-lowering.ts` buffers nonblocking keyboard reads for dialects using `INKEY$`; `safe-dispatch.ts` expands computed dispatch where out-of-range native selectors are unsafe.
 - The KC 85 backend installs a CTC interrupt counter only for programs that read `JIFFIES()` and snapshots it consistently; blocking beeps in those programs use the separate sound channel.
