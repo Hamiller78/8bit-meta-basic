@@ -1,0 +1,10 @@
+' Native printer output probe for the KC 85/3 M021 and JKCEMU capture helper.
+open_device First, PRINTER
+print_device First; "KC85 PRINTER ";
+print_device First; ""; "TEST "; 42
+close_device First
+open_device Second, TEXT_PRINTER
+print_device Second; "SECOND LINE"
+close_device Second
+print "PRINTER PROBE DONE"
+end

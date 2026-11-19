@@ -58,6 +58,8 @@ an unbreakable long string literal, still produce a diagnostic.
 - `src/function-call-lowering.ts` expands Meta-BASIC function calls into generated parameter assignments, `GOSUB`, and return-value reads.
 - `src/lowering.ts` performs shared structural lowering for ordinary statements. For multi-file builds it creates startup calls to per-module initialization sections, keeps those sections and functions in configured module order, and collects `DATA` into a final data section.
 - `src/targets/byte-storage.ts` selects the experimental compact `BYTE` representation, rewrites byte reads to native numeric conversions where needed, and initializes character-backed byte arrays before entry code.
+- `src/targets/kc85-printer.ts` lowers printer-device output to a shared M021
+  byte-output routine, with per-item text conversion and busy-handshake polling.
 - `src/test-runner-lowering.ts` builds the generated MCP test runner and assertion support when test mode is enabled.
   Per-test result accounting and pass/fail reporting share one routine; its test
   counter identifies failures for the final summary.

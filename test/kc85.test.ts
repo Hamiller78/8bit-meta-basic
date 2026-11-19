@@ -3,6 +3,20 @@ import { compileSource, compileSourceDetailed } from "../src/compiler.js";
 import { isTargetId } from "../src/targets/index.js";
 
 describe("KC 85/3 compiler", () => {
+  it("lowers printer text and numeric items through the M021 and rejects serial output", () => {
+    const source = 'ok=device_available(PRINTER)\nopen_device out, PRINTER\nprint_device out; "VALUE:"; 42\nclose_device out\n';
+    for (const readability of [0, 2] as const) {
+      const output = compileSource(source, { filename: "printer.mbas", target: "kc85", readability });
+      expect(output).toContain("OUT 147,15");
+      expect(output).toContain("OUT 146,207");
+      expect(output).toContain("OUT 146,127");
+      expect(output).toContain("OUT 145,");
+      expect(output).toContain("STR$(42)");
+      expect(output).toContain("INP(144)");
+      expect(output.trimEnd().split("\n").every(line => line.length <= 72)).toBe(true);
+    }
+    expect(() => compileSource('open_device log, RS232\n', { filename: "printer.mbas", target: "kc85" })).toThrow(/does not support.*rs232/i);
+  });
   it("swaps and restores current colours around adjacent inverted prints", () => {
     const output = compileSource('print_invert "FIRST";\nprint_invert_at 2,3,"SECOND"\nprint "NORMAL"\n', { filename: "inverse.mbas", target: "kc85" });
     expect(output.match(/VPEEK\(14243\)/gu)).toHaveLength(2);

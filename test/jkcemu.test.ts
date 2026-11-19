@@ -27,7 +27,7 @@ describe("JKCEMU KC 85/3 AutoInput profile", () => {
     const profile = kc85AutoLoadProfile('C:\\Build & Test\\demo.sss');
     expect(profile).toContain('C:\\Build &amp; Test\\demo.sss');
     expect(profile).toContain('<entry key="jkcemu.kc85_3.module.count">2</entry>');
-    expect(profile).toContain('<entry key="jkcemu.kc85_3.module.0C.name">M008</entry>');
+    expect(profile).toContain('<entry key="jkcemu.kc85_3.module.0C.name">M021</entry>');
     expect(profile).toContain('SWITCH%208%2043%0DBASIC%0D');
     expect(profile).toContain('<entry key="jkcemu.kc85_3.autoload.0.wait.millis">15000</entry>');
     expect(profile).toContain("RUN%0D");
@@ -37,6 +37,8 @@ describe("JKCEMU KC 85/3 AutoInput profile", () => {
     expect(() => parseKc85Args(["--printer-output"])).toThrow(/requires --run-tests/);
     expect(parseKc85Args(["--run-tests", "--printer-output"]).capture).toBe(true);
     expect(parseKc85Args(["--source", "demo.mbas", "--skip-build"]).source).toBe("demo.mbas");
+    expect(parseKc85Args(["--capture-printer"]).printerCapture).toBe(true);
+    expect(() => parseKc85Args(["--capture-printer", "--run-tests", "--printer-output"])).toThrow(/cannot be combined/);
     expect(parseKc85Args(["--project", "project", "--run-tests", "--module", "data"]).moduleName).toBe("data");
     expect(() => parseKc85Args(["--module", "data"])).toThrow(/requires --project and --run-tests/);
   });

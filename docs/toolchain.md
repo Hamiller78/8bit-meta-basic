@@ -206,6 +206,7 @@ npm run build:c64 -- --project examples/eight-bits-below --run-tests --module co
 | --- | --- |
 | `--test-screen-output` | With `--run-tests`, execute tested screen operations as well as capturing them. |
 | `--printer-output` | With `--run-tests`, mirror runner output; launchers arrange host capture. |
+| `--capture-printer` | For a KC 85/3 interactive launch, mirror JKCEMU M021 printer output to a fresh host file. |
 | `--test-output-device printer\|text-printer\|shared-drive\|rs232` | Mirroring device; launchers use the emulator override or adapter default if omitted. |
 
 A standalone build's default device can differ from a named configuration's choice.

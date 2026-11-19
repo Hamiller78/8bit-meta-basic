@@ -59,7 +59,8 @@ interrupt vector; reset the computer to restore the normal blink timing, and aft
 an interrupted program to release the channel. `BEEP` uses the other CTC sound
 channel while the clock continues to run.
 
-Unsupported operations produce diagnostics. These include device operations.
+Unsupported operations produce diagnostics. KC printer output requires the
+M021 joystick/Centronics module; serial and shared-drive output are unsupported.
 Border-colour
 requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
 portable transliteration. An experimental JKCEMU launcher has run the generated release
@@ -277,6 +278,7 @@ by the [toolchain reference](toolchain.md#generated-artifacts).
 | C64/VIC-20 | Printer devices use device 4; RS-232 uses device 2. No shared-drive support. |
 | Agon Light | Device handles become SD-card files. Text output uses `BPUT#` rather than typed binary `PRINT#` records. |
 | Amstrad CPC | `PRINTER` and `TEXT_PRINTER` use stream `#8`; serial and shared-drive devices are unsupported. Printer availability is assumed. |
+| KC 85/3 | `PRINTER` and `TEXT_PRINTER` send text bytes to the M021 Centronics port. Availability is assumed; the module must be present. Serial and shared-drive devices are unsupported. |
 
 On C64, RS-232 uses the KERNAL directly with two 256-byte buffers at
 `$C000`–`$C1FF` for serial operations. Native BASIC `OPEN` and `CLOSE` on
@@ -294,6 +296,11 @@ existing variables and arrays, so open the channel before initializing them.
 true because probing the connection can disturb it. Working host captures and
 manual device mappings are described in the
 [running guide](running-programs.md#test-capture-locations).
+
+KC printer output configures the M021 PIO on first output and polls its busy
+signal before subsequent bytes. It shares the module with joystick input. The
+print manager of JKCEMU 0.9.9.1 captured text and numeric output, and joystick
+input worked after printing; physical printer hardware has not been verified.
 
 ## Storage layouts
 

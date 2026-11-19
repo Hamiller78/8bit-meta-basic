@@ -38,7 +38,7 @@ function profileXml(inputs, extraEntries, version) {
   if (version !== "0.9.9.1") throw new Error(`JKCEMU ${version} is not supported by this profile; expected 0.9.9.1.`);
   const entries = [
     ["jkcemu.version", version], ["jkcemu.system", "KC85_3"],
-    ["jkcemu.kc85_3.module.count", "2"], ["jkcemu.kc85_3.module.08.name", "M011"], ["jkcemu.kc85_3.module.0C.name", "M008"], ...extraEntries,
+    ["jkcemu.kc85_3.module.count", "2"], ["jkcemu.kc85_3.module.08.name", "M011"], ["jkcemu.kc85_3.module.0C.name", "M021"], ...extraEntries,
     ["jkcemu.kc85_3.autoinput.count", String(inputs.length)],
     ...inputs.flatMap((input, index) => [
       [`jkcemu.kc85_3.autoinput.${index}.wait.millis`, String(input.wait)],

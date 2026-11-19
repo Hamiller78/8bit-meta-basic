@@ -72,6 +72,11 @@ test FreeMemoryRead()
     assert_true MemoryLeft > 0
 end test
 
+test PrinterAvailabilityIsBoolean()
+    available = device_available(PRINTER)
+    assert_true available = 0 or available = 1
+end test
+
 test InlineFunctionExpansion()
     local Result
     Result = InlineDouble(4)

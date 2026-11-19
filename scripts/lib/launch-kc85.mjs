@@ -67,7 +67,10 @@ export async function launchKc85(options) {
     console.log(`captured ${capturePath}\n${captured}`);
     return { capturePath, captured };
   }
-  const child = spawn(java, ["-jar", jar, "metabasic"], {
+  const printerPath = join(appData, "printer.txt");
+  const printerHelper = fileURLToPath(new URL("../JkcPrinterCapture.java", import.meta.url));
+  const args = options.printerCapture ? ["-cp", jar, printerHelper, printerPath] : ["-jar", jar, "metabasic"];
+  const child = spawn(java, args, {
     cwd, env: { ...process.env, APPDATA: appData }, stdio: "ignore", detached: true, windowsHide: false
   });
   await new Promise((resolveStart, rejectStart) => {
@@ -76,6 +79,7 @@ export async function launchKc85(options) {
   });
   child.unref();
   console.log(`launched ${options.targetConfiguration} with ${useAutoLoad ? `AutoLoad from ${tokenizedPath}` : `AutoInput from ${basicPath}`} (process ${child.pid})`);
+  if (options.printerCapture) console.log(`printer capture: ${printerPath}`);
   console.log("JKCEMU startup and program execution have not been verified by the launcher.");
 }
 
@@ -94,6 +98,7 @@ export function parseKc85Args(argv) {
     else if (arg === "--run-tests") options.testMode = true;
     else if (arg === "--test-screen-output") options.testScreenOutput = true;
     else if (arg === "--printer-output") options.capture = true;
+    else if (arg === "--capture-printer") options.printerCapture = true;
     else if (arg === "--hidden") options.hidden = true;
     else throw new Error(`Unsupported KC 85 launch option "${arg}".`);
   }
@@ -102,6 +107,7 @@ export function parseKc85Args(argv) {
   }
   if (options.moduleName && (!options.projectPath || !options.testMode)) throw new Error("--module requires --project and --run-tests.");
   if (options.capture && !options.testMode) throw new Error("--printer-output requires --run-tests.");
+  if (options.capture && options.printerCapture) throw new Error("--capture-printer cannot be combined with --printer-output.");
   return options;
 }
 

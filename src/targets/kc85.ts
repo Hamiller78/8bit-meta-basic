@@ -8,6 +8,7 @@ import { kc85VariableMap } from "./kc85-variables.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { lowerSequentialFileIo } from "./file-io.js";
 import { lowerInkeyReads } from "./inkey-lowering.js";
+import { lowerKc85Printer } from "./kc85-printer.js";
 import { lowerSafeDispatch } from "./safe-dispatch.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { groupInvertedPrints, rebuildLabels, validateConstantCoordinate, type TargetBackend } from "./target.js";
@@ -47,7 +48,7 @@ export const kc85Target: TargetBackend = {
       mapInstructionExpressions(instruction, validateExpression);
     };
     program.instructions.forEach(validate);
-    const byteProgram = lowerByteStorage(lowerKc85TapeSavePrompt(lowerSequentialFileIo(program, "tape")), "kc85");
+    const byteProgram = lowerByteStorage(lowerKc85Printer(lowerKc85TapeSavePrompt(lowerSequentialFileIo(program, "tape"))), "kc85");
     const allocate = createGeneratedVariableNameAllocator(byteProgram.instructions, "MBKC85SEED");
     let seedStorage: string | undefined;
     const seedRandom = (instruction: Instruction): Instruction => {
