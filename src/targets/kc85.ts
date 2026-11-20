@@ -30,8 +30,8 @@ export const kc85Target: TargetBackend = {
     const validateExpression = (expression: Expression): Expression => {
       switch (expression.kind) {
         case "string":
-          if (/[^\x20-\x7e]/u.test(expression.value)) {
-            throw new DiagnosticError(expression.location, "KC 85/3 currently supports ASCII text only.");
+          if (/[^\x20-\x7eäöüß]/u.test(expression.value)) {
+            throw new DiagnosticError(expression.location, "KC 85/3 text contains an unsupported character.");
           }
           break;
         case "function-call": expression.args.forEach(validateExpression); break;

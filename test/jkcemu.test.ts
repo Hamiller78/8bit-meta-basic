@@ -20,6 +20,7 @@ describe("JKCEMU KC 85/3 AutoInput profile", () => {
     expect(() => kc85AutoInputProfile(`10 PRINT "${"A".repeat(70)}"\n`)).toThrow(/72/);
     expect(() => kc85AutoInputProfile("10 PRINT \"é\"\n")).toThrow(/supported input characters/);
     expect(() => kc85AutoInputProfile('10 PRINT "["\n')).toThrow(/supported input characters/);
+    expect(() => kc85AutoInputProfile('10 PRINT "ä"\n')).toThrow(/fast loader/);
     expect(() => kc85AutoInputProfile("10 END\n", "0.9.8")).toThrow(/expected 0\.9\.9\.1/);
   });
 

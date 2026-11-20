@@ -8,6 +8,15 @@ import { wrapText } from "../src/text-support.js";
 
 const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon"] as const;
 describe("localized text and layout", () => {
+  it("uses KC 85 lowercase umlauts only when international is requested", () => {
+    const source = 'word$="äöüß"\nprint word$\nprint "ÄÖÜ ẞ äöüß"\n';
+    const plain = compileSource(source, { filename: "german.mbas", target: "kc85", font: [] });
+    expect(plain).toContain('="aeoeuess"');
+    expect(plain).toContain('PRINT "AEOEUE SS aeoeuess"');
+    const international = compileSource(source, { filename: "german.mbas", target: "kc85", font: ["international"] });
+    expect(international).toContain('="äöüß"');
+    expect(international).toContain('PRINT "AEOEUE SS äöüß"');
+  });
   it("wraps paragraphs and long words deterministically", () => {
     expect(wrapText("one two three\n\nfour", 7)).toEqual(["one two", "three", "", "four"]);
     expect(wrapText("abcdefghij next", 4)).toEqual(["abcd", "efgh", "ij", "next"]);

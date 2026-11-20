@@ -5,6 +5,9 @@ export function kc85AutoInputProfile(listing, version = "0.9.9.1") {
   if (lines.length === 0) throw new Error("The KC 85 BASIC listing is empty.");
   let previous = -1;
   for (const line of lines) {
+    if (/[äöüß]/u.test(line)) {
+      throw new Error("JKCEMU AutoInput cannot type KC 85 umlauts or ß; use the default fast loader instead of --type-in.");
+    }
     const match = /^(\d+) (.*)$/u.exec(line);
     if (!match || /[^\x20-\x5a\x5e-\x5f\x61-\x7a]/u.test(line) || line.length > 72) {
       throw new Error("KC 85 AutoInput requires numbered lines of at most 72 characters using JKCEMU's supported input characters.");

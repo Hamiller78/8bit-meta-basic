@@ -41,6 +41,8 @@ builds the listing and starts JKCEMU with an isolated profile under
 By default the profile selects KC 85/3, starts BASIC, loads a
 tokenized `.sss` file with JKCEMU AutoLoad, and enters `RUN`. Use `--type-in`
 to enter the listing through AutoInput instead; this can take several minutes.
+JKCEMU AutoInput cannot enter the native `ä`, `ö`, `ü`, or `ß` characters in
+listings; use the default tokenized loader for programs containing them.
 `--fast-load` explicitly selects the default loader. Neither path alters the
 user's saved JKCEMU profile. The isolated profile includes an M011 RAM module
 in slot 08 and activates it with `SWITCH 8 43` before starting BASIC. It also

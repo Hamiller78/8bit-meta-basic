@@ -20,7 +20,7 @@ export function tokenizeKc85Basic(listing) {
   let address = 0x0401;
   for (const line of lines) {
     const match = /^(\d+) (.*)$/u.exec(line);
-    if (!match || /[^\x20-\x7e]/u.test(line) || line.length > 72) throw new Error("KC 85 BASIC requires numbered ASCII lines of at most 72 characters.");
+    if (!match || /[^\x20-\x7eäöüß]/u.test(line) || line.length > 72) throw new Error("KC 85 BASIC requires numbered ASCII lines (with supported KC characters in strings) of at most 72 characters.");
     const number = Number(match[1]);
     if (number <= previousLine || number > 65529) throw new Error("KC 85 BASIC line numbers must increase and not exceed 65529.");
     previousLine = number;
@@ -43,6 +43,7 @@ export function tokenizeKc85Basic(listing) {
 
 function tokenizeLine(line) {
   const result = [];
+  const international = new Map([["ä", 0x7b], ["ö", 0x7c], ["ü", 0x7d], ["ß", 0x7e]]);
   let state = "code";
   for (let index = 0; index < line.length;) {
     const character = line[index];
@@ -62,6 +63,13 @@ function tokenizeLine(line) {
         else if (tokens[token] === "DATA") state = "data";
         continue;
       }
+    }
+    const mapped = international.get(character);
+    if (mapped !== undefined) {
+      if (state !== "string" && state !== "data-string" && state !== "rem") throw new Error("KC 85 international characters are supported only in BASIC strings and comments.");
+      result.push(mapped);
+      index += 1;
+      continue;
     }
     if (state === "data" && character === ":") state = "code";
     result.push(character.charCodeAt(0));

@@ -92,7 +92,7 @@ export function compileProgramDetailed(ast: ReturnType<typeof parseSource>, opti
     sourceNames: new Set([...sourceAliases].filter(([name, aliases]) => aliases.some((alias) => alias.name.toLowerCase() === name)).map(([name]) => name))
   });
   lowered = rebuildLabels(lowered, lowered.instructions.map((instruction) => mapInstructionExpressions(instruction, (expression) => {
-    if (expression.kind !== "string" || (!isCommodoreBasicV2(options.target) && options.target !== "spectrum")) return expression;
+    if (expression.kind !== "string" || (!isCommodoreBasicV2(options.target) && options.target !== "spectrum" && options.target !== "kc85")) return expression;
     let value = portableTextValue(expression.value, expression.location, options.target, font);
     if (isCommodoreBasicV2(options.target) && !hasTextCharacterGroup(font, "lowercase")) value = value.toUpperCase();
     return value === expression.value ? expression : { ...expression, value };

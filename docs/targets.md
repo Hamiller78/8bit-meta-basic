@@ -62,8 +62,9 @@ channel while the clock continues to run.
 Unsupported operations produce diagnostics. KC printer output requires the
 M021 joystick/Centronics module; serial and shared-drive output are unsupported.
 Border-colour
-requests are ignored because the KC 85/3 has no separate border colour. Text is limited to ASCII after
-portable transliteration. An experimental JKCEMU launcher has run the generated release
+requests are ignored because the KC 85/3 has no separate border colour. Its default
+text display supports lowercase German umlauts and ß when requested through the
+`international` character group. An experimental JKCEMU launcher has run the generated release
 struct demo in a user-observed JKCEMU 0.9.9.1 KC 85/3 session on Windows. The
 generated `.sss` file for the data test matched a file saved by that emulator
 byte for byte. Automated fast loading and screen capture passed the colours, data,
@@ -264,6 +265,13 @@ international ROM with `POKE 756,204`; Spectrum and Commodore use fallback spell
 where that group is unsupported.
 
 When `international` is requested for Atari or Agon, `ä`, `ö`, `ü`, `Ä`, `Ö`, and `Ü` remain display characters; Agon also preserves `ß`. `ß` and `ẞ` still become `ss` and `SS` on Atari because its ROM set does not contain them. Targets that cannot honor a requested group use the normal fallbacks: German umlauts become `ae`/`oe`/`ue`; an uppercase umlaut becomes `AE`/`OE`/`UE` when its whole word is uppercase, so `PRÄSIDENT` becomes `PRAESIDENT` while `Präsident` becomes `Praesident`. A C64 build without `lowercase` capitalizes all static text. Common typographic quotes, dashes, and ellipses become plain equivalents. Other unsupported Unicode and unavailable font punctuation produce diagnostics.
+
+KC 85/3 preserves `ä`, `ö`, `ü`, and `ß` when `international` is requested;
+otherwise it uses fallback spellings that can be entered on the standard keyboard.
+Uppercase umlauts always use the fallback spellings. Lowercase umlauts and ß use
+native character codes 123–126, which occupy the ASCII positions of `{`, `|`, `}`, and `~` on the KC
+display. A raw printer capture containing those bytes needs KC character-set
+conversion to display the German characters on a modern host.
 
 Readable listings and directly loadable artifacts can have different encodings.
 Atari native listing conversion and Agon UTF-8/Windows-1252 tokenization are owned

@@ -427,6 +427,14 @@ before `dir2atr` runs, allowing both listing and tokenized files in an ATR.
 See [Altirra loading](running-programs.md#atari-800xl-with-altirra) for their use,
 and [sources](sources.md#conversion-and-inspection-tools) for inspection tools.
 
+## KC 85/3 HC-BASIC tokenizer
+
+KC 85 builds produce a readable UTF-8 `.bas` listing and a tokenized `.sss`
+file. The tokenizer converts `ä`, `ö`, `ü`, and `ß` in literals, quoted DATA, and
+comments to KC character codes 123–126. The default JKCEMU launcher loads the
+tokenized artifact directly; its optional typed-input mode cannot enter these
+characters.
+
 ## Agon BBC BASIC tokenizer
 
 Agon tokenization is built in. `.bas` is readable UTF-8; `.bbc` is directly loadable.

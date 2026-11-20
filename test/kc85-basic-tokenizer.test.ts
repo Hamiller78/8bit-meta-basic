@@ -21,6 +21,13 @@ describe("KC 85/3 BASIC packaging", () => {
     expect(file.includes(Buffer.from([0x9e, 32, 34]))).toBe(true);
   });
 
+  it("encodes the KC 85's native German characters inside strings", () => {
+    const file = tokenizeKc85Basic('10 PRINT "äöüß"\n20 DATA "äöüß"\n');
+    expect(file.includes(Buffer.from([34, 0x7b, 0x7c, 0x7d, 0x7e, 34]))).toBe(true);
+    expect(tokenizeKc85Basic('10 REM ä\n').includes(Buffer.from([0x8e, 32, 0x7b]))).toBe(true);
+    expect(() => tokenizeKc85Basic('10 LET ä=1\n')).toThrow(/only in BASIC strings and comments/);
+  });
+
   it("rejects invalid lines and unsupported characters", () => {
     expect(() => tokenizeKc85Basic("10 PRINT 1\n10 END\n")).toThrow(/increase/);
     expect(() => tokenizeKc85Basic('10 PRINT "é"\n')).toThrow(/ASCII/);

@@ -1,0 +1,11 @@
+' Native KC 85/3 text probe; build with the international character group.
+letters$ = "äöüß"
+cls
+print "ä ö ü ß"
+print letters$
+if len(letters$) = 4 and asc(mid$(letters$, 1, 1)) = 123 and asc(mid$(letters$, 2, 1)) = 124 and asc(mid$(letters$, 3, 1)) = 125 and asc(mid$(letters$, 4, 1)) = 126 then
+    print "GERMAN CODES OK"
+else
+    print "GERMAN CODES FAILED"
+end if
+end
