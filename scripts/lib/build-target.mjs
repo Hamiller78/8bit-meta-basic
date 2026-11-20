@@ -8,6 +8,7 @@ import { compilerTargetConfiguration } from "../target-configurations.mjs";
 import { tokenizeAgonBasic } from "./agon-basic-tokenizer.mjs";
 import { createCpcDataDisk, writeCpcDiskImage } from "./cpc-disk.mjs";
 import { tokenizeKc85Basic } from "./kc85-basic-tokenizer.mjs";
+import { createKc85TapeWav, kc85TapeName } from "./kc85-tape-audio.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon", "cpc"];
 export const experimentalTargets = ["kc85"];
@@ -57,6 +58,7 @@ export async function buildTarget(options) {
   if (![...targets, ...experimentalTargets].includes(target)) {
     throw new Error(`Unknown target "${target}". Expected one of: ${[...targets, ...experimentalTargets].join(", ")}.`);
   }
+  if (options.wav && target !== "kc85") throw new Error("--wav is only supported for KC 85 builds.");
   if (!Object.hasOwn(profiles, profile)) {
     throw new Error(`Unknown profile "${profile}". Expected one of: ${Object.keys(profiles).join(", ")}.`);
   }
@@ -125,9 +127,17 @@ export async function buildTarget(options) {
 
   if (target === "kc85") {
     const tokenizedPath = outputPathFor(cwd, outDir, profile, target, program.name, ".sss");
-    await writeFile(tokenizedPath, tokenizeKc85Basic(await readFile(basicPath, "utf8")));
+    const tokenized = tokenizeKc85Basic(await readFile(basicPath, "utf8"));
+    await writeFile(tokenizedPath, tokenized);
     artifacts.kc85Tokenized = tokenizedPath;
     console.log(`created ${relativeToCwd(cwd, tokenizedPath)}`);
+    if (options.wav) {
+      const wavPath = outputPathFor(cwd, outDir, profile, target, program.name, ".wav");
+      await writeFile(wavPath, createKc85TapeWav(tokenized, program.name));
+      artifacts.kc85Wav = wavPath;
+      console.log(`created ${relativeToCwd(cwd, wavPath)}`);
+      console.log(`KC 85 cassette name: ${kc85TapeName(program.name)}`);
+    }
   }
 
   if (target === "cpc") {
@@ -670,6 +680,10 @@ function parseArgs(argv) {
     }
     if (arg === "--no-tools") {
       options.runTools = false;
+      continue;
+    }
+    if (arg === "--wav") {
+      options.wav = true;
       continue;
     }
     if (arg.startsWith("-")) {

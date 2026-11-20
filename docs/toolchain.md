@@ -435,6 +435,18 @@ comments to KC character codes 123–126. The default JKCEMU launcher loads the
 tokenized artifact directly; its optional typed-input mode cannot enter these
 characters.
 
+Add `--wav` to `npm run build:kc85 -- ...` to also produce a mono 22050 Hz
+cassette WAV beside the listing. For example:
+
+```text
+npm run build:kc85 -- --source examples/struct-demo.mbas --profile release --no-tools --wav
+```
+
+This built-in export does not require JKCEMU. The cassette filename is the program
+name uppercased, with non-ASCII-alphanumeric characters removed and truncated to
+eight characters; if nothing remains it is `PROGRAM`. WAV export supports up to
+255 tape blocks. See [running programs](running-programs.md#kc-853--jkcemu) for loading.
+
 ## Agon BBC BASIC tokenizer
 
 Agon tokenization is built in. `.bas` is readable UTF-8; `.bbc` is directly loadable.

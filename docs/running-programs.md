@@ -50,6 +50,16 @@ includes an M021 joystick/Centronics module in slot 0C. In JKCEMU, use Alt and t
 keys for joystick 1, and Alt+Enter or Alt+F1 for fire; alternatively open
 Extra → Spielhebel to use the on-screen controls. The launcher
 reports process startup only.
+
+For a cassette WAV, build with `npm run build:kc85 -- --source <file.mbas>
+--profile release --no-tools --wav`. In JKCEMU, start BASIC, enter
+`CLOAD"NAME"` using the cassette filename described in the
+[toolchain reference](toolchain.md#kc-853-hc-basic-tokenizer), then play the WAV
+through Extra → Audio/Kassette as cassette input. After the load finishes, enter
+`RUN`. The WAV path is printed by the build. Playback on physical hardware has
+not been verified. In JKCEMU 0.9.9.1, a generated multi-block WAV loaded through
+`CLOAD`, and the data instruction module then passed with one test and seven
+assertions.
 In JKCEMU 0.9.9.1 on Windows, `examples/joystick.mbas` was checked with
 programmatically injected joystick input, including directions, fire, a
 diagonal with fire, and opposing directions. Physical controls have not been
