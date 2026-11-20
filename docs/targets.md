@@ -77,6 +77,11 @@ default-window positions in a separate user-run manual check.
 Seeded `RANDOMIZE` initializes HC-BASIC's generator with a negative `RND` argument.
 `BYTE` values use ordinary numeric storage rather than a compact native byte;
 the storage instruction-suite module passed in JKCEMU.
+For declared string arrays, the compiler reserves the sum of their declared
+element capacities plus 1024 bytes for other strings and temporaries with a
+`CLEAR` at program startup. This is a practical allowance, not a bound on
+arbitrary dynamically created strings; it also reduces memory available for
+other data. Requests above 32767 bytes are rejected.
 `FREE_MEMORY()` converts HC-BASIC's signed 16-bit result to an unsigned count,
 including when an M011 provides more than 32767 free bytes.
 `BEEP` uses one sound channel, with 20 ms duration units and a timer divisor

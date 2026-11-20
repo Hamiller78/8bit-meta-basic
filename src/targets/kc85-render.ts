@@ -92,7 +92,7 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
     case "dim-array": return `${prefix}DIM ${name(instruction.name)}(${(isStringVariableName(instruction.name) ? instruction.dimensions.slice(0, -1) : instruction.dimensions).map((size) => size - 1).join(",")})`;
     // REM consumes the rest of a packed BASIC line. An empty non-advancing
     // PRINT is safe when other instructions share the line.
-    case "dim-string": return `${prefix}PRINT "";`;
+    case "dim-string": return `${prefix}${instruction.kc85StringSpace ? `CLEAR ${instruction.length}` : 'PRINT "";'}`;
     case "array-let": return `${prefix}${name(instruction.name)}(${instruction.indices.map(expr).join(",")})=${expr(instruction.expression)}`;
     case "data": return `${prefix}DATA ${renderDataValues(instruction.values, options)}`;
     case "read": return `${prefix}READ ${instruction.targets.map(name).join(",")}`;

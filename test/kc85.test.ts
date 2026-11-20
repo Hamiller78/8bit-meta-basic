@@ -3,6 +3,12 @@ import { compileSource, compileSourceDetailed } from "../src/compiler.js";
 import { isTargetId } from "../src/targets/index.js";
 
 describe("KC 85/3 compiler", () => {
+  it("reserves BASIC string space before initializing declared string arrays", () => {
+    const output = compileSource('dim rows$(16,22)\nrows$(0)="A"\n', { filename: "strings.mbas", target: "kc85" });
+    expect(output.trimStart()).toMatch(/^10 CLEAR 1376(?:\n|:)/u);
+    expect(output.indexOf("CLEAR 1376")).toBeLessThan(output.indexOf("DIM "));
+    expect(() => compileSource('dim rows$(200,200)\n', { filename: "strings.mbas", target: "kc85" })).toThrow(/string arrays require more than 32767 bytes/);
+  });
   it("lowers printer text and numeric items through the M021 and rejects serial output", () => {
     const source = 'ok=device_available(PRINTER)\nopen_device out, PRINTER\nprint_device out; "VALUE:"; 42\nclose_device out\n';
     for (const readability of [0, 2] as const) {

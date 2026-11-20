@@ -1,6 +1,22 @@
 dim BoundedSliceRows$(3, 3)
 dim SingleCharacterItems$(3, 1)
 dim RepeatedReadRows$(3, 8)
+dim FullMapRows$(16, 22)
+
+test FillAndUpdateStringArray()
+    local row, column, replacement$
+    for row = 0 to 15
+        FullMapRows$(row) = "######################"
+    next row
+    for row = 0 to 15
+        column = 11
+        replacement$ = left$(FullMapRows$(row), column - 1) + "." + mid$(FullMapRows$(row), column + 1)
+        FullMapRows$(row) = replacement$
+    next row
+    assert_eq 22, len(FullMapRows$(15))
+    assert_eq ".", mid$(FullMapRows$(15), 11, 1)
+    assert_eq "#", mid$(FullMapRows$(0), 22, 1)
+end test
 
 test RepeatedStringArrayReads()
     local index, result$

@@ -570,6 +570,8 @@ export interface DimStringInstruction {
   readonly kind: "dim-string";
   readonly name: string;
   readonly length: number;
+  /** KC 85 target-generated request for the shared BASIC string heap. */
+  readonly kc85StringSpace?: boolean;
   readonly location: SourceLocation;
 }
 
