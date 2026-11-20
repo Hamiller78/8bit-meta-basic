@@ -3,7 +3,7 @@
 Press any key at the startup prompt. The program seeds its random-number
 generator after the key press so emulator startup timing does not fix the seed.
 The yellow `P` starts at the entrance. Use the direction keys on C64, VIC-20,
-Atari, and Agon, or Q/A/O/P (up/down/left/right) on Spectrum and KC 85/3. Walk over floor
+Atari, Agon, and KC 85/3, or Q/A/O/P (up/down/left/right) on Spectrum. Walk over floor
 tiles (`.`), through doors (`+`), and back onto the entrance (`<`). Walls block
 movement. Reaching the exit (`>`) generates a new dungeon and places the player
 at its entrance, preserving character stats. Only the entrance room is revealed

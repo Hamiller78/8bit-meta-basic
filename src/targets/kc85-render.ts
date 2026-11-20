@@ -56,13 +56,12 @@ export function renderKc85Line(line: number, instruction: Instruction, labels: R
   };
   const expr = (value: Expression): string => renderExpression(value, options);
   const coordinate = (value: Expression, axis: "row" | "column"): string => {
-    // HC-BASIC starts with a 30-row window even though the physical screen
-    // can expose 32 rows after an explicit WINDOW command.
-    validateConstantCoordinate(value, axis, axis === "row" ? 29 : 39, "KC 85");
+    validateConstantCoordinate(value, axis, axis === "row" ? 31 : 39, "KC 85");
     return value.kind === "number" ? String(value.value - 1) : `(${expr(value)})-1`;
   };
   const prefix = `${line} `;
   switch (instruction.kind) {
+    case "graphics-mode": return `${prefix}WINDOW 0,31,0,39`;
     case "label": return `${prefix}REM ${instruction.name.toUpperCase()}:`;
     case "rem": return `${prefix}REM ${instruction.text}`;
     case "cls":

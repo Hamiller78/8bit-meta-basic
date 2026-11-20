@@ -1,0 +1,35 @@
+' Interactive/native probe for KC 85 cursor keys and portable game events.
+print "READY UP"
+repeat
+    key = key_code()
+until key <> KEY_NONE
+if key <> GAME_UP then
+    print "FAIL UP"
+    end
+end if
+print "READY DOWN"
+repeat
+    key = key_code()
+until key <> KEY_NONE
+if key <> GAME_DOWN then
+    print "FAIL DOWN"
+    end
+end if
+print "READY LEFT"
+repeat
+    key = key_code()
+until key <> KEY_NONE
+if key <> GAME_LEFT then
+    print "FAIL LEFT"
+    end
+end if
+print "READY RIGHT"
+repeat
+    key = key_code()
+until key <> KEY_NONE
+if key <> GAME_RIGHT then
+    print "FAIL RIGHT"
+    end
+end if
+print "GAME KEYS OK"
+end

@@ -5,13 +5,15 @@ const location = { filename: "screen.mbas", line: 1 };
 const number = (value: number) => ({ kind: "number" as const, value, raw: String(value), location });
 
 describe("KC 85 HC-BASIC rendering", () => {
-  it("uses zero-based coordinates within the KC 85/3 default window", () => {
+  it("uses zero-based coordinates within the full KC 85/3 window", () => {
     expect(renderKc85Line(10, { kind: "set-position", row: number(3), column: number(4), location }, new Map(), new Map()))
       .toBe("10 LOCATE 2,3");
     expect(renderKc85Line(10, { kind: "set-position", row: number(30), column: number(40), location }, new Map(), new Map()))
       .toBe("10 LOCATE 29,39");
-    expect(() => renderKc85Line(10, { kind: "set-position", row: number(31), column: number(1), location }, new Map(), new Map()))
-      .toThrow(/screen\.mbas:1.*row coordinate 31/);
+    expect(renderKc85Line(10, { kind: "set-position", row: number(32), column: number(40), location }, new Map(), new Map()))
+      .toBe("10 LOCATE 31,39");
+    expect(() => renderKc85Line(10, { kind: "set-position", row: number(33), column: number(1), location }, new Map(), new Map()))
+      .toThrow(/screen\.mbas:1.*row coordinate 33/);
     expect(() => renderKc85Line(10, { kind: "set-position", row: number(1), column: number(41), location }, new Map(), new Map()))
       .toThrow(/screen\.mbas:1.*column coordinate 41/);
   });

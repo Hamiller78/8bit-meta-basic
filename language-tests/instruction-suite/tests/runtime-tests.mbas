@@ -1,3 +1,13 @@
+test KeyboardGameDirections()
+    ' The current targets other than Spectrum use cursor keys for game events.
+    if TEXT_COLUMNS <> 32 then
+        assert_eq KEY_UP, GAME_UP
+        assert_eq KEY_DOWN, GAME_DOWN
+        assert_eq KEY_LEFT, GAME_LEFT
+        assert_eq KEY_RIGHT, GAME_RIGHT
+    end if
+end test
+
 test JoystickFakes()
     set_joystick(JOY_X, -1)
     set_joystick(JOY_Y, 1)

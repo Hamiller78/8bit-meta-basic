@@ -1,0 +1,11 @@
+' Visual probe: top and bottom are physical rows 1 and 32.
+screen_background_color BLACK
+screen_text_color WHITE
+cls
+print_at 1, 1, "TOP 1";
+print_at 16, 6, "MIDDLE 16";
+print_at 32, 1, "BOTTOM 32";
+repeat
+    key = key_code()
+until key <> KEY_NONE
+end

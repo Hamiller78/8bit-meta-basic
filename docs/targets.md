@@ -41,8 +41,8 @@ interpretation remains target-specific.
 ## KC 85/3 (experimental)
 
 The direct compiler accepts `--target kc85` for a preliminary HC-BASIC listing.
-The default window is 30 rows by 40 columns; `LOCATE` uses zero-based coordinates
-relative to that window. The backend enforces 72 characters per generated line and
+MetaBASIC opens a 32-row by 40-column window at startup; `LOCATE` uses zero-based
+coordinates relative to that window. HC-BASIC's own default is 30 rows. The backend enforces 72 characters per generated line and
 line numbers no greater than 65529. Numeric and string variables use separately
 allocated letter-digit names; `INK` and `PAPER` use the HC-BASIC colour codes,
 where background white is approximated by grey. Keyboard polling uses a buffered
@@ -73,7 +73,9 @@ instruction-suite modules on JKCEMU 0.9.9.1 on Windows. Colour assertions track
 requested values in the test runner; they do not verify rendered colours.
 In the same emulator configuration,
 `LOCATE 0,0`, `LOCATE 5,5`, and `LOCATE 29,0` placed text in the expected
-default-window positions in a separate user-run manual check.
+positions in a separate user-run manual check of the former 30-row window.
+The full 32-row window was subsequently checked visually in JKCEMU 0.9.9.1;
+the screen instruction module also wrote and read the first and last rows.
 Seeded `RANDOMIZE` initializes HC-BASIC's generator with a negative `RND` argument.
 `BYTE` values use ordinary numeric storage rather than a compact native byte;
 the storage instruction-suite module passed in JKCEMU.
@@ -155,8 +157,7 @@ Portable `INPUT` lowers to each dialect's native blocking keyboard `INPUT`. Atar
 
 Unsupported target keys resolve to `-1`; key constants are native codes, not an
 ASCII guarantee. `GAME_UP/DOWN/LEFT/RIGHT` map to Q/A/O/P on Spectrum and cursor
-keys on Atari, Commodore, Agon, and CPC. KC 85/3 uses Q/A/O/P for those game
-events; `GAME_FIRE` maps to Space. CPC caches a
+keys on Atari, Commodore, Agon, CPC, and KC 85/3. The KC `GAME_FIRE` maps to Space. CPC caches a
 polled character so `KEY_PRESSED()` does not consume it before `KEY_CODE()`.
 These event codes
 are separate from the held controls described under [Joystick mappings](#joystick-mappings).

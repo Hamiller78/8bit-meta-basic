@@ -39,3 +39,11 @@ test BottomEdgeDoesNotScrollBeforeCorner()
     print_at TEXT_ROWS, TEXT_COLUMNS - 1, "9";
     assert_eq code("1"), screen_code(1, 1)
 end test
+
+test FirstAndLastScreenRows()
+    cls
+    print_at 1, 1, "T";
+    print_at TEXT_ROWS, 1, "B";
+    assert_eq code("T"), screen_code(1, 1)
+    assert_eq code("B"), screen_code(TEXT_ROWS, 1)
+end test

@@ -77,11 +77,16 @@ export const kc85Target: TargetBackend = {
     const clock = lowerKc85Clock(split);
     const lowered = lowerSafeDispatch(lowerKc85Inverse(groupInvertedPrints(lowerKc85Joystick(lowerKc85ScreenReads(lowerInkeyReads(lowerKc85Beeps(clock.program, clock.vector), "MBKC85KEY"))))), "MBKC85DISPATCH");
     const stringArrays = lowered.instructions.filter((instruction): instruction is Extract<Instruction, { kind: "dim-array" }> => instruction.kind === "dim-array" && instruction.name.endsWith("$"));
-    if (stringArrays.length === 0) return lowered;
-    const arrayBytes = stringArrays.reduce((total, instruction) => total + instruction.dimensions.reduce((product, size) => product * size, 1), 0);
-    const bytes = Math.max(1024, arrayBytes + 1024);
-    if (bytes > 32767) throw new DiagnosticError(stringArrays[0].location, "KC 85 string arrays require more than 32767 bytes of string space.");
-    return rebuildLabels(lowered, [{ kind: "dim-string", name: stringArrays[0].name, length: bytes, kc85StringSpace: true, location: stringArrays[0].location }, ...lowered.instructions]);
+    const startup: Instruction[] = [];
+    if (stringArrays.length > 0) {
+      const arrayBytes = stringArrays.reduce((total, instruction) => total + instruction.dimensions.reduce((product, size) => product * size, 1), 0);
+      const bytes = arrayBytes + 1024;
+      if (bytes > 32767) throw new DiagnosticError(stringArrays[0].location, "KC 85 string arrays require more than 32767 bytes of string space.");
+      startup.push({ kind: "dim-string", name: stringArrays[0].name, length: bytes, kc85StringSpace: true, location: stringArrays[0].location });
+    }
+    // Reuse the target startup mode instruction to select all 32 physical rows.
+    startup.push({ kind: "graphics-mode", mode: 32, location: lowered.instructions[0]?.location ?? { filename: "<generated>", line: 1 } });
+    return rebuildLabels(lowered, [...startup, ...lowered.instructions]);
   },
   renderLine(lineNumber, instruction, labelLines): string {
     return renderKc85Line(lineNumber, instruction, labelLines, kc85VariableMap(currentInstructions));
@@ -340,7 +345,7 @@ function lowerKc85ScreenReads(program: LoweredProgram): LoweredProgram {
         case "function-call": {
           const args = expression.args.map(rewrite);
           if (expression.name !== "SCREEN_CODE") return { ...expression, args };
-          validateConstantCoordinate(args[0], "row", 29, "KC 85", "SCREEN_CODE");
+          validateConstantCoordinate(args[0], "row", 31, "KC 85", "SCREEN_CODE");
           validateConstantCoordinate(args[1], "column", 39, "KC 85", "SCREEN_CODE");
           const location = expression.location;
           const row = allocate(), column = allocate(), savedRow = allocate(), savedColumn = allocate(), value = allocate();

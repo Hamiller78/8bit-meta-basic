@@ -83,8 +83,9 @@ describe("KC 85/3 compiler", () => {
   });
 
   it("exposes the KC 85 cursor-key event codes", () => {
-    const output = compileSource('print KEY_UP;KEY_DOWN;KEY_LEFT;KEY_RIGHT;KEY_ENTER;KEY_SPACE\nprint KEY_F1;KEY_F8;KEY_ESCAPE\n', { filename: "keys.mbas", target: "kc85" });
+    const output = compileSource('print KEY_UP;KEY_DOWN;KEY_LEFT;KEY_RIGHT;KEY_ENTER;KEY_SPACE\nprint GAME_UP;GAME_DOWN;GAME_LEFT;GAME_RIGHT;GAME_FIRE\nprint KEY_F1;KEY_F8;KEY_ESCAPE\n', { filename: "keys.mbas", target: "kc85" });
     expect(output).toContain("PRINT 11;10;8;9;13;32");
+    expect(output).toContain("PRINT 11;10;8;9;32");
     expect(output).toContain("PRINT -1;-1;-1");
   });
 
@@ -123,8 +124,12 @@ describe("KC 85/3 compiler", () => {
     expect(stats.stringVariables).not.toContain("VGET$");
     expect(stats.numericVariables).not.toContain("CSRLIN");
     expect(stats.numericVariables).not.toContain("POS");
-    expect(() => compileSource('value=screen_code(31,1)\n', { filename: "screen.mbas", target: "kc85" }))
-      .toThrow(/SCREEN_CODE row coordinate 31/);
+    const fullScreen = compileSource('print TEXT_ROWS\nprint_at 32,1,"BOTTOM";\nvalue=screen_code(32,1)\n', { filename: "screen.mbas", target: "kc85" });
+    expect(fullScreen).toContain("WINDOW 0,31,0,39");
+    expect(fullScreen).toContain("PRINT 32");
+    expect(fullScreen).toContain('LOCATE 31,0:PRINT "BOTTOM";');
+    expect(() => compileSource('value=screen_code(33,1)\n', { filename: "screen.mbas", target: "kc85" }))
+      .toThrow(/SCREEN_CODE row coordinate 33/);
   });
 
   it("splits long literal output without changing the printed text", () => {
