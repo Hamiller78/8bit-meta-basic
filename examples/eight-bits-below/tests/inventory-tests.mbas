@@ -1,0 +1,61 @@
+uses "../source/characters.mbas"
+
+test StartsWithSwordAndBaseStats()
+    InitEquipment()
+    assert_eq "SIMPLE SWORD", equipment(slotMainHand).name$
+    assert_eq 0, baseAttackDice
+    assert_eq 1, player.attackDice
+    assert_eq 0, player.armor
+    assert_eq 1, player.speed
+    assert_eq "NONE", equipment(slotHead).name$
+end test
+
+test FoundItemsCoverAllSlots()
+    local slot
+    InitEquipment()
+    for slot = 0 to equipmentSlots - 1
+        FindEquipment(slot)
+        assert_eq slot, foundSlot%
+        assert_ne "NONE", foundItem.name$
+    next slot
+end test
+
+test EquipReplacesOnlyItsSlotAndRecalculates()
+    InitEquipment()
+    FindEquipment(slotHead)
+    ResolveEquipmentChoice(TRUE)
+    FindEquipment(slotMainHand)
+    ResolveEquipmentChoice(TRUE)
+    assert_eq "HELMET", equipment(slotHead).name$
+    assert_eq "FINE SWORD", equipment(slotMainHand).name$
+    assert_eq 1, player.armor
+    assert_eq 2, player.attackDice
+    FindEquipment(slotMainHand)
+    ResolveEquipmentChoice(TRUE)
+    assert_eq 2, player.attackDice
+    assert_eq -1, foundSlot%
+end test
+
+test DeclineKeepsEquipmentAndStats()
+    InitEquipment()
+    gameOver% = FALSE
+    player.health = 10
+    FindEquipment(slotMainHand)
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq "SIMPLE SWORD", equipment(slotMainHand).name$
+    assert_eq 1, player.attackDice
+    assert_eq -1, foundSlot%
+end test
+
+test ChoiceIgnoresUnrelatedInputAndEquipKeyWorks()
+    InitEquipment()
+    gameOver% = FALSE
+    player.health = 10
+    FindEquipment(slotFeet)
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq slotFeet, foundSlot%
+    HandlePlayerInput(GAME_UP)
+    assert_eq "BOOTS", equipment(slotFeet).name$
+    assert_eq 2, player.speed
+    assert_eq -1, foundSlot%
+end test

@@ -72,6 +72,18 @@ Both lines use the dungeon's 22-column width and are cleared before shorter
 messages so old text cannot remain. Keeping them within the map width also
 avoids Atari editor wrapping that can disturb the controls below.
 
+Each defeated bat yields an item for one of six equipment slots: head, chest,
+legs, feet, main hand, or off hand. The room index determines the item, so drops
+do not consume combat random numbers. A prompt compares the new item with the
+item in the same slot. Press up to equip it, replacing and discarding the old
+item, or down to leave it. Choosing does not advance a turn; the bats take their
+normal turn after the attack and before the prompt. The comparison shows armor,
+attack dice, and speed bonuses as `A/D/S` (current > found). The player starts
+with a simple sword in the main hand. Base armor, attack dice, and speed are
+stored separately; equipment bonuses are added to produce the combat stats.
+Current health remains independent of equipment, and equipment persists between
+floors. Speed is recorded for future player movement rules; bats already use it.
+
 The combat tests use `SET_RND` sequences to exercise complete attacks
 deterministically on every target.
 
@@ -81,6 +93,7 @@ Run native tests one module at a time to fit the Atari test runner in memory:
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module dungeon --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module entrance --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module characters --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module inventory --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module combat --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module spawn --test-screen-output --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module pursuit --profile release --printer-output

@@ -32,6 +32,112 @@ end struct
 dim monsters as character(numMonsters)
 dim player as character
 
+const equipmentSlots = 6
+const slotHead = 0
+const slotChest = 1
+const slotLegs = 2
+const slotFeet = 3
+const slotMainHand = 4
+const slotOffHand = 5
+
+struct equipmentItem
+    name$(16)
+    armor
+    attackDice
+    speed
+end struct
+
+dim equipment as equipmentItem(equipmentSlots)
+dim foundItem as equipmentItem
+baseArmor = 0
+baseAttackDice = 0
+baseSpeed = 1
+foundSlot% = -1
+
+function RecalculateEquipment()
+    local slot
+    player.armor = baseArmor
+    player.attackDice = baseAttackDice
+    player.speed = baseSpeed
+    for slot = 0 to equipmentSlots - 1
+        player.armor = player.armor + equipment(slot).armor
+        player.attackDice = player.attackDice + equipment(slot).attackDice
+        player.speed = player.speed + equipment(slot).speed
+    next slot
+end function
+
+function InitEquipment()
+    local slot
+    baseArmor = 0
+    baseAttackDice = 0
+    baseSpeed = 1
+    for slot = 0 to equipmentSlots - 1
+        equipment(slot).name$ = "NONE"
+        equipment(slot).armor = 0
+        equipment(slot).attackDice = 0
+        equipment(slot).speed = 0
+    next slot
+    equipment(slotMainHand).name$ = "SIMPLE SWORD"
+    equipment(slotMainHand).attackDice = 1
+    foundSlot% = -1
+    RecalculateEquipment()
+end function
+
+' Each room's bat carries an item for one of the six slots.
+function FindEquipment(roomIndex%)
+    foundSlot% = roomIndex% mod equipmentSlots
+    foundItem.armor = 0
+    foundItem.attackDice = 0
+    foundItem.speed = 0
+    if foundSlot% = slotHead then
+        foundItem.name$ = "HELMET"
+        foundItem.armor = 1
+    end if
+    if foundSlot% = slotChest then
+        foundItem.name$ = "MAIL"
+        foundItem.armor = 1
+    end if
+    if foundSlot% = slotLegs then
+        foundItem.name$ = "LEGGINGS"
+        foundItem.armor = 1
+    end if
+    if foundSlot% = slotFeet then
+        foundItem.name$ = "BOOTS"
+        foundItem.speed = 1
+    end if
+    if foundSlot% = slotMainHand then
+        foundItem.name$ = "FINE SWORD"
+        foundItem.attackDice = 2
+    end if
+    if foundSlot% = slotOffHand then
+        foundItem.name$ = "SHIELD"
+        foundItem.armor = 1
+    end if
+end function
+
+function DrawEquipmentChoice()
+    cell_text_color WHITE
+    print_at 19, 1, left$("FOUND: " + foundItem.name$ + space$(dungeonWidth), dungeonWidth);
+    print_at 20, 1, left$("HAVE: " + equipment(foundSlot%).name$ + space$(dungeonWidth), dungeonWidth);
+    print_at 21, 1, left$("A/D/S " + str$(equipment(foundSlot%).armor) + "/" + str$(equipment(foundSlot%).attackDice) + "/" + str$(equipment(foundSlot%).speed) + ">" + str$(foundItem.armor) + "/" + str$(foundItem.attackDice) + "/" + str$(foundItem.speed) + space$(dungeonWidth), dungeonWidth);
+    print_at 22, 1, left$("UP EQUIP / DOWN LEAVE" + space$(dungeonWidth - 1), dungeonWidth - 1);
+end function
+
+function ResolveEquipmentChoice(equip%)
+    if foundSlot% < 0 then
+        return
+    end if
+    if equip% then
+        equipment(foundSlot%) = foundItem
+        RecalculateEquipment()
+    end if
+    foundSlot% = -1
+    print_at 19, 1, space$(dungeonWidth);
+    print_at 20, 1, space$(dungeonWidth);
+    print_at 21, 1, left$("MOVE: DIRECTION KEYS" + space$(dungeonWidth), dungeonWidth);
+    print_at 22, 1, left$("Q/A/O/P ON SPECTRUM" + space$(dungeonWidth - 1), dungeonWidth - 1);
+end function
+
 function ClearMonsters()
     local monsterIndex
     for monsterIndex = 0 to numMonsters - 1
@@ -130,6 +236,7 @@ function AttackMonster(monsterIndex%)
         damage% = RollAttackDamage(player.attackDice, monsters(monsterIndex%).armor)
         if damage% >= monsters(monsterIndex%).health then
             DespawnMonster(monsterIndex%)
+            FindEquipment(monsterIndex%)
         else
             monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
         end if
@@ -155,9 +262,7 @@ function InitPlayer()
     ClearMonsters()
     gameOver% = FALSE
     player.health = 10
-    player.armor = 0
-    player.attackDice = 1
-    player.speed = 1
+    InitEquipment()
     player.symbol$ = "P"
     player.name$ = "Hero"
     ShowMessage("")
@@ -225,6 +330,15 @@ function HandlePlayerInput(key)
     if gameOver% or player.health <= 0 then
         return
     end if
+    if foundSlot% >= 0 then
+        if key = GAME_UP then
+            ResolveEquipmentChoice(TRUE)
+        end if
+        if key = GAME_DOWN then
+            ResolveEquipmentChoice(FALSE)
+        end if
+        return
+    end if
     action% = turnBlocked
     if key = GAME_UP then
         action% = MovePlayer(-1, 0)
@@ -249,6 +363,9 @@ function HandlePlayerInput(key)
     if action% <> turnBlocked then
         DrawStatus()
         DrawPlayer()
+        if foundSlot% >= 0 and not gameOver% then
+            DrawEquipmentChoice()
+        end if
     end if
 end function
 
