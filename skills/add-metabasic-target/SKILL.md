@@ -11,6 +11,9 @@ Use this workflow when adding a platform or BASIC dialect. Read the relevant
 as well as the target's primary manuals and the existing instruction suite.
 Distinguish a new compiler dialect from an additional computer configuration that
 can use an existing dialect; implement the layers the requested platform needs.
+Adding a target will often require a new backend. Treat that as ordinary work in
+this workflow, not as a reason to stop. Use related backends to reuse suitable
+code and patterns, but establish compatibility from the new machine's behavior.
 
 ## Establish the target contract
 
@@ -60,6 +63,12 @@ user input only when a necessary choice, unavailable resource, or external block
 cannot be resolved from the available information. A difficult or lengthy task is
 not by itself a reason to stop. When user inspection is needed, make the specific
 feature and evidence ready for review and continue independent work in the meantime.
+An uncertain emulator feature or unavailable automated capture blocks only the
+verification that depends on it: investigate alternatives and continue implementing,
+testing, and documenting independent parts of the target. Do not end the task merely
+to report that a backend or tooling still needs to be written. Stop only when the
+requested work is complete or a concrete blocker prevents further meaningful work;
+explain any blocked verification and the steps already taken to resolve it.
 
 ## Verify and document
 
