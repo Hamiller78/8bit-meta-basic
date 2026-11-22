@@ -109,7 +109,7 @@ function GenerateDungeon()
 end function
 
 function InitFirstRoom()
-    local entranceRow%, exitRow%
+    local entranceRow%, exitRow%, rowIndex
     rooms(0).x% = 1
     rooms(0).y% = 1
     rooms(0).width% = dungeonWidth
@@ -117,10 +117,11 @@ function InitFirstRoom()
     rooms(0).isDiscovered% = FALSE
 
     ' Surround dungeon with walls
-    DrawHorizontalWall(1, 1, dungeonWidth) ' Top wall
-    DrawHorizontalWall(dungeonHeight, 1, dungeonWidth)
-    DrawVerticalWall(1, 1, dungeonHeight) ' Left wall
-    DrawVerticalWall(dungeonWidth, 1, dungeonHeight) ' Right wall
+    dungeonRows$(0) = dungeonWallRow$
+    dungeonRows$(dungeonHeight - 1) = dungeonWallRow$
+    for rowIndex = 2 to dungeonHeight - 1
+        dungeonRows$(rowIndex - 1) = dungeonWall$ + mid$(dungeonRows$(rowIndex - 1), 2, dungeonWidth - 2) + dungeonWall$
+    next rowIndex
 
     ' Keep the corners intact; the two openings are positioned independently.
     entranceRow% = int(rnd() * (dungeonHeight - 2)) + 2

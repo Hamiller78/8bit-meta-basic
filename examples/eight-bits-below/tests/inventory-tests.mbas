@@ -1,4 +1,5 @@
 uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
 
 test StartsWithSwordAndBaseStats()
     InitEquipment()
@@ -58,4 +59,15 @@ test ChoiceIgnoresUnrelatedInputAndEquipKeyWorks()
     assert_eq "BOOTS", equipment(slotFeet).name$
     assert_eq 2, player.speed
     assert_eq -1, foundSlot%
+end test
+
+
+test EquipmentChoiceRestoresDungeonMemoryDisplay()
+    InitEquipment()
+    dungeonFreeMemory = 1234
+    FindEquipment(slotHead)
+    DrawEquipmentChoice()
+    ResolveEquipmentChoice(FALSE)
+    assert_eq 1234, dungeonFreeMemory
+    assert_printat memoryRow, 1, "FREE:" + str$(1234) + " BYTES"
 end test

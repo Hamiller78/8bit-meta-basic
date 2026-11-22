@@ -7,6 +7,7 @@ hot_module
 const numMonsters = numRooms
 const attackLogRow = dungeonHeight + 1
 const statusRow = dungeonHeight + 2
+const memoryRow = dungeonHeight + 3
 
 enum TurnAction
     turnBlocked
@@ -27,6 +28,7 @@ dungeonNumber% = 1
 gameMode% = modeDungeon
 gold = 0
 shopSlot% = 0
+dungeonFreeMemory = 0
 
 struct character
     row
@@ -142,10 +144,10 @@ function ResolveEquipmentChoice(equip%)
         RecalculateEquipment()
     end if
     foundSlot% = -1
-    print_at 19, 1, space$(dungeonWidth);
     print_at 20, 1, space$(dungeonWidth);
     print_at 21, 1, left$("MOVE: DIRECTION KEYS" + space$(dungeonWidth), dungeonWidth);
     print_at 22, 1, left$("Q/A/O/P ON SPECTRUM" + space$(dungeonWidth - 1), dungeonWidth - 1);
+    ShowDungeonMemory()
 end function
 
 function ClearMonsters()
@@ -190,6 +192,17 @@ end function
 function ShowMessage(message$)
     cell_text_color WHITE
     print_at attackLogRow, 1, left$(message$ + space$(dungeonWidth), dungeonWidth);
+end function
+
+function ShowDungeonMemory()
+    cell_text_color WHITE
+    print_at memoryRow, 1, space$(dungeonWidth);
+    print_at memoryRow, 1, "FREE:"; str$(dungeonFreeMemory); " BYTES";
+end function
+
+function RecordDungeonMemory()
+    dungeonFreeMemory = free_memory()
+    ShowDungeonMemory()
 end function
 
 function DrawStatus()
@@ -401,6 +414,7 @@ function EnterNextDungeon()
     print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
     print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
     DrawStatus()
+    RecordDungeonMemory()
     DrawPlayer()
 end function
 

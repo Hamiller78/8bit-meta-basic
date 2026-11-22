@@ -65,6 +65,7 @@ test ExitResetsRoomsAndMonstersButPreservesPlayerAndControls()
     assert_eq "Explorer", player.name$
     assert_false gameOver%
     assert_eq code(" "), screen_code(hiddenRow%, hiddenColumn%)
+    assert_eq code("F"), screen_code(memoryRow, 1)
     assert_eq code("M"), screen_code(TEXT_ROWS - 1, 1)
     assert_eq code(" "), screen_code(attackLogRow, 1)
     assert_printat player.row, 1, "P"

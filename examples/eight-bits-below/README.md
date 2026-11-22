@@ -69,7 +69,11 @@ preserves player stats and gold, and returns the player to the village.
 
 Row 17 below the 16-row dungeon shows the latest attack: damage and remaining
 target health, `NO DAMAGE`, or `DOWN`. Row 18 shows player health and gold or `GAME OVER`.
-Both lines use the dungeon's 22-column width and are cleared before shorter
+Row 19 shows the free BASIC memory in bytes sampled after the dungeon is drawn.
+The value is a snapshot, not a continuously updated measurement; the equipment
+prompt temporarily replaces it and restores it afterward. The exact meaning of
+free memory depends on the target BASIC.
+All three lines use the dungeon's 22-column width and are cleared before shorter
 messages so old text cannot remain. Keeping them within the map width also
 avoids Atari editor wrapping that can disturb the controls below.
 

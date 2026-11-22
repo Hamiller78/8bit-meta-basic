@@ -77,3 +77,19 @@ test HorizontalSplitProtectsEntranceAndExit()
     assert_eq 3, rooms(0).height%
     assert_eq 3, rooms(1).height%
 end test
+
+
+test FirstRoomPreservesInteriorAndOpeningRandomness()
+    local rowIndex
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = "ABCDEFGHIJKLMNOPQRSTUV"
+    next rowIndex
+    set_rnd(0, 0.99, 0.25)
+    InitFirstRoom()
+    assert_eq string$("#", dungeonWidth), dungeonRows$(0)
+    assert_eq "<BCDEFGHIJKLMNOPQRSTU#", dungeonRows$(1)
+    assert_eq "#BCDEFGHIJKLMNOPQRSTU#", dungeonRows$(2)
+    assert_eq "#BCDEFGHIJKLMNOPQRSTU>", dungeonRows$(dungeonHeight - 2)
+    assert_eq string$("#", dungeonWidth), dungeonRows$(dungeonHeight - 1)
+    assert_eq 0.25, rnd()
+end test

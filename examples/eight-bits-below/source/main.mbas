@@ -24,6 +24,7 @@ DrawPlayer()
 
 print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
 print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
+RecordDungeonMemory()
 
 repeat
     key = key_code()
