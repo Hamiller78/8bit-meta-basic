@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import type { Expression } from "../ast.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
@@ -16,7 +17,8 @@ import { mapInstructionExpressions } from "./instruction-expressions.js";
 import { groupInvertedPrints, rebuildLabels, renderDataValues, renderExpression, renderInlineInstructionBodies, renderPrintItems, validateConstantCoordinate, type ExpressionRenderOptions, type TargetBackend } from "./target.js";
 
 let currentInstructions: readonly Instruction[] = [];
-export function setCpcRenderProgram(instructions: readonly Instruction[]): void { currentInstructions = instructions; }
+const renderVariableMaps = createRenderVariableMapCache(cpcVariableMap);
+export function setCpcRenderProgram(instructions: readonly Instruction[]): void { currentInstructions = instructions; renderVariableMaps.reset(instructions); }
 const colors = { BLACK: 0, BLUE: 1, RED: 6, MAGENTA: 7, GREEN: 18, CYAN: 19, YELLOW: 24, WHITE: 26 } as const;
 const defaultPenColors = ["WHITE", "YELLOW", "RED", "GREEN", "CYAN", "BLUE", "MAGENTA", "BLACK"] as const;
 
@@ -92,7 +94,7 @@ export const cpcTarget: TargetBackend = {
     return rebuildLabels(lowered, [{ kind: "graphics-mode", mode: 1, cpcInks: priority.map((color) => colors[color]), location }, ...lowered.instructions]);
   },
   renderLine(lineNumber, instruction, labelLines, readability): string {
-    const map = cpcVariableMap(currentInstructions);
+    const map = renderVariableMaps.get(readability);
     const name = (value: string): string => map.get(value.toLowerCase()) ?? value.toUpperCase();
     const options: ExpressionRenderOptions = {
       variableMap: map, functionRenderer: (value, opts) => {

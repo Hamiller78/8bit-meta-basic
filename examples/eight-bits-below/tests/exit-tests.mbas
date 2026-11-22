@@ -5,6 +5,9 @@ test ExitResetsRoomsAndMonstersButPreservesPlayerAndControls()
     local rowIndex, roomIndex, discoveredCount%, monsterCount%, hiddenRow%, hiddenColumn%
     program_mode
     gameOver% = FALSE
+    gameMode% = modeDungeon
+    dungeonNumber% = 1
+    foundSlot% = -1
     for rowIndex = 0 to dungeonHeight - 1
         dungeonRows$(rowIndex) = dungeonWallRow$
     next rowIndex
@@ -25,6 +28,11 @@ test ExitResetsRoomsAndMonstersButPreservesPlayerAndControls()
     print_at TEXT_ROWS - 1, 1, "HELP";
     ShowMessage("OLD ATTACK")
     HandlePlayerInput(GAME_RIGHT)
+    assert_eq modeVillage, gameMode%
+    assert_eq 2, dungeonNumber%
+    assert_eq 0, activeMonsterCount%
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq modeDungeon, gameMode%
     discoveredCount% = 0
     monsterCount% = 0
     for roomIndex = 0 to numRooms - 1
@@ -57,7 +65,7 @@ test ExitResetsRoomsAndMonstersButPreservesPlayerAndControls()
     assert_eq "Explorer", player.name$
     assert_false gameOver%
     assert_eq code(" "), screen_code(hiddenRow%, hiddenColumn%)
-    assert_eq code("H"), screen_code(TEXT_ROWS - 1, 1)
+    assert_eq code("M"), screen_code(TEXT_ROWS - 1, 1)
     assert_eq code(" "), screen_code(attackLogRow, 1)
     assert_printat player.row, 1, "P"
 end test

@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import type { Expression } from "../ast.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
@@ -94,7 +95,7 @@ export const agonTarget: TargetBackend = {
     return rebuildLabels(inverseText, instructions);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
-    const variableMap = buildAgonVariableMap(currentProgramInstructions, readability);
+    const variableMap = renderVariableMaps.get(readability);
     const renderOptions = { variableMap, functionRenderer: renderAgonFunction, arrayRenderer: renderAgonArrayAccess, nativeComparisonTruth: true };
     switch (instruction.kind) {
       case "beep":
@@ -221,9 +222,11 @@ export const agonTarget: TargetBackend = {
 };
 
 let currentProgramInstructions: readonly Instruction[] = [];
+const renderVariableMaps = createRenderVariableMapCache(buildAgonVariableMap);
 
 export function setAgonRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+  renderVariableMaps.reset(instructions);
 }
 
 interface AgonUnsafeForContext {

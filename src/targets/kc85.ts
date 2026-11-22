@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import { DiagnosticError } from "../diagnostics.js";
 import { joystickControl } from "../joystick.js";
 import type { Expression } from "../ast.js";
@@ -14,9 +15,11 @@ import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js"
 import { groupInvertedPrints, rebuildLabels, validateConstantCoordinate, type TargetBackend } from "./target.js";
 
 let currentInstructions: readonly Instruction[] = [];
+const renderVariableMaps = createRenderVariableMapCache(kc85VariableMap);
 
 export function setKc85RenderProgram(instructions: readonly Instruction[]): void {
   currentInstructions = instructions;
+  renderVariableMaps.reset(instructions);
 }
 
 /** Initial HC-BASIC backend; unsupported operations are diagnosed by its renderer. */
@@ -89,7 +92,7 @@ export const kc85Target: TargetBackend = {
     return rebuildLabels(lowered, [...startup, ...lowered.instructions]);
   },
   renderLine(lineNumber, instruction, labelLines): string {
-    return renderKc85Line(lineNumber, instruction, labelLines, kc85VariableMap(currentInstructions));
+    return renderKc85Line(lineNumber, instruction, labelLines, renderVariableMaps.get(0));
   }
 };
 

@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
@@ -75,7 +76,7 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
     return rebuildLabels(withCompactNumericOutput, packNumericStructFields(safeDispatchInstructions, true));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
-    const variableMap = buildVariableMap(currentProgramInstructions, readability);
+    const variableMap = renderVariableMaps.get(readability);
     const renderOptions = { variableMap, functionRenderer, arrayRenderer: renderC64ArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
@@ -385,9 +386,11 @@ function preserveC64Rs232State(program: LoweredProgram): LoweredProgram {
 }
 
 let currentProgramInstructions: readonly Instruction[] = [];
+const renderVariableMaps = createRenderVariableMapCache(buildVariableMap);
 
 export function setC64RenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+  renderVariableMaps.reset(instructions);
 }
 
 export const setCommodoreRenderProgram = setC64RenderProgram;

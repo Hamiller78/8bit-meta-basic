@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { DiagnosticError } from "../diagnostics.js";
@@ -118,7 +119,7 @@ export const spectrumTarget: TargetBackend = {
     return rebuildLabels(expanded, packNumericStructFields(instructions));
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
-    const variableMap = buildSpectrumVariableMap(currentProgramInstructions, readability);
+    const variableMap = renderVariableMaps.get(readability);
     const stringArrayWidths = buildSpectrumStringArrayWidths(currentProgramInstructions);
     const renderOptions = { variableMap, functionRenderer: renderSpectrumFunction, arrayRenderer: renderSpectrumArrayAccess, stringArrayWidths, nativeComparisonTruth: true };
 
@@ -239,9 +240,11 @@ export const spectrumTarget: TargetBackend = {
 };
 
 let currentProgramInstructions: readonly Instruction[] = [];
+const renderVariableMaps = createRenderVariableMapCache(buildSpectrumVariableMap);
 
 export function setSpectrumRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+  renderVariableMaps.reset(instructions);
 }
 
 function spectrumStreamNumber(handle: string, location: Expression["location"]): number {

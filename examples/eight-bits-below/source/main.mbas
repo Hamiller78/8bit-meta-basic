@@ -10,13 +10,13 @@ screen_text_color WHITE
 cls
 
 print_at 1, 1, "EIGHT BITS BELOW";
+print_at 3, 1, text$("dungeon1");
 print_at TEXT_ROWS, 1, "PRESS ANY KEY TO START";
 repeat
     key = key_code()
 until key <> KEY_NONE
 randomize
 cls
-print_at 1, 1, "EIGHT BITS BELOW";
 GenerateDungeon()
 DrawDungeon()
 InitPlayer()
@@ -28,5 +28,5 @@ print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
 repeat
     key = key_code()
     HandlePlayerInput(key)
-until gameOver%
+until gameOver% or gameMode% = modeVictory
 end

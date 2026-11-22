@@ -5,8 +5,9 @@ generator after the key press so emulator startup timing does not fix the seed.
 The yellow `P` starts at the entrance. Use the direction keys on C64, VIC-20,
 Atari, Agon, and KC 85/3, or Q/A/O/P (up/down/left/right) on Spectrum. Walk over floor
 tiles (`.`), through doors (`+`), and back onto the entrance (`<`). Walls block
-movement. Reaching the exit (`>`) generates a new dungeon and places the player
-at its entrance, preserving character stats. Only the entrance room is revealed
+movement. The game has eight named dungeons. Reaching an exit (`>`) returns
+the player to the village, where a short description introduces the next dungeon.
+After the eighth exit the game ends in victory. Only the entrance room is revealed
 at first. Stepping onto a shared door reveals the next room, including its
 walls and doors. Discovered rooms stay visible; doors further away do not reveal
 their rooms until the player reaches them. Every newly discovered room, including
@@ -64,15 +65,15 @@ If blocked it tries the other axis toward the player. Walls, other bats, and
 undiscovered areas block movement; bats do not search for detours. An attack
 ends that bat's turn, including when speed points remain. Player death stops
 all remaining actions and ends the game. Reaching the exit clears all old bats,
-preserves player stats, and starts the new dungeon at the player's next turn.
+preserves player stats and gold, and returns the player to the village.
 
 Row 17 below the 16-row dungeon shows the latest attack: damage and remaining
-target health, `NO DAMAGE`, or `DOWN`. Row 18 shows player health or `GAME OVER`.
+target health, `NO DAMAGE`, or `DOWN`. Row 18 shows player health and gold or `GAME OVER`.
 Both lines use the dungeon's 22-column width and are cleared before shorter
 messages so old text cannot remain. Keeping them within the map width also
 avoids Atari editor wrapping that can disturb the controls below.
 
-Each defeated bat yields an item for one of six equipment slots: head, chest,
+Each defeated bat awards 5 gold and yields an item for one of six equipment slots: head, chest,
 legs, feet, main hand, or off hand. The room index determines the item, so drops
 do not consume combat random numbers. A prompt compares the new item with the
 item in the same slot. Press up to equip it, replacing and discarding the old
@@ -84,6 +85,14 @@ stored separately; equipment bonuses are added to produce the combat stats.
 Current health remains independent of equipment, and equipment persists between
 floors. Speed is recorded for future player movement rules; bats already use it.
 
+At the village, press up to visit the shop or down to enter the next dungeon.
+In the shop, use left and right to browse the six equipment slots, up to buy and
+equip the displayed item for 10 gold, or down to return to the village. Purchases
+replace the old item; an unaffordable purchase changes nothing. Shop items have
+one more bonus point than the corresponding dungeon drop. Gold starts at zero and
+persists between dungeons. The dungeon names, village descriptions and shop text
+are placeholder English resources in `texts/en/strings.json`.
+
 The combat tests use `SET_RND` sequences to exercise complete attacks
 deterministically on every target.
 
@@ -93,6 +102,7 @@ Run native tests one module at a time to fit the Atari test runner in memory:
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module dungeon --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module entrance --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module characters --profile release --printer-output
+npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module campaign --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module inventory --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module combat --profile release --printer-output
 npm run launch -- atari2 --project examples/eight-bits-below --run-tests --module spawn --test-screen-output --profile release --printer-output

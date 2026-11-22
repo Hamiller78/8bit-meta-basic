@@ -464,8 +464,18 @@ describe("Atari 800XL compiler", () => {
     expect(output).toContain("MBL1(2)=0");
     expect(output).toMatch(/IF MBRL = 0 THEN \d+/u);
     expect(output).toContain('MBTEMP$(LEN(MBTEMP$)+1)="!"');
-    expect(output).toContain('MBTEMP1$(LEN(MBTEMP1$)+1)="!"');
-    expect(output).toContain('MBTEMP2$(LEN(MBTEMP2$)+1)="!"');
+    expect(output.match(/MBTEMP\$\(LEN\(MBTEMP\$\)\+1\)="!"/g)).toHaveLength(3);
+    expect(output).not.toContain("MBTEMP1$");
+  });
+
+  it("reuses Atari string scratch across instructions but not simultaneous print items", () => {
+    const output = compileSource('print left$(a$ + b$, 1); right$(c$ + d$, 1)\nprint left$(e$ + f$, 1)\n', {
+      filename: "scratch-strings.mbas", target: "atari800xl"
+    });
+    expect(output).toContain('MBTEMP$=A$');
+    expect(output).toContain('MBTEMP1$=C$');
+    expect(output).toContain('MBTEMP$=E$');
+    expect(output).not.toContain('MBTEMP2$');
   });
 
   it("reuses stable repeated packed-string reads within one expression", () => {

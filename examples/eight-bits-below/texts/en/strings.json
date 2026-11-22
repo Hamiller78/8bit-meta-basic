@@ -1,0 +1,23 @@
+{
+  "village": "VILLAGE",
+  "dungeon1": "THE FIRST DEPTHS",
+  "dungeon2": "THE OLD CELLAR. A DARK PATH AWAITS.",
+  "dungeon3": "THE SUNKEN HALL. TROUBLE LIES BELOW.",
+  "dungeon4": "THE LOST VAULT. ITS DOORS ARE OPEN.",
+  "dungeon5": "THE DEEP MINE. SOMETHING STIRS.",
+  "dungeon6": "THE DARK KEEP. ITS WALLS HOLD SECRETS.",
+  "dungeon7": "THE ASHEN CRYPT. DANGER WAITS INSIDE.",
+  "dungeon8": "THE FINAL ABYSS. YOUR LAST TRIAL AWAITS.",
+  "victory": "THE EIGHT DUNGEONS ARE CLEARED. YOU RETURN HOME VICTORIOUS!",
+  "gold": "GOLD: ",
+  "villageShop": "UP: VISIT SHOP",
+  "villageEnter": "DOWN: NEXT DUNGEON",
+  "shop": "EQUIPMENT SHOP",
+  "price": "PRICE: ",
+  "current": "HAVE: ",
+  "shopBrowse": "LEFT/RIGHT: BROWSE",
+  "shopBuy": "UP: BUY AND EQUIP",
+  "shopLeave": "DOWN: LEAVE",
+  "notEnough": "NOT ENOUGH GOLD",
+  "purchased": "EQUIPPED!"
+}

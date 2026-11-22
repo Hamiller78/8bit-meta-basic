@@ -17,6 +17,25 @@ export interface TargetBackend {
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string;
 }
 
+/** Cache the naming map only for the current target render attempt. */
+export function createRenderVariableMapCache(
+  build: (instructions: readonly Instruction[], readability: ReadabilityLevel) => ReadonlyMap<string, string>
+): { reset: (instructions: readonly Instruction[]) => void; get: (readability: ReadabilityLevel) => ReadonlyMap<string, string> } {
+  let instructions: readonly Instruction[] = [];
+  const maps = new Map<ReadabilityLevel, ReadonlyMap<string, string>>();
+  return {
+    reset: (next) => { instructions = next; maps.clear(); },
+    get: (readability) => {
+      let map = maps.get(readability);
+      if (!map) {
+        map = build(instructions, readability);
+        maps.set(readability, map);
+      }
+      return map;
+    }
+  };
+}
+
 export function renderCheckedLine(
   target: TargetBackend,
   lineNumber: number,

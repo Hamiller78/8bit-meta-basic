@@ -17,6 +17,16 @@ end enum
 
 gameOver% = FALSE
 activeMonsterCount% = 0
+const dungeonCount = 8
+const modeDungeon = 0
+const modeVillage = 1
+const modeShop = 2
+const modeVictory = 3
+const shopPrice = 10
+dungeonNumber% = 1
+gameMode% = modeDungeon
+gold = 0
+shopSlot% = 0
 
 struct character
     row
@@ -184,7 +194,7 @@ end function
 
 function DrawStatus()
     local statusText$
-    statusText$ = "HP:" + str$(player.health)
+    statusText$ = "HP:" + str$(player.health) + " G:" + str$(gold)
     if gameOver% then
         statusText$ = "GAME OVER"
     end if
@@ -236,6 +246,7 @@ function AttackMonster(monsterIndex%)
         damage% = RollAttackDamage(player.attackDice, monsters(monsterIndex%).armor)
         if damage% >= monsters(monsterIndex%).health then
             DespawnMonster(monsterIndex%)
+            gold = gold + 5
             FindEquipment(monsterIndex%)
         else
             monsters(monsterIndex%).health = monsters(monsterIndex%).health - damage%
@@ -261,6 +272,9 @@ end function
 function InitPlayer()
     ClearMonsters()
     gameOver% = FALSE
+    gameMode% = modeDungeon
+    dungeonNumber% = 1
+    gold = 0
     player.health = 10
     InitEquipment()
     player.symbol$ = "P"
@@ -300,12 +314,146 @@ function DiscoverRoomAt(row%, column%)
     end if
 end function
 
+function DrawVillage()
+    cls
+    print_at 1, 1, text$("village");
+    if dungeonNumber% = 2 then
+        set_pos 3, 1
+        print_text "dungeon2", 22
+    end if
+    if dungeonNumber% = 3 then
+        set_pos 3, 1
+        print_text "dungeon3", 22
+    end if
+    if dungeonNumber% = 4 then
+        set_pos 3, 1
+        print_text "dungeon4", 22
+    end if
+    if dungeonNumber% = 5 then
+        set_pos 3, 1
+        print_text "dungeon5", 22
+    end if
+    if dungeonNumber% = 6 then
+        set_pos 3, 1
+        print_text "dungeon6", 22
+    end if
+    if dungeonNumber% = 7 then
+        set_pos 3, 1
+        print_text "dungeon7", 22
+    end if
+    if dungeonNumber% = 8 then
+        set_pos 3, 1
+        print_text "dungeon8", 22
+    end if
+    print_at 14, 1, text$("gold"); gold;
+    print_at 16, 1, text$("villageShop");
+    print_at 17, 1, text$("villageEnter");
+end function
+
+function DrawShop()
+    cls
+    print_at 1, 1, text$("shop");
+    print_at 3, 1, text$("gold"); gold;
+    print_at 5, 1, foundItem.name$;
+    print_at 6, 1, text$("price"); shopPrice;
+    print_at 8, 1, text$("current"); equipment(shopSlot%).name$;
+    print_at 10, 1, "A/D/S "; equipment(shopSlot%).armor; "/"; equipment(shopSlot%).attackDice; "/"; equipment(shopSlot%).speed;
+    print_at 11, 1, "     >"; foundItem.armor; "/"; foundItem.attackDice; "/"; foundItem.speed;
+    print_at 14, 1, text$("shopBrowse");
+    print_at 15, 1, text$("shopBuy");
+    print_at 16, 1, text$("shopLeave");
+end function
+
+function SelectShopItem()
+    FindEquipment(shopSlot%)
+    ' Shop stock is an improved version of the corresponding dungeon item.
+    if shopSlot% = slotFeet then
+        foundItem.speed = foundItem.speed + 1
+    else
+        if shopSlot% = slotMainHand then
+            foundItem.attackDice = foundItem.attackDice + 1
+        else
+            foundItem.armor = foundItem.armor + 1
+        end if
+    end if
+    foundSlot% = -1
+end function
+
+function BuyShopItem()
+    if gold < shopPrice then
+        print_at 18, 1, text$("notEnough");
+        return
+    end if
+    gold = gold - shopPrice
+    equipment(shopSlot%) = foundItem
+    RecalculateEquipment()
+    DrawShop()
+    print_at 18, 1, text$("purchased");
+end function
+
 function EnterNextDungeon()
-    ClearMonsters()
+    cls
+    gameMode% = modeDungeon
     GenerateDungeon()
     DrawDungeon()
     ShowMessage("")
     PlacePlayerAtEntrance()
+    print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
+    print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
+    DrawStatus()
+    DrawPlayer()
+end function
+
+function LeaveDungeon()
+    ClearMonsters()
+    if dungeonNumber% = dungeonCount then
+        gameMode% = modeVictory
+        cls
+        set_pos 1, 1
+        print_text "victory", 22
+        return
+    end if
+    dungeonNumber% = dungeonNumber% + 1
+    gameMode% = modeVillage
+    DrawVillage()
+end function
+
+function HandleVillageInput(key)
+    if gameMode% = modeVillage then
+        if key = GAME_UP then
+            gameMode% = modeShop
+            shopSlot% = 0
+            SelectShopItem()
+            DrawShop()
+            return
+        end if
+        if key = GAME_DOWN then
+            EnterNextDungeon()
+        end if
+        return
+    end if
+    if gameMode% = modeShop then
+        if key = GAME_LEFT then
+            shopSlot% = shopSlot% - 1
+            if shopSlot% < 0 then
+                shopSlot% = equipmentSlots - 1
+            end if
+            SelectShopItem()
+            DrawShop()
+        end if
+        if key = GAME_RIGHT then
+            shopSlot% = (shopSlot% + 1) mod equipmentSlots
+            SelectShopItem()
+            DrawShop()
+        end if
+        if key = GAME_UP then
+            BuyShopItem()
+        end if
+        if key = GAME_DOWN then
+            gameMode% = modeVillage
+            DrawVillage()
+        end if
+    end if
 end function
 
 function PlacePlayerAtEntrance()
@@ -328,6 +476,10 @@ end function
 function HandlePlayerInput(key)
     local action%
     if gameOver% or player.health <= 0 then
+        return
+    end if
+    if gameMode% <> modeDungeon then
+        HandleVillageInput(key)
         return
     end if
     if foundSlot% >= 0 then
@@ -353,8 +505,8 @@ function HandlePlayerInput(key)
         action% = MovePlayer(0, 1)
     end if
     if action% = turnExit then
-        ' A new floor begins with the player's next turn.
-        EnterNextDungeon()
+        LeaveDungeon()
+        return
     else
         if action% <> turnBlocked then
             MoveMonsters()

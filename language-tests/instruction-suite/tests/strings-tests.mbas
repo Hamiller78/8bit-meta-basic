@@ -126,3 +126,16 @@ test PrintAtCapture()
     print_at 3, 4, "HI"
     assert_printat 3, 4, "HI"
 end test
+
+' Computed slices in one output must remain independent, then be reusable.
+test ComputedStringOutput()
+    local first$, second$
+    first$ = "AB"
+    second$ = "CD"
+    print left$(first$ + "!", 2); right$(second$ + "?", 2)
+    assert_print "ABD?"
+    print left$(second$ + "!", 2)
+    assert_print "CD"
+    first$ = right$("!" + first$, 2)
+    assert_eq "AB", first$
+end test

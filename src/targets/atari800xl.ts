@@ -1,3 +1,4 @@
+import { createRenderVariableMapCache } from "./target.js";
 import type { Expression } from "../ast.js";
 import type { DeviceKind } from "../devices.js";
 import { builtinFunctions, isStringFunctionName } from "../functions.js";
@@ -57,7 +58,8 @@ export const atari800xlTarget: TargetBackend = {
       lengthInitializationLoopName,
       allocateInternalLabel
     );
-    const allocateTempStringName = createTempStringNameAllocator(expanded.instructions);
+    const tempStrings = createTempStringNameAllocator(expanded.instructions);
+    const allocateTempStringName = tempStrings.allocate;
     const allocateReadTempName = createGeneratedVariableNameAllocator(expanded.instructions, "MBREAD", "$");
     const readIndexTempName = allocateGeneratedVariableName(expanded.instructions, "MBRI");
     const readLengthTempName = allocateGeneratedVariableName(expanded.instructions, "MBRL");
@@ -101,6 +103,9 @@ export const atari800xlTarget: TargetBackend = {
         continue;
       }
       instruction = materialized.instruction;
+      // Target-generated scratch strings do not escape this instruction expansion.
+      // Keep distinct slots for simultaneously needed values within it.
+      tempStrings.reset();
 
       if (instruction.kind === "on-goto" || instruction.kind === "on-gosub") {
         instructions.push(...lowerSafeAtariDispatch(instruction));
@@ -226,7 +231,7 @@ export const atari800xlTarget: TargetBackend = {
     return rebuildLabels(expanded, initialized);
   },
   renderLine(lineNumber: number, instruction: Instruction, labelLines: ReadonlyMap<string, number>, readability: ReadabilityLevel): string {
-    const variableMap = buildAtariVariableMap(currentProgramInstructions, readability);
+    const variableMap = renderVariableMaps.get(readability);
     const renderOptions = { variableMap, functionRenderer: renderAtariFunction, arrayRenderer: renderAtariArrayAccess, nativeComparisonTruth: true };
 
     switch (instruction.kind) {
@@ -823,11 +828,13 @@ function hoistAtariStringDimensions(instructions: readonly Instruction[]): reado
 }
 
 let currentProgramInstructions: readonly Instruction[] = [];
+const renderVariableMaps = createRenderVariableMapCache(buildAtariVariableMap);
 let currentSharedDriveSpec = "H6:MCP.TXT";
 let currentDataDriveSpec: string | undefined;
 
 export function setAtariRenderProgram(instructions: readonly Instruction[]): void {
   currentProgramInstructions = instructions;
+  renderVariableMaps.reset(instructions);
 }
 
 export function setAtariSharedDriveSpec(spec: string | undefined): void {
@@ -1337,7 +1344,7 @@ function expressionReferencesName(expression: Expression, name: string): boolean
   }
 }
 
-function createTempStringNameAllocator(instructions: readonly Instruction[]): () => string {
+function createTempStringNameAllocator(instructions: readonly Instruction[]): { allocate: () => string; reset: () => void } {
   const used = new Set<string>();
   for (const instruction of instructions) {
     if (instruction.kind === "let" || instruction.kind === "dim-string") {
@@ -1353,14 +1360,22 @@ function createTempStringNameAllocator(instructions: readonly Instruction[]): ()
   }
 
   let next = 0;
-  return () => {
-    while (true) {
-      const name = next === 0 ? "MBTEMP$" : `MBTEMP${next}$`;
-      next += 1;
-      const key = name.toLowerCase();
-      if (!used.has(key)) {
-        used.add(key);
-        return name;
+  let cursor = 0;
+  const names: string[] = [];
+  return {
+    reset: () => { cursor = 0; },
+    allocate: () => {
+      if (cursor < names.length) return names[cursor++];
+      while (true) {
+        const name = next === 0 ? "MBTEMP$" : `MBTEMP${next}$`;
+        next += 1;
+        const key = name.toLowerCase();
+        if (!used.has(key)) {
+          used.add(key);
+          names.push(name);
+          cursor += 1;
+          return name;
+        }
       }
     }
   };

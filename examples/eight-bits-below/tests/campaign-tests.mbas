@@ -1,0 +1,76 @@
+uses "../source/characters.mbas"
+uses "../source/dungeon.mbas"
+
+test DefeatingABatAwardsGoldOnce()
+    local rowIndex
+    for rowIndex = 0 to dungeonHeight - 1
+        dungeonRows$(rowIndex) = dungeonWallRow$
+    next rowIndex
+    InitEquipment()
+    ClearMonsters()
+    gold = 0
+    player.health = 10
+    player.name$ = "Hero"
+    InitBat(0, 4, 4)
+    monsters(0).health = 1
+    set_rnd(0.99)
+    AttackMonster(0)
+    assert_eq 5, gold
+    AttackMonster(0)
+    assert_eq 5, gold
+    assert_eq slotHead, foundSlot%
+end test
+
+test ShopRequiresGoldAndReplacesEquipment()
+    InitEquipment()
+    gold = 9
+    shopSlot% = slotMainHand
+    SelectShopItem()
+    BuyShopItem()
+    assert_eq 9, gold
+    assert_eq "SIMPLE SWORD", equipment(slotMainHand).name$
+    assert_eq 1, player.attackDice
+    gold = 15
+    BuyShopItem()
+    assert_eq 5, gold
+    assert_eq "FINE SWORD", equipment(slotMainHand).name$
+    assert_eq 3, player.attackDice
+end test
+
+test ShopNavigationAndReturnPreserveGold()
+    InitEquipment()
+    gameOver% = FALSE
+    player.health = 10
+    gold = 12
+    dungeonNumber% = 2
+    gameMode% = modeVillage
+    HandlePlayerInput(GAME_UP)
+    assert_eq modeShop, gameMode%
+    assert_eq slotHead, shopSlot%
+    HandlePlayerInput(GAME_LEFT)
+    assert_eq slotOffHand, shopSlot%
+    HandlePlayerInput(GAME_RIGHT)
+    assert_eq slotHead, shopSlot%
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq modeVillage, gameMode%
+    assert_eq 12, gold
+end test
+
+test SevenTransitionsLeadToFinalVictory()
+    local stage
+    InitEquipment()
+    ClearMonsters()
+    gold = 25
+    player.health = 7
+    dungeonNumber% = 1
+    for stage = 1 to 7
+        LeaveDungeon()
+        assert_eq stage + 1, dungeonNumber%
+        assert_eq modeVillage, gameMode%
+    next stage
+    LeaveDungeon()
+    assert_eq modeVictory, gameMode%
+    assert_eq 8, dungeonNumber%
+    assert_eq 25, gold
+    assert_eq 7, player.health
+end test
