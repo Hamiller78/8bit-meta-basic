@@ -9,6 +9,22 @@ output, not additional Meta-BASIC source syntax.
 
 ## Overview
 
+An incomplete `apple2` compiler backend is available for Applesoft BASIC listing
+experiments, including compiler-only builds with `npm run build:apple2`. The
+instruction suite has an AppleWin runner; general application launching is not yet
+integrated. The backend supports a subset of expressions, arrays, flow control, keyboard polling, and
+40-column text positioning. Text colour requests have no effect on the monochrome
+screen; inverse text uses Applesoft's display mode. Other operations produce
+diagnostics. Printer output selects a parallel printer card in slot 1; printer
+availability assumes that card is installed. Capture through AppleWin's emulated
+printer passed; physical printer hardware has not been verified. Array save and load generate sequential text-file
+commands for a booted Apple DOS disk; these commands are also unverified. File
+existence checks and deletion are not implemented. The 11 instruction-suite
+modules passed on AppleWin 1.32.1.0, with 97 tests and 291 assertions; colour
+assertions track requested values and do not verify rendered colours. The suite
+uses test substitutes for timer and keyboard input, and does not verify printer
+hardware, sound, or sequential disk-file operations.
+
 An experimental `kc85` compiler backend is also available for KC 85/3 HC-BASIC.
 It is incomplete and has limited emulator verification; see
 [KC 85/3](#kc-853-experimental).

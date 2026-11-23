@@ -11,7 +11,7 @@ import { tokenizeKc85Basic } from "./kc85-basic-tokenizer.mjs";
 import { createKc85TapeWav, kc85TapeName } from "./kc85-tape-audio.mjs";
 
 export const targets = ["spectrum", "atari800xl", "c64", "vic20", "agon", "cpc"];
-export const experimentalTargets = ["kc85"];
+export const experimentalTargets = ["kc85", "apple2"];
 export const profiles = {
   debug: 2,
   balanced: 1,
@@ -697,7 +697,7 @@ function parseArgs(argv) {
 
   if (!options.target) {
     throw new Error(
-      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|vic20|agon|cpc|kc85> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
+      `Usage: node scripts/build-target.mjs <spectrum|atari800xl|c64|vic20|agon|cpc|kc85|apple2> [--profile debug|balanced|release] [--all-profiles] [--source file.mbas|--build-config metabasic.json|--project folder] [--run-tests] [--test-screen-output] [--printer-output] [--test-output-device ${deviceKindUsage}] [--module name] [--atari-shared-drive-spec H1:MCP.TXT]`
     );
   }
   const selectedInputs = [options.source !== defaultSource, Boolean(options.buildConfigPath), Boolean(options.projectPath)].filter(Boolean).length;

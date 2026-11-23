@@ -219,6 +219,10 @@ and result acceptance.
 
 ## Language conformance suite
 
+For experimental Apple II instruction-suite runs, see the [AppleWin setup](running-programs.md#apple-ii--applewin).
+The `test:language:apple2` command builds and runs each module separately, using
+AppleCommander and a supplied DOS system disk to create disposable boot media.
+
 `language-tests/instruction-suite` is the language conformance project. Its command
 entry points are:
 

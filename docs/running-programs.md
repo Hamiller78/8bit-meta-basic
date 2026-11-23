@@ -30,6 +30,30 @@ or request `--restart` when switching programs; check the actual result if an
 existing instance interferes. General launcher options are documented in
 [Emulator launch commands](toolchain.md#emulator-launch-commands).
 
+## Apple II / AppleWin
+
+The experimental Apple II instruction-suite runner uses AppleWin 1.32.1.0, Java
+17 and AppleCommander 1.8.0. It copies a DOS 3.3 system disk for each module,
+replaces `HELLO` on the copy with the tokenized runner, and captures slot-1
+parallel-printer output. Supply the paths to the AppleWin executable, system disk,
+AppleCommander JAR and an AppleWin INI file for which the user has already accepted
+the displayed license for the installed version:
+
+```text
+npm run test:language:apple2 -- --emulator <AppleWin-x64.exe> --disk <DOS-system.dsk> --applecommander <AppleCommander-ac.jar> --accepted-config <applewin.ini>
+```
+
+Use `--module screen` to select one module and `--timeout 120` to change its
+deadline in seconds. The runner writes independent disk copies, INI files, BASIC
+listings and captures under `build/applewin-suite/`. It does not modify the source
+disk or the supplied configuration. AppleWin's About/license dialog appears for a
+configuration without an accepted version; accept it interactively before supplying
+that INI to the runner. The runner checks the completed summary against the number
+of tests in each module. On 2026-11-23, all 11 modules passed in AppleWin 1.32.1.0
+on Windows: 97 tests, 291 assertions, zero failures. Colour assertions reflect
+requested values, not measured screen colours. Native sound, real keyboard input,
+timer behavior and sequential disk files were not verified by that suite.
+
 ## KC 85/3 / JKCEMU
 
 The experimental Windows launcher supports JKCEMU 0.9.9.1. Configure a `kc85`

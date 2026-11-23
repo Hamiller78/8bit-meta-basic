@@ -2,6 +2,12 @@
 
 This page records external material used to understand target dialects, file formats, and conversion tools. A link appearing here does not imply that its contents or software have been incorporated into Meta-BASIC.
 
+## Apple II
+
+- [Applesoft BASIC Programmer's Reference Manual](https://mirrors.apple2.org.za/ftp.apple.asimov.net/documentation/programming/basic/Applesoft%20BASIC%20Programming%20Reference%20Manual%20-%20Apple%20Computer.pdf)
+- [AppleWin command-line documentation](https://github.com/AppleWin/AppleWin/blob/master/help/CommandLine.html)
+- [AppleCommander command-line documentation](https://applecommander.github.io/cli/ac/)
+
 ## Atari BASIC
 
 ### File format and tokenization
