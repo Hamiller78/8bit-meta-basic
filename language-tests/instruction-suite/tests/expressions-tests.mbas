@@ -67,6 +67,22 @@ test EnvironmentConstants()
     assert_true JIFFIES_PER_SECOND >= 50
 end test
 
+test StringComparisonAsBoolean()
+    local text$
+    text$ = ""
+    if not (text$ <> "") then
+        assert_true 1
+    else
+        assert_true 0
+    end if
+    text$ = "A"
+    if (text$ <> "") = 1 then
+        assert_true 1
+    else
+        assert_true 0
+    end if
+end test
+
 test NumericFunctions()
     assert_eq 5, abs(-5)
     assert_eq 3, int(3.7)

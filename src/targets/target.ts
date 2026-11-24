@@ -361,7 +361,11 @@ function renderExpressionWithParent(
 ): string {
   const rendered = renderExpressionInner(expression, options);
   const precedence = expressionPrecedence(expression);
-  const needsParens = precedence < parentPrecedence || (side === "right" && needsRightParentheses(expression, parentPrecedence));
+  // A comparison used as an operand of another comparison must remain grouped:
+  // BASIC dialects need to evaluate the inner comparison before comparing its
+  // numeric result, especially when its operands are strings.
+  const nestedComparison = parentPrecedence === 3 && precedence === 3 && expression.kind === "binary";
+  const needsParens = precedence < parentPrecedence || nestedComparison || (side === "right" && needsRightParentheses(expression, parentPrecedence));
   return needsParens ? `(${rendered})` : rendered;
 }
 

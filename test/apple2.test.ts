@@ -24,6 +24,10 @@ describe("Apple II Applesoft backend", () => {
     expect(output).toContain("PEEK(49152)");
     expect(output).toContain("POKE 49168,0");
   });
+  it("parenthesizes a polled key comparison when negating the condition", () => {
+    const output = compileSource('if key_pressed() then\nprint "KEY"\nend if\n', { filename: "keys.mbas", target: "apple2", readability: 0 });
+    expect(output).toMatch(/IF \([A-Z]\d\$ <> ""\) (?:=|<>) 0 THEN/u);
+  });
   it("uses Applesoft's positive true values when normalizing memory and screen codes", () => {
     const output = compileSource('a=free_memory()\nb=screen_code(2,3)\n', { filename: "apple.mbas", target: "apple2" });
     expect(output).toContain("FRE(0)+65536*(FRE(0)<0)");

@@ -24,6 +24,11 @@ modules passed on AppleWin 1.32.1.0, with 97 tests and 291 assertions; colour
 assertions track requested values and do not verify rendered colours. The suite
 uses test substitutes for timer and keyboard input, and does not verify printer
 hardware, sound, or sequential disk-file operations.
+In a separate interactive AppleWin 1.32.1.0 enhanced //e check, the user observed
+`KEY_CODE()` values Left 8, Right 21, Up 11, Down 10, Enter 13, Space 32 and
+Escape 27. These match the configured constants; physical keyboards have not been
+verified. The user also confirmed that the diagnostic's event count increased
+once per press, including consecutive presses of the same key.
 
 An experimental `kc85` compiler backend is also available for KC 85/3 HC-BASIC.
 It is incomplete and has limited emulator verification; see
