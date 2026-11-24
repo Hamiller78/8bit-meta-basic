@@ -15,20 +15,42 @@ instruction suite has an AppleWin runner; general application launching is not y
 integrated. The backend supports a subset of expressions, arrays, flow control, keyboard polling, and
 40-column text positioning. Text colour requests have no effect on the monochrome
 screen; inverse text uses Applesoft's display mode. Other operations produce
-diagnostics. Printer output selects a parallel printer card in slot 1; printer
+diagnostics. `JIFFIES()` and `BEEP` are not yet implemented; the nominal
+`JIFFIES_PER_SECOND` value of 60 does not indicate an available clock. A base
+Apple IIe exposes vertical blanking for polling, but a continuously running
+interrupt clock requires additional hardware or a different machine facility.
+Unseeded `RANDOMIZE` seeds Applesoft from the monitor counter at addresses 78 and
+79. That counter advances while the monitor waits for keyboard input; it is not a
+continuously running clock, and polling with `KEY_PRESSED()` or `KEY_CODE()` does
+not itself advance it. Programs that start without a monitor keyboard wait may
+therefore get the same sequence on repeated starts.
+Printer output selects a parallel printer card in slot 1; printer
 availability assumes that card is installed. Capture through AppleWin's emulated
 printer passed; physical printer hardware has not been verified. Array save and load generate sequential text-file
-commands for a booted Apple DOS disk; these commands are also unverified. File
-existence checks and deletion are not implemented. The 11 instruction-suite
+commands for a booted Apple DOS disk. In an interactive AppleWin 1.32.1.0 test,
+a numeric array containing 12, 34 and 56 was saved, cleared, and loaded with its
+original values restored. A separate interactive test saved a string array, saved
+shorter replacement values including a comma, and loaded those replacement values
+successfully. A further replacement-save test restored empty elements surrounding
+a nonempty string. An automated AppleWin disk probe also passed both numeric and
+string-array round trips while printer capture was active. DOS is reconnected after
+each printer write in programs that use disk files; DOS commands start on a new
+output line. `DELETE_FILE` issues the DOS delete command; the automated probe
+confirmed deletion in AppleWin's disk catalogue. Physical disks and file
+existence checks remain unverified; `FILE_EXISTS` is not implemented. The 11 instruction-suite
 modules passed on AppleWin 1.32.1.0, with 97 tests and 291 assertions; colour
 assertions track requested values and do not verify rendered colours. The suite
 uses test substitutes for timer and keyboard input, and does not verify printer
-hardware, sound, or sequential disk-file operations.
+hardware, sound, or sequential disk-file operations; the numeric disk check above
+was a separate interactive run.
 In a separate interactive AppleWin 1.32.1.0 enhanced //e check, the user observed
 `KEY_CODE()` values Left 8, Right 21, Up 11, Down 10, Enter 13, Space 32 and
 Escape 27. These match the configured constants; physical keyboards have not been
 verified. The user also confirmed that the diagnostic's event count increased
 once per press, including consecutive presses of the same key.
+In a separate visual check, the user confirmed text at the top-left, top-right,
+and bottom-left edges and on the penultimate row, as well as inverse text and
+restoration of normal text. The bottom-right cell was not tested.
 
 An experimental `kc85` compiler backend is also available for KC 85/3 HC-BASIC.
 It is incomplete and has limited emulator verification; see

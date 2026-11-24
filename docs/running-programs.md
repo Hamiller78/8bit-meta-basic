@@ -53,6 +53,16 @@ of tests in each module. On 2026-11-23, all 11 modules passed in AppleWin 1.32.1
 on Windows: 97 tests, 291 assertions, zero failures. Colour assertions reflect
 requested values, not measured screen colours. Native sound, real keyboard input,
 timer behavior and sequential disk files were not verified by that suite.
+After the keyboard-condition fix and an added expression test, a second complete
+run on 2026-11-24 passed 98 tests and 293 assertions in the same configuration.
+A later run after adding screen-coordinate and unseeded-randomization tests passed
+100 tests and 297 assertions in that configuration.
+The separate `npm run test:language:apple2:disk --` command accepts the same
+emulator, disk, AppleCommander and accepted-configuration options and runs numeric
+and string array disk round trips and a deletion with printer capture enabled. On
+2026-11-24, AppleWin 1.32.1.0 passed its three tests and seven assertions; the
+runner also checked the disk catalogue to confirm the deleted file was absent.
+The runner uses the same disposable disk-copy workflow for this project.
 
 ## KC 85/3 / JKCEMU
 

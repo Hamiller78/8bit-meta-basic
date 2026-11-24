@@ -13,7 +13,11 @@ import { createRenderVariableMapCache, groupInvertedPrints, rebuildLabels, rende
 
 // Applesoft also distinguishes only the first two characters of variable names.
 const maps = createRenderVariableMapCache(kc85VariableMap);
-export function setApple2RenderProgram(instructions: readonly Instruction[]): void { maps.reset(instructions); }
+let usesDosFiles = false;
+export function setApple2RenderProgram(instructions: readonly Instruction[]): void {
+  maps.reset(instructions);
+  usesDosFiles = instructions.some((instruction) => instruction.kind === "open-data-file" || instruction.kind === "delete-data-file");
+}
 
 const functions = new Set<string>([builtinFunctions.abs, builtinFunctions.asc, builtinFunctions.atn,
   builtinFunctions.chr, builtinFunctions.cos, builtinFunctions.exp, builtinFunctions.int,
@@ -30,10 +34,9 @@ export const apple2Target: TargetBackend = {
     const seed = (instruction: Instruction): Instruction => {
       if (instruction.kind === "if-then") return { ...instruction, body: instruction.body.map(seed) };
       if (instruction.kind !== "randomize") return instruction;
-      if (!instruction.seed) throw new DiagnosticError(instruction.location, "Apple II RANDOMIZE requires an explicit seed.");
       seedName ??= allocate();
       return { kind: "let", name: seedName, location: instruction.location,
-        expression: { kind: "function-call", name: "__APPLE2_SEED", args: [instruction.seed], valueType: "number", location: instruction.location } };
+        expression: { kind: "function-call", name: instruction.seed ? "__APPLE2_SEED" : "__APPLE2_AUTO_SEED", args: instruction.seed ? [instruction.seed] : [], valueType: "number", location: instruction.location } };
     };
     const seeded = rebuildLabels(fileProgram, fileProgram.instructions.map(seed));
     return lowerSafeDispatch(lowerInkeyReads(groupInvertedPrints(lowerByteStorage(seeded, "apple2")), "MBAPPLEKEY"), "MBAPPLEDISPATCH");
@@ -51,6 +54,7 @@ export const apple2Target: TargetBackend = {
       functionRenderer: (value, opts) => {
         const fn = value.name.toUpperCase();
         if (fn === "__APPLE2_SEED") return `RND(-ABS(${renderExpression(value.args[0], opts)})-1)`;
+        if (fn === "__APPLE2_AUTO_SEED") return "RND(-1-PEEK(78)-256*PEEK(79))";
         if (fn === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
         if (fn === builtinFunctions.freeMemory) return "(FRE(0)+65536*(FRE(0)<0))";
         if (fn === builtinFunctions.rnd) return "RND(1)";
@@ -95,17 +99,22 @@ export const apple2Target: TargetBackend = {
       case "input": return `${prefix}INPUT ${instruction.targets.map(name).join(",")}`;
       case "open-data-file":
         if (instruction.storage !== "disk") throw new DiagnosticError(instruction.location, "Apple II sequential files require DOS disk storage.");
-        return `${prefix}PRINT CHR$(4);"OPEN ${instruction.filename}":PRINT CHR$(4);"${instruction.mode === "write" ? "WRITE" : "READ"} ${instruction.filename}"`;
+        // DOS recognizes Ctrl-D only at the beginning of an output line. A
+        // preceding non-advancing PRINT can leave the cursor mid-line.
+        return `${prefix}PRINT CHR$(13);CHR$(4);"OPEN ${instruction.filename}":PRINT CHR$(4);"${instruction.mode === "write" ? "WRITE" : "READ"} ${instruction.filename}"`;
       case "write-data-file": return `${prefix}PRINT ${expr(instruction.expression)}`;
       case "read-data-file": return `${prefix}INPUT ${expr(instruction.target)}`;
       case "close-data-file": return `${prefix}PRINT CHR$(4);"CLOSE"`;
+      case "delete-data-file": return `${prefix}PRINT CHR$(13);CHR$(4);"DELETE ${instruction.filename}"`;
       // The target's printer configuration uses a parallel card in slot 1.
       case "check-device": return `${prefix}${name(instruction.name)}=${instruction.device === "printer" || instruction.device === "text-printer" ? 1 : 0}`;
       case "open-device":
         if (instruction.device !== "printer" && instruction.device !== "text-printer") throw new DiagnosticError(instruction.location, `Apple II does not support the ${instruction.device} device.`);
         return `${prefix}PRINT "";`;
       case "close-device": return `${prefix}PRINT "";`;
-      case "print-device": return `${prefix}PR#1:PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, options)}:PR#0`;
+      // PR# changes the monitor output vector and disconnects DOS. Reconnect
+      // DOS when the same program also uses its disk commands.
+      case "print-device": return `${prefix}PR#1:PRINT ${renderPrintItems(instruction.items, instruction.trailingSemicolon, options)}:PR#0${usesDosFiles ? ":CALL 1002" : ""}`;
       case "read-key": return `${prefix}IF PEEK(49152)>127 THEN ${name(instruction.name)}=CHR$(PEEK(49152)-128):POKE 49168,0`;
       case "restore": return `${prefix}RESTORE`;
       case "goto": return `${prefix}GOTO ${resolveLabel(labels, instruction.label)}`;

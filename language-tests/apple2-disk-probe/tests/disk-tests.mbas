@@ -1,0 +1,41 @@
+test NumericArrayRoundTrip()
+    dim values(3)
+    values(0) = 12
+    values(1) = -34.5
+    values(2) = 56
+    save_file "MBNUM", values
+    values(0) = 0
+    values(1) = 0
+    values(2) = 0
+    load_file "MBNUM", values
+    assert_eq 12, values(0)
+    assert_eq -34.5, values(1)
+    assert_eq 56, values(2)
+end test
+
+test DeleteSavedFile()
+    dim entry(1)
+    entry(0) = 27
+    save_file "MBDEL", entry
+    delete_file "MBDEL"
+    assert_true 1
+end test
+
+test StringArrayReplacementRoundTrip()
+    dim words$(3, 12)
+    words$(0) = "LONG VALUE"
+    words$(1) = "OLD"
+    words$(2) = "ANOTHER"
+    save_file "MBSTR", words$
+    words$(0) = ""
+    words$(1) = "A,B"
+    words$(2) = ""
+    save_file "MBSTR", words$
+    words$(0) = "CHANGED"
+    words$(1) = "CHANGED"
+    words$(2) = "CHANGED"
+    load_file "MBSTR", words$
+    assert_eq "", words$(0)
+    assert_eq "A,B", words$(1)
+    assert_eq "", words$(2)
+end test

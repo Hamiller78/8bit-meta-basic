@@ -47,3 +47,11 @@ test FirstAndLastScreenRows()
     assert_eq code("T"), screen_code(1, 1)
     assert_eq code("B"), screen_code(TEXT_ROWS, 1)
 end test
+
+test ScreenCoordinatesEvaluateOnce()
+    cls
+    print_at 1, 1, "X";
+    set_rnd(0, 0, 0.75)
+    assert_eq code("X"), screen_code(1 + int(rnd() * 2), 1 + int(rnd() * 2))
+    assert_eq 0.75, rnd()
+end test

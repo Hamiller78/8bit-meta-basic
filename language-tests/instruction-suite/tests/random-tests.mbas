@@ -75,3 +75,11 @@ test NextTestGetsNativeRandom()
     assert_true value >= 0
     assert_true value < 1
 end test
+
+test UnseededRandomizeProducesNativeValue()
+    local value
+    randomize
+    value = rnd()
+    assert_true value >= 0
+    assert_true value < 1
+end test

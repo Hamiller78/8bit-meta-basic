@@ -49,6 +49,7 @@
     "test:language:cpc": "node scripts/run-cpc-instruction-suite.mjs",
     "test:language:kc85": "node scripts/run-kc85-instruction-suite.mjs",
     "test:language:apple2": "node scripts/run-applewin-instruction-suite.mjs",
+    "test:language:apple2:disk": "node scripts/run-applewin-instruction-suite.mjs --project language-tests/apple2-disk-probe --absent-file MBDEL",
     "benchmark:string-arrays:build": "node scripts/build-all.mjs --project performance-tests/string-arrays --profile release",
     "benchmark:string-arrays:spectrum": "node scripts/launch-target.mjs spectrum48 --project performance-tests/string-arrays --profile release --fast",
     "benchmark:string-arrays:atari": "node scripts/launch-target.mjs atari1 --build-config performance-tests/string-arrays/atari.metabasic.json --profile release",
