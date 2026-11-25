@@ -55,3 +55,11 @@ test ScreenCoordinatesEvaluateOnce()
     assert_eq code("X"), screen_code(1 + int(rnd() * 2), 1 + int(rnd() * 2))
     assert_eq 0.75, rnd()
 end test
+
+test ScreenOutputPreservesStringValue()
+    local message$
+    message$ = "lowercase text"
+    cls
+    print_at 1, 1, message$;
+    assert_eq "lowercase text", message$
+end test

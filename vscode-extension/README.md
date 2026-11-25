@@ -37,6 +37,12 @@ npm run build:all-targets -- --project <workspace-folder> --profile <profile> --
 The Amstrad CPC target builds a `.dsk` image and can launch a configured Caprice32
 installation. CPC device and language limitations are described in [targets](../docs/targets.md#amstrad-cpc).
 
+The experimental Apple II target can build and launch ordinary programs in
+AppleWin when its DOS disk, AppleCommander, emulator and accepted configuration
+are supplied as described in the [running guide](../docs/running-programs.md#apple-ii--applewin).
+The extension can launch AppleWin tests; enable `metabasic.mirrorTestOutput` to
+capture and verify their results through the emulated printer.
+
 Build artifacts are written below the open project folder, for example:
 
 ```text

@@ -11,14 +11,29 @@ output, not additional Meta-BASIC source syntax.
 
 An incomplete `apple2` compiler backend is available for Applesoft BASIC listing
 experiments, including compiler-only builds with `npm run build:apple2`. The
-instruction suite has an AppleWin runner; general application launching is not yet
-integrated. The backend supports a subset of expressions, arrays, flow control, keyboard polling, and
-40-column text positioning. Text colour requests have no effect on the monochrome
-screen; inverse text uses Applesoft's display mode. Other operations produce
-diagnostics. `JIFFIES()` and `BEEP` are not yet implemented; the nominal
-`JIFFIES_PER_SECOND` value of 60 does not indicate an available clock. A base
-Apple IIe exposes vertical blanking for polling, but a continuously running
-interrupt clock requires additional hardware or a different machine facility.
+instruction suite has an AppleWin runner and the named `apple2` configuration can
+launch ordinary programs from a copied DOS disk. The backend supports a subset of expressions, arrays, flow control, keyboard polling, and
+40-column text positioning. On an unmodified Apple II Plus, screen output maps
+lowercase ASCII letters to uppercase; string values and printer and file output
+retain their original case. `SCREEN_CODE()` sees the displayed uppercase codes.
+Programs with potentially lowercase screen output
+reserve `$0300–$030C` and `$0348–$0349` for this display conversion, which
+temporarily redirects the screen output vector. An interrupted print may leave
+the vector redirected; reconnect DOS or reset the machine. Text colour requests
+have no effect on the monochrome screen; inverse text uses Applesoft's display mode. Other operations produce
+diagnostics. `BEEP` uses a blocking, cycle-timed speaker routine installed at
+`$0320–$0339`, with parameters at `$0350–$0353`; programs using `BEEP` must
+leave those addresses available. Pitch and duration are approximate and depend
+on the machine's processor speed and emulator speed settings. `JIFFIES()` reads
+a DS1216-compatible No-Slot Clock under the `$C300` ROM on an Apple IIe or the
+`$F800` ROM on an Apple II Plus; this clock is required
+for programs that use it. The AppleWin configuration enables its emulated
+No-Slot Clock. Each reading converts the clock's weekday and time to 60 ticks
+per second; it wraps once a week and can jump if the clock is adjusted. The
+reader uses `$0360–$03A0` and `$03B0–$03B7`, and briefly disables interrupts
+while it snapshots the clock. Leave these addresses available in programs that
+use `JIFFIES()`. This is a real-time clock, so accelerated emulation does not
+accelerate its readings. The plain Apple IIe has no continuously running clock.
 Unseeded `RANDOMIZE` seeds Applesoft from the monitor counter at addresses 78 and
 79. That counter advances while the monitor waits for keyboard input; it is not a
 continuously running clock, and polling with `KEY_PRESSED()` or `KEY_CODE()` does
@@ -36,13 +51,33 @@ a nonempty string. An automated AppleWin disk probe also passed both numeric and
 string-array round trips while printer capture was active. DOS is reconnected after
 each printer write in programs that use disk files; DOS commands start on a new
 output line. `DELETE_FILE` issues the DOS delete command; the automated probe
-confirmed deletion in AppleWin's disk catalogue. Physical disks and file
-existence checks remain unverified; `FILE_EXISTS` is not implemented. The 11 instruction-suite
-modules passed on AppleWin 1.32.1.0, with 97 tests and 291 assertions; colour
+confirmed deletion in AppleWin's disk catalogue. `FILE_EXISTS` uses DOS 3.3
+`VERIFY` without creating the file. It reports missing files as zero and retries
+other errors with normal error handling enabled. Verification reads the file and
+can take time for large files. AppleWin tests covered existing, empty, missing,
+and deleted files, repeated checks inside a loop, and a locked BASIC file. Physical
+disks remain unverified. The 11 instruction-suite
+modules passed on AppleWin 1.32.1.0, with 101 tests and 298 assertions; colour
 assertions track requested values and do not verify rendered colours. The suite
 uses test substitutes for timer and keyboard input, and does not verify printer
-hardware, sound, or sequential disk-file operations; the numeric disk check above
+hardware, real timer, sound, or sequential disk-file operations; the numeric disk check above
 was a separate interactive run.
+Separately, AppleWin speaker capture confirmed approximately 0.3-second tones at
+C3, C4, C5 and C6 and a 0.5-second C4 tone. The user also heard four rising
+notes in an interactive AppleWin test. Physical hardware remains unverified.
+The separate clock probe confirmed that `JIFFIES()` advanced during sound and
+a DOS array save/load, and the restored array value was correct on both the IIe
+and II Plus in AppleWin 1.32.1.0 on Windows. Physical No-Slot Clock hardware
+has not been tested. The II Plus also passed the 11 captured instruction-suite
+modules (101 tests, 298 assertions). On the original II Plus display, AppleWin
+screen inspection confirmed that lowercase source text is shown as uppercase,
+with uppercase and inverse text also visible. A separate display probe checked
+screen character codes and confirmed that a lowercase string retained its case
+after a disk save/load; on the IIe the displayed lowercase remained lowercase.
+The II Plus keyboard has left and right arrows, which produced codes 8 and 21;
+it does not have the IIe's up/down arrow keys. In AppleWin, Control-K and
+Control-J produced codes 11 and 10, matching `KEY_UP` and `KEY_DOWN` respectively.
+The named `apple2` launcher remains configured for the enhanced IIe.
 In a separate interactive AppleWin 1.32.1.0 enhanced //e check, the user observed
 `KEY_CODE()` values Left 8, Right 21, Up 11, Down 10, Enter 13, Space 32 and
 Escape 27. These match the configured constants; physical keyboards have not been

@@ -63,11 +63,17 @@
     "cpc": {
       "tools": []
     },
+    "apple2": { "tools": [] },
     "kc85": {
       "tools": []
     }
   },
   "targetConfigurations": {
+    "apple2": {
+      "compilerTarget": "apple2",
+      "computer": { "model": "Apple //e enhanced", "ramKib": 128, "basic": "Applesoft BASIC" },
+      "emulator": { "type": "applewin", "name": "AppleWin", "path": "", "dosDisk": "", "appleCommander": "", "acceptedConfig": "", "javaPath": "" }
+    },
     "kc85": {
       "compilerTarget": "kc85",
       "computer": { "model": "KC 85/3", "basic": "HC-BASIC" },

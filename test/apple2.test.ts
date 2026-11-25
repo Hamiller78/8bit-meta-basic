@@ -13,9 +13,39 @@ describe("Apple II Applesoft backend", () => {
       expect(output).toContain("VTAB 3:HTAB 4:PRINT A0(0)");
     }
   });
-  it("rejects out-of-range coordinates and unsupported sound", () => {
+  it("rejects out-of-range coordinates", () => {
     expect(() => compileSource('print_at 25,1,"X"\n', { filename: "apple.mbas", target: "apple2" })).toThrow(/row coordinate.*1\.\.24/);
-    expect(() => compileSource('beep 1,1\n', { filename: "apple.mbas", target: "apple2" })).toThrow(/Apple II support for beep is not implemented/i);
+  });
+  it("installs and calls its speaker routine and evaluates tone arguments once", () => {
+    const output = compileSource('beep rnd(),rnd()\n', { filename: "tone.mbas", target: "apple2" });
+    expect(output).toContain("POKE 800,173");
+    expect(output).toContain("POKE 825,96");
+    expect(output).toContain("CALL 800");
+    expect(output.match(/RND\(1\)/gu)).toHaveLength(2);
+  });
+  it("converts potentially lowercase screen output on the II Plus without changing string data", () => {
+    const output = compileSource('value$="lowercase"\nprint value$;\n', { filename: "display.mbas", target: "apple2" });
+    expect(output).toContain('="lowercase"');
+    expect(output).toContain("PEEK(64435)");
+    expect(output).toContain("POKE 768,201");
+    expect(output).toContain("POKE 840,PEEK(54)");
+    expect(output).toContain("POKE 54,PEEK(840)");
+    const uppercaseOnly = compileSource('print "UPPERCASE"\n', { filename: "display.mbas", target: "apple2" });
+    expect(uppercaseOnly).not.toContain("POKE 768,201");
+  });
+  it("snapshots the No-Slot Clock for each JIFFIES read", () => {
+    const output = compileSource('start=jiffies()\nbeep 1, NOTE_C4\nfinish=jiffies()\nprint JIFFIES_PER_SECOND\n', { filename: "clock.mbas", target: "apple2" });
+    expect(output).toContain("POKE 864,8");
+    expect(output).toContain("POKE 928,197");
+    expect(output).toContain("PEEK(64435)");
+    expect(output).toContain("POKE 871,248");
+    expect(output).toContain("POKE 903,248");
+    expect(output.match(/CALL 864/gu)).toHaveLength(2);
+    expect(output).toContain("PEEK(944)");
+    expect(output).toContain("PEEK(948)");
+    expect(output).toContain("CALL 800");
+    expect(output).toContain("PRINT 60");
+    expect(compileSource('print "NO CLOCK"\n', { filename: "plain.mbas", target: "apple2" })).not.toContain("POKE 864");
   });
   it("uses Applesoft inverse mode and the keyboard strobe", () => {
     const output = compileSource('print_invert_at 2,3,"HI"\na=key_code()\n', { filename: "apple.mbas", target: "apple2" });
@@ -61,5 +91,16 @@ describe("Apple II Applesoft backend", () => {
     expect(output).toContain('PRINT CHR$(13);CHR$(4);"DELETE VALUES"');
     const withPrinter = compileSource('open_device out, PRINTER\nprint_device out; "STATUS"\ndelete_file "VALUES"\nclose_device out\n', { filename: "disk-delete.mbas", target: "apple2" });
     expect(withPrinter).toContain('PR#1:PRINT "STATUS":PR#0:CALL 1002');
+  });
+  it("checks file existence without opening or creating the file", () => {
+    for (const readability of [0, 2] as const) {
+      const output = compileSource('exists=file_exists("VALUES")\n', { filename: "disk-exists.mbas", target: "apple2", readability });
+      expect(output).toContain('"VERIFY VALUES"');
+      expect(output).toContain('ONERR GOTO');
+      expect(output).toContain('CALL -3288');
+      expect(output).toContain('PEEK(222)');
+      expect(output).toContain('POKE 216,0');
+      expect(output).not.toContain('"OPEN VALUES"');
+    }
   });
 });

@@ -9,7 +9,8 @@ const launcherScripts = {
   vice: "scripts/launch-c64.mjs",
   "fab-agon": "scripts/launch-agon.mjs",
   caprice32: "scripts/launch-cpc.mjs",
-  jkcemu: "scripts/launch-kc85.mjs"
+  jkcemu: "scripts/launch-kc85.mjs",
+  applewin: "scripts/launch-applewin.mjs"
 };
 
 export async function loadToolConfiguration(cwd, configPath) {

@@ -1,0 +1,22 @@
+' Normal program: check physical screen codes and preservation of string data.
+dim words$(1,20)
+words$(0) = "lowercase"
+cls
+print_at 1,1,words$(0);
+first = screen_code(1,1)
+print_at 2,1,"mixed text";
+second = screen_code(2,1)
+save_file "MBTEXT", words$
+words$(0) = "changed"
+load_file "MBTEXT", words$
+before = jiffies()
+beep 0.2, NOTE_C4
+after = jiffies()
+open_device out, PRINTER
+print_device out; "DISPLAY FIRST "; first
+print_device out; "DISPLAY SECOND "; second
+print_device out; "STORED STRING "; words$(0)
+print_device out; "CLOCK ADVANCED "; after > before
+print_device out; "DISPLAY PROBE END"
+close_device out
+end

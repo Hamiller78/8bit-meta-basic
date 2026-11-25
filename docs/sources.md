@@ -4,6 +4,9 @@ This page records external material used to understand target dialects, file for
 
 ## Apple II
 
+- [DS1216 SmartWatch data sheet](https://www.analog.com/en/products/ds1216e.html): No-Slot Clock serial protocol and hundredths-of-a-second registers.
+- [Apple II family identification bytes](https://prodos8.com/docs/technote/misc/07/): monitor ROM identifiers used to distinguish the II Plus and IIe clock locations.
+
 - [Applesoft BASIC Programmer's Reference Manual](https://mirrors.apple2.org.za/ftp.apple.asimov.net/documentation/programming/basic/Applesoft%20BASIC%20Programming%20Reference%20Manual%20-%20Apple%20Computer.pdf)
 - [Apple IIe Reference Manual](https://applelogic.org/files/AIIEREF.pdf): vertical blanking status and machine capabilities.
 - [Apple II Technical Note: VBL Signal](https://apple2.gs/technotes/tn-iigs-040/): interrupt availability on Apple II models and peripherals.

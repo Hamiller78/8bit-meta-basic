@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { analyzeBasicOutput, formatOutputStats } from "../src/output-stats.js";
 
 describe("BASIC output statistics", () => {
+  it("does not count Applesoft commands as variables", () => {
+    const stats = analyzeBasicOutput(['10 ONERR GOTO 100', '20 CALL -3288', '30 HOME:VTAB 2:HTAB 3:PRINT A0', '40 DIM A1$(2)'], "apple2");
+    expect(stats.numericVariables).toEqual(["A0"]);
+    expect(stats.stringArrays).toEqual(["A1$"]);
+  });
   it("does not count native sound commands as variables", () => {
     expect(analyzeBasicOutput(["10 BEEP 1,0"], "spectrum").numericVariables).toEqual([]);
     expect(analyzeBasicOutput(["10 SOUND 1,-15,53,-1"], "agon").numericVariables).toEqual([]);

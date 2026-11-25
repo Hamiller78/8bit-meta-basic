@@ -32,6 +32,34 @@ existing instance interferes. General launcher options are documented in
 
 ## Apple II / AppleWin
 
+For an ordinary application, configure the `apple2` target in the tool
+configuration with the AppleWin executable (`path`), a DOS 3.3 system disk with
+an existing `HELLO` program (`dosDisk`), AppleCommander JAR (`appleCommander`),
+and the accepted AppleWin INI (`acceptedConfig`). Optionally set `javaPath` to a
+Java executable; otherwise `java` on PATH is used. Then launch, for example:
+
+```text
+npm run launch:apple2 -- --source examples/array-demo.mbas
+```
+
+`--project` and `--build-config` select other inputs, including paths outside the
+compiler checkout. Each launch creates its own boot disk and INI under
+`build/.applewin/`, leaving the configured disk and INI unchanged. Printer output
+is written to that launch's `printer.txt`. The launch enables AppleWin's
+No-Slot Clock, which the Apple II `JIFFIES()` implementation requires. A successful ordinary process launch
+does not establish that the BASIC program completed. For a captured test module:
+
+```text
+npm run launch:apple2 -- --project language-tests/instruction-suite --run-tests --module screen --printer-output --hidden
+```
+
+With `--printer-output`, the launcher waits for a complete summary, verifies the
+selected test count and failures, and stops its emulator process. The capture and
+disk remain in the launch directory. `--timeout` specifies the deadline in seconds
+(default 180). Without capture, test launches remain open for inspection. The
+complete instruction suite can exceed Apple II memory, so use the per-module
+orchestrator below for full conformance runs.
+
 The experimental Apple II instruction-suite runner uses AppleWin 1.32.1.0, Java
 17 and AppleCommander 1.8.0. It copies a DOS 3.3 system disk for each module,
 replaces `HELLO` on the copy with the tokenized runner, and captures slot-1
@@ -43,8 +71,10 @@ the displayed license for the installed version:
 npm run test:language:apple2 -- --emulator <AppleWin-x64.exe> --disk <DOS-system.dsk> --applecommander <AppleCommander-ac.jar> --accepted-config <applewin.ini>
 ```
 
-Use `--module screen` to select one module and `--timeout 120` to change its
-deadline in seconds. The runner writes independent disk copies, INI files, BASIC
+Use `--module screen` to select one module, `--profile debug` to select the debug
+profile, `--model apple2p` to select the Apple II Plus instead of the default
+enhanced IIe, and `--timeout 120` to change its deadline in seconds. Debug and release
+captures are kept separately. The runner writes independent disk copies, INI files, BASIC
 listings and captures under `build/applewin-suite/`. It does not modify the source
 disk or the supplied configuration. AppleWin's About/license dialog appears for a
 configuration without an accepted version; accept it interactively before supplying
@@ -57,12 +87,38 @@ After the keyboard-condition fix and an added expression test, a second complete
 run on 2026-11-24 passed 98 tests and 293 assertions in the same configuration.
 A later run after adding screen-coordinate and unseeded-randomization tests passed
 100 tests and 297 assertions in that configuration.
+The same 11 modules passed on the Apple II Plus configuration, with 100 tests
+and 297 assertions; its captures are under `build/applewin-suite/apple2-plus/`.
+After adding a string-preservation screen test, all 11 modules passed again on
+both models: 101 tests and 298 assertions per configuration.
+The suite uses keyboard and clock substitutes and cannot verify real key input,
+display glyphs, or the hardware clock. See [Targets](targets.md) for the II Plus
+display and keyboard limitations.
 The separate `npm run test:language:apple2:disk --` command accepts the same
 emulator, disk, AppleCommander and accepted-configuration options and runs numeric
-and string array disk round trips and a deletion with printer capture enabled. On
-2026-11-24, AppleWin 1.32.1.0 passed its three tests and seven assertions; the
-runner also checked the disk catalogue to confirm the deleted file was absent.
+and string array disk round trips, file-existence checks and a deletion with
+printer capture enabled. AppleWin 1.32.1.0 passed four tests and 17 assertions;
+the runner also checked the disk catalogue to confirm a deleted file and a probed
+missing file were absent. It pre-creates an empty file to test that case. The same
+four tests and 17 assertions passed in both release and debug profiles.
+With `--model apple2p`, the same disk probe passed four tests and 17 assertions
+in release on the Apple II Plus, including the catalogue checks.
 The runner uses the same disposable disk-copy workflow for this project.
+AppleWin speaker WAV capture separately showed tones near C3 through C6 at their
+requested durations. In a separate interactive AppleWin test the user heard all
+four notes rise in pitch. Physical-hardware behavior remains unverified.
+The normal (non-test-mode) `language-tests/apple2-clock-probe.mbas` program
+checks the real clock alongside sound and DOS file operations. In AppleWin
+1.32.1.0 on Windows it reported positive sound and disk deltas and restored the
+saved value on both enhanced IIe and II Plus models. The test-mode instruction suite substitutes clock reads and does not
+itself verify the hardware clock. AppleWin's emulated No-Slot Clock follows host
+time, including while emulation is accelerated.
+The separate `language-tests/apple2-display-probe.mbas` program checks real
+screen character codes and a string disk round trip. AppleWin 1.32.1.0 returned
+uppercase screen codes on II Plus and lowercase codes on enhanced IIe, while
+the restored string retained lowercase on both. An interactive II Plus screen
+check also showed the converted text, and Control-K and Control-J produced key
+codes 11 and 10. Physical display, keyboard, and disk hardware remain unverified.
 
 ## KC 85/3 / JKCEMU
 

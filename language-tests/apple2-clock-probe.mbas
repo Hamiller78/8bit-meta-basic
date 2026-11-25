@@ -1,0 +1,21 @@
+' Real-hardware clock probe: this is a normal program, not a test-mode fake.
+dim values(1)
+open_device out, PRINTER
+values(0) = 42
+before = jiffies()
+beep 0.5, NOTE_C4
+afterSound = jiffies()
+save_file "MBCLOCK", values
+values(0) = 0
+load_file "MBCLOCK", values
+afterDisk = jiffies()
+print_device out; "SOUND DELTA "; afterSound - before
+print_device out; "DISK DELTA "; afterDisk - afterSound
+print_device out; "DISK VALUE "; values(0)
+if afterSound <= before or afterDisk <= afterSound or values(0) <> 42 then
+    print_device out; "CLOCK PROBE FAILED"
+else
+    print_device out; "CLOCK PROBE PASSED"
+end if
+close_device out
+end

@@ -309,6 +309,7 @@ Tools under `targets.<target>.tools` run in array order:
 | `workingDirectory`, `sdcardPath`, `basicBinary`, `cardProgramName` | Fab Agon working directory, card, interpreter path on the card (default `bin/bbcbasic24.bin`), staged program name (normalized to `.bbc`). |
 | `configPath` | Optional Caprice32 configuration template; defaults to `cap32.cfg` beside the executable. A run-specific copy is written under the build directory. |
 | `javaPath` | Optional Java executable for JKCEMU; defaults to `javaw` on PATH. Its `path` field specifies the JKCEMU JAR. |
+| `dosDisk`, `appleCommander`, `acceptedConfig`, `javaPath` | AppleWin: DOS 3.3 boot disk containing `HELLO`, AppleCommander JAR, accepted AppleWin INI, and optional Java executable (default `java`). The launcher copies the disk and INI state into a per-launch build directory. |
 
 Configured relative host paths resolve against the repository working directory.
 Manual setup such as Altirra's host-device mapping is described in the running
@@ -361,7 +362,7 @@ npm run launch -- vic20 --project examples/eight-bits-below --restart
 
 Aliases are `launch:spectrum` (`spectrum48`), `launch:atari` (`atari1`),
 `launch:atari800` (`atari2`), `launch:c64`, `launch:vic20`, `launch:agon`,
-`launch:cpc`, and `launch:kc85`.
+`launch:cpc`, `launch:kc85`, and `launch:apple2`.
 They default to `release`; common input, test, profile, language/font, configuration,
 output-directory, and `--skip-build` options apply.
 
@@ -371,6 +372,7 @@ output-directory, and `--skip-build` options apply.
 | `--hidden` | Request a hidden emulator window on Windows; intended for captured automated runs. Agon uses SDL's dummy video driver and software renderer. Visibility of other emulator windows depends on the host. |
 | `--fast` | Individual Spectrum/VICE launchers append `testArgs`, as test mode does. Agon accepts it without a speed change. |
 | `--fast-load` / `--type-in` | KC 85: select tokenized AutoLoad (the default) or slower AutoInput. Captured runs always use AutoLoad. |
+| `--timeout seconds` | AppleWin: deadline for a captured test run; default 180 seconds. |
 | `--artifact tokenized-bas\|lst\|atr\|disk-directory` | Individual Atari launchers; default `tokenized-bas`. Atari800 also accepts `basic`. |
 | `--file-storage disk\|tape` | Individual Commodore/Atari launchers support this override. |
 

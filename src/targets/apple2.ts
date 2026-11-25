@@ -1,13 +1,16 @@
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
 import { resolveLabel } from "../line-numbering.js";
-import type { Instruction, LoweredProgram } from "../lowering.js";
+import { normalizeLabel, type Instruction, type LoweredProgram } from "../lowering.js";
 import { isStringVariableName } from "../variables.js";
 import { kc85VariableMap } from "./kc85-variables.js";
 import { lowerByteStorage } from "./byte-storage.js";
 import { lowerInkeyReads } from "./inkey-lowering.js";
 import { lowerSafeDispatch } from "./safe-dispatch.js";
 import { lowerSequentialFileIo } from "./file-io.js";
+import { lowerApple2Beeps } from "./apple2-beep.js";
+import { lowerApple2Clock } from "./apple2-clock.js";
+import { lowerApple2PlusDisplay } from "./apple2-display.js";
 import { createGeneratedVariableNameAllocator } from "./string-array-lengths.js";
 import { createRenderVariableMapCache, groupInvertedPrints, rebuildLabels, renderDataValues, renderExpression, renderPrintItems, validateConstantCoordinate, type ExpressionRenderOptions, type TargetBackend } from "./target.js";
 
@@ -16,7 +19,7 @@ const maps = createRenderVariableMapCache(kc85VariableMap);
 let usesDosFiles = false;
 export function setApple2RenderProgram(instructions: readonly Instruction[]): void {
   maps.reset(instructions);
-  usesDosFiles = instructions.some((instruction) => instruction.kind === "open-data-file" || instruction.kind === "delete-data-file");
+  usesDosFiles = instructions.some((instruction) => instruction.kind === "open-data-file" || instruction.kind === "delete-data-file" || instruction.kind === "check-data-file");
 }
 
 const functions = new Set<string>([builtinFunctions.abs, builtinFunctions.asc, builtinFunctions.atn,
@@ -28,7 +31,7 @@ export const apple2Target: TargetBackend = {
   id: "apple2", gotoSpelling: "GOTO", maxLineLength: 239, maxLineNumber: 63999,
   variableMap: kc85VariableMap,
   lower(program: LoweredProgram): LoweredProgram {
-    const fileProgram = lowerSequentialFileIo(program);
+    const fileProgram = lowerApple2FileChecks(lowerSequentialFileIo(program));
     const allocate = createGeneratedVariableNameAllocator(fileProgram.instructions, "MBAPPLERND");
     let seedName: string | undefined;
     const seed = (instruction: Instruction): Instruction => {
@@ -39,7 +42,7 @@ export const apple2Target: TargetBackend = {
         expression: { kind: "function-call", name: instruction.seed ? "__APPLE2_SEED" : "__APPLE2_AUTO_SEED", args: instruction.seed ? [instruction.seed] : [], valueType: "number", location: instruction.location } };
     };
     const seeded = rebuildLabels(fileProgram, fileProgram.instructions.map(seed));
-    return lowerSafeDispatch(lowerInkeyReads(groupInvertedPrints(lowerByteStorage(seeded, "apple2")), "MBAPPLEKEY"), "MBAPPLEDISPATCH");
+    return lowerSafeDispatch(lowerInkeyReads(lowerApple2PlusDisplay(groupInvertedPrints(lowerByteStorage(lowerApple2Clock(lowerApple2Beeps(seeded)), "apple2"))), "MBAPPLEKEY"), "MBAPPLEDISPATCH");
   },
   renderLine(line, instruction, labels, readability): string {
     const variables = maps.get(readability);
@@ -55,6 +58,9 @@ export const apple2Target: TargetBackend = {
         const fn = value.name.toUpperCase();
         if (fn === "__APPLE2_SEED") return `RND(-ABS(${renderExpression(value.args[0], opts)})-1)`;
         if (fn === "__APPLE2_AUTO_SEED") return "RND(-1-PEEK(78)-256*PEEK(79))";
+        if (fn === "__APPLE2_DOS_ERROR") return "PEEK(222)";
+        if (fn === "__APPLE2_CLOCK_BYTE") return `PEEK(${renderExpression(value.args[0], opts)})`;
+        if (fn === "__APPLE2_PEEK") return `PEEK(${renderExpression(value.args[0], opts)})`;
         if (fn === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
         if (fn === builtinFunctions.freeMemory) return "(FRE(0)+65536*(FRE(0)<0))";
         if (fn === builtinFunctions.rnd) return "RND(1)";
@@ -106,6 +112,9 @@ export const apple2Target: TargetBackend = {
       case "read-data-file": return `${prefix}INPUT ${expr(instruction.target)}`;
       case "close-data-file": return `${prefix}PRINT CHR$(4);"CLOSE"`;
       case "delete-data-file": return `${prefix}PRINT CHR$(13);CHR$(4);"DELETE ${instruction.filename}"`;
+      case "check-data-file": return `${prefix}PRINT CHR$(13);CHR$(4);"VERIFY ${instruction.filename}"`;
+      case "trap": return `${prefix}${instruction.label ? `ONERR GOTO ${resolveLabel(labels, instruction.label)}` : "POKE 216,0"}`;
+      case "sys": return `${prefix}CALL ${instruction.address}`;
       // The target's printer configuration uses a parallel card in slot 1.
       case "check-device": return `${prefix}${name(instruction.name)}=${instruction.device === "printer" || instruction.device === "text-printer" ? 1 : 0}`;
       case "open-device":
@@ -133,3 +142,37 @@ export const apple2Target: TargetBackend = {
     }
   }
 };
+
+/** VERIFY does not create a missing file. Error 6 is DOS's file-not-found. */
+function lowerApple2FileChecks(program: LoweredProgram): LoweredProgram {
+  const labels = new Set([...program.labels.keys()].map(normalizeLabel));
+  let serial = 0;
+  const fresh = (): string => {
+    let label: string;
+    do { label = `__mb_apple2_file_${serial++}`; } while (labels.has(normalizeLabel(label)));
+    labels.add(normalizeLabel(label));
+    return label;
+  };
+  const instructions = program.instructions.flatMap((instruction): Instruction[] => {
+    if (instruction.kind !== "check-data-file") return [instruction];
+    const location = instruction.location;
+    const handler = fresh(), retry = fresh(), done = fresh();
+    const number = (value: number) => ({ kind: "number" as const, value, raw: String(value), location });
+    const result = (value: number): Instruction => ({ kind: "let", name: instruction.name, sourceName: instruction.sourceName, expression: number(value), location });
+    return [
+      { kind: "trap", label: handler, location }, instruction,
+      { kind: "trap", location }, result(1), { kind: "goto", label: done, location },
+      { kind: "label", name: handler, internal: true, location },
+      { kind: "let", name: instruction.errorCodeName, expression: { kind: "function-call", name: "__APPLE2_DOS_ERROR", args: [], valueType: "number", location }, location },
+      // Restore the stack rather than clearing it: the probe may be inside a
+      // user function, GOSUB, or FOR loop.
+      { kind: "sys", address: -3288, location }, { kind: "trap", location },
+      { kind: "if-goto", condition: { kind: "binary", operator: "<>", left: { kind: "identifier", name: instruction.errorCodeName, location }, right: number(6), location }, label: retry, location },
+      result(0), { kind: "goto", label: done, location },
+      // Repeat unexpected errors with the trap disabled so BASIC reports them.
+      { kind: "label", name: retry, internal: true, location }, instruction, result(1),
+      { kind: "label", name: done, internal: true, location }
+    ];
+  });
+  return rebuildLabels(program, instructions);
+}

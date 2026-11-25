@@ -21,6 +21,28 @@ test DeleteSavedFile()
     assert_true 1
 end test
 
+test FileExistsBeforeAndAfterSave()
+    dim probe(1)
+    local found
+    found = file_exists("MBABS")
+    assert_eq 0, found
+    found = file_exists("HELLO")
+    assert_eq 1, found
+    found = file_exists("MBEMPTY")
+    assert_eq 1, found
+    for iteration = 1 to 5
+        found = file_exists("MBFIND")
+        assert_eq 0, found
+    next iteration
+    probe(0) = 42
+    save_file "MBFIND", probe
+    found = file_exists("MBFIND")
+    assert_eq 1, found
+    delete_file "MBFIND"
+    found = file_exists("MBFIND")
+    assert_eq 0, found
+end test
+
 test StringArrayReplacementRoundTrip()
     dim words$(3, 12)
     words$(0) = "LONG VALUE"
