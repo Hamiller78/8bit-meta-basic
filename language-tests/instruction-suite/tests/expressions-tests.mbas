@@ -76,7 +76,8 @@ test StringComparisonAsBoolean()
         assert_true 0
     end if
     text$ = "A"
-    if (text$ <> "") = 1 then
+    ' Native true values differ by target; test the nested result for nonzero.
+    if (text$ <> "") <> 0 then
         assert_true 1
     else
         assert_true 0

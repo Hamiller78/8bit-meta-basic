@@ -249,6 +249,7 @@ are separate from the held controls described under [Joystick mappings](#joystic
 | C64 | Port 2 through `PEEK(56320)` and native masks. |
 | VIC-20 | Control port through VIA registers; the right-direction bit is exposed during the read. |
 | Agon | Cursor keys and Space through held-key polling; native scan selectors are listed under [Agon Light](#agon-light). |
+| Apple II | First analog joystick: `PDL(0)` for X, `PDL(1)` for Y, and game-button 0 at `$C061` for fire. Axis values 0–84 map to -1, 85–169 to 0, and 170–255 to 1; each call samples independently. A connected and calibrated controller is required. The user confirmed the joystick diagnostic works with AppleWin 1.32.1.0's numeric-keypad emulation; physical hardware has not been checked. |
 | Amstrad CPC | First joystick through `JOY(0)`; the primary fire button uses bit 4. Physical joystick input has not yet been verified. |
 | KC 85/3 | First joystick on an M008 or M021 module, through PIO port 144. The module is required; physical hardware has not been verified. |
 
@@ -474,7 +475,7 @@ Atari colour values are deterministic approximations and can look different betw
 - `KEY_PRESSED()` checks `PEEK(198) > 0`; `KEY_CODE()` uses `GET` and converts a returned character with `ASC`.
 - `JIFFIES()` uses `TI`.
 - `FREE_MEMORY()` lowers to `FRE(0)` with the signed-result correction for values above 32767.
-- `SCREEN_CODE` reads the standard BASIC text screen at address 1024 and converts ordinary printable screen codes to their comparable PETSCII codes.
+- `SCREEN_CODE` reads the standard BASIC text screen at address 1024, removes the inverse-video bit, and converts ordinary printable screen codes to comparable PETSCII codes for the selected font. Coordinate expressions are evaluated once.
 - `RND()` lowers to `RND(1)`; bare `RANDOMIZE` reseeds it from the jiffy clock with `RND(-(TI+1))`, and `RANDOMIZE seed` uses `RND(-seed)`.
 - Integer `%` variables render as native C64 integer variables. Assignments preserve `INT` coercion, omitting the call when the value is already known to be an integer.
 - In `AND` and `OR`, native comparison results are used directly; other numeric operands are normalized to preserve Meta-BASIC's nonzero truth semantics.
@@ -491,7 +492,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - Generated PRGs use the expanded BASIC start at `$1201`; the supplied `xvic` profile enables all conventional memory expansions. Unexpanded VIC-20 memory layouts are not currently a supported build profile.
 - The text display has 22 columns and 23 rows. `PRINT_AT` writes the shared editor row/column variables and calls the VIC-20 ROM cursor-update routine at `SYS 58759`.
 - Border and background share VIC register 36879. Generated POKEs preserve the register's unrelated bits; text colour remains at address 646.
-- `SCREEN_CODE` obtains the active screen page from KERNAL location 648, so it remains correct with the expanded screen-memory layout.
+- `SCREEN_CODE` obtains the active screen page from KERNAL location 648, so it remains correct with the expanded screen-memory layout. It uses the same font-aware character conversion as the C64.
 - `PROGRAM_MODE` hides the cursor with `POKE 204,1`; it does not install the C64-specific STOP-vector routine.
 - `GET_JOYSTICK` reads the VIA registers. Reading right requires temporarily changing VIA direction register 37154, so lowering saves each joystick result before restoring that register.
 - The complete instruction suite nearly fills expanded BASIC memory. See the [toolchain module orchestrator](toolchain.md#language-conformance-suite) for a runner that fits.
@@ -502,6 +503,7 @@ Commodore BASIC V2 distinguishes variable names using only their first two signi
 - ADL mode gives programs and data access to the Agon's available user RAM rather than a 64 KiB Z80 segment. The interpreter nevertheless retains important older language limits: ordinary strings contain at most 255 characters, integers are signed 32-bit values, and five-byte real numbers provide about nine significant decimal digits. Variable count, variable-name length, and practical array size are limited by available memory rather than a small fixed table. Generated tokenized lines remain limited to 251 characters and numbered lines to the BBC BASIC range.
 - Target lowering therefore uses only features supported by `bbcbasic24.bin`; the compiler must not assume that a facility from BBC BASIC V is available merely because a newer Agon interpreter implements it.
 - Generated programs begin with `MODE 3`, establishing the compiler's fixed 80-column by 30-row text environment.
+- In a standalone Fab Agon Emulator 1.2.5 check, `SCREEN_CODE(30, 1)` returned 0 immediately after printing `Q` there. The screen instruction module was also run on the official Windows release of Fab Agon Emulator 1.2.6 with BBC BASIC ADL 1.03: 7 of 8 tests passed, with `FirstAndLastScreenRows` failing. The actual display and physical hardware were not inspected, so last-row character reads in these configurations remain unverified.
 - Assignments omit `LET`; `%` variables use BBC BASIC's native 32-bit integer storage.
 - In `AND` and `OR`, native comparison results are used directly; other numeric operands are normalized before BBC BASIC's bitwise operations.
 - Readable variable names are preserved unless they begin with a BBC BASIC keyword; unsafe names such as `TOTAL` and `VALUES` receive a `V_` prefix so the native tokenizer cannot reinterpret `TO` or `VAL` as syntax.

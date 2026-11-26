@@ -36,7 +36,17 @@ describe("VIC-20 compiler", () => {
       target: "vic20",
       readability: 0
     });
-    expect(output).toContain("PEEK(648)*256-23+1*22+1");
+    expect(output).toContain("PEEK(648)*256-23+(1)*22+(1)");
+    const computed = compileSource("code = screen_code(1 + row, 1 + column)\n", {
+      filename: "screen.mbas", target: "vic20", readability: 0
+    });
+    expect(computed).toMatch(/\+\(1 \+ [A-Z0-9]+\)\*22\+\(1 \+ [A-Z0-9]+\)/u);
+    expect(output).toMatch(/\+ 128 \* \([A-Z0-9]+ >= 128\)/u);
+    expect(output).not.toContain("< 91");
+    const lowercase = compileSource("code = screen_code(1, 1)\n", {
+      filename: "screen.mbas", target: "vic20", readability: 0, font: ["lowercase"]
+    });
+    expect(lowercase).toContain("< 91");
   });
 
   it("temporarily exposes the VIC joystick right-direction bit", () => {

@@ -5,6 +5,8 @@ function PrepareTurnTest()
     local rowIndex, roomIndex
     program_mode
     ClearMonsters()
+    InitEquipment()
+    gameMode% = modeDungeon
     gameOver% = FALSE
     player.row = 5
     player.column = 4
@@ -57,6 +59,9 @@ test MovingAndAttackingEachAdvanceTheMonsterTurn()
     assert_eq code("."), screen_code(5, 6)
     assert_eq code("H"), screen_code(attackLogRow, 1)
     assert_eq 9, player.health
+    assert_eq slotHead, foundSlot%
+    HandlePlayerInput(GAME_DOWN)
+    assert_eq -1, foundSlot%
     HandlePlayerInput(GAME_RIGHT)
     assert_eq 6, player.column
     assert_eq code("P"), screen_code(5, 6)

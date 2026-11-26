@@ -19,6 +19,7 @@ const selected = option("--module", undefined);
 const project = option("--project", "language-tests/instruction-suite");
 const profile = option("--profile", "release");
 const model = option("--model", "apple2ee");
+const testScreenOutput = args.includes("--test-screen-output");
 const absentFiles = args.flatMap((arg, index) => {
   if (arg !== "--absent-file") return [];
   if (!args[index + 1] || args[index + 1].startsWith("--")) throw new Error("--absent-file needs a value");
@@ -27,7 +28,7 @@ const absentFiles = args.flatMap((arg, index) => {
 const emptyFile = option("--empty-file", undefined);
 const timeoutMs = Number(option("--timeout", "120")) * 1000;
 if (!emulator || !diskTemplate || !appleCommander || !acceptedConfig || !Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-  throw new Error("Usage: node scripts/run-applewin-instruction-suite.mjs --emulator <exe> --disk <DOS 3.3 system disk> --applecommander <jar> --accepted-config <ini> [--model apple2ee|apple2p] [--project <directory>] [--module <name>] [--profile debug|balanced|release] [--absent-file <name>] [--empty-file <name>] [--timeout seconds]");
+  throw new Error("Usage: node scripts/run-applewin-instruction-suite.mjs --emulator <exe> --disk <DOS 3.3 system disk> --applecommander <jar> --accepted-config <ini> [--model apple2ee|apple2p] [--project <directory>] [--module <name>] [--profile debug|balanced|release] [--test-screen-output] [--absent-file <name>] [--empty-file <name>] [--timeout seconds]");
 }
 if (!["debug", "balanced", "release"].includes(profile)) throw new Error("Unknown AppleWin build profile.");
 if (!["apple2ee", "apple2p"].includes(model)) throw new Error("AppleWin model must be apple2ee or apple2p.");
@@ -54,7 +55,7 @@ for (const file of modules) {
   console.log(`AppleWin: ${module}`);
   try {
     await mkdir(dir, { recursive: true });
-    run(process.execPath, ["scripts/build-target.mjs", "apple2", "--project", project, "--run-tests", "--module", module, "--profile", profile, "--printer-output", "--test-output-device", "text-printer", "--no-tools", "--skip-build", "--out-dir", dir]);
+    run(process.execPath, ["scripts/build-target.mjs", "apple2", "--project", project, "--run-tests", "--module", module, "--profile", profile, "--printer-output", ...(testScreenOutput ? ["--test-screen-output"] : []), "--test-output-device", "text-printer", "--no-tools", "--skip-build", "--out-dir", dir]);
     const listing = await readFile(join(dir, profile, "apple2", `${basename(resolve(project))}.bas`), "utf8");
     const source = await readFile(join(project, "tests", file), "utf8");
     const expected = [...source.matchAll(/^\s*test\s+[A-Za-z_][A-Za-z_0-9]*\s*\(/gimu)].length;

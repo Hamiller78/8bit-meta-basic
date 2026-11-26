@@ -415,8 +415,15 @@ describe("C64 compiler", () => {
 
   it("reads a visible screen character code with portable coordinates", () => {
     const output = compileSource("value = screen_code(3, 4)\n", { filename: "screen.mbas", target: "c64" });
-    expect(output).toContain("PEEK(983 + 3 * 40 + 4)");
+    expect(output).toContain("PEEK(983 + (3) * 40 + (4))");
     expect(output).toContain("< 32");
+    expect(output).toContain(">= 128");
+    expect(output).not.toContain("< 91");
+    const lowercase = compileSource("value = screen_code(1 + row, 1 + column)\n", {
+      filename: "screen.mbas", target: "c64", readability: 0, font: ["lowercase"]
+    });
+    expect(lowercase).toMatch(/\(1 \+ [a-z0-9]+\) \* 40 \+ \(1 \+ [a-z0-9]+\)/u);
+    expect(lowercase).toContain("< 91");
   });
 
   it("renders LEFT$ and RIGHT$ directly for C64", () => {

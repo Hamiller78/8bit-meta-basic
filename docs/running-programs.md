@@ -73,7 +73,10 @@ npm run test:language:apple2 -- --emulator <AppleWin-x64.exe> --disk <DOS-system
 
 Use `--module screen` to select one module, `--profile debug` to select the debug
 profile, `--model apple2p` to select the Apple II Plus instead of the default
-enhanced IIe, and `--timeout 120` to change its deadline in seconds. Debug and release
+enhanced IIe, `--test-screen-output` to execute screen output during tests, and
+`--timeout 120` to change its deadline in seconds. Use `--test-screen-output`
+for tests that inspect screen memory, such as the Eight Bits Below discovery and
+turn tests. Debug and release
 captures are kept separately. The runner writes independent disk copies, INI files, BASIC
 listings and captures under `build/applewin-suite/`. It does not modify the source
 disk or the supplied configuration. AppleWin's About/license dialog appears for a
@@ -83,6 +86,9 @@ of tests in each module. On 2026-11-23, all 11 modules passed in AppleWin 1.32.1
 on Windows: 97 tests, 291 assertions, zero failures. Colour assertions reflect
 requested values, not measured screen colours. Native sound, real keyboard input,
 timer behavior and sequential disk files were not verified by that suite.
+The user confirmed that `examples/joystick.mbas` responds to AppleWin's numeric
+keypad joystick emulation. Configure joystick 1 on AppleWin's Input settings tab;
+keyboard auto-centering returns the emulated stick to neutral on release.
 After the keyboard-condition fix and an added expression test, a second complete
 run on 2026-11-24 passed 98 tests and 293 assertions in the same configuration.
 A later run after adding screen-coordinate and unseeded-randomization tests passed

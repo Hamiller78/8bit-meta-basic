@@ -4,7 +4,9 @@ Press any key at the startup prompt. The program seeds its random-number
 generator after the key press so emulator startup timing does not fix the seed.
 The yellow `P` starts at the entrance. Use the direction keys on C64, VIC-20,
 Atari, Agon, and KC 85/3, or Q/A/O/P (up/down/left/right) on Spectrum. Walk over floor
-tiles (`.`), through doors (`+`), and back onto the entrance (`<`). Walls block
+tiles (`.`), through doors (`+`), and back onto the entrance (`<`). On the
+Apple IIe in AppleWin, use the arrow keys. The Apple II text display is
+monochrome. Walls block
 movement. The game has eight named dungeons. Reaching an exit (`>`) returns
 the player to the village, where a short description introduces the next dungeon.
 After the eighth exit the game ends in victory. Only the entrance room is revealed
@@ -14,6 +16,16 @@ their rooms until the player reaches them. Every newly discovered room, includin
 the entrance room, spawns one red bat inside it. A cleared room stays cleared.
 Atari uses the screen text colour
 because its text mode does not support per-cell colours.
+
+To play on the configured Apple IIe in AppleWin:
+
+```text
+npm run launch -- apple2 --project examples/eight-bits-below --profile release
+```
+
+AppleWin's **Ctrl+3** enables full-speed emulation, which makes dungeon
+generation and turns quicker; **Ctrl+1** returns to approximately 1 MHz. These
+are emulator controls, not game keys. Press any game key at the title to start.
 
 The dungeon has a `<` entrance on its left wall and a `>` exit on its right wall.
 Both use independently selected random rows, excluding the corners. Splitting

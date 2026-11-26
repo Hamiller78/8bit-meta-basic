@@ -3,6 +3,13 @@ import { compileSource } from "../src/compiler.js";
 import { isTargetId } from "../src/targets/index.js";
 
 describe("Apple II Applesoft backend", () => {
+  it("reads each joystick axis once with a neutral range and polls the first button", () => {
+    const output = compileSource('x=get_joystick(JOY_X)\ny=get_joystick(JOY_Y)\nf=get_joystick(JOY_FIRE1)\nif get_joystick(JOY_X) = -1 then\nprint "LEFT"\nend if\n', { filename: "joystick.mbas", target: "apple2" });
+    expect(output.match(/PDL\(0\)/gu)).toHaveLength(2);
+    expect(output).toContain("SGN(INT(PDL(0)/85)-1)");
+    expect(output).toContain("SGN(INT(PDL(1)/85)-1)");
+    expect(output).toContain("INT(PEEK(49249)/128)");
+  });
   it("registers the target and renders arrays and one-based cursor positions", () => {
     expect(isTargetId("apple2")).toBe(true);
     const source = 'dim score(3)\nscore(0)=42\nprint_at 3,4,score(0)\n';

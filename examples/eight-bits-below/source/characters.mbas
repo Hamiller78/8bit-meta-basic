@@ -135,6 +135,11 @@ function DrawEquipmentChoice()
     print_at 22, 1, left$("UP EQUIP / DOWN LEAVE" + space$(dungeonWidth - 1), dungeonWidth - 1);
 end function
 
+function DrawControlHints()
+    print_at TEXT_ROWS - 1, 1, left$("MOVE: DIRECTION KEYS" + space$(dungeonWidth), dungeonWidth);
+    print_at TEXT_ROWS, 1, left$("Q/A/O/P ON SPECTRUM" + space$(dungeonWidth - 1), dungeonWidth - 1);
+end function
+
 function ResolveEquipmentChoice(equip%)
     if foundSlot% < 0 then
         return
@@ -145,8 +150,9 @@ function ResolveEquipmentChoice(equip%)
     end if
     foundSlot% = -1
     print_at 20, 1, space$(dungeonWidth);
-    print_at 21, 1, left$("MOVE: DIRECTION KEYS" + space$(dungeonWidth), dungeonWidth);
-    print_at 22, 1, left$("Q/A/O/P ON SPECTRUM" + space$(dungeonWidth - 1), dungeonWidth - 1);
+    print_at 21, 1, space$(dungeonWidth);
+    print_at 22, 1, space$(dungeonWidth - 1);
+    DrawControlHints()
     ShowDungeonMemory()
 end function
 
@@ -411,8 +417,7 @@ function EnterNextDungeon()
     DrawDungeon()
     ShowMessage("")
     PlacePlayerAtEntrance()
-    print_at TEXT_ROWS - 1, 1, "MOVE: DIRECTION KEYS";
-    print_at TEXT_ROWS, 1, "Q/A/O/P ON SPECTRUM";
+    DrawControlHints()
     DrawStatus()
     RecordDungeonMemory()
     DrawPlayer()

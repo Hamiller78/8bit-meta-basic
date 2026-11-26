@@ -1,5 +1,6 @@
 import { DiagnosticError } from "../diagnostics.js";
 import { builtinFunctions } from "../functions.js";
+import { joystickControl } from "../joystick.js";
 import { resolveLabel } from "../line-numbering.js";
 import { normalizeLabel, type Instruction, type LoweredProgram } from "../lowering.js";
 import { isStringVariableName } from "../variables.js";
@@ -64,6 +65,10 @@ export const apple2Target: TargetBackend = {
         if (fn === builtinFunctions.code) return `ASC(${renderExpression(value.args[0], opts)})`;
         if (fn === builtinFunctions.freeMemory) return "(FRE(0)+65536*(FRE(0)<0))";
         if (fn === builtinFunctions.rnd) return "RND(1)";
+        if (fn === builtinFunctions.getJoystick) {
+          const control = joystickControl(value.args[0]);
+          return control === 2 ? "INT(PEEK(49249)/128)" : `SGN(INT(PDL(${control})/85)-1)`;
+        }
         if (fn === builtinFunctions.screenCode) {
           const row = renderExpression(value.args[0], opts), column = renderExpression(value.args[1], opts);
           const offset = `(${row}-1)`;

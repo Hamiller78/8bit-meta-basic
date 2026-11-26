@@ -260,6 +260,7 @@ Supported operators, from highest to lowest precedence:
 Binary operators are left-associative. `MOD` uses the floor-based remainder; its current runtime implementation may evaluate operands more than once, so avoid side-effecting operands such as `RND()`. Exponentiation retains target-native numeric/domain restrictions; see [runtime function mappings](targets.md#runtime-function-mappings). Comparison chaining such as `a < b < c` is rejected; write `a < b AND b < c`.
 
 Meta-BASIC treats zero as false and every nonzero numeric value as true, regardless of the native BASIC representation of logical values.
+The numeric result of a runtime comparison or logical expression follows the target BASIC's truth representation; true can be `1` or `-1`, while a folded constant can produce `1`. Test a result for truth or compare it with zero instead of assuming that it equals `1`.
 
 ## Built-in functions
 

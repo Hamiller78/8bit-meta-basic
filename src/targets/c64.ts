@@ -44,7 +44,10 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
   variableMap: buildVariableMap,
   lower(program: LoweredProgram, readability: ReadabilityLevel): LoweredProgram {
     const fileIo = expandC64FileExistenceChecks(lowerSequentialFileIo(lowerTargetBeeps(program, configuration.id)));
-    const vicScreenSafe = configuration.id === "vic20" ? expandVic20ScreenReads(fileIo) : fileIo;
+    // The compiler prepends this character-set switch when the lowercase font is requested.
+    const first = program.instructions[0];
+    const lowercaseFont = first?.kind === "print-chr" && first.code === 14;
+    const vicScreenSafe = expandCommodoreScreenReads(fileIo, lowercaseFont);
     const joystickSafe = configuration.id === "vic20" ? expandVic20JoystickReads(vicScreenSafe) : vicScreenSafe;
     const byteLowered = lowerByteStorage(markInvertedPrintRuns(joystickSafe), "c64");
     const positions = expandSetPositions(byteLowered, configuration.displayName, configuration.textRows - 1, configuration.textColumns - 1, (instruction) => [
@@ -215,10 +218,9 @@ export function createCommodoreBasicV2Target(machine: CommodoreBasicV2Machine): 
 
 export const c64Target: TargetBackend = createCommodoreBasicV2Target("c64");
 
-function expandVic20ScreenReads(program: LoweredProgram): LoweredProgram {
+function expandCommodoreScreenReads(program: LoweredProgram, lowercaseFont: boolean): LoweredProgram {
   const allocateName = createGeneratedVariableNameAllocator(program.instructions, "MBVS");
-  const instructions: Instruction[] = [];
-  for (const instruction of program.instructions) {
+  const lower = (instruction: Instruction): Instruction[] => {
     const prefix: Instruction[] = [];
     const replace = (expression: Expression): Expression => {
       const mapped = mapNestedExpression(expression, replace);
@@ -227,11 +229,16 @@ function expandVic20ScreenReads(program: LoweredProgram): LoweredProgram {
       prefix.push({
         kind: "let",
         name,
-        expression: { ...mapped, name: "__VIC_SCREEN_RAW" },
+        expression: { ...mapped, name: "__CBM_SCREEN_RAW" },
         location: mapped.location
       });
       const value: Expression = { kind: "identifier", name, location: mapped.location };
-      return {
+      // The high screen bit selects reverse video, not a different character.
+      const number = (n: number): Expression => ({ kind: "number", value: n, raw: String(n), location: mapped.location });
+      const comparison = (operator: ">" | "<" | ">=", bound: number): Expression => ({ kind: "binary", operator, left: value, right: number(bound), location: mapped.location });
+      const multiply = (left: Expression, right: Expression): Expression => ({ kind: "binary", operator: "*", left, right, location: mapped.location });
+      prefix.push({ kind: "let", name, expression: { kind: "binary", operator: "+", left: value, right: multiply(number(128), comparison(">=", 128)), location: mapped.location }, location: mapped.location });
+      const base: Expression = {
         kind: "binary",
         operator: "-",
         left: value,
@@ -244,11 +251,16 @@ function expandVic20ScreenReads(program: LoweredProgram): LoweredProgram {
         },
         location: mapped.location
       };
+      if (!lowercaseFont) return base;
+      // In the lowercase character set, uppercase PETSCII letters are 193..218.
+      const upperLetter: Expression = { kind: "binary", operator: "AND", left: comparison(">", 64), right: comparison("<", 91), location: mapped.location };
+      return { kind: "binary", operator: "-", left: base, right: multiply(number(128), upperLetter), location: mapped.location };
     };
-    const mappedInstruction = mapInstructionExpressions(instruction, replace);
-    instructions.push(...prefix, mappedInstruction);
-  }
-  return rebuildLabels(program, instructions);
+    let mappedInstruction = mapInstructionExpressions(instruction, replace);
+    if (mappedInstruction.kind === "if-then") mappedInstruction = { ...mappedInstruction, body: mappedInstruction.body.flatMap(lower) };
+    return [...prefix, mappedInstruction];
+  };
+  return rebuildLabels(program, program.instructions.flatMap(lower));
 }
 
 function expandVic20JoystickReads(program: LoweredProgram): LoweredProgram {
@@ -533,9 +545,10 @@ function createCommodoreFunctionRenderer(configuration: CommodoreBasicV2Configur
     if (expression.name === "__CBM_BITAND") {
       return `(${renderExpression(expression.args[0], options)} AND ${renderExpression(expression.args[1], options)})`;
     }
-    if (expression.name === "__VIC_SCREEN_RAW") {
+    if (expression.name === "__CBM_SCREEN_RAW") {
       const [row, column] = expression.args;
-      return `PEEK(PEEK(648)*256-23+${renderExpression(row, options)}*22+${renderExpression(column, options)})`;
+      const rowValue = renderExpression(row, options), columnValue = renderExpression(column, options);
+      return configuration.id === "vic20" ? `PEEK(PEEK(648)*256-23+(${rowValue})*22+(${columnValue}))` : `PEEK(983 + (${rowValue}) * 40 + (${columnValue}))`;
     }
     if (expression.name === c64CompactNumberFunction) {
       const rendered = renderExpression(expression.args[0], options);
@@ -680,13 +693,14 @@ function renderC64Code(expression: FunctionCallExpression, options: { readonly v
 
 function renderC64ScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [row, column] = expression.args;
-  const cell = `PEEK(983 + ${renderExpression(row, options)} * 40 + ${renderExpression(column, options)})`;
+  const coordinate = (value: Expression) => value.kind === "binary" ? `(${renderExpression(value, options)})` : renderExpression(value, options);
+  const cell = `PEEK(983 + ${coordinate(row)} * 40 + ${coordinate(column)})`;
   return `(${cell} - 64 * (${cell} < 32))`;
 }
 
 function renderVic20ScreenCode(expression: FunctionCallExpression, options: { readonly variableMap?: ReadonlyMap<string, string> }): string {
   const [row, column] = expression.args;
-  const cell = `PEEK(PEEK(648)*256-23+${renderExpression(row, options)}*22+${renderExpression(column, options)})`;
+  const cell = `PEEK(PEEK(648)*256-23+(${renderExpression(row, options)})*22+(${renderExpression(column, options)}))`;
   return `(${cell} - 64 * (${cell} < 32))`;
 }
 
